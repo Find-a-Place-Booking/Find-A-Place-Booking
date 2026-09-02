@@ -1,0 +1,10 @@
+import { DashboardShell } from "@/components/DashboardShell";
+
+export default function PaymentsPage(){
+  return <DashboardShell active="Payments & taxes" title="Payments & taxes">
+    <div className="payment-status"><div className="status-icon">✓</div><div><p className="eyebrow dark">Payout account</p><h2>Ready to receive booking payments</h2><p>Guest payments for these properties settle to the connected host account rather than becoming Find A Place Booking operating revenue.</p></div><strong className="good">Ready</strong></div>
+    <div className="dash-grid metrics"><div><span>Available balance</span><strong>$3,742.18</strong><small>Ready for payout</small></div><div><span>Next payout</span><strong>$1,284.00</strong><small>Sep 2</small></div><div><span>Taxes tracked</span><strong>$612.40</strong><small>September bookings</small></div><div><span>Refunds</span><strong>$0</strong><small>This month</small></div></div>
+    <div className="dash-two"><section className="panel"><p className="eyebrow dark">Payout activity</p><h2>Recent transactions</h2>{[["Sep 1","Reservation FAP-84291","+$694.00"],["Aug 28","Payout to •••• 4812","-$1,842.60"],["Aug 27","Reservation FAP-84274","+$812.00"],["Aug 26","Reservation FAP-84268","+$418.00"]].map(x=><div className="money-row" key={x[1]}><span><strong>{x[1]}</strong><small>{x[0]}</small></span><b>{x[2]}</b></div>)}</section><section className="panel"><p className="eyebrow dark">Tax settings</p><h2>Keep tax amounts visible and separate.</h2><div className="tax-rule"><span>Property tax setup</span><strong>Configured</strong></div><div className="tax-rule"><span>Tax collected on bookings</span><strong>Tracked</strong></div><div className="tax-rule"><span>Monthly tax report</span><strong>Available</strong></div><p className="muted">Tax rules and filing responsibilities can be configured around the property and the final operating structure. Reports keep tax amounts separate from rental revenue and platform subscription revenue.</p></section></div>
+    <p className="payments-powered">Secure payout and identity verification are handled through the connected payment account.</p>
+  </DashboardShell>;
+}
