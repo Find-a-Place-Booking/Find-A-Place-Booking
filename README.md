@@ -6,13 +6,13 @@ The approved visual language from the original presentation build is being prese
 
 ## Current milestone
 
-**Milestone 4 — Supabase authentication foundation**
+**Milestone 5 — real admin operations foundation**
 
-Milestone 3.5 is verified at Git checkpoint `81346f6`. This pass adds real cookie-based Supabase Auth, host account creation/sign-in/sign-out, explicit internal admin authorization, session refresh and first RLS policies while preserving the stabilized UI.
+Milestone 4 is verified at Git checkpoint `19665ba`. This pass keeps the accepted auth/session protections intact and turns the internal admin shell into a real Supabase-backed workspace for host lookup, organization visibility, partner verification decisions and append-only audit history.
 
-This milestone does **not** add property persistence, host organizations, bookings, live payments or calendar sync.
+This milestone still does **not** add property CRUD, bookings, live payments, calendar sync or operational email systems.
 
-See [`docs/PROJECT_STATE.md`](docs/PROJECT_STATE.md) for the authoritative technical handoff and [`docs/APPLY_MILESTONE_4.md`](docs/APPLY_MILESTONE_4.md) for the exact Supabase dashboard, migration and local verification sequence.
+See [`docs/PROJECT_STATE.md`](docs/PROJECT_STATE.md) for the authoritative technical handoff and [`docs/APPLY_MILESTONE_5.md`](docs/APPLY_MILESTONE_5.md) for the migration and local acceptance sequence.
 
 ## Local run
 

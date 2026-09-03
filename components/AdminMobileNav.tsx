@@ -1,22 +1,31 @@
 import Link from "next/link";
 
-const links = [
-  ["Overview", "#top"],
-  ["Property approvals", "#approvals"],
-  ["Partner verification", "#partners"],
-  ["Hosts", "#hosts"],
-  ["Listings", "#listings"],
-  ["Reservations", "#reservations"],
-  ["Payments & ledger", "#finance"],
-  ["Support", "#attention"],
-  ["Activity log", "#activity"]
+import type { AdminRole } from "@/lib/admin/context";
+
+type MobileLink = [label: string, href: string, key: string, roles?: AdminRole[]];
+
+const links: MobileLink[] = [
+  ["Overview", "/admin", "overview"],
+  ["Hosts", "/admin/hosts", "hosts"],
+  ["Partner verification", "/admin/partners", "partners", ["SUPER_ADMIN", "PARTNER_ADMIN"]],
+  ["Audit log", "/admin/audit", "audit"],
 ];
 
-export function AdminMobileNav() {
+export function AdminMobileNav({ active, roles }: { active: string; roles: AdminRole[] }) {
+  const visibleLinks = links.filter(([, , , requiredRoles]) => !requiredRoles || requiredRoles.some((role) => roles.includes(role)));
+  const activeLabel = visibleLinks.find(([, , key]) => key === active)?.[0] ?? "Admin";
+
   return (
     <details className="internal-mobile-nav admin-mobile-nav">
-      <summary><span>Admin menu</span><strong>Overview</strong><b>⌄</b></summary>
-      <nav>{links.map(([label, href], index) => <a className={index === 0 ? "active" : ""} href={href} key={label}>{label}<span>›</span></a>)}<Link href="/">Booking marketplace<span>↗</span></Link></nav>
+      <summary><span>Admin menu</span><strong>{activeLabel}</strong><b>⌄</b></summary>
+      <nav>
+        {visibleLinks.map(([label, href, key]) => (
+          <Link className={active === key ? "active" : ""} href={href} key={key}>
+            {label}<span>›</span>
+          </Link>
+        ))}
+        <Link href="/">Booking marketplace<span>↗</span></Link>
+      </nav>
     </details>
   );
 }

@@ -381,3 +381,102 @@ Follow `docs/APPLY_MILESTONE_4.md`. Do not commit until host confirmation/sessio
 - Protected auth checks are skipped entirely on `/host/sign-in`, `/host/sign-up`, `/host/sign-up/check-email`, and `/admin/sign-in`.
 - Admin authorization uses the single `public.is_active_admin()` RPC in the sign-in action, sign-in page, and request proxy.
 - If a signed-in account fails the protected admin authorization check, the proxy signs that session out before redirecting to `/admin/sign-in`. This prevents `/admin` ↔ `/admin/sign-in` redirect loops and HTTP 431 failures from repeated redirect/cookie growth.
+
+## Milestone 4 verified checkpoint
+
+- Milestone 4 authentication foundation was locally accepted and pushed by Jake.
+- Known-good commit immediately before Milestone 5: `19665ba`.
+- Admin auth/session protection, host auth foundation, Supabase SSR cookies, and the redirect-loop hardening are treated as regression-protected behavior.
+
+## Milestone 5 changes — real admin operations foundation
+
+### Real internal workspace
+
+The protected admin area now reads real Supabase data rather than presenting a future-only zero-data mockup.
+
+Routes added/converted:
+
+- `/admin` — real Supabase-backed overview and account search entry point.
+- `/admin/hosts` — admin-only host/profile + organization search.
+- `/admin/hosts/[profileId]` — real account detail, organization memberships and related audit activity.
+- `/admin/partners` — real `PARTNER_PENDING` queue with role-gated approval/standard-rate actions.
+- `/admin/audit` — append-only audit history viewer/filter foundation.
+
+The desktop and mobile admin navigation now point only to real Milestone 5 routes. Future property/reservation/payment/calendar screens are not presented as if they already function.
+
+### Role-aware admin context
+
+Added `lib/admin/context.ts` as the shared server-side admin identity boundary. It reads the authenticated profile, verifies the ACTIVE internal admin account and loads assigned roles. Current UI can distinguish read-only partner-queue access from authorized commission-tier decisions.
+
+Admin authentication remains protected by the verified Milestone 4 proxy/RPC behavior; Step 5 does not weaken those checks.
+
+### Partner verification database action
+
+Added migration:
+
+`supabase/migrations/20260903000300_admin_foundation.sql`
+
+It adds:
+
+- `admin_has_any_role(required_roles)`
+- `admin_search_hosts(search_term, result_limit)`
+- `admin_dashboard_summary()`
+- `review_partner_verification(target_organization_id, approve, verification_note)`
+
+`review_partner_verification` is the authoritative partner-rate transition. It requires `SUPER_ADMIN` or `PARTNER_ADMIN`, locks the pending organization row, changes the current organization tier/status, and inserts an append-only `audit_logs` record in the same database operation.
+
+Approval results in:
+
+- `partner_status = VERIFIED`
+- `commission_tier = PARTNER_5`
+- current `commission_effective_from`
+- `partner_verified_by = auth.uid()`
+- `partner_verified_at = now()`
+- optional verification note
+
+Keeping the standard rate results in:
+
+- `partner_status = REJECTED`
+- `commission_tier = STANDARD_7`
+- optional verification note
+- append-only audit event
+
+This does not change the locked future rule that every reservation snapshots its own commission tier/rate at booking creation.
+
+### Host search/detail boundary
+
+Admin host lookup searches the real identity/organization foundation using name, email, phone and organization contact/name fields. Admin-only technical accounts are excluded unless they also have a host organization membership.
+
+The host detail page deliberately distinguishes what exists now from later systems. It can show identity, organization membership, partner state/current commission and audit history; property/bookings/payments remain explicitly unconnected rather than fake.
+
+### Audit viewer
+
+The admin audit screen reads the latest append-only audit events and can filter them in the UI by action, entity, IDs, reason or actor identity. Pagination/export can be added when volume warrants it; no premature operational complexity is added now.
+
+### Milestone 5 acceptance
+
+Follow `docs/APPLY_MILESTONE_5.md`. Do not start Step 6 until:
+
+- migration 003 is applied;
+- typecheck/build pass;
+- Supabase health remains good;
+- admin login/session and host denial regressions pass;
+- `/admin`, `/admin/hosts`, host detail, `/admin/partners` and `/admin/audit` function on desktop/mobile;
+- public and host UI remain intact;
+- the milestone is committed as a new known-good Git checkpoint.
+
+## Next exact milestone after Milestone 5 acceptance
+
+**Milestone 6 — host organizations + persisted onboarding foundation**
+
+Keep it contained:
+
+1. create/persist the host organization for a signed-in host;
+2. establish OWNER membership and organization onboarding state;
+3. persist host profile/contact information appropriately;
+4. persist onboarding progress so hosts can leave/re-enter without losing work;
+5. persist partner claims as `PARTNER_PENDING` while keeping `STANDARD_7`;
+6. feed those real claims into the already-built Milestone 5 partner queue;
+7. do not add booking/payment/calendar logic;
+8. avoid full property CRUD until the organization/onboarding foundation is verified;
+9. regression-test all Step 1–5 behavior before checkpointing.

@@ -34,3 +34,13 @@ supabase/migrations/20260903000200_auth_foundation.sql
 ```
 
 This adds profile synchronization from `auth.users`, first RLS policies and authorization helpers. It does not grant public admin signup or host-organization mutation access. Follow `docs/APPLY_MILESTONE_4.md` for the required Supabase Auth URL/email-template setup and admin bootstrap procedure.
+
+## Milestone 5 admin foundation
+
+After the Milestone 4 auth migration, apply:
+
+```text
+migrations/20260903000300_admin_foundation.sql
+```
+
+This adds admin-only host search/dashboard RPCs plus the atomic partner-verification decision function. It does not add service-role application access or general-purpose admin UPDATE policies. Privileged partner changes stay behind a narrowly scoped security-definer function that performs its own role check and audit write.
