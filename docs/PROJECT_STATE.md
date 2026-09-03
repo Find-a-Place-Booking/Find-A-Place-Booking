@@ -16,11 +16,15 @@ Known-good baseline commit supplied by Jake:
 
 Jake reported that Step 2 looks good. The Milestone 2 commit hash was not supplied in-chat when this package was prepared. If it has not already been committed/pushed, preserve it as a known-good checkpoint before applying Milestone 3.
 
-**Milestone 3 — Supabase application foundation: IMPLEMENTED, PENDING JAKE LOCAL/SUPABASE ACCEPTANCE**
+**Milestone 3 — Supabase application foundation: VERIFIED / PUSHED**
 
-Milestone 3 adds Supabase dependencies, environment-safe browser/server client factories, a source-controlled foundation migration, database conventions and a non-sensitive health route. It intentionally leaves auth flows, property CRUD, live inventory, calendars, bookings, email and payments for later isolated milestones.
+Known-good Milestone 3 checkpoint supplied by Jake:
 
-Do not begin Milestone 4 until the migration is applied to Jake's dedicated Supabase project, the health check passes, local typecheck/build pass, the Step 2 UI is regression-checked, and Milestone 3 is committed as the next known-good checkpoint.
+`43dbf81` — Supabase foundation accepted after package install, local typecheck/build, health-check and UI regression testing.
+
+**Milestone 3.5 — UI/UX stabilization: IMPLEMENTED, PENDING JAKE LOCAL ACCEPTANCE**
+
+This pass stabilizes the production interface and mobile behavior before authentication is introduced. It intentionally changes no Supabase schema and adds no real auth, CRUD, booking, payment or calendar-sync behavior. Do not begin Milestone 4 until desktop/mobile regression tests pass and Step 3.5 has its own known-good Git checkpoint.
 
 ## Build rules
 
@@ -41,8 +45,10 @@ Do not begin Milestone 4 until the migration is applied to Jake's dedicated Supa
 - Other properties: **7% platform commission**.
 - Platform commission is calculated from the **nightly lodging subtotal after host discounts**, not cleaning fees, pet fees, taxes, refundable deposits or legitimate optional add-ons.
 - Mandatory/vague fee categories must not be usable to disguise lodging revenue and evade commission.
-- Host setup uses curated checkbox/toggle selections where practical, including amenities and common property policies.
-- Policies include an optional custom-policy field for uncommon/property-specific rules.
+- Host setup uses curated checkbox/toggle selections where practical, including categorized amenities and common property policies, so hosts select rather than write wherever reasonable.
+- Property onboarding now follows the stabilized UI sequence: Host profile → Property → Location & capacity → Amenities → Photos → Rates & fees → Policies → Calendar → Payments → Partner status → Review.
+- Exact property address is collected for future map/tax/operational use while the guest-facing experience can present the general area according to the platform privacy rule.
+- Policies include configurable common rules plus an optional custom-policy field for uncommon/property-specific rules.
 - Only selected policies should render on the public listing, and booked reservations must later retain a policy snapshot from booking time.
 - Admin and host experiences are separate. Host portal is for host organizations/staff; internal admin is for platform operations, finance, support, partners and technical administrators according to permissions.
 - Important operational events must be searchable and diagnosable in admin without relying on email inbox history.
@@ -224,6 +230,59 @@ Follow `docs/APPLY_MILESTONE_3.md`. At minimum:
 9. Fix any regression before committing.
 10. Commit/push Milestone 3 and record the hash.
 
+## Milestone 3.5 changes
+
+### Mobile-first navigation and layout
+
+- Added an actual mobile navigation menu to the public header rather than simply hiding desktop navigation.
+- Added mobile Host menu access to every host-dashboard route when the desktop sidebar collapses.
+- Added mobile Admin menu access to operational sections when the desktop admin sidebar collapses.
+- Tightened mobile spacing, dashboard metrics, toolbar behavior, calendar sizing, filter scrolling, forms and onboarding controls for narrow screens.
+- Form controls use mobile-safe sizing to avoid iOS input zoom behavior.
+
+### Stabilized host onboarding UI
+
+The host setup is now an 11-step guided flow:
+
+1. Host profile
+2. Property
+3. Location & capacity
+4. Amenities
+5. Photos
+6. Rates & fees
+7. Policies
+8. Calendar
+9. Payments
+10. Partner status
+11. Review
+
+- UI state persists while moving between onboarding steps during the local session so the workflow can be tested realistically before database persistence is added.
+- Amenities are grouped into expandable categories with standardized checkbox choices, counts and a custom-amenities field.
+- Policies are grouped into expandable categories with conditional detail controls for quiet hours, pets and minimum booking age, plus custom policies.
+- Property location now distinguishes exact address information from the general public search area and reserves the exact-address privacy behavior needed for mapping/taxes.
+- Rates and legitimate host fees are visually separated; the lodging-only commission rule remains explicit.
+- Local photo selection can preview chosen images for UX testing only; nothing is uploaded or persisted in this milestone.
+- Calendar and payout setup screens explain the intended production behavior but stay disabled until their backend milestones.
+- Existing-partner claim UI implements the locked verification model: a claimed partner is pending and remains at 7% until authorized staff approval.
+- Review summarizes entered UI state without pretending submission is live.
+
+### Admin UX
+
+- Added a visible Partner Verification Requests area reserving the future review flow, likely-match assistance, `PARTNER_5` approval / `STANDARD_7` retention and audit requirement.
+- Admin remains a zero-data operations shell until the later backend milestones.
+
+### Guest/search UX
+
+- The decorative map shell no longer presents sample geography as if it were live when production inventory is empty. It now clearly reserves the location for the future real interactive map tied to search results.
+- The approved guest search-led design remains intact.
+
+### Backend impact
+
+- No new Supabase migration.
+- No authentication yet.
+- No property CRUD or storage yet.
+- No real calendar, payment, booking, email or map integration yet.
+
 ## Next exact milestone after acceptance
 
 **Milestone 4 — authentication identity lifecycle + first RLS policies**
@@ -242,4 +301,5 @@ Keep it isolated:
 
 - Milestone 1 baseline: `d0c4695` — `chore: establish production baseline`
 - Milestone 2: verified by Jake; commit hash not supplied in chat when Milestone 3 was packaged.
-- Milestone 3: pending Jake local/Supabase acceptance and commit hash.
+- Milestone 3: `43dbf81` — verified Supabase application foundation.
+- Milestone 3.5: pending Jake desktop/mobile acceptance and commit hash.

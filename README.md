@@ -6,13 +6,13 @@ The approved visual language from the original presentation build is being prese
 
 ## Current milestone
 
-**Milestone 3 — Supabase application foundation**
+**Milestone 3.5 — UI/UX stabilization before authentication**
 
-The Step 2 production shell remains visually intact. Milestone 3 adds the first real infrastructure boundary: Supabase browser/server client factories, environment-safe configuration, a source-controlled foundation migration, and a non-sensitive connection health check.
+Milestone 3 is verified at Git checkpoint `43dbf81`. This UI pass locks the main guest/host/admin interaction patterns and mobile behavior before authentication and database-backed CRUD are built underneath them.
 
-It deliberately does **not** wire real signup/login, host CRUD, property inventory, bookings, calendars, email or payments yet.
+This milestone does **not** add auth, property persistence, bookings, live payments, calendar sync or a new Supabase migration.
 
-See [`docs/PROJECT_STATE.md`](docs/PROJECT_STATE.md) for the authoritative technical handoff and [`docs/APPLY_MILESTONE_3.md`](docs/APPLY_MILESTONE_3.md) for the exact application/verification sequence.
+See [`docs/PROJECT_STATE.md`](docs/PROJECT_STATE.md) for the authoritative technical handoff and [`docs/APPLY_MILESTONE_3_5.md`](docs/APPLY_MILESTONE_3_5.md) for the exact application/verification sequence.
 
 ## Local run
 
@@ -30,11 +30,11 @@ npm run typecheck
 npm run build
 ```
 
-With the Milestone 3 Supabase migration and `.env.local` configured, also open:
+Also verify:
 
 `http://localhost:3000/api/health/supabase`
 
-Then regression-check the verified Step 2 guest, host and admin shell before committing the milestone.
+Then regression-check the guest, host and admin experience at desktop and mobile widths before committing the milestone.
 
 ## Environment configuration
 

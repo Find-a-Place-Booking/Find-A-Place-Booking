@@ -54,12 +54,13 @@ export function StayResults({ properties, destination, guests }: { properties: P
           {filtered.length > 0 ? <div className="result-grid">{filtered.map((property) => <PropertyCard key={property.slug} property={property} />)}</div> :
             <div className="empty-results production-empty"><p className="eyebrow dark">{inventoryEmpty ? "Inventory setup" : "Nothing matched"}</p><h2>{inventoryEmpty ? "No stays are live in the production catalog yet." : "No stays match those filters."}</h2><p>{inventoryEmpty ? "Approved host properties will appear here automatically once the live catalog is connected." : "Try removing a filter or searching a nearby destination."}</p>{!inventoryEmpty && <button type="button" className="button button-quiet" onClick={() => setFilters([])}>Clear filters</button>}</div>}
         </section>
-        {mapOpen && <aside className="map-shell" aria-label="Regional search map">
-          <div className="map-label"><strong>Explore by area</strong><span>{filtered.length} stays shown</span></div>
-          <div className="map-water water-one"/><div className="map-water water-two"/>
-          <div className="map-line map-line-a"/><div className="map-line map-line-b"/><div className="map-line map-line-c"/>
-          {filtered.slice(0, 7).map((property, index) => <a className={`map-pin mp${index + 1}`} href={`/stays/${property.slug}`} key={property.slug}>${property.price}</a>)}
-          <div className="map-place one">Lake Ouachita</div><div className="map-place two">Hot Springs</div><div className="map-place three">Buffalo River</div><div className="map-place four">Branson</div>
+        {mapOpen && <aside className={`map-shell ${inventoryEmpty ? "map-shell-empty" : ""}`} aria-label="Regional search map">
+          <div className="map-label"><strong>Map view</strong><span>{filtered.length} stays shown</span></div>
+          {inventoryEmpty ? <div className="map-empty-message"><span>⌖</span><strong>Interactive map connects with live inventory.</strong><p>The production map will use real property coordinates and the same date, guest and availability filters as the listing results.</p></div> : <>
+            <div className="map-water water-one"/><div className="map-water water-two"/>
+            <div className="map-line map-line-a"/><div className="map-line map-line-b"/><div className="map-line map-line-c"/>
+            {filtered.slice(0, 7).map((property, index) => <a className={`map-pin mp${index + 1}`} href={`/stays/${property.slug}`} key={property.slug}>${property.price}</a>)}
+          </>}
         </aside>}
       </div>
     </>
