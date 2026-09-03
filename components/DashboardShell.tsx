@@ -8,7 +8,7 @@ export function DashboardShell({ active, title, eyebrow, children }: { active: s
       <main className="dash-main">
         <header className="dash-topbar">
           <div><small>{eyebrow || "Host dashboard"}</small><h1>{title}</h1></div>
-          <div className="dash-actions"><Link className="button button-small button-quiet" href="/">View marketplace</Link><button className="notification" type="button" aria-label="Notifications">•<span>3</span></button><button className="avatar" type="button">FH</button></div>
+          <div className="dash-actions"><Link className="button button-small button-quiet" href="/">View marketplace</Link><button className="notification" type="button" aria-label="Notifications">•</button><button className="avatar" type="button" aria-label="Host account">H</button></div>
         </header>
         {children}
       </main>

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import type { Property } from "@/data/demo";
+import type { Property } from "@/data/catalog";
 
 export function PropertyCard({ property, wide = false }: { property: Property; wide?: boolean }) {
   const [saved, setSaved] = useState(false);

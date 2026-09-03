@@ -1,22 +1,45 @@
 import Link from "next/link";
 import { Brand } from "@/components/Brand";
 
+const nav = [
+  ["Overview", "#top"],
+  ["Property approvals", "#approvals"],
+  ["Hosts", "#hosts"],
+  ["Listings", "#listings"],
+  ["Reservations", "#reservations"],
+  ["Payments & ledger", "#finance"],
+  ["Destinations", "#listings"],
+  ["Reports", "#finance"],
+  ["Support", "#attention"],
+  ["Activity log", "#activity"]
+];
+
 export default function AdminPage(){
   return <div className="admin-layout">
-    <aside className="admin-side"><Brand compact/><p className="admin-label">Find A Place team</p>{[["Overview","#top"],["Property approvals","#approvals"],["Hosts","#subscriptions"],["Listings","#growth"],["Reservations","#top"],["Subscriptions","#subscriptions"],["Destinations","#growth"],["Reports","#revenue"],["Support","#attention"],["Activity log","#attention"]].map(([x,href],i)=><a className={i===0?"active":""} href={href} key={x}>{x}<span>›</span></a>)}<Link href="/">← Booking marketplace</Link></aside>
+    <aside className="admin-side"><Brand compact/><p className="admin-label">Find A Place team</p>{nav.map(([label,href],index)=><a className={index===0?"active":""} href={href} key={label}>{label}<span>›</span></a>)}<Link href="/">← Booking marketplace</Link></aside>
     <main className="admin-main" id="top">
-      <header><div><small>Platform operations</small><h1>Good morning, team.</h1></div><div className="admin-head-actions"><button className="notification" type="button">•<span>5</span></button><button className="avatar">FA</button></div></header>
-      <div className="admin-launch-banner"><div><span>Launch snapshot</span><p><strong>42 founding properties are live</strong> across Arkansas and southern Missouri, with 17 more applications waiting for review.</p></div><button type="button" className="button button-small">Review applications</button></div>
-      <div className="dash-grid metrics admin-metrics"><div><span>Active properties</span><strong>42</strong><small>+9 this month</small></div><div><span>Platform MRR</span><strong>$1,890</strong><small>At current host mix</small></div><div><span>Bookings this month</span><strong>184</strong><small>Across live listings</small></div><div><span>Pending review</span><strong>17</strong><small>Property applications</small></div></div>
+      <header><div><small>Platform operations</small><h1>Admin workspace</h1></div><div className="admin-head-actions"><button className="notification" type="button" aria-label="Notifications">•</button><button className="avatar" type="button" aria-label="Admin account">FA</button></div></header>
+
+      <div className="admin-launch-banner"><div><span>Production shell</span><p><strong>No live operational data is connected yet.</strong> Host, listing, booking, payment and system records will populate this workspace from Supabase.</p></div><span className="status-pill status-inverse">Local build</span></div>
+
+      <div className="dash-grid metrics admin-metrics"><div><span>Active properties</span><strong>0</strong><small>No live inventory</small></div><div><span>Platform commission</span><strong>$0</strong><small>No booking revenue</small></div><div><span>Bookings</span><strong>0</strong><small>No reservations</small></div><div><span>Needs attention</span><strong>0</strong><small>No operational issues</small></div></div>
+
       <div className="dash-two">
-        <section className="panel" id="approvals"><div className="panel-head"><div><p className="eyebrow dark">Needs review</p><h2>Property applications</h2></div><button type="button">View queue</button></div>{[["Cedar Bend Cabins","Mountain View, AR","Submitted 2h ago"],["Table Rock A-Frame","Branson West, MO","Submitted 6h ago"],["Lake Hamilton Cottage","Hot Springs, AR","Submitted yesterday"],["Buffalo Bluff Camp","Jasper, AR","Submitted yesterday"]].map(x=><div className="approval-row" key={x[0]}><span><strong>{x[0]}</strong><small>{x[1]} · {x[2]}</small></span><div><button type="button">Review</button><button type="button">•••</button></div></div>)}</section>
-        <section className="panel" id="attention"><p className="eyebrow dark">Marketplace pulse</p><h2>What needs attention</h2>{[["2 listings","Missing payout setup","warning"],["3 calendars","Sync needs review","warning"],["11 hosts","Annual plan eligible","good"],["5 messages","Waiting on support","neutral"]].map(x=><div className={`ops-row ${x[2]}`} key={x[1]}><strong>{x[0]}</strong><span>{x[1]}</span><button type="button">Open →</button></div>)}</section>
+        <section className="panel" id="approvals"><div className="panel-head"><div><p className="eyebrow dark">Property review</p><h2>Approval queue</h2></div><button type="button" disabled>View queue</button></div><div className="panel-empty"><strong>No property applications yet.</strong><span>Submitted host listings will appear here with review status and validation issues.</span></div></section>
+        <section className="panel" id="attention"><p className="eyebrow dark">Operations</p><h2>What needs attention</h2><div className="panel-empty"><strong>No issues are being tracked yet.</strong><span>Payment failures, stale calendars, email delivery failures, incomplete onboarding and other exceptions will surface here automatically.</span></div></section>
       </div>
+
       <div className="dash-two">
-        <section className="panel" id="growth"><p className="eyebrow dark">Regional growth</p><h2>Live properties by market</h2>{[["Hot Springs / Lake Hamilton",12,84],["Ouachita / Caddo River",10,70],["Buffalo / North Arkansas",8,56],["Northwest Arkansas",7,49],["Southern Missouri",5,35]].map(([name,count,width])=><div className="market-row" key={String(name)}><span>{name}</span><i><b style={{width:`${width}%`}}/></i><strong>{count}</strong></div>)}</section>
-        <section className="panel" id="subscriptions"><p className="eyebrow dark">Subscriptions</p><h2>Host plan mix</h2><div className="subscription-ring"><div><strong>31</strong><span>host accounts</span></div></div><div className="subscription-split"><p><span>Monthly accounts</span><strong>21</strong></p><p><span>Annual accounts</span><strong>10</strong></p></div><Link href="/hosts" className="under-link">View public host offer →</Link></section>
+        <section className="panel" id="hosts"><p className="eyebrow dark">Hosts</p><h2>Host search & account health</h2><div className="admin-search-shell"><input placeholder="Search owner, organization, email, property, booking or payment ID…" disabled/><button className="button button-small" disabled>Search</button></div><div className="panel-empty"><strong>No host records connected.</strong><span>Admins will be able to open a host and trace properties, reservations, payments, notifications, issues and activity without digging through email.</span></div></section>
+        <section className="panel" id="listings"><p className="eyebrow dark">Marketplace</p><h2>Live properties by market</h2><div className="panel-empty"><strong>No market inventory yet.</strong><span>Regional counts and featured-property controls will appear when listings are approved.</span></div></section>
       </div>
-      <section className="panel admin-revenue" id="revenue"><div><p className="eyebrow dark">Subscription growth</p><h2>Recurring platform revenue</h2><p className="muted">A simple view of what host subscriptions are producing as the network grows.</p></div><div className="fake-chart">{[24,28,31,36,41,47,51,59,67,76,87,100].map((n,i)=><i key={i} style={{height:`${n}%`}}><span>{["Sep","Oct","Nov","Dec","Jan","Feb","Mar","Apr","May","Jun","Jul","Aug"][i]}</span></i>)}</div></section>
+
+      <div className="dash-two">
+        <section className="panel" id="reservations"><p className="eyebrow dark">Reservations</p><h2>Booking operations</h2><div className="panel-empty"><strong>No bookings yet.</strong><span>Reservation state, guest, host, property, payment, calendar and notification history will be linked from one record.</span></div></section>
+        <section className="panel" id="activity"><p className="eyebrow dark">Activity</p><h2>Platform event history</h2><div className="panel-empty"><strong>No events recorded.</strong><span>Operational events and admin actions will form a searchable timeline once the event and audit systems are connected.</span></div></section>
+      </div>
+
+      <section className="panel admin-revenue" id="finance"><div><p className="eyebrow dark">Finance</p><h2>Payments, commission & ledger</h2><p className="muted">The financial workspace will keep guest charges, lodging subtotal, host fees, taxes, 5%/7% commission, processor fees, host proceeds, refunds and adjustments separately traceable.</p></div><div className="finance-empty"><strong>$0</strong><span>No financial ledger activity</span></div></section>
     </main>
   </div>;
 }

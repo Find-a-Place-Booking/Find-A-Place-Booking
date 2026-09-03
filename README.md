@@ -1,16 +1,18 @@
-# Find A Place Booking — Production Conversion Baseline
+# Find A Place Booking — Production Conversion
 
-This repository is the production-conversion starting point for **Find A Place Booking: Stays in Arkansas, Missouri & Beyond**.
+This repository is the production build for **Find A Place Booking: Stays in Arkansas, Missouri & Beyond**.
 
-The current UI is the approved near-production demo experience. Production work will replace presentation data and simulated behavior milestone-by-milestone while preserving the existing visual integrity and guest/host/admin UX wherever possible.
+The approved visual language from the original presentation build is being preserved while presentation-only behavior is replaced milestone-by-milestone with real production systems.
 
 ## Current milestone
 
-**Milestone 1 — production repository bootstrap**
+**Milestone 3 — Supabase application foundation**
 
-The front end is intentionally unchanged at this checkpoint. Demo listings and simulated dashboard data remain temporarily so the exact baseline can be verified after moving the source into the dedicated GitHub repository.
+The Step 2 production shell remains visually intact. Milestone 3 adds the first real infrastructure boundary: Supabase browser/server client factories, environment-safe configuration, a source-controlled foundation migration, and a non-sensitive connection health check.
 
-See [`docs/PROJECT_STATE.md`](docs/PROJECT_STATE.md) for the authoritative technical handoff, build rules, infrastructure decisions, environment-variable names, known demo-era items and the next exact milestone.
+It deliberately does **not** wire real signup/login, host CRUD, property inventory, bookings, calendars, email or payments yet.
+
+See [`docs/PROJECT_STATE.md`](docs/PROJECT_STATE.md) for the authoritative technical handoff and [`docs/APPLY_MILESTONE_3.md`](docs/APPLY_MILESTONE_3.md) for the exact application/verification sequence.
 
 ## Local run
 
@@ -28,22 +30,23 @@ npm run typecheck
 npm run build
 ```
 
+With the Milestone 3 Supabase migration and `.env.local` configured, also open:
+
+`http://localhost:3000/api/health/supabase`
+
+Then regression-check the verified Step 2 guest, host and admin shell before committing the milestone.
+
 ## Environment configuration
 
-Copy `.env.example` to `.env.local` only when a milestone begins using environment-backed services.
+Copy `.env.example` to `.env.local` and provide the dedicated Find A Place Booking Supabase URL plus publishable key.
 
-```bash
-cp .env.example .env.local
-```
+Never commit `.env.local`, API keys, service-role/secret keys, payment credentials or other secrets.
 
-Never commit `.env.local`, API keys, service-role keys, payment credentials or other secrets.
-
-Email sender/domain values are designed to be environment-driven so development can use the temporary Resend domain and production can switch domains later without rewriting application routes.
+Email sender/domain values remain environment-driven so development can use the temporary Resend domain and production can later switch to the Find A Place Booking domain without rewriting routes.
 
 ## GitHub / Vercel workflow
 
-1. Push this folder to the dedicated repository under the **Find-a-Place-Booking** GitHub organization.
-2. Confirm the repository checkout works locally before beginning Milestone 2.
-3. Create/record a known-good Git checkpoint.
-4. Do **not** deploy to Vercel simply because the repository exists. Development remains local-first until hosted behavior is specifically needed.
-5. Live payment credentials and live-money testing are explicitly out of scope until the later production-readiness gate.
+- Git is used continuously for known-good checkpoints.
+- Local development remains the primary environment until hosted behavior is specifically required.
+- Do **not** deploy to Vercel merely because a milestone is committed.
+- Payment processors remain in test/sandbox mode until the later live-money readiness gate is explicitly approved.

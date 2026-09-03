@@ -1,50 +1,35 @@
-# Milestone 1 — GitHub setup
+# Git workflow for Find A Place Booking
 
-Target organization: **Find-a-Place-Booking**
+Repository: `https://github.com/Find-a-Place-Booking/Find-A-Place-Booking`
 
-This package intentionally contains no `.git` directory so it can become the clean root of the new production repository.
+## Known-good baseline
 
-## Recommended repository
+Milestone 1 was pushed as:
 
-Create an empty private repository in the Find-a-Place-Booking organization, for example:
+`d0c4695` — `chore: establish production baseline`
 
-`find-a-place-booking`
+## For each new milestone package
 
-Do not initialize the GitHub repository with a README, `.gitignore`, or license if you want the cleanest first push; this package already contains the project files.
+Work from the existing local repository so `.git` history is preserved. Replace/update the project files with the milestone package, then run the required local verification before committing.
 
-## First push from this folder
-
-Replace `<REPO_URL>` with the HTTPS or SSH URL GitHub gives you for the new repository.
+Typical checkpoint flow:
 
 ```bash
-git init
-git add .
-git commit -m "chore: establish production baseline"
-git branch -M main
-git remote add origin <REPO_URL>
-git push -u origin main
-```
-
-## Verify the checkpoint before Milestone 2
-
-After the push, from the same folder (or from a fresh clone):
-
-```bash
+git status
 npm install
 npm run typecheck
 npm run build
 npm run dev
 ```
 
-Then manually confirm the existing guest, host and admin demo routes still render as before.
-
-Once verified, record the first known-good commit hash in `docs/PROJECT_STATE.md`. An optional tag is useful:
+After manual regression testing succeeds:
 
 ```bash
-git tag milestone-1-baseline
-git push origin milestone-1-baseline
+git add .
+git commit -m "chore: complete production shell cleanup"
+git push origin main
 ```
 
-## Vercel
+Record the resulting commit hash in `docs/PROJECT_STATE.md` before beginning the next milestone.
 
-Do not import/deploy this repository to Vercel yet unless a later milestone specifically needs a hosted environment. The production build remains local-first.
+Do not deploy to Vercel just because code was pushed to GitHub. Deployment remains a separate deliberate step when hosted behavior is actually required.
