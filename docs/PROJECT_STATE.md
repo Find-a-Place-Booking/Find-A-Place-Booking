@@ -22,9 +22,15 @@ Known-good Milestone 3 checkpoint supplied by Jake:
 
 `43dbf81` — Supabase foundation accepted after package install, local typecheck/build, health-check and UI regression testing.
 
-**Milestone 3.5 — UI/UX stabilization: IMPLEMENTED, PENDING JAKE LOCAL ACCEPTANCE**
+**Milestone 3.5 — UI/UX stabilization: VERIFIED / PUSHED**
 
-This pass stabilizes the production interface and mobile behavior before authentication is introduced. It intentionally changes no Supabase schema and adds no real auth, CRUD, booking, payment or calendar-sync behavior. Do not begin Milestone 4 until desktop/mobile regression tests pass and Step 3.5 has its own known-good Git checkpoint.
+Known-good Milestone 3.5 checkpoint supplied by Jake:
+
+`81346f6` — production UI/mobile flows accepted after local Next.js build and regression review.
+
+**Milestone 4 — Supabase authentication foundation: IMPLEMENTED, PENDING JAKE LOCAL ACCEPTANCE**
+
+This package adds real cookie-based host/admin authentication, session refresh, protected route boundaries, profile creation and first RLS policies. It intentionally stops before organization/property CRUD, bookings, payments and calendars. Do not begin Milestone 5 until the auth migration, host signup/confirmation/sign-in/sign-out, explicit admin authorization, local build, health check and regressions all pass and Milestone 4 has its own known-good Git checkpoint.
 
 ## Build rules
 
@@ -118,6 +124,9 @@ This pass stabilizes the production interface and mobile behavior before authent
 
 ### Host
 
+- `/host/sign-in`
+- `/host/sign-up`
+- `/host/sign-up/check-email`
 - `/host`
 - `/host/onboarding`
 - `/host/properties`
@@ -130,15 +139,17 @@ This pass stabilizes the production interface and mobile behavior before authent
 - `/host/reports`
 - `/host/settings`
 
-### Internal admin
+### Auth / internal admin
 
+- `/auth/confirm`
+- `/admin/sign-in`
 - `/admin`
 
-Authentication/authorization is **not connected yet**. The route separation is visual/structural only until the dedicated auth/RLS milestone.
+Authentication is now connected in Milestone 4. Host portal routes require a valid Supabase session. `/admin` additionally requires an explicit ACTIVE `admin_users` record plus at least one assigned admin role; a normal authenticated host cannot self-grant admin access. Organization-membership gating for host data is introduced when real organizations are created in the later host-organization milestone.
 
 ## Infrastructure decisions
 
-- Dedicated Supabase project: created by Jake. Milestone 3 source integration is implemented and awaits Jake applying the migration/configuring local keys.
+- Dedicated Supabase project: created by Jake. Milestone 3 foundation is verified; Milestone 4 adds authentication/RLS on top of that known-good connection.
 - Dedicated technical/project Gmail: `FindAPlaceBookingTech@gmail.com`.
 - GitHub: `Find-a-Place-Booking` organization; baseline pushed.
 - Vercel: use Jake's existing Vercel Pro account only when hosted testing becomes necessary; do not deploy yet.
@@ -151,6 +162,7 @@ Authentication/authorization is **not connected yet**. The route separation is v
 See `.env.example`:
 
 - `NEXT_PUBLIC_APP_ENV`
+- `NEXT_PUBLIC_SITE_URL`
 - `NEXT_PUBLIC_SUPABASE_URL`
 - `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` (preferred for new Supabase projects)
 - `NEXT_PUBLIC_SUPABASE_ANON_KEY` (legacy fallback)
@@ -285,21 +297,87 @@ The host setup is now an 11-step guided flow:
 
 ## Next exact milestone after acceptance
 
-**Milestone 4 — authentication identity lifecycle + first RLS policies**
+**Milestone 5 — minimal real admin foundation**
 
 Keep it isolated:
 
-1. wire Supabase signup/login/session handling using the existing `profiles` foundation;
-2. add the Next.js auth proxy/session-refresh path required by the current Supabase SSR pattern;
-3. establish profile creation/synchronization for authenticated users;
-4. add the first explicit RLS policies for a user to read/update only their own profile;
-5. do not yet combine full host organization onboarding/property CRUD into the same milestone;
-6. verify all public Step 2 UI and the Milestone 3 health/database foundation still work;
-7. checkpoint before moving into host organization membership/onboarding.
+1. preserve the verified Milestone 4 auth/session/RLS behavior;
+2. turn the admin shell into a real role-aware internal workspace without building every future subsystem at once;
+3. read the authenticated admin profile/roles from Supabase and expose only appropriate navigation/actions;
+4. establish the first real admin dashboard/query boundaries and audit-log viewer foundation;
+5. keep host/property CRUD, booking, payments and calendars out of this milestone unless a tiny read-only dependency is unavoidable;
+6. regression-test host auth, public UI and Supabase health before checkpointing.
 
 ## Git checkpoints
 
 - Milestone 1 baseline: `d0c4695` — `chore: establish production baseline`
 - Milestone 2: verified by Jake; commit hash not supplied in chat when Milestone 3 was packaged.
 - Milestone 3: `43dbf81` — verified Supabase application foundation.
-- Milestone 3.5: pending Jake desktop/mobile acceptance and commit hash.
+- Milestone 3.5: `81346f6` — verified production UI/mobile stabilization.
+
+
+## Milestone 4 changes
+
+### Supabase SSR authentication
+
+- Added root `proxy.ts` plus `lib/supabase/proxy.ts` using the current Next.js 16 / `@supabase/ssr` cookie-session pattern.
+- Proxy refreshes/verifies the auth token with `supabase.auth.getClaims()` before protected route decisions.
+- `/host` and all host-portal descendants are protected except the explicit public host auth pages.
+- `/admin` and internal admin descendants require both a valid authenticated session and an ACTIVE row in `admin_users`.
+- Admin access therefore requires both an internal account grant and at least one assigned admin role; it is never a side effect of creating a Supabase Auth account.
+
+### Host auth flow
+
+Added:
+
+- `/host/sign-up`
+- `/host/sign-up/check-email`
+- `/host/sign-in`
+- `/auth/confirm`
+
+Host signup stores only identity metadata at this milestone. The host organization/property is deliberately not created until its dedicated backend milestone. With email confirmation enabled, the confirmation link exchanges the token hash for a cookie-backed session and continues to `/host/onboarding`.
+
+Public “List your property” calls-to-action now open host account creation. Host portal links open the sign-in route. Protected host links preserve the requested return path.
+
+### Internal admin auth
+
+- Added `/admin/sign-in`.
+- There is no public admin registration route.
+- Admin credentials must exist in Supabase Auth and receive an explicit `admin_users` grant plus role assignment.
+- A valid normal host account still fails admin authorization.
+- Host and admin portals have explicit sign-out controls.
+
+### Auth/RLS migration
+
+Added `supabase/migrations/20260903000200_auth_foundation.sql`. It:
+
+- creates/updates `profiles` from `auth.users` through a security-definer trigger;
+- backfills profiles for existing Auth users;
+- adds RLS-safe `is_active_admin`, `has_admin_role` and `is_organization_member` helpers;
+- allows authenticated users to read their own profile;
+- allows active admins to read profiles and audit history;
+- lets authenticated users read only their own admin-account/role-assignment rows for authorization checks;
+- lets organization members/admins read organizations once memberships exist;
+- intentionally adds no organization/property mutation policies yet.
+
+### Auth email configuration
+
+- Added `NEXT_PUBLIC_SITE_URL` for environment-driven auth redirect origin.
+- Local default is `http://localhost:3000`.
+- Supabase confirmation email must use the documented SSR token-hash route during Milestone 4 acceptance.
+- Auth email delivery remains Supabase-managed for this milestone; operational Resend email remains a later independent subsystem.
+
+### Milestone 4 acceptance
+
+Follow `docs/APPLY_MILESTONE_4.md`. Do not commit until host confirmation/session persistence, unauthorized redirects, admin denial/approval, sign-out, TypeScript, Next.js build, Supabase health and desktop/mobile regression checks all pass.
+
+### Milestone 4 local-auth regression fix
+- The Next.js proxy matcher is intentionally limited to `/host/*` and `/admin/*`.
+- Public marketplace pages do not perform Supabase Auth work in Proxy.
+- This prevents an Auth/JWKS/network delay from blocking the public site and keeps auth protection scoped to routes that require it.
+
+
+### Step 4 auth hardening note
+- Protected auth checks are skipped entirely on `/host/sign-in`, `/host/sign-up`, `/host/sign-up/check-email`, and `/admin/sign-in`.
+- Admin authorization uses the single `public.is_active_admin()` RPC in the sign-in action, sign-in page, and request proxy.
+- If a signed-in account fails the protected admin authorization check, the proxy signs that session out before redirecting to `/admin/sign-in`. This prevents `/admin` ↔ `/admin/sign-in` redirect loops and HTTP 431 failures from repeated redirect/cookie growth.

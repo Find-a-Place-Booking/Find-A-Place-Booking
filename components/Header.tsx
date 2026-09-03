@@ -24,8 +24,8 @@ export function Header({ light = false }: { light?: boolean }) {
         </nav>
         <div className="header-actions">
           <Link className="text-link" href="/trip">My trip</Link>
-          <Link className="text-link" href="/host">Host sign in</Link>
-          <Link className="button button-small button-outline header-list-property" href="/host/onboarding">List your property</Link>
+          <Link className="text-link" href="/host/sign-in">Host sign in</Link>
+          <Link className="button button-small button-outline header-list-property" href="/host/sign-up?next=%2Fhost%2Fonboarding">List your property</Link>
           <button
             className="mobile-menu-toggle"
             type="button"
@@ -45,9 +45,9 @@ export function Header({ light = false }: { light?: boolean }) {
             {primaryLinks.map(([label, href]) => <Link key={label} href={href} onClick={closeMenu}>{label}<span>→</span></Link>)}
             <div className="mobile-menu-secondary">
               <Link href="/trip" onClick={closeMenu}>My trip</Link>
-              <Link href="/host" onClick={closeMenu}>Host sign in</Link>
+              <Link href="/host/sign-in" onClick={closeMenu}>Host sign in</Link>
             </div>
-            <Link className="button button-full" href="/host/onboarding" onClick={closeMenu}>List your property</Link>
+            <Link className="button button-full" href="/host/sign-up?next=%2Fhost%2Fonboarding" onClick={closeMenu}>List your property</Link>
           </nav>
         </div>
       )}

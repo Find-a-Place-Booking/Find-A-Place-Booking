@@ -6,13 +6,13 @@ The approved visual language from the original presentation build is being prese
 
 ## Current milestone
 
-**Milestone 3.5 — UI/UX stabilization before authentication**
+**Milestone 4 — Supabase authentication foundation**
 
-Milestone 3 is verified at Git checkpoint `43dbf81`. This UI pass locks the main guest/host/admin interaction patterns and mobile behavior before authentication and database-backed CRUD are built underneath them.
+Milestone 3.5 is verified at Git checkpoint `81346f6`. This pass adds real cookie-based Supabase Auth, host account creation/sign-in/sign-out, explicit internal admin authorization, session refresh and first RLS policies while preserving the stabilized UI.
 
-This milestone does **not** add auth, property persistence, bookings, live payments, calendar sync or a new Supabase migration.
+This milestone does **not** add property persistence, host organizations, bookings, live payments or calendar sync.
 
-See [`docs/PROJECT_STATE.md`](docs/PROJECT_STATE.md) for the authoritative technical handoff and [`docs/APPLY_MILESTONE_3_5.md`](docs/APPLY_MILESTONE_3_5.md) for the exact application/verification sequence.
+See [`docs/PROJECT_STATE.md`](docs/PROJECT_STATE.md) for the authoritative technical handoff and [`docs/APPLY_MILESTONE_4.md`](docs/APPLY_MILESTONE_4.md) for the exact Supabase dashboard, migration and local verification sequence.
 
 ## Local run
 

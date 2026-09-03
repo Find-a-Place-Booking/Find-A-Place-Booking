@@ -24,3 +24,13 @@ This directory is the source-controlled database history for Find A Place Bookin
 It also establishes the locked partner/commission states (`PARTNER_PENDING`, `VERIFIED`, `STANDARD_7`, `PARTNER_5`) without yet building the partner-verification workflow.
 
 No public RLS policies are created yet. The tables are intentionally inaccessible to anonymous/authenticated clients until the authentication/RLS milestone explicitly defines access.
+
+## Milestone 4 auth migration
+
+After the foundation migration, apply:
+
+```text
+supabase/migrations/20260903000200_auth_foundation.sql
+```
+
+This adds profile synchronization from `auth.users`, first RLS policies and authorization helpers. It does not grant public admin signup or host-organization mutation access. Follow `docs/APPLY_MILESTONE_4.md` for the required Supabase Auth URL/email-template setup and admin bootstrap procedure.

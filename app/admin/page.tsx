@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Brand } from "@/components/Brand";
 import { AdminMobileNav } from "@/components/AdminMobileNav";
+import { signOutAdmin } from "@/app/auth/actions";
 
 const nav = [
   ["Overview", "#top"],
@@ -19,7 +20,7 @@ export default function AdminPage(){
     <aside className="admin-side"><Brand compact/><p className="admin-label">Find A Place team</p>{nav.map(([label,href],index)=><a className={index===0?"active":""} href={href} key={label}>{label}<span>›</span></a>)}<Link href="/">← Booking marketplace</Link></aside>
     <main className="admin-main" id="top">
       <AdminMobileNav />
-      <header><div><small>Platform operations</small><h1>Admin workspace</h1></div><div className="admin-head-actions"><button className="notification" type="button" aria-label="Notifications">•</button><button className="avatar" type="button" aria-label="Admin account">FA</button></div></header>
+      <header><div><small>Platform operations</small><h1>Admin workspace</h1></div><div className="admin-head-actions"><button className="notification" type="button" aria-label="Notifications">•</button><span className="avatar" aria-label="Admin account">FA</span><form action={signOutAdmin}><button className="portal-signout" type="submit">Sign out</button></form></div></header>
 
       <div className="admin-launch-banner"><div><span>Production shell</span><p><strong>No live operational data is connected yet.</strong> Host, listing, booking, payment and system records will populate this workspace from Supabase.</p></div><span className="status-pill status-inverse">Local build</span></div>
 
