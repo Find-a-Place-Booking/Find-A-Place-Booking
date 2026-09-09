@@ -13,6 +13,7 @@ type NavItem = {
 const nav: NavItem[] = [
   { label: "Overview", href: "/admin", key: "overview" },
   { label: "Hosts", href: "/admin/hosts", key: "hosts" },
+  { label: "Properties", href: "/admin/properties", key: "properties" },
   { label: "Partner verification", href: "/admin/partners", key: "partners", roles: ["SUPER_ADMIN", "PARTNER_ADMIN"] },
   { label: "Audit log", href: "/admin/audit", key: "audit" },
 ];

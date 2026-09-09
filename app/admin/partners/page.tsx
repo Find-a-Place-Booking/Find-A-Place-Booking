@@ -28,6 +28,16 @@ type ProfileRow = {
   phone: string | null;
 };
 
+type PartnerClaimRow = {
+  organization_id: string;
+  business_name: string | null;
+  owner_name: string | null;
+  email: string | null;
+  phone: string | null;
+  status: string;
+  submitted_at: string;
+};
+
 export default async function AdminPartnersPage({
   searchParams,
 }: {
@@ -47,14 +57,19 @@ export default async function AdminPartnersPage({
   const organizationIds = organizations.map((organization) => organization.id);
   let members: MemberRow[] = [];
   let profiles: ProfileRow[] = [];
+  let claims: PartnerClaimRow[] = [];
 
   if (organizationIds.length) {
-    const { data: memberData } = await supabase
+    const [{ data: memberData }, { data: claimData }] = await Promise.all([
+      supabase
       .from("organization_members")
       .select("organization_id,profile_id,role")
       .in("organization_id", organizationIds)
-      .eq("status", "ACTIVE");
+      .eq("status", "ACTIVE"),
+      supabase.from("partner_claims").select("organization_id,business_name,owner_name,email,phone,status,submitted_at").in("organization_id", organizationIds),
+    ]);
     members = (memberData ?? []) as MemberRow[];
+    claims = (claimData ?? []) as PartnerClaimRow[];
 
     const profileIds = [...new Set(members.map((member) => member.profile_id))];
     if (profileIds.length) {
@@ -64,6 +79,7 @@ export default async function AdminPartnersPage({
   }
 
   const profileMap = new Map(profiles.map((profile) => [profile.id, profile]));
+  const claimMap = new Map(claims.map((claim) => [claim.organization_id, claim]));
 
   return (
     <AdminShell active="partners" eyebrow="Commission access" title="Partner verification" context={context}>
@@ -82,6 +98,7 @@ export default async function AdminPartnersPage({
           <div className="partner-request-list">
             {organizations.map((organization) => {
               const organizationMembers = members.filter((member) => member.organization_id === organization.id);
+              const claim = claimMap.get(organization.id);
               const owner = organizationMembers.map((member) => ({ member, profile: profileMap.get(member.profile_id) })).find(({ member }) => member.role === "OWNER") ?? organizationMembers.map((member) => ({ member, profile: profileMap.get(member.profile_id) }))[0];
               return (
                 <details className="partner-request-card" key={organization.id}>
@@ -91,10 +108,12 @@ export default async function AdminPartnersPage({
                   </summary>
                   <div className="partner-request-body">
                     <div className="partner-match-grid">
-                      <div><small>Organization email</small><strong>{organization.contact_email || "Not provided"}</strong></div>
-                      <div><small>Organization phone</small><strong>{organization.contact_phone || "Not provided"}</strong></div>
-                      <div><small>Owner email</small><strong>{owner?.profile?.email || "Not provided"}</strong></div>
-                      <div><small>Owner phone</small><strong>{owner?.profile?.phone || "Not provided"}</strong></div>
+                      <div><small>Claimed business / property</small><strong>{claim?.business_name || organization.name}</strong></div>
+                      <div><small>Claimed owner</small><strong>{claim?.owner_name || owner?.profile?.full_name || "Not provided"}</strong></div>
+                      <div><small>Membership email</small><strong>{claim?.email || "Not provided"}</strong></div>
+                      <div><small>Membership phone</small><strong>{claim?.phone || "Not provided"}</strong></div>
+                      <div><small>Organization contact</small><strong>{organization.contact_email || organization.contact_phone || "Not provided"}</strong></div>
+                      <div><small>Submitted</small><strong>{claim?.submitted_at ? formatAdminDate(claim.submitted_at) : "Onboarding claim"}</strong></div>
                       <div><small>Current partner state</small><strong>{cleanStatus(organization.partner_status)}</strong></div>
                       <div><small>Current commission</small><strong>{cleanStatus(organization.commission_tier)}</strong></div>
                     </div>
@@ -113,11 +132,11 @@ export default async function AdminPartnersPage({
               );
             })}
           </div>
-        ) : !error ? <div className="panel-empty"><strong>No verification requests waiting.</strong><span>This queue becomes active when Step 6 persists host organizations and partner claims.</span></div> : null}
+        ) : !error ? <div className="panel-empty"><strong>No verification requests waiting.</strong><span>Hosts who answer Yes during onboarding will appear here as real verification requests.</span></div> : null}
       </section>
 
       <section className="panel admin-system-boundary">
-        <p className="eyebrow dark">Existing partner import</p><h2>Preloaded matching comes later</h2><p className="muted">The architecture still reserves importing the existing 50–75+ Find A Place partner list and flagging likely matches. We will add that when host organizations/onboarding become real so we do not create a second temporary data model.</p>
+        <p className="eyebrow dark">Existing partner import</p><h2>Claim records are real; preloaded matching comes later</h2><p className="muted">Milestone 6 now stores the exact business/owner/email/phone submitted by the host. A future import can compare the existing 50–75+ Find A Place partner directory against these normalized claims and flag likely matches without ever auto-granting PARTNER_5.</p>
       </section>
     </AdminShell>
   );

@@ -8,6 +8,9 @@ import { createClient } from "@/lib/supabase/server";
 type DashboardSummary = {
   host_profiles?: number;
   organizations?: number;
+  properties?: number;
+  property_pending_review?: number;
+  property_published?: number;
   partner_pending?: number;
   audit_events?: number;
 };
@@ -37,13 +40,16 @@ export default async function AdminPage() {
   return (
     <AdminShell active="overview" eyebrow="Platform operations" title="Admin workspace" context={context}>
       <div className="admin-launch-banner">
-        <div><span>Connected workspace</span><p><strong>Authentication and the admin data foundation are live.</strong> This milestone reads real Supabase account, organization, partner and audit data. Booking/payment/calendar systems remain intentionally disconnected until their own verified steps.</p></div>
+        <div><span>Connected workspace</span><p><strong>Authentication, organizations, property review and published listing records are live.</strong> This workspace now reads actual host/listing data from Supabase. Booking, payment and calendar-sync systems remain intentionally disconnected until their own verified steps.</p></div>
         <span className="status-pill status-inverse">Supabase</span>
       </div>
 
       <div className="dash-grid metrics admin-metrics admin-real-metrics">
         <div><span>Host profiles</span><strong>{summary.host_profiles ?? 0}</strong><small>Non-admin host identities</small></div>
         <div><span>Organizations</span><strong>{summary.organizations ?? 0}</strong><small>Host/operator accounts</small></div>
+        <div><span>Properties</span><strong>{summary.properties ?? 0}</strong><small>Active property records</small></div>
+        <div><span>Listing reviews</span><strong>{summary.property_pending_review ?? 0}</strong><small>Waiting for property review</small></div>
+        <div><span>Published</span><strong>{summary.property_published ?? 0}</strong><small>Guest-visible listings</small></div>
         <div><span>Partner requests</span><strong>{summary.partner_pending ?? 0}</strong><small>Waiting for verification</small></div>
         <div><span>Audit events</span><strong>{summary.audit_events ?? 0}</strong><small>Append-only history</small></div>
       </div>
@@ -68,7 +74,7 @@ export default async function AdminPage() {
                 </Link> : <div className="admin-list-row static" key={organization.id}><span><strong>{organization.name}</strong><small>{cleanStatus(organization.partner_status)} · {cleanStatus(organization.commission_tier)}</small></span></div>
               ))}
             </div>
-          ) : <div className="panel-empty"><strong>No partner requests waiting.</strong><span>Claims will appear here when organization onboarding is connected in the next host-data milestone.</span></div>}
+          ) : <div className="panel-empty"><strong>No partner requests waiting.</strong><span>No partner verification requests are waiting right now.</span></div>}
         </section>
 
         <section className="panel">
@@ -89,8 +95,8 @@ export default async function AdminPage() {
         <p className="eyebrow dark">Build boundary</p>
         <h2>What this admin can see today</h2>
         <div className="admin-capability-grid">
-          <div><strong>Live now</strong><span>Admin identity and roles</span><span>Host/profile lookup</span><span>Organization partner status</span><span>Partner decisions</span><span>Audit history</span></div>
-          <div><strong>Later milestones</strong><span>Property approvals</span><span>Reservations</span><span>Payments & ledger</span><span>Calendar health</span><span>Email/event diagnostics</span></div>
+          <div><strong>Live now</strong><span>Admin identity and roles</span><span>Host/profile lookup</span><span>Real property records</span><span>Property review + publication</span><span>Organization partner status</span><span>Partner decisions</span><span>Audit history</span></div>
+          <div><strong>Later milestones</strong><span>Availability/calendar sync</span><span>Reservations</span><span>Payments & ledger</span><span>Calendar health</span><span>Email/event diagnostics</span></div>
         </div>
       </section>
     </AdminShell>

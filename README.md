@@ -1,52 +1,56 @@
 # Find A Place Booking — Production Conversion
 
-This repository is the production build for **Find A Place Booking: Stays in Arkansas, Missouri & Beyond**.
+Production build for **Find A Place Booking: Stays in Arkansas, Missouri & Beyond**.
 
-The approved visual language from the original presentation build is being preserved while presentation-only behavior is replaced milestone-by-milestone with real production systems.
+The approved demo visual language is being preserved while presentation-only behavior is replaced milestone-by-milestone with real systems.
 
-## Current milestone
+## Current package
 
-**Milestone 5 — real admin operations foundation**
+**Milestone 8 — property review, approval & publication foundation**
 
-Milestone 4 is verified at Git checkpoint `19665ba`. This pass keeps the accepted auth/session protections intact and turns the internal admin shell into a real Supabase-backed workspace for host lookup, organization visibility, partner verification decisions and append-only audit history.
+This package builds on the accepted Milestone 7 property CRUD + cleanup tree. Before applying it, create/push a known-good Step 7 Git checkpoint.
 
-This milestone still does **not** add property CRUD, bookings, live payments, calendar sync or operational email systems.
+Milestone 8 adds:
 
-See [`docs/PROJECT_STATE.md`](docs/PROJECT_STATE.md) for the authoritative technical handoff and [`docs/APPLY_MILESTONE_5.md`](docs/APPLY_MILESTONE_5.md) for the migration and local acceptance sequence.
+- host submission of complete property drafts;
+- `PENDING_REVIEW` / `CHANGES_REQUESTED` / `APPROVED` / `PUBLISHED` / `PAUSED` lifecycle;
+- Operations/Super Admin review controls;
+- separate approval and publication actions;
+- append-only property review history + audit events;
+- host edit/image locking while a listing is under review, approved or published;
+- guest-safe public catalog/detail RPCs that never expose private address/contact fields;
+- published property visibility on `/`, `/stays` and `/stays/[slug]`;
+- public current/old slug resolution;
+- signed public image access only for actually published properties;
+- explicit non-bookable/no-availability public state while booking/calendar systems remain disconnected;
+- no fake map pins before the real interactive map is implemented.
 
-## Local run
+It still does **not** connect calendars, calculate live availability, create reservations, accept checkout, process payments, calculate/remit taxes or send operational booking email.
 
-```bash
-npm install
-npm run dev
-```
+See:
 
-Open `http://localhost:3000`.
+- `docs/PROJECT_STATE.md` — authoritative project handoff.
+- `docs/APPLY_MILESTONE_8.md` — migration/testing/checkpoint sequence.
+- previous milestone docs — retained regression history.
 
-## Verification
+## Local verification
 
 ```bash
 npm run typecheck
 npm run build
+npm run dev
 ```
 
 Also verify:
 
 `http://localhost:3000/api/health/supabase`
 
-Then regression-check the guest, host and admin experience at desktop and mobile widths before committing the milestone.
+Expected schema after migrations 009 + 010: `property-review-publication-v1`.
 
-## Environment configuration
+Do not deploy to Vercel merely because the milestone is committed. Development remains local-first until hosted behavior is specifically required.
 
-Copy `.env.example` to `.env.local` and provide the dedicated Find A Place Booking Supabase URL plus publishable key.
+## Environment
 
-Never commit `.env.local`, API keys, service-role/secret keys, payment credentials or other secrets.
+Use `.env.local` for real local values and never commit it. Supabase/Resend/payment secrets and banking data must never be checked into Git.
 
-Email sender/domain values remain environment-driven so development can use the temporary Resend domain and production can later switch to the Find A Place Booking domain without rewriting routes.
-
-## GitHub / Vercel workflow
-
-- Git is used continuously for known-good checkpoints.
-- Local development remains the primary environment until hosted behavior is specifically required.
-- Do **not** deploy to Vercel merely because a milestone is committed.
-- Payment processors remain in test/sandbox mode until the later live-money readiness gate is explicitly approved.
+Application-level email sender/domain configuration remains environment-driven so development can use `hometownwebservicesar.cc` and production can later change domains without rewriting email routes.

@@ -46,3 +46,68 @@ export async function reviewPartnerVerification(formData: FormData) {
   });
   redirect(`/admin/partners?${params.toString()}`);
 }
+
+export async function reviewPropertyListing(formData: FormData) {
+  const context = await getAdminContext();
+  const propertyId = field(formData, "property_id");
+  const decision = field(formData, "decision");
+  const note = field(formData, "review_note");
+
+  if (!hasAnyAdminRole(context, ["SUPER_ADMIN", "OPERATIONS_ADMIN"])) {
+    redirect(`/admin/properties/${propertyId}?error=${encodeURIComponent("Your admin role cannot review listings.")}`);
+  }
+  if (!propertyId || !["request_changes", "approve", "reject"].includes(decision)) {
+    redirect("/admin/properties?error=Invalid%20property%20review%20request.");
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("admin_review_property", {
+    target_property_id: propertyId,
+    decision,
+    review_note: note || null,
+  });
+  if (error) {
+    console.error("[reviewPropertyListing] RPC failed", { code: error.code, message: error.message, details: error.details, hint: error.hint });
+    redirect(`/admin/properties/${propertyId}?error=${encodeURIComponent(error.message || "The review decision could not be saved.")}`);
+  }
+
+  revalidatePath("/admin");
+  revalidatePath("/admin/properties");
+  revalidatePath(`/admin/properties/${propertyId}`);
+  revalidatePath("/host/properties");
+  redirect(`/admin/properties/${propertyId}?saved=${encodeURIComponent(decision === "approve" ? "Listing approved." : decision === "request_changes" ? "Changes requested from host." : "Listing rejected.")}`);
+}
+
+export async function setPropertyPublication(formData: FormData) {
+  const context = await getAdminContext();
+  const propertyId = field(formData, "property_id");
+  const action = field(formData, "publication_action");
+  const note = field(formData, "publication_note");
+
+  if (!hasAnyAdminRole(context, ["SUPER_ADMIN", "OPERATIONS_ADMIN"])) {
+    redirect(`/admin/properties/${propertyId}?error=${encodeURIComponent("Your admin role cannot publish listings.")}`);
+  }
+  if (!propertyId || !["publish", "pause"].includes(action)) {
+    redirect("/admin/properties?error=Invalid%20publication%20request.");
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("admin_set_property_publication", {
+    target_property_id: propertyId,
+    publish: action === "publish",
+    publication_note: note || null,
+  });
+  if (error) {
+    console.error("[setPropertyPublication] RPC failed", { code: error.code, message: error.message, details: error.details, hint: error.hint });
+    redirect(`/admin/properties/${propertyId}?error=${encodeURIComponent(error.message || "The publication change could not be saved.")}`);
+  }
+
+  revalidatePath("/");
+  revalidatePath("/stays");
+  revalidatePath("/admin");
+  revalidatePath("/admin/properties");
+  revalidatePath(`/admin/properties/${propertyId}`);
+  revalidatePath("/host/properties");
+  redirect(`/admin/properties/${propertyId}?saved=${encodeURIComponent(action === "publish" ? "Listing published to the marketplace." : "Listing paused and removed from the public marketplace.")}`);
+}
+

@@ -42,7 +42,7 @@ export default async function AdminHostsPage({
           <input name="q" defaultValue={search} aria-label="Search hosts" placeholder="Owner name, organization, email or phone…" autoFocus />
           <button className="button button-small" type="submit">Search</button>
         </form>
-        <p className="muted">This searches the real account/organization foundation only. Properties, bookings and payments will join this lookup when those systems exist.</p>
+        <p className="muted">This searches real host identities and organizations. Open a host to see its onboarding state; real properties are also available in the Properties workspace.</p>
       </section>
 
       <section className="panel admin-results-panel">

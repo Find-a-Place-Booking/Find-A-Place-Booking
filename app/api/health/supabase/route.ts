@@ -6,12 +6,11 @@ import { createClient } from "@/lib/supabase/server";
 export const dynamic = "force-dynamic";
 
 /**
- * Development/operations smoke check for the Supabase foundation.
+ * Development/operations smoke check for the current verified Supabase schema.
  *
- * The profiles table has RLS enabled with no public policies in Milestone 3, so
- * an anonymous select should return no rows while still proving that the app can
- * reach the expected project/schema. No secret values or database contents are
- * returned by this endpoint.
+ * Tables remain protected by RLS. The request only proves that the application
+ * can reach the expected project and that the Milestone 8 review/publication
+ * schema exists. No row contents or secrets are returned.
  */
 export async function GET() {
   if (!isSupabaseConfigured()) {
@@ -28,15 +27,30 @@ export async function GET() {
 
   try {
     const supabase = await createClient();
-    const { error } = await supabase.from("profiles").select("id").limit(1);
+    const [
+      { error: profileError },
+      { error: onboardingError },
+      { error: propertyError },
+      { error: unitError },
+      { error: reviewError },
+      { error: publicCatalogError },
+    ] = await Promise.all([
+      supabase.from("profiles").select("id,avatar_storage_path").limit(1),
+      supabase.from("host_onboarding_drafts").select("id").limit(1),
+      supabase.from("properties").select("id").limit(1),
+      supabase.from("property_units").select("id").limit(1),
+      supabase.from("property_review_events").select("id").limit(1),
+      supabase.rpc("public_listing_index"),
+    ]);
 
+    const error = profileError ?? onboardingError ?? propertyError ?? unitError ?? reviewError ?? publicCatalogError;
     if (error) {
       return NextResponse.json(
         {
           ok: false,
           service: "supabase",
           configured: true,
-          message: "Supabase is reachable, but the foundation schema check failed.",
+          message: "Supabase is reachable, but the current schema check failed.",
           code: error.code ?? null,
         },
         { status: 503 },
@@ -47,7 +61,7 @@ export async function GET() {
       ok: true,
       service: "supabase",
       configured: true,
-      schema: "foundation-v1",
+      schema: "property-review-publication-v1",
     });
   } catch {
     return NextResponse.json(

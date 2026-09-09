@@ -50,17 +50,13 @@ export function StayResults({ properties, destination, guests }: { properties: P
       </div>
       <div className={`results-layout shell-wide ${mapOpen ? "" : "map-hidden"}`}>
         <section>
-          <div className="results-count"><strong>{filtered.length}</strong> stays available <span>· Live inventory will populate here as properties are approved</span></div>
+          <div className="results-count"><strong>{filtered.length}</strong> published stays <span>· Dates are not availability-filtered until the calendar milestone</span></div>
           {filtered.length > 0 ? <div className="result-grid">{filtered.map((property) => <PropertyCard key={property.slug} property={property} />)}</div> :
-            <div className="empty-results production-empty"><p className="eyebrow dark">{inventoryEmpty ? "Inventory setup" : "Nothing matched"}</p><h2>{inventoryEmpty ? "No stays are live in the production catalog yet." : "No stays match those filters."}</h2><p>{inventoryEmpty ? "Approved host properties will appear here automatically once the live catalog is connected." : "Try removing a filter or searching a nearby destination."}</p>{!inventoryEmpty && <button type="button" className="button button-quiet" onClick={() => setFilters([])}>Clear filters</button>}</div>}
+            <div className="empty-results production-empty"><p className="eyebrow dark">{inventoryEmpty ? "Inventory setup" : "Nothing matched"}</p><h2>{inventoryEmpty ? "No stays are published in the production catalog yet." : "No stays match those filters."}</h2><p>{inventoryEmpty ? "Approved properties will appear here after an authorized Find A Place admin publishes them." : "Try removing a filter or searching a nearby destination."}</p>{!inventoryEmpty && <button type="button" className="button button-quiet" onClick={() => setFilters([])}>Clear filters</button>}</div>}
         </section>
-        {mapOpen && <aside className={`map-shell ${inventoryEmpty ? "map-shell-empty" : ""}`} aria-label="Regional search map">
-          <div className="map-label"><strong>Map view</strong><span>{filtered.length} stays shown</span></div>
-          {inventoryEmpty ? <div className="map-empty-message"><span>⌖</span><strong>Interactive map connects with live inventory.</strong><p>The production map will use real property coordinates and the same date, guest and availability filters as the listing results.</p></div> : <>
-            <div className="map-water water-one"/><div className="map-water water-two"/>
-            <div className="map-line map-line-a"/><div className="map-line map-line-b"/><div className="map-line map-line-c"/>
-            {filtered.slice(0, 7).map((property, index) => <a className={`map-pin mp${index + 1}`} href={`/stays/${property.slug}`} key={property.slug}>${property.price}</a>)}
-          </>}
+        {mapOpen && <aside className="map-shell map-shell-empty" aria-label="Regional search map">
+          <div className="map-label"><strong>Map view</strong><span>{filtered.length} published stays</span></div>
+          <div className="map-empty-message"><span>⌖</span><strong>Interactive map is intentionally not simulated.</strong><p>Published listings are real, but the production map will not show decorative/fake pins. The real pan/zoom map will use stored coordinates and the same availability/search result set when that subsystem is implemented.</p></div>
         </aside>}
       </div>
     </>

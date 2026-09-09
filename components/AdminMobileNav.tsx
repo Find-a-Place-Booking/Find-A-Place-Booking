@@ -7,6 +7,7 @@ type MobileLink = [label: string, href: string, key: string, roles?: AdminRole[]
 const links: MobileLink[] = [
   ["Overview", "/admin", "overview"],
   ["Hosts", "/admin/hosts", "hosts"],
+  ["Properties", "/admin/properties", "properties"],
   ["Partner verification", "/admin/partners", "partners", ["SUPER_ADMIN", "PARTNER_ADMIN"]],
   ["Audit log", "/admin/audit", "audit"],
 ];

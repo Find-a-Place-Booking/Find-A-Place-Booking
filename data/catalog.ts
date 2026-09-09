@@ -28,8 +28,10 @@ export type Destination = {
   detail: string;
 };
 
-// Milestone 2 intentionally has no production listings yet. Supabase becomes
-// the source of truth in the next backend milestone.
+// Legacy empty compatibility export. Real public inventory is loaded through
+// `lib/public/listings.ts` from guest-safe Supabase RPCs and only includes
+// explicitly PUBLISHED listings. Checkout intentionally still imports this empty
+// array so no reservation can be created before the booking milestone.
 export const properties: Property[] = [];
 
 // These are editorial/search destinations, not inventory or booking claims.

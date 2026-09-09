@@ -1,260 +1,156 @@
 # Find A Place Booking — Production Build State
 
-Last updated: 2026-09-03
+Last updated: 2026-09-09
 
-This file is the living technical handoff for the production build. Update it after every verified milestone **before** beginning the next milestone.
+This is the authoritative technical handoff for the production conversion. Update it after every verified milestone before beginning the next one. Never record secret values here.
 
-## Current state
+## Current verified checkpoint
 
-**Milestone 1 — production repository bootstrap: COMPLETE / PUSHED**
+**Milestone 5 — real admin operations foundation: VERIFIED / PUSHED**
 
-Known-good baseline commit supplied by Jake:
+Known-good Git checkpoint supplied by Jake:
 
-`d0c4695` — `chore: establish production baseline`
+`1aee0bb` — Step 5 accepted after local route testing.
 
-**Milestone 2 — production shell / placeholder-data removal: VERIFIED BY JAKE**
+Milestone 6 onboarding is now functionally working in local testing after hotfix migrations 005 and 006, including successful saved onboarding. Jake has not yet supplied the Milestone 6 Git commit hash in this chat. **Checkpoint/push that working Step 6 state before applying Milestone 7.**
 
-Jake reported that Step 2 looks good. The Milestone 2 commit hash was not supplied in-chat when this package was prepared. If it has not already been committed/pushed, preserve it as a known-good checkpoint before applying Milestone 3.
+Verified earlier checkpoints:
 
-**Milestone 3 — Supabase application foundation: VERIFIED / PUSHED**
+- `d0c4695` — Milestone 1 production baseline.
+- Milestone 2 — production/demo-data cleanup, verified by Jake; hash was not supplied in the build chat.
+- `43dbf81` — Milestone 3 Supabase application foundation.
+- `81346f6` — Milestone 3.5 UI/UX + mobile stabilization.
+- `19665ba` — Milestone 4 Supabase authentication foundation.
+- `1aee0bb` — Milestone 5 real admin operations foundation.
 
-Known-good Milestone 3 checkpoint supplied by Jake:
+## Current package
 
-`43dbf81` — Supabase foundation accepted after package install, local typecheck/build, health-check and UI regression testing.
+**Milestone 8 — property review, approval & publication foundation: IMPLEMENTED, PENDING LOCAL ACCEPTANCE**
 
-**Milestone 3.5 — UI/UX stabilization: VERIFIED / PUSHED**
+Jake reported the Milestone 7 property CRUD + cleanup UI/flows look good locally. A Milestone 7 Git checkpoint hash has not yet been supplied in this chat. **Checkpoint/push the accepted Step 7 tree before applying Step 8.**
 
-Known-good Milestone 3.5 checkpoint supplied by Jake:
+Milestone 8 migrations:
 
-`81346f6` — production UI/mobile flows accepted after local Next.js build and regression review.
+- `supabase/migrations/20260909000900_add_changes_requested_status.sql`
+- `supabase/migrations/20260909001000_property_review_publication.sql`
 
-**Milestone 4 — Supabase authentication foundation: IMPLEMENTED, PENDING JAKE LOCAL ACCEPTANCE**
+Run migration 009 first and let it commit, then run 010. The split is intentional because PostgreSQL enum values must be committed before later functions can safely use them.
 
-This package adds real cookie-based host/admin authentication, session refresh, protected route boundaries, profile creation and first RLS policies. It intentionally stops before organization/property CRUD, bookings, payments and calendars. Do not begin Milestone 5 until the auth migration, host signup/confirmation/sign-in/sign-out, explicit admin authorization, local build, health check and regressions all pass and Milestone 4 has its own known-good Git checkpoint.
+### Milestone 8 implementation
+
+- Host can submit a complete editable property (`DRAFT`, `CHANGES_REQUESTED`, `REJECTED`) for admin review.
+- Server-side submission validation requires minimum guest-facing completeness: name, description, type, location/state, active primary unit, guest capacity, weeknight rate and at least one uploaded property photo.
+- Submission sets `PENDING_REVIEW` and locks host-side listing/image changes while review is active.
+- New explicit `CHANGES_REQUESTED` state lets Admin return a listing with a note without treating it as a final rejection.
+- `SUPER_ADMIN` and `OPERATIONS_ADMIN` can request changes, approve or reject. Other internal roles remain read-only for property review decisions.
+- Approval is deliberately separate from publication: `APPROVED` is still private until an authorized admin publishes it.
+- Admin can publish `APPROVED` / `PAUSED` inventory and pause `PUBLISHED` inventory.
+- `property_review_events` creates append-only property review/publication history alongside the existing global audit log.
+- Host property editor displays review notes/readiness and prevents silent changes underneath a pending/approved/published record.
+- Safe public listing RPCs expose only deliberately guest-facing fields from `PUBLISHED` inventory; exact private addresses, host notification emails and internal fields are not exposed.
+- Private property images remain in the private bucket; anonymous/authenticated public viewers can receive signed image URLs only when the underlying property is actually `PUBLISHED`.
+- `/`, `/stays` and `/stays/[slug]` now read real published Supabase inventory.
+- Historical public slugs resolve to the current published slug.
+- Public listing UI explicitly keeps availability, reservation and checkout controls disabled.
+- The decorative/fake map pins remain disabled; a real interactive map is still a later subsystem.
+- Host sidebar/live-property status can reflect actual `PUBLISHED` count.
+- Supabase health schema becomes `property-review-publication-v1`.
+
+Acceptance instructions: `docs/APPLY_MILESTONE_8.md`.
+
+Do not start Milestone 9 until migrations 009/010, host submit/return/resubmit, admin approval/publication, public-safe inventory, signed public photos, old-slug resolution, pause/re-publish, auth/mobile regressions, typecheck and production build all pass and Step 8 is committed as a new known-good checkpoint.
+
+---
+
+## Milestone 6 implementation retained below
+
+Database migration:
+
+`supabase/migrations/20260906000400_host_onboarding.sql`
+
+Adds:
+
+- real first host organization creation for an authenticated host;
+- real owner membership linking the signed-in profile to that organization;
+- persistent `host_onboarding_drafts`;
+- persistent `partner_claims` with normalized business/owner/email/phone identifiers;
+- organization primary-contact/business-location fields;
+- onboarding progress/status (`IN_PROGRESS`, `READY_FOR_PROPERTY`);
+- host-owned onboarding RLS reads;
+- security-definer RPCs for safe organization initialization and onboarding saves;
+- partner claims that can only move a host to `PARTNER_PENDING` while leaving commission at `STANDARD_7`;
+- admin partner approval still required for `PARTNER_5`;
+- partner-claim submission/withdrawal audit events;
+- the existing admin partner-verification RPC updated so normalized claim state follows the admin decision.
+
+Application changes:
+
+- `/host/onboarding` now initializes/loads the real organization and draft from Supabase.
+- Every wizard navigation action uses **Save & continue** / saved navigation rather than browser-only state.
+- Text inputs, amenities, policies, selected photo filenames and authority confirmation persist across sign-out/sign-in.
+- Unsaved edits are visibly marked and browser refresh/close warns when possible.
+- Photo files themselves remain local until Supabase property storage is built; only selected filenames are remembered at this milestone.
+- `/host` now shows real organization/onboarding progress and the current 5%/7% organization tier.
+- `/admin/hosts/[profileId]` now shows real organization contact data, onboarding progress and normalized partner-claim details.
+- `/admin/partners` now shows the host-supplied membership identifiers used for manual verification.
+
+Acceptance instructions: `docs/APPLY_MILESTONE_6.md`.
+
+Do not start Milestone 7 until Milestone 6 migration, persistence, partner queue, admin visibility, auth regressions, mobile regressions, typecheck and production build all pass and Milestone 6 is committed as a new known-good checkpoint.
+
+---
 
 ## Build rules
 
-1. Work one milestone at a time.
-2. Do not begin the next milestone until the current milestone works locally and has been regression-checked against all earlier verified functionality.
-3. Preserve a known-good Git commit/checkpoint after every completed milestone.
-4. Keep the approved original visual language and UX unless a product requirement specifically calls for a change.
-5. Local-first development. Do not deploy to Vercel merely because code was committed.
-6. Payment integrations stay in test/sandbox mode until all practical end-to-end testing is complete and live-money activation is explicitly approved.
-7. Never place secrets, API keys, banking data, SSNs, or live processor credentials in this file or Git.
-8. Email is a notification layer, not the source of truth. Operational events, bookings, financial activity and diagnostic state will be persisted in the application database/admin system.
-9. Every milestone must be regression-checked so later work does not break previously verified behavior.
+1. One milestone at a time.
+2. Current milestone must work locally before the next milestone begins.
+3. Regression-test earlier verified functionality after every milestone.
+4. Create/push a known-good Git checkpoint after every accepted milestone.
+5. Preserve the approved demo visual language unless a real product requirement requires a change.
+6. Mobile behavior is part of each milestone, not a later cleanup pass.
+7. Development stays local-first. Do not deploy to Vercel until hosted behavior is actually required.
+8. Payment processors remain test/sandbox-only until every practical end-to-end test is complete and Jake explicitly approves live-money activation.
+9. Never commit secrets, API keys, bank details, SSNs or live processor credentials.
+10. Email is a notification layer, not the operational source of truth.
+11. Important actions/financial changes need durable database state and auditability.
+12. Future work must update this handoff with routes, migrations, files changed, environment-variable names, test results, known issues and the next exact milestone.
 
-## Product rules locked before backend implementation
+---
 
-- Marketplace remains a network-wide booking/search product centered on location, dates and guest requirements.
-- Existing Find A Place partner properties: **5% platform commission**.
-- Other properties: **7% platform commission**.
-- Platform commission is calculated from the **nightly lodging subtotal after host discounts**, not cleaning fees, pet fees, taxes, refundable deposits or legitimate optional add-ons.
-- Mandatory/vague fee categories must not be usable to disguise lodging revenue and evade commission.
-- Host setup uses curated checkbox/toggle selections where practical, including categorized amenities and common property policies, so hosts select rather than write wherever reasonable.
-- Property onboarding now follows the stabilized UI sequence: Host profile → Property → Location & capacity → Amenities → Photos → Rates & fees → Policies → Calendar → Payments → Partner status → Review.
-- Exact property address is collected for future map/tax/operational use while the guest-facing experience can present the general area according to the platform privacy rule.
-- Policies include configurable common rules plus an optional custom-policy field for uncommon/property-specific rules.
-- Only selected policies should render on the public listing, and booked reservations must later retain a policy snapshot from booking time.
-- Admin and host experiences are separate. Host portal is for host organizations/staff; internal admin is for platform operations, finance, support, partners and technical administrators according to permissions.
-- Important operational events must be searchable and diagnosable in admin without relying on email inbox history.
-- Important booking/payment/host events will later be persisted, surfaced in admin, and use email as an alert/communication layer.
-- Hosts cannot self-award the 5% partner tier. A claimed current Find A Place partner begins `PARTNER_PENDING` while remaining `STANDARD_7` until authorized staff verification.
-- Partner verification will have an internal admin queue, support preloading/importing the existing 50–75+ partner directory, assist with likely matches, and never auto-grant `PARTNER_5`.
-- Every commission-tier change must be audit logged with actor/time/reason; reservations must snapshot their commission tier/rate when created so later account changes never rewrite history.
-- Replace the decorative Explore-by-area artwork with a legitimate interactive production map tied to real search/property coordinates and availability results. It must support pan/zoom, listing markers/clustering, result synchronization and the existing clean visual language.
+## Product/business rules locked for implementation
 
-## Milestone 2 changes
+### Marketplace
 
-### Production catalog
+- Standalone Find A Place Booking marketplace, separate from the existing Find A Place AR site.
+- Core guest search remains location + dates + guest count, returning only suitable available stays.
+- Preserve the clean regional/travel UI; do not turn the product into generic SaaS dashboard design.
+- Decorative demo map must be replaced later with a legitimate interactive map tied to real search results, coordinates and availability.
 
-- Replaced the old `data/demo.ts` presentation inventory with a zero-data compatibility shim so applying this package over the baseline cannot leave fake inventory behind.
-- Added `data/catalog.ts` as the temporary typed catalog boundary and moved production imports to it.
-- `properties` is intentionally empty until Supabase supplies approved live listings.
-- Regional destinations remain as editorial/search configuration only; they do not claim inventory counts or availability.
+### Commission
 
-### Guest/public experience
+- Verified existing Find A Place partners: `PARTNER_5` / 5%.
+- Standard/new/unverified hosts: `STANDARD_7` / 7%.
+- Hosts cannot self-select 5%.
+- Host claim flow: `PARTNER_PENDING` + remains `STANDARD_7` until authorized admin verification.
+- Existing partner directory (50–75+ expected) will later support preload/import + likely-match assistance; matching never auto-grants 5%.
+- Platform commission base is **nightly lodging subtotal after host discounts only**.
+- Cleaning fees, legitimate pet fees, taxes, refundable security deposits and legitimate optional add-ons are excluded from Find A Place commission.
+- Prevent hosts from disguising lodging revenue as vague mandatory fees to avoid commission.
+- Every booking must later snapshot commission tier, rate and commission base so historical bookings never change when an organization tier changes later.
+- Commission changes are audited.
 
-- `/` keeps the approved search-led marketplace layout but no longer displays sample cabins.
-- Featured-stay area now has an intentional zero-inventory state.
-- Removed fixed sample travel dates from homepage destination links and search defaults.
-- `/stays` renders a clean no-inventory state while keeping search, filters, sorting and map layout intact.
-- `/stays/[slug]` no longer falls back to a sample listing. Unknown/unconnected listings resolve through the polished not-found state.
-- `/checkout` no longer falls back to a fake property or simulated card data.
-- `/booking/confirmed` no longer generates a fake confirmation/guest/reservation.
-- Added `/trip` as the future trip-lookup shell.
-- `/trip/[confirmation]` no longer fabricates reservation details.
-- Header/footer no longer link to a hard-coded confirmation ID.
+### Host/organization model
 
-### Host/public sales experience
+- Hosts are organizations, not just loose individual accounts.
+- One organization can manage multiple properties.
+- Organizations can later contain multiple users/staff with roles.
+- Architecture must also support multi-unit properties (for example a cabin resort with several separately rentable units).
+- Property/unit-specific notification recipients must be possible later so a multi-property manager can route booking/operations messages appropriately.
+- Future payment-account assignment must not assume every managed property/legal owner uses one bank account forever.
 
-- Removed the superseded flat monthly host-subscription/0%-commission messaging.
-- Public host pricing now communicates the current 5% partner / 7% standard commission structure and lodging-only commission base.
-- Host onboarding fields begin blank rather than prefilled with a sample business/property/person.
-- Amenities are curated checkbox selections with an optional other-amenities field.
-- Policies are curated checkbox selections plus a custom-policies field.
-- Payment/calendar onboarding no longer pretends to connect an account or feed; those controls remain gated until the real backend milestones.
-- Review/submission does not pretend to create a property yet.
+### Onboarding UX
 
-### Host portal
-
-- Removed sample organization/property names, reservations, messages, rates, bookings, payout activity, taxes, reports and metrics.
-- Dashboard, properties, calendar, reservations, rates, payments, messages, reports and settings now use honest zero-data/setup states.
-- `/host/properties/[slug]` does not fabricate a property record while no source of truth exists.
-
-### Admin portal
-
-- Removed sample approvals, hosts, bookings, revenue, subscriptions, regional counts, issues and charts.
-- Admin is now framed as a separate internal operations workspace.
-- Preserved the intended future areas for host search, approvals, reservations, operational issues, activity history and finance/ledger visibility.
-- Admin copy explicitly reserves traceability across host/property/booking/payment/notification/event records without using email as the operational database.
-
-## Current routes
-
-### Public / guest
-
-- `/`
-- `/stays`
-- `/stays/[slug]`
-- `/checkout`
-- `/booking/confirmed`
-- `/trip`
-- `/trip/[confirmation]`
-- `/hosts`
-
-### Host
-
-- `/host/sign-in`
-- `/host/sign-up`
-- `/host/sign-up/check-email`
-- `/host`
-- `/host/onboarding`
-- `/host/properties`
-- `/host/properties/[slug]`
-- `/host/calendar`
-- `/host/reservations`
-- `/host/rates`
-- `/host/payments`
-- `/host/messages`
-- `/host/reports`
-- `/host/settings`
-
-### Auth / internal admin
-
-- `/auth/confirm`
-- `/admin/sign-in`
-- `/admin`
-
-Authentication is now connected in Milestone 4. Host portal routes require a valid Supabase session. `/admin` additionally requires an explicit ACTIVE `admin_users` record plus at least one assigned admin role; a normal authenticated host cannot self-grant admin access. Organization-membership gating for host data is introduced when real organizations are created in the later host-organization milestone.
-
-## Infrastructure decisions
-
-- Dedicated Supabase project: created by Jake. Milestone 3 foundation is verified; Milestone 4 adds authentication/RLS on top of that known-good connection.
-- Dedicated technical/project Gmail: `FindAPlaceBookingTech@gmail.com`.
-- GitHub: `Find-a-Place-Booking` organization; baseline pushed.
-- Vercel: use Jake's existing Vercel Pro account only when hosted testing becomes necessary; do not deploy yet.
-- Resend during development: Jake's existing Resend account using `hometownwebservicesar.cc`.
-- Email sender/domain configuration must be environment-driven; email routes must never hard-code the sender domain.
-- Production Resend domain will be swapped through environment configuration before launch.
-
-## Environment variable names reserved
-
-See `.env.example`:
-
-- `NEXT_PUBLIC_APP_ENV`
-- `NEXT_PUBLIC_SITE_URL`
-- `NEXT_PUBLIC_SUPABASE_URL`
-- `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` (preferred for new Supabase projects)
-- `NEXT_PUBLIC_SUPABASE_ANON_KEY` (legacy fallback)
-- `SUPABASE_SECRET_KEY` (reserved, server-only, later)
-- `SUPABASE_SERVICE_ROLE_KEY` (legacy/server-only, later if needed)
-- `RESEND_API_KEY`
-- `EMAIL_DOMAIN`
-- `EMAIL_FROM_BOOKINGS`
-- `EMAIL_FROM_SUPPORT`
-- `EMAIL_FROM_SYSTEM`
-- `EMAIL_PLATFORM_NAME`
-- `EMAIL_INTERNAL_ALERT_TO`
-- `NEXT_PUBLIC_TURNSTILE_SITE_KEY`
-- `TURNSTILE_SECRET_KEY`
-
-Real secrets belong in local/Vercel environment configuration and must not be committed.
-
-## Milestone 2 verification
-
-Jake reported that Step 2 looks good. Preserve its accepted state as a Git checkpoint before applying Milestone 3 if that commit has not already been made.
-
-## Milestone 3 changes
-
-### Supabase application boundary
-
-- Added `@supabase/supabase-js` and `@supabase/ssr` dependencies.
-- Added `lib/supabase/config.ts` with lazy environment validation and support for Supabase's preferred publishable key plus legacy anon-key fallback.
-- Added `lib/supabase/client.ts` for browser/client-component usage.
-- Added `lib/supabase/server.ts` for user-scoped Server Components, Server Actions and Route Handlers.
-- Auth refresh/proxy behavior is intentionally deferred to the dedicated auth milestone; no route protection was introduced yet.
-- Added `/api/health/supabase`, which verifies that the application can reach the expected foundation schema without returning secrets or table contents.
-
-### Foundation database migration
-
-Added `supabase/migrations/20260903000100_foundation.sql` creating:
-
-- `profiles`
-- `organizations`
-- `organization_members`
-- `admin_users`
-- `admin_role_assignments`
-- `audit_logs`
-
-Supporting enums establish organization/member/admin status and the locked partner states `NOT_CLAIMED`, `PARTNER_PENDING`, `VERIFIED`, `REJECTED`, plus `STANDARD_7` and `PARTNER_5`.
-
-The migration also adds UUID/timestamp conventions, updated-at triggers, useful indexes, append-only protection for audit logs, and enables RLS on all foundation tables. No public RLS policies are added yet, so the data remains closed until the auth/RLS milestone.
-
-The organization constraint prevents `PARTNER_5` unless the organization is `VERIFIED`. Claimed/unverified partners therefore remain `STANDARD_7` by schema default. The future admin verification workflow will perform the authorized transition and write the audit entry.
-
-### Documentation
-
-- Added `supabase/README.md`.
-- Added `docs/DATABASE_CONVENTIONS.md`.
-- Added `docs/APPLY_MILESTONE_3.md`.
-- Updated `.env.example` for Supabase's current publishable-key model while preserving legacy anon-key compatibility.
-
-## Milestone 3 packaging verification
-
-- Existing Step 2 application source/UI files were not intentionally redesigned in this milestone.
-- New TypeScript/TSX files were syntax checked in the packaging environment.
-- Migration source was reviewed for the expected foundation entities, RLS enablement, partner-tier constraint and append-only audit protection.
-- Full dependency-backed `npm install`, `npm run typecheck` and `npm run build` remain Jake's local acceptance gate because the packaging environment could not reliably install npm dependencies.
-- Live Supabase connectivity cannot be tested here because project keys are intentionally not present in the package. Jake validates it locally through `/api/health/supabase` after applying the migration.
-
-## Jake acceptance checklist for Milestone 3
-
-Follow `docs/APPLY_MILESTONE_3.md`. At minimum:
-
-1. Confirm Milestone 2 has its own committed known-good checkpoint.
-2. Copy Milestone 3 over the existing repository while preserving `.git`.
-3. Run `npm install` so the existing `package-lock.json` picks up the Supabase dependencies.
-4. Configure `.env.local` with the dedicated project URL and publishable/anon public key.
-5. Apply `supabase/migrations/20260903000100_foundation.sql` to the dedicated Supabase project.
-6. Run `npm run typecheck`, `npm run build`, then `npm run dev`.
-7. Open `/api/health/supabase` and verify `ok: true`, `schema: foundation-v1`.
-8. Regression-check `/`, `/stays`, `/hosts`, `/host/onboarding`, `/host`, `/admin`, `/checkout`, and `/trip`.
-9. Fix any regression before committing.
-10. Commit/push Milestone 3 and record the hash.
-
-## Milestone 3.5 changes
-
-### Mobile-first navigation and layout
-
-- Added an actual mobile navigation menu to the public header rather than simply hiding desktop navigation.
-- Added mobile Host menu access to every host-dashboard route when the desktop sidebar collapses.
-- Added mobile Admin menu access to operational sections when the desktop admin sidebar collapses.
-- Tightened mobile spacing, dashboard metrics, toolbar behavior, calendar sizing, filter scrolling, forms and onboarding controls for narrow screens.
-- Form controls use mobile-safe sizing to avoid iOS input zoom behavior.
-
-### Stabilized host onboarding UI
-
-The host setup is now an 11-step guided flow:
+Stabilized sequence:
 
 1. Host profile
 2. Property
@@ -268,215 +164,192 @@ The host setup is now an 11-step guided flow:
 10. Partner status
 11. Review
 
-- UI state persists while moving between onboarding steps during the local session so the workflow can be tested realistically before database persistence is added.
-- Amenities are grouped into expandable categories with standardized checkbox choices, counts and a custom-amenities field.
-- Policies are grouped into expandable categories with conditional detail controls for quiet hours, pets and minimum booking age, plus custom policies.
-- Property location now distinguishes exact address information from the general public search area and reserves the exact-address privacy behavior needed for mapping/taxes.
-- Rates and legitimate host fees are visually separated; the lodging-only commission rule remains explicit.
-- Local photo selection can preview chosen images for UX testing only; nothing is uploaded or persisted in this milestone.
-- Calendar and payout setup screens explain the intended production behavior but stay disabled until their backend milestones.
-- Existing-partner claim UI implements the locked verification model: a claimed partner is pending and remains at 7% until authorized staff approval.
-- Review summarizes entered UI state without pretending submission is live.
+Use selection/checkmark systems before free text wherever practical.
 
-### Admin UX
+Amenities: standardized categories + custom amenities.
 
-- Added a visible Partner Verification Requests area reserving the future review flow, likely-match assistance, `PARTNER_5` approval / `STANDARD_7` retention and audit requirement.
-- Admin remains a zero-data operations shell until the later backend milestones.
+Policies: standardized common policy library + configurable values + custom policies. Historical reservations later retain the policy version/snapshot accepted at booking time.
 
-### Guest/search UX
+### Property/listing architecture
 
-- The decorative map shell no longer presents sample geography as if it were live when production inventory is empty. It now clearly reserves the location for the future real interactive map tied to search results.
-- The approved guest search-led design remains intact.
-
-### Backend impact
-
-- No new Supabase migration.
-- No authentication yet.
-- No property CRUD or storage yet.
-- No real calendar, payment, booking, email or map integration yet.
-
-## Next exact milestone after acceptance
-
-**Milestone 5 — minimal real admin foundation**
-
-Keep it isolated:
-
-1. preserve the verified Milestone 4 auth/session/RLS behavior;
-2. turn the admin shell into a real role-aware internal workspace without building every future subsystem at once;
-3. read the authenticated admin profile/roles from Supabase and expose only appropriate navigation/actions;
-4. establish the first real admin dashboard/query boundaries and audit-log viewer foundation;
-5. keep host/property CRUD, booking, payments and calendars out of this milestone unless a tiny read-only dependency is unavoidable;
-6. regression-test host auth, public UI and Supabase health before checkpointing.
-
-## Git checkpoints
-
-- Milestone 1 baseline: `d0c4695` — `chore: establish production baseline`
-- Milestone 2: verified by Jake; commit hash not supplied in chat when Milestone 3 was packaged.
-- Milestone 3: `43dbf81` — verified Supabase application foundation.
-- Milestone 3.5: `81346f6` — verified production UI/mobile stabilization.
+- Real property CRUD begins in Milestone 7 and is now implemented in the current package.
+- Each listing/unit must have an immutable internal ID.
+- Each rentable listing must have its own shareable booking URL.
+- Host can customize the readable slug subject to uniqueness/reserved-word rules.
+- Slug history/redirects must preserve old advertising links after property renames.
+- Property address is stored internally for tax jurisdiction, geocoding, mapping and operations; exact-address public visibility is controlled separately.
+- Real property image upload/storage begins with property CRUD/storage.
 
 
-## Milestone 4 changes
+### Step 7 cleanup findings / locked UI requirements
 
-### Supabase SSR authentication
+Before Milestone 8, the Step 7 cleanup pass addresses issues found in local property testing:
 
-- Added root `proxy.ts` plus `lib/supabase/proxy.ts` using the current Next.js 16 / `@supabase/ssr` cookie-session pattern.
-- Proxy refreshes/verifies the auth token with `supabase.auth.getClaims()` before protected route decisions.
-- `/host` and all host-portal descendants are protected except the explicit public host auth pages.
-- `/admin` and internal admin descendants require both a valid authenticated session and an ACTIVE row in `admin_users`.
-- Admin access therefore requires both an internal account grant and at least one assigned admin role; it is never a side effect of creating a Supabase Auth account.
+- Host property cards show the actual first/cover image thumbnail from the private `property-images` bucket when a photo exists.
+- Host profiles can store a private avatar/profile image in a dedicated `host-avatars` bucket; guest-facing display remains intentionally deferred.
+- Host avatar uploads use a 5 MB application limit; Next.js Server Actions are configured with a 6 MB request-body ceiling so multipart uploads can reach the validator without tripping the framework default 1 MB limit.
+- Calendar content below the month grid uses explicit inner padding so connection/status/availability content never sits flush against the board edge.
+- Payments UI reserves a persistent current/connected provider area plus clear Stripe Connect and Square management choices. Real provider connection remains disabled until the payment milestone.
+- Final reporting requirements are explicitly preserved in the host Reports UI: stay activity, occupancy/ADR, booked revenue, host proceeds, payout states, refunds/refund exposure, platform commission/tier, processor fees, taxes, disputes/chargebacks/adjustments, property performance, discovery/views and booking sources, with future date/property/status/jurisdiction filters and accounting exports.
 
-### Host auth flow
+### Calendar/availability
 
-Added:
+- Find A Place needs its own canonical availability model.
+- Universal baseline: iCal/ICS import/export.
+- Direct PMS/channel-manager integrations based on real host demand; OwnerRez is a likely early priority.
+- If a PMS is the host source of truth, connect to the PMS rather than building contradictory OTA sync loops.
+- Search may use briefly cached availability; checkout must revalidate authoritative availability.
+- Future booking flow includes a temporary hold (roughly 10 minutes), final recheck, atomic reservation confirmation, immediate internal block, then external update.
 
+### Payments
+
+- Preferred marketplace processor: Stripe Connect.
+- Square is the planned second supported processor.
+- Reservation code should use a provider abstraction (`PaymentProvider` → Stripe / Square / future adapters).
+- Hosts can continue using a different processor on their own direct website.
+- Find A Place platform commission goes to the platform business, not split six ways inside every guest transaction.
+- Owner distributions happen separately after business expenses/reserves/tax-distribution policy.
+- Raw bank data/SSNs are never stored in Supabase.
+- **Open decision before payment implementation:** whether host proceeds follow normal connected-account payout timing or Find A Place deliberately controls delayed release until stay completion/refund exposure clears. Do not promise/build a fund-hold model until the Connect/legal/accounting implications are confirmed.
+- Reservation, payment, refund exposure, payout eligibility, payout status and settlement status must be modeled separately.
+
+### Financial ledger/reporting
+
+Before live payments, every booking needs immutable/auditable financial history for:
+
+- guest charge;
+- lodging subtotal;
+- host fees;
+- taxes;
+- commission tier/rate/base/application fee;
+- processor + processor fee;
+- host proceeds;
+- refunds;
+- chargebacks;
+- adjustments.
+
+Corrections use reversals/adjusting entries rather than silently rewriting history.
+
+Admin reporting should eventually support completed stays, upcoming stays, cancellations, refunds/refund exposure, host proceeds, platform commission, processor fees, taxes collected/remitted/pending, payout eligibility/status, chargebacks and accounting date-range/property/host filters.
+
+### Tax/compliance
+
+- Never hard-code “taxes are always the host's responsibility.”
+- Tax liability/remittance must be configurable by jurisdiction and liable party (host/platform/provider) according to actual law.
+- Arkansas paid-booking obligations require professional confirmation before going live.
+- Tax calculations are snapshotted per reservation.
+- Tax layer stays provider-neutral; Stripe Tax can be evaluated first, with Avalara/lodging-specialist options if needed.
+- National rollout requires jurisdiction/compliance readiness tracking. Paid bookings in a state/region should remain disabled until tax, marketplace/intermediary, seller-of-travel or similar applicable requirements have been reviewed/cleared.
+
+### Admin/operations
+
+- Host portal and internal Admin are separate experiences even though they share Supabase Auth infrastructure.
+- Internal roles currently: `SUPER_ADMIN`, `FINANCE_ADMIN`, `OPERATIONS_ADMIN`, `PARTNER_ADMIN`, `SUPPORT`.
+- Partners such as Renea can later receive appropriate limited internal roles without unnecessary finance/security access.
+- Admin must eventually search host/property/booking/payment IDs, diagnose operational problems, see event/email history and generate financial/accounting reports without digging through email inboxes.
+
+### Email/events
+
+- Development Resend can use `hometownwebservicesar.cc`; sender domain must come from environment variables, never hard-coded in application routes.
+- Supabase Auth SMTP is separate from app-level Resend booking/operations email.
+- Important operational events later create persistent platform events and email-delivery records.
+- Admin should be able to see whether relevant guest/host/internal emails were created/delivered/failed/retried.
+
+---
+
+## Current infrastructure
+
+- Dedicated Supabase project: created and connected.
+- Project technical email: `FindAPlaceBookingTech@gmail.com`.
+- GitHub organization/repository: Find-a-Place-Booking; last supplied verified checkpoint remains `1aee0bb` (Step 5). Steps 6–7 are currently being tested locally and must receive a new Git checkpoint before Step 8.
+- Vercel: Jake's existing Pro account, intentionally not used for normal development yet.
+- Resend development sender/domain: Jake's existing account + `hometownwebservicesar.cc`.
+- Supabase Auth custom SMTP configured through Resend during Step 4 testing.
+
+Environment-variable names currently reserved/used include:
+
+- `NEXT_PUBLIC_SITE_URL`
+- `NEXT_PUBLIC_SUPABASE_URL`
+- `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY` (legacy fallback)
+- `RESEND_API_KEY`
+- `EMAIL_DOMAIN`
+- `EMAIL_FROM_BOOKINGS`
+- `EMAIL_FROM_SUPPORT`
+- `EMAIL_FROM_SYSTEM`
+- `EMAIL_PLATFORM_NAME`
+- `EMAIL_INTERNAL_ALERT_TO`
+- `NEXT_PUBLIC_TURNSTILE_SITE_KEY`
+- `TURNSTILE_SECRET_KEY`
+
+Never record their secret values in Git/handoffs.
+
+---
+
+## Current routes
+
+Public/guest:
+
+- `/`
+- `/stays`
+- `/stays/[slug]`
+- `/checkout`
+- `/booking/confirmed`
+- `/trip`
+- `/trip/[confirmation]`
+- `/hosts`
+
+Host:
+
+- `/host/sign-in`
 - `/host/sign-up`
 - `/host/sign-up/check-email`
-- `/host/sign-in`
+- `/host`
+- `/host/onboarding`
+- `/host/properties`
+- `/host/properties/new`
+- `/host/properties/[slug]`
+- `/host/calendar`
+- `/host/reservations`
+- `/host/rates`
+- `/host/payments`
+- `/host/messages`
+- `/host/reports`
+- `/host/settings`
+
+Auth/admin:
+
 - `/auth/confirm`
+- `/admin/sign-in`
+- `/admin`
+- `/admin/hosts`
+- `/admin/hosts/[profileId]`
+- `/admin/properties`
+- `/admin/properties/[propertyId]`
+- `/admin/partners`
+- `/admin/audit`
 
-Host signup stores only identity metadata at this milestone. The host organization/property is deliberately not created until its dedicated backend milestone. With email confirmation enabled, the confirmation link exchanges the token hash for a cookie-backed session and continues to `/host/onboarding`.
+Host routes require a valid Supabase session. Admin routes additionally require an active internal admin grant + role. Normal host authentication does not grant Admin access.
 
-Public “List your property” calls-to-action now open host account creation. Host portal links open the sign-in route. Protected host links preserve the requested return path.
+---
 
-### Internal admin auth
+## Next exact milestone after Milestone 8 acceptance
 
-- Added `/admin/sign-in`.
-- There is no public admin registration route.
-- Admin credentials must exist in Supabase Auth and receive an explicit `admin_users` grant plus role assignment.
-- A valid normal host account still fails admin authorization.
-- Host and admin portals have explicit sign-out controls.
+**Milestone 9 — availability/calendar foundation**
 
-### Auth/RLS migration
+Expected scope (final slice only after Step 8 passes):
 
-Added `supabase/migrations/20260903000200_auth_foundation.sql`. It:
+1. canonical internal property/unit availability model;
+2. owner/manual availability blocks;
+3. property-specific calendar connection records and sync-health state;
+4. iCal/ICS import/export baseline;
+5. safe conflict detection and source-of-truth rules;
+6. no real payment processing;
+7. booking holds/reservation engine only after the availability foundation is verified, unless Step 9 is intentionally split into smaller sub-milestones;
+8. preserve all Step 8 publication behavior and public/private boundaries.
 
-- creates/updates `profiles` from `auth.users` through a security-definer trigger;
-- backfills profiles for existing Auth users;
-- adds RLS-safe `is_active_admin`, `has_admin_role` and `is_organization_member` helpers;
-- allows authenticated users to read their own profile;
-- allows active admins to read profiles and audit history;
-- lets authenticated users read only their own admin-account/role-assignment rows for authorization checks;
-- lets organization members/admins read organizations once memberships exist;
-- intentionally adds no organization/property mutation policies yet.
+## Step 6 save hotfixes — 2026-09-09
 
-### Auth email configuration
-
-- Added `NEXT_PUBLIC_SITE_URL` for environment-driven auth redirect origin.
-- Local default is `http://localhost:3000`.
-- Supabase confirmation email must use the documented SSR token-hash route during Milestone 4 acceptance.
-- Auth email delivery remains Supabase-managed for this milestone; operational Resend email remains a later independent subsystem.
-
-### Milestone 4 acceptance
-
-Follow `docs/APPLY_MILESTONE_4.md`. Do not commit until host confirmation/session persistence, unauthorized redirects, admin denial/approval, sign-out, TypeScript, Next.js build, Supabase health and desktop/mobile regression checks all pass.
-
-### Milestone 4 local-auth regression fix
-- The Next.js proxy matcher is intentionally limited to `/host/*` and `/admin/*`.
-- Public marketplace pages do not perform Supabase Auth work in Proxy.
-- This prevents an Auth/JWKS/network delay from blocking the public site and keeps auth protection scoped to routes that require it.
-
-
-### Step 4 auth hardening note
-- Protected auth checks are skipped entirely on `/host/sign-in`, `/host/sign-up`, `/host/sign-up/check-email`, and `/admin/sign-in`.
-- Admin authorization uses the single `public.is_active_admin()` RPC in the sign-in action, sign-in page, and request proxy.
-- If a signed-in account fails the protected admin authorization check, the proxy signs that session out before redirecting to `/admin/sign-in`. This prevents `/admin` ↔ `/admin/sign-in` redirect loops and HTTP 431 failures from repeated redirect/cookie growth.
-
-## Milestone 4 verified checkpoint
-
-- Milestone 4 authentication foundation was locally accepted and pushed by Jake.
-- Known-good commit immediately before Milestone 5: `19665ba`.
-- Admin auth/session protection, host auth foundation, Supabase SSR cookies, and the redirect-loop hardening are treated as regression-protected behavior.
-
-## Milestone 5 changes — real admin operations foundation
-
-### Real internal workspace
-
-The protected admin area now reads real Supabase data rather than presenting a future-only zero-data mockup.
-
-Routes added/converted:
-
-- `/admin` — real Supabase-backed overview and account search entry point.
-- `/admin/hosts` — admin-only host/profile + organization search.
-- `/admin/hosts/[profileId]` — real account detail, organization memberships and related audit activity.
-- `/admin/partners` — real `PARTNER_PENDING` queue with role-gated approval/standard-rate actions.
-- `/admin/audit` — append-only audit history viewer/filter foundation.
-
-The desktop and mobile admin navigation now point only to real Milestone 5 routes. Future property/reservation/payment/calendar screens are not presented as if they already function.
-
-### Role-aware admin context
-
-Added `lib/admin/context.ts` as the shared server-side admin identity boundary. It reads the authenticated profile, verifies the ACTIVE internal admin account and loads assigned roles. Current UI can distinguish read-only partner-queue access from authorized commission-tier decisions.
-
-Admin authentication remains protected by the verified Milestone 4 proxy/RPC behavior; Step 5 does not weaken those checks.
-
-### Partner verification database action
-
-Added migration:
-
-`supabase/migrations/20260903000300_admin_foundation.sql`
-
-It adds:
-
-- `admin_has_any_role(required_roles)`
-- `admin_search_hosts(search_term, result_limit)`
-- `admin_dashboard_summary()`
-- `review_partner_verification(target_organization_id, approve, verification_note)`
-
-`review_partner_verification` is the authoritative partner-rate transition. It requires `SUPER_ADMIN` or `PARTNER_ADMIN`, locks the pending organization row, changes the current organization tier/status, and inserts an append-only `audit_logs` record in the same database operation.
-
-Approval results in:
-
-- `partner_status = VERIFIED`
-- `commission_tier = PARTNER_5`
-- current `commission_effective_from`
-- `partner_verified_by = auth.uid()`
-- `partner_verified_at = now()`
-- optional verification note
-
-Keeping the standard rate results in:
-
-- `partner_status = REJECTED`
-- `commission_tier = STANDARD_7`
-- optional verification note
-- append-only audit event
-
-This does not change the locked future rule that every reservation snapshots its own commission tier/rate at booking creation.
-
-### Host search/detail boundary
-
-Admin host lookup searches the real identity/organization foundation using name, email, phone and organization contact/name fields. Admin-only technical accounts are excluded unless they also have a host organization membership.
-
-The host detail page deliberately distinguishes what exists now from later systems. It can show identity, organization membership, partner state/current commission and audit history; property/bookings/payments remain explicitly unconnected rather than fake.
-
-### Audit viewer
-
-The admin audit screen reads the latest append-only audit events and can filter them in the UI by action, entity, IDs, reason or actor identity. Pagination/export can be added when volume warrants it; no premature operational complexity is added now.
-
-### Milestone 5 acceptance
-
-Follow `docs/APPLY_MILESTONE_5.md`. Do not start Step 6 until:
-
-- migration 003 is applied;
-- typecheck/build pass;
-- Supabase health remains good;
-- admin login/session and host denial regressions pass;
-- `/admin`, `/admin/hosts`, host detail, `/admin/partners` and `/admin/audit` function on desktop/mobile;
-- public and host UI remain intact;
-- the milestone is committed as a new known-good Git checkpoint.
-
-## Next exact milestone after Milestone 5 acceptance
-
-**Milestone 6 — host organizations + persisted onboarding foundation**
-
-Keep it contained:
-
-1. create/persist the host organization for a signed-in host;
-2. establish OWNER membership and organization onboarding state;
-3. persist host profile/contact information appropriately;
-4. persist onboarding progress so hosts can leave/re-enter without losing work;
-5. persist partner claims as `PARTNER_PENDING` while keeping `STANDARD_7`;
-6. feed those real claims into the already-built Milestone 5 partner queue;
-7. do not add booking/payment/calendar logic;
-8. avoid full property CRUD until the organization/onboarding foundation is verified;
-9. regression-test all Step 1–5 behavior before checkpointing.
+- Migration `20260909000500_fix_host_onboarding_save.sql` removes contact-field ambiguity.
+- Migration `20260909000600_fix_host_onboarding_organization_id.sql` removes the remaining `organization_id` ambiguity.
+- Local testing after migration 006 showed onboarding saving correctly and reaching READY_FOR_PROPERTY.
