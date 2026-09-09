@@ -49,7 +49,7 @@ export function PropertyEditor({ initial }: { initial: PropertyEditorRecord }) {
       return;
     }
     setSaveTone("saved");
-    setMessage("Property saved to Supabase.");
+    setMessage("Property saved.");
     if (result.slug && result.slug !== form.slug) {
       setForm((current) => ({ ...current, slug: result.slug! }));
       router.replace(`/host/properties/${result.slug}`);
@@ -62,7 +62,7 @@ export function PropertyEditor({ initial }: { initial: PropertyEditorRecord }) {
     const remaining = Math.max(0, 12 - images.length);
     if (!remaining) {
       setSaveTone("error");
-      setMessage("This milestone allows up to 12 property photos.");
+      setMessage("A property can have up to 12 photos.");
       return;
     }
 
@@ -220,7 +220,7 @@ export function PropertyEditor({ initial }: { initial: PropertyEditorRecord }) {
             <label><span>Cleaning fee</span><input type="number" min="0" step="0.01" value={form.cleaning || ""} onChange={(e) => update("cleaning", e.target.value)} /></label>
             <label><span>Pet fee</span><input type="number" min="0" step="0.01" value={form.pet || ""} onChange={(e) => update("pet", e.target.value)} /></label>
             <label><span>Extra guest fee</span><input type="number" min="0" step="0.01" value={form.extraGuest || ""} onChange={(e) => update("extraGuest", e.target.value)} /></label>
-            <div className="inline-note full"><strong>Commission stays separate from legitimate fees.</strong><span>The future 5%/7% platform commission is calculated from nightly lodging subtotal, not cleaning/pet fees. Booking math remains disabled until the booking milestone.</span></div>
+            <div className="inline-note full"><strong>Commission stays separate from legitimate fees.</strong><span>The future 5%/7% platform commission is calculated from nightly lodging subtotal, not cleaning/pet fees. Booking math is not enabled yet.</span></div>
           </div>
         </details>
 
@@ -243,7 +243,7 @@ export function PropertyEditor({ initial }: { initial: PropertyEditorRecord }) {
         <details className="property-edit-section" open>
           <summary><span><b>6</b><strong>Photos</strong></span><small>{images.length}/12 uploaded</small></summary>
           <div className="property-edit-body">
-            <label className={`property-upload ${uploading ? "busy" : ""}`}><input type="file" accept="image/jpeg,image/png,image/webp" multiple disabled={uploading || images.length >= 12} onChange={(e) => { void uploadFiles(e.target.files); e.currentTarget.value = ""; }} /><strong>{uploading ? "Uploading…" : "Add property photos"}</strong><span>JPG, PNG or WebP · up to 10 MB each · private until the public listing milestone</span></label>
+            <label className={`property-upload ${uploading ? "busy" : ""}`}><input type="file" accept="image/jpeg,image/png,image/webp" multiple disabled={uploading || images.length >= 12} onChange={(e) => { void uploadFiles(e.target.files); e.currentTarget.value = ""; }} /><strong>{uploading ? "Uploading…" : "Add property photos"}</strong><span>JPG, PNG or WebP · up to 10 MB each · private until this property is published</span></label>
             {images.length ? <div className="property-image-grid">{images.map((image, index) => <figure key={image.id}>{image.signedUrl ? <img src={image.signedUrl} alt={image.altText || form.name || "Property"} /> : <div className="property-image-missing">Preview unavailable</div>}<figcaption><span>{index === 0 ? "Primary photo" : image.originalName || `Photo ${index + 1}`}</span><button type="button" disabled={uploading} onClick={() => void removeImage(image)}>Remove</button></figcaption></figure>)}</div> : <div className="panel-empty"><strong>No real photos uploaded yet.</strong><span>The filenames saved during host onboarding were only draft references. Upload the actual image files here.</span></div>}
           </div>
         </details>
@@ -253,16 +253,16 @@ export function PropertyEditor({ initial }: { initial: PropertyEditorRecord }) {
           <div className="property-edit-body">
             <div className="calendar-preference-grid">{calendarPreferences.map((option) => <button type="button" key={option.value} className={(form.calendarPreference || "UNSET") === option.value ? "selected" : ""} onClick={() => update("calendarPreference", option.value)}><strong>{option.label}</strong><span>{option.detail}</span></button>)}</div>
             <div className="field-grid onboarding-fields property-notification-fields"><label><span>Booking notification email</span><input type="email" value={form.notificationEmail || ""} onChange={(e) => update("notificationEmail", e.target.value)} /></label><label><span>Operations notification email</span><input type="email" value={form.operationsEmail || ""} onChange={(e) => update("operationsEmail", e.target.value)} /></label></div>
-            <div className="connection-card"><div className="connection-icon">↻</div><div><strong>Calendar preference is real; the connection is not yet active.</strong><span>iCal/PMS URLs, sync health and availability ingestion arrive in the calendar milestone.</span></div><button className="button button-small" type="button" disabled>Connect calendar</button></div>
+            <div className="connection-card"><div className="connection-icon">↻</div><div><strong>Calendar preference is real; the connection is not yet active.</strong><span>iCal/PMS URLs, sync health and availability ingestion will appear when calendar sync is enabled.</span></div><button className="button button-small" type="button" disabled>Connect calendar</button></div>
           </div>
         </details>
 
         </fieldset>
-        <div className="property-editor-footer"><div><strong>{editable ? "Editable property record" : "Reviewed property record"}</strong><span>{editable ? "Saving updates the production database but does not publish the listing or accept bookings." : "This state is protected from host-side edits until the review/publication workflow returns it for changes."}</span></div><button type="button" className="button" disabled={saving || !editable} onClick={save}>{saving ? "Saving…" : editable ? "Save property" : "Editing locked"}</button></div>
+        <div className="property-editor-footer"><div><strong>{editable ? "Editable property record" : "Reviewed property record"}</strong><span>{editable ? "Saving updates the property record but does not publish the listing or accept bookings." : "This state is protected from host-side edits until the review/publication workflow returns it for changes."}</span></div><button type="button" className="button" disabled={saving || !editable} onClick={save}>{saving ? "Saving…" : editable ? "Save property" : "Editing locked"}</button></div>
       </section>
 
       <aside className="property-editor-aside">
-        <div className="property-status-card"><small>Listing status</small><strong>{initial.status.replaceAll("_", " ")}</strong><p>{initial.status === "DRAFT" || initial.status === "CHANGES_REQUESTED" || initial.status === "REJECTED" ? "Finish the listing and submit it to the Find A Place team for review." : initial.status === "PENDING_REVIEW" ? "Submitted to the Find A Place team. Editing is locked while review is active." : initial.status === "APPROVED" ? "Approved by the Find A Place team. It is not public until an authorized admin publishes it." : initial.status === "PUBLISHED" ? "Live in the guest-facing marketplace. Booking remains disabled until the booking milestone." : "Currently paused from public marketplace visibility."}</p></div>
+        <div className="property-status-card"><small>Listing status</small><strong>{initial.status.replaceAll("_", " ")}</strong><p>{initial.status === "DRAFT" || initial.status === "CHANGES_REQUESTED" || initial.status === "REJECTED" ? "Finish the listing and submit it to the Find A Place team for review." : initial.status === "PENDING_REVIEW" ? "Submitted to the Find A Place team. Editing is locked while review is active." : initial.status === "APPROVED" ? "Approved by the Find A Place team. It is not public until an authorized admin publishes it." : initial.status === "PUBLISHED" ? "Live in the guest-facing marketplace. Booking is not enabled yet." : "Currently paused from public marketplace visibility."}</p></div>
         {editable ? <div className="property-url-card"><small>Review readiness</small>{initial.submissionIssues.length ? <><strong>{initial.submissionIssues.length} item{initial.submissionIssues.length === 1 ? "" : "s"} remaining</strong><div>{initial.submissionIssues.map((issue) => <span key={issue}>• {issue}</span>)}</div></> : <><strong>Ready to submit</strong><p>The minimum listing information required for admin review is complete.</p></>}</div> : null}
         <div className="property-url-card"><small>Reserved booking URL</small><strong>/stays/{form.slug}</strong><p>Stable internal property ID: <code>{initial.propertyId.slice(0, 8)}…</code></p>{initial.oldSlugs.length ? <div><span>Old URLs preserved</span>{initial.oldSlugs.slice(0, 4).map((slug) => <code key={slug}>/stays/{slug}</code>)}</div> : null}</div>
       </aside>

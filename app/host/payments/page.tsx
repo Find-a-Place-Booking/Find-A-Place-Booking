@@ -5,7 +5,7 @@ export default function PaymentsPage(){
     <div className="payment-status payment-status-pending"><div className="status-icon">$</div><div><p className="eyebrow dark">Connected payout method</p><h2>No payout account connected</h2><p>When a provider is connected, this card will show the active provider/account and its status. Find A Place Booking will not store raw bank-account or identity details.</p></div><strong>Not connected</strong></div>
 
     <section className="payment-provider-options" aria-label="Supported payout providers">
-      <div className="payment-provider-card"><div><small>Recommended</small><strong>Stripe Connect</strong><span>Connect a bank account or an existing Stripe-backed payout setup. The real connection flow activates in the payment milestone.</span></div><button className="button button-small" disabled>Connect Stripe</button></div>
+      <div className="payment-provider-card"><div><small>Recommended</small><strong>Stripe Connect</strong><span>Connect a bank account or an existing Stripe-backed payout setup. The real connection flow is not enabled yet.</span></div><button className="button button-small" disabled>Connect Stripe</button></div>
       <div className="payment-provider-card"><div><small>Supported alternative</small><strong>Square</strong><span>Hosts already using Square will be able to connect/manage it here and switch supported property assignments later.</span></div><button className="button button-small button-quiet" disabled>Connect Square</button></div>
     </section>
 

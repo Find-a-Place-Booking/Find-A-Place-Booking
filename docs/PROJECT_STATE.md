@@ -6,13 +6,13 @@ This is the authoritative technical handoff for the production conversion. Updat
 
 ## Current verified checkpoint
 
-**Milestone 5 — real admin operations foundation: VERIFIED / PUSHED**
+**Milestone 8 — property review, approval & publication foundation: VERIFIED / PUSHED**
 
-Known-good Git checkpoint supplied by Jake:
+Current known-good Git checkpoint supplied by Jake:
 
-`1aee0bb` — Step 5 accepted after local route testing.
+`00bb71d` — `feat: add property review and publication foundation`
 
-Milestone 6 onboarding is now functionally working in local testing after hotfix migrations 005 and 006, including successful saved onboarding. Jake has not yet supplied the Milestone 6 Git commit hash in this chat. **Checkpoint/push that working Step 6 state before applying Milestone 7.**
+This checkpoint contains the accumulated Milestone 6–8 work because Steps 6 and 7 were not separately checkpointed before Step 8. From this point forward, return to one accepted milestone = one Git checkpoint.
 
 Verified earlier checkpoints:
 
@@ -22,12 +22,13 @@ Verified earlier checkpoints:
 - `81346f6` — Milestone 3.5 UI/UX + mobile stabilization.
 - `19665ba` — Milestone 4 Supabase authentication foundation.
 - `1aee0bb` — Milestone 5 real admin operations foundation.
+- `00bb71d` — Milestone 8 property review/publication checkpoint, including accumulated Steps 6–8.
 
 ## Current package
 
-**Milestone 8 — property review, approval & publication foundation: IMPLEMENTED, PENDING LOCAL ACCEPTANCE**
+**Milestone 8 cleanup — UI/navigation consistency pass: IMPLEMENTED, PENDING LOCAL ACCEPTANCE**
 
-Jake reported the Milestone 7 property CRUD + cleanup UI/flows look good locally. A Milestone 7 Git checkpoint hash has not yet been supplied in this chat. **Checkpoint/push the accepted Step 7 tree before applying Step 8.**
+Jake accepted and pushed the Step 8 property lifecycle at `00bb71d`. This cleanup is intentionally code/UI-only: no new database migration. It makes Admin overview metrics directly navigable, removes stale milestone-era user-facing copy, consolidates conflicting Admin metric-grid CSS, and reduces public index image signing to the three images the card UI actually consumes.
 
 Milestone 8 migrations:
 
@@ -58,7 +59,7 @@ Run migration 009 first and let it commit, then run 010. The split is intentiona
 
 Acceptance instructions: `docs/APPLY_MILESTONE_8.md`.
 
-Do not start Milestone 9 until migrations 009/010, host submit/return/resubmit, admin approval/publication, public-safe inventory, signed public photos, old-slug resolution, pause/re-publish, auth/mobile regressions, typecheck and production build all pass and Step 8 is committed as a new known-good checkpoint.
+Do not start Milestone 9 until this Step 8 cleanup passes local typecheck/build plus a short regression of Admin metric links, host/admin/public property lifecycle, auth and mobile behavior, then is committed as a new known-good checkpoint.
 
 ---
 
@@ -261,7 +262,7 @@ Admin reporting should eventually support completed stays, upcoming stays, cance
 
 - Dedicated Supabase project: created and connected.
 - Project technical email: `FindAPlaceBookingTech@gmail.com`.
-- GitHub organization/repository: Find-a-Place-Booking; last supplied verified checkpoint remains `1aee0bb` (Step 5). Steps 6–7 are currently being tested locally and must receive a new Git checkpoint before Step 8.
+- GitHub organization/repository: Find-a-Place-Booking; current supplied verified checkpoint is `00bb71d` (Step 8, including accumulated Steps 6–8).
 - Vercel: Jake's existing Pro account, intentionally not used for normal development yet.
 - Resend development sender/domain: Jake's existing account + `hometownwebservicesar.cc`.
 - Supabase Auth custom SMTP configured through Resend during Step 4 testing.

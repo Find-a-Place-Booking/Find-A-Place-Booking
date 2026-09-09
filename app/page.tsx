@@ -37,7 +37,7 @@ export default async function HomePage() {
 
         <section className="section section-featured shell">
           <div className="section-heading"><div><p className="eyebrow dark">Featured stays</p><h2>Places worth building a trip around.</h2></div><Link className="under-link" href="/stays">Search all stays →</Link></div>
-          {featured.length > 0 ? <div className="featured-grid">{featured.map((property, index) => <PropertyCard key={property.slug} property={property} wide={index === 0} />)}</div> : <div className="featured-empty"><div><p className="eyebrow dark">Catalog coming online</p><h3>Featured properties will appear here as hosts are approved.</h3><p>The production shell no longer uses sample cabins or pretend availability. Published host properties now populate this section from the platform database.</p></div><Link className="button button-quiet" href="/hosts">List a property</Link></div>}
+          {featured.length > 0 ? <div className="featured-grid">{featured.map((property, index) => <PropertyCard key={property.slug} property={property} wide={index === 0} />)}</div> : <div className="featured-empty"><div><p className="eyebrow dark">Catalog coming online</p><h3>Featured properties will appear here as hosts are approved.</h3><p>Approved, published host properties will populate this section as the marketplace grows.</p></div><Link className="button button-quiet" href="/hosts">List a property</Link></div>}
         </section>
 
         <section id="regions" className="regions-section">
@@ -51,13 +51,13 @@ export default async function HomePage() {
 
         <section id="story" className="network-section shell">
           <div className="network-photo network-photo-empty"><div className="editorial-mark">REGIONAL FIRST</div><div className="network-photo-note"><strong>Built around independent stays.</strong><span>Owners stay in control of their property and guests get a simpler way to find them.</span></div></div>
-          <div className="network-copy"><p className="eyebrow dark">Regional first, open beyond</p><h2>More useful than a directory. More focused than a national marketplace.</h2><p>Find A Place Booking is being built as a complete regional booking product: approved host listings now publish into the marketplace, with real availability and checkout coming through their own verified milestones.</p><div className="stat-line"><div><strong>5%</strong><span>existing Find A Place partners</span></div><div><strong>7%</strong><span>other network hosts</span></div><div><strong>Lodging only</strong><span>commission excludes legitimate host fees and taxes</span></div></div><Link className="button" href="/hosts">See how hosting works</Link></div>
+          <div className="network-copy"><p className="eyebrow dark">Regional first, open beyond</p><h2>More useful than a directory. More focused than a national marketplace.</h2><p>Find A Place Booking is being built as a complete regional booking product. Approved host listings can now publish into the marketplace; live availability and checkout are not enabled yet.</p><div className="stat-line"><div><strong>5%</strong><span>existing Find A Place partners</span></div><div><strong>7%</strong><span>other network hosts</span></div><div><strong>Lodging only</strong><span>commission excludes legitimate host fees and taxes</span></div></div><Link className="button" href="/hosts">See how hosting works</Link></div>
         </section>
 
         <section className="how-booking-works">
           <div className="shell">
             <div className="section-heading"><div><p className="eyebrow dark">Simple on purpose</p><h2>The finished guest flow stays straightforward.</h2></div></div>
-            <div className="journey-row"><div><span>01</span><strong>Pick the trip</strong><p>Destination, dates and guests.</p></div><div><span>02</span><strong>Check real availability</strong><p>Activates with the calendar milestone.</p></div><div><span>03</span><strong>Choose the place</strong><p>Photos, amenities, rules and real pricing.</p></div><div><span>04</span><strong>Book it here</strong><p>Checkout activates only after booking and payment testing.</p></div></div>
+            <div className="journey-row"><div><span>01</span><strong>Pick the trip</strong><p>Destination, dates and guests.</p></div><div><span>02</span><strong>Check real availability</strong><p>Uses connected property calendars once availability sync is enabled.</p></div><div><span>03</span><strong>Choose the place</strong><p>Photos, amenities, rules and real pricing.</p></div><div><span>04</span><strong>Book it here</strong><p>Checkout will open only after booking and payment testing is complete.</p></div></div>
           </div>
         </section>
 

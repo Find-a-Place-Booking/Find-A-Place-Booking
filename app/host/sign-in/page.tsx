@@ -32,7 +32,7 @@ export default async function HostSignInPage({
         <label><span>Password</span><input name="password" type="password" autoComplete="current-password" required /></label>
         <button className="button button-full" type="submit">Sign in to host portal</button>
       </form>
-      <p className="auth-help">Password recovery will be added in the next auth-hardening pass. For this milestone, account creation, confirmation, sign-in, session refresh and sign-out are the acceptance targets.</p>
+      <p className="auth-help">Password recovery is not enabled yet. If you cannot access a test account, use an administrator-managed reset during development.</p>
     </AuthShell>
   );
 }

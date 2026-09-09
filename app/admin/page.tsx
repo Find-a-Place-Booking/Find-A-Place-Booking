@@ -40,18 +40,18 @@ export default async function AdminPage() {
   return (
     <AdminShell active="overview" eyebrow="Platform operations" title="Admin workspace" context={context}>
       <div className="admin-launch-banner">
-        <div><span>Connected workspace</span><p><strong>Authentication, organizations, property review and published listing records are live.</strong> This workspace now reads actual host/listing data from Supabase. Booking, payment and calendar-sync systems remain intentionally disconnected until their own verified steps.</p></div>
+        <div><span>Connected workspace</span><p><strong>Authentication, organizations, property review and published listing records are live.</strong> This workspace now reads actual host/listing data from Supabase. Booking, payment and calendar-sync systems are not enabled yet.</p></div>
         <span className="status-pill status-inverse">Supabase</span>
       </div>
 
       <div className="dash-grid metrics admin-metrics admin-real-metrics">
-        <div><span>Host profiles</span><strong>{summary.host_profiles ?? 0}</strong><small>Non-admin host identities</small></div>
-        <div><span>Organizations</span><strong>{summary.organizations ?? 0}</strong><small>Host/operator accounts</small></div>
-        <div><span>Properties</span><strong>{summary.properties ?? 0}</strong><small>Active property records</small></div>
-        <div><span>Listing reviews</span><strong>{summary.property_pending_review ?? 0}</strong><small>Waiting for property review</small></div>
-        <div><span>Published</span><strong>{summary.property_published ?? 0}</strong><small>Guest-visible listings</small></div>
-        <div><span>Partner requests</span><strong>{summary.partner_pending ?? 0}</strong><small>Waiting for verification</small></div>
-        <div><span>Audit events</span><strong>{summary.audit_events ?? 0}</strong><small>Append-only history</small></div>
+        <Link className="admin-metric-card" href="/admin/hosts" aria-label="Open host profiles"><span>Host profiles</span><strong>{summary.host_profiles ?? 0}</strong><small>Non-admin host identities</small></Link>
+        <Link className="admin-metric-card" href="/admin/hosts" aria-label="Open host and organization lookup"><span>Organizations</span><strong>{summary.organizations ?? 0}</strong><small>Host/operator accounts</small></Link>
+        <Link className="admin-metric-card" href="/admin/properties" aria-label="Open properties"><span>Properties</span><strong>{summary.properties ?? 0}</strong><small>Active property records</small></Link>
+        <Link className="admin-metric-card" href="/admin/properties?status=PENDING_REVIEW" aria-label="Open listings waiting for review"><span>Listing reviews</span><strong>{summary.property_pending_review ?? 0}</strong><small>Waiting for property review</small></Link>
+        <Link className="admin-metric-card" href="/admin/properties?status=PUBLISHED" aria-label="Open published listings"><span>Published</span><strong>{summary.property_published ?? 0}</strong><small>Guest-visible listings</small></Link>
+        {canManagePartners ? <Link className="admin-metric-card" href="/admin/partners" aria-label="Open partner verification requests"><span>Partner requests</span><strong>{summary.partner_pending ?? 0}</strong><small>Waiting for verification</small></Link> : <div className="admin-metric-card admin-metric-card-static"><span>Partner requests</span><strong>{summary.partner_pending ?? 0}</strong><small>Partner-admin access required</small></div>}
+        <Link className="admin-metric-card" href="/admin/audit" aria-label="Open audit log"><span>Audit events</span><strong>{summary.audit_events ?? 0}</strong><small>Append-only history</small></Link>
       </div>
 
       <section className="panel admin-global-search">
@@ -92,11 +92,11 @@ export default async function AdminPage() {
       </div>
 
       <section className="panel admin-system-boundary">
-        <p className="eyebrow dark">Build boundary</p>
-        <h2>What this admin can see today</h2>
+        <p className="eyebrow dark">System status</p>
+        <h2>Operational coverage</h2>
         <div className="admin-capability-grid">
-          <div><strong>Live now</strong><span>Admin identity and roles</span><span>Host/profile lookup</span><span>Real property records</span><span>Property review + publication</span><span>Organization partner status</span><span>Partner decisions</span><span>Audit history</span></div>
-          <div><strong>Later milestones</strong><span>Availability/calendar sync</span><span>Reservations</span><span>Payments & ledger</span><span>Calendar health</span><span>Email/event diagnostics</span></div>
+          <div><strong>Available now</strong><span>Admin identity and roles</span><span>Host/profile lookup</span><span>Real property records</span><span>Property review + publication</span><span>Organization partner status</span><span>Partner decisions</span><span>Audit history</span></div>
+          <div><strong>Not enabled yet</strong><span>Availability/calendar sync</span><span>Reservations</span><span>Payments & ledger</span><span>Calendar health</span><span>Email/event diagnostics</span></div>
         </div>
       </section>
     </AdminShell>

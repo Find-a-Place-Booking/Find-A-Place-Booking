@@ -50,13 +50,13 @@ export function StayResults({ properties, destination, guests }: { properties: P
       </div>
       <div className={`results-layout shell-wide ${mapOpen ? "" : "map-hidden"}`}>
         <section>
-          <div className="results-count"><strong>{filtered.length}</strong> published stays <span>· Dates are not availability-filtered until the calendar milestone</span></div>
+          <div className="results-count"><strong>{filtered.length}</strong> published stays <span>· Dates are not availability-filtered yet</span></div>
           {filtered.length > 0 ? <div className="result-grid">{filtered.map((property) => <PropertyCard key={property.slug} property={property} />)}</div> :
             <div className="empty-results production-empty"><p className="eyebrow dark">{inventoryEmpty ? "Inventory setup" : "Nothing matched"}</p><h2>{inventoryEmpty ? "No stays are published in the production catalog yet." : "No stays match those filters."}</h2><p>{inventoryEmpty ? "Approved properties will appear here after an authorized Find A Place admin publishes them." : "Try removing a filter or searching a nearby destination."}</p>{!inventoryEmpty && <button type="button" className="button button-quiet" onClick={() => setFilters([])}>Clear filters</button>}</div>}
         </section>
         {mapOpen && <aside className="map-shell map-shell-empty" aria-label="Regional search map">
           <div className="map-label"><strong>Map view</strong><span>{filtered.length} published stays</span></div>
-          <div className="map-empty-message"><span>⌖</span><strong>Interactive map is intentionally not simulated.</strong><p>Published listings are real, but the production map will not show decorative/fake pins. The real pan/zoom map will use stored coordinates and the same availability/search result set when that subsystem is implemented.</p></div>
+          <div className="map-empty-message"><span>⌖</span><strong>Interactive map is not enabled yet.</strong><p>Published listings stay in the real results list instead of showing decorative map pins. The pan/zoom map will use stored property coordinates and the same search/availability results once mapping is enabled.</p></div>
         </aside>}
       </div>
     </>

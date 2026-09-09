@@ -92,10 +92,10 @@ function regionName(code: string | null) {
   return normalized;
 }
 
-async function signImages(paths: string[], expiresIn = 3600) {
+async function signImages(paths: string[], expiresIn = 3600, limit = 12) {
   if (!paths.length) return [];
   const supabase = await createClient();
-  const signed = await Promise.all(paths.slice(0, 12).map(async (path) => {
+  const signed = await Promise.all(paths.slice(0, limit).map(async (path) => {
     const { data, error } = await supabase.storage.from("property-images").createSignedUrl(path, expiresIn);
     if (error) return null;
     return data?.signedUrl ?? null;
@@ -113,7 +113,7 @@ export async function getPublishedProperties(): Promise<Property[]> {
 
   const rows = (data ?? []) as PublicIndexRow[];
   return Promise.all(rows.map(async (row) => {
-    const images = await signImages(row.image_paths ?? []);
+    const images = await signImages(row.image_paths ?? [], 3600, 3);
     const location = row.public_area || [row.city, row.region_code].filter(Boolean).join(", ") || "Regional stay";
     const price = Math.round((row.weeknight_cents ?? 0) / 100);
     return {

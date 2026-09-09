@@ -146,7 +146,7 @@ export default async function AdminHostDetailPage({ params }: { params: Promise<
             <div><span>Properties</span><strong>{properties.length}</strong></div>
             <div><span>Bookings / payments</span><strong>Not connected</strong></div>
           </div>
-          <p className="muted">Real property records and review/publication state are now available. Reservation, payment, notification and issue history remain intentionally disconnected until their own verified milestones.</p>
+          <p className="muted">Real property records and review/publication state are now available. Reservation, payment, notification and issue history are not enabled yet.</p>
         </section>
       </div>
 

@@ -47,7 +47,7 @@ export default async function AdminHostsPage({
 
       <section className="panel admin-results-panel">
         <div className="panel-head"><div><p className="eyebrow dark">Results</p><h2>{search ? `Matches for “${search}”` : "Recent host profiles"}</h2></div><span className="status-pill status-muted">{rows.length} shown</span></div>
-        {error ? <div className="admin-message error">Host lookup failed. Confirm the Milestone 5 migration was applied.</div> : null}
+        {error ? <div className="admin-message error">Host lookup failed. Refresh and try again. If the problem continues, verify the admin database foundation is current.</div> : null}
         {!error && rows.length ? (
           <div className="admin-host-results">
             {rows.map((row, index) => (

@@ -2,36 +2,33 @@
 
 Production build for **Find A Place Booking: Stays in Arkansas, Missouri & Beyond**.
 
-The approved demo visual language is being preserved while presentation-only behavior is replaced milestone-by-milestone with real systems.
-
 ## Current package
 
-**Milestone 8 — property review, approval & publication foundation**
+**Milestone 8 cleanup — admin navigation + consistency audit**
 
-This package builds on the accepted Milestone 7 property CRUD + cleanup tree. Before applying it, create/push a known-good Step 7 Git checkpoint.
+Baseline:
 
-Milestone 8 adds:
+`00bb71d` — `feat: add property review and publication foundation`
 
-- host submission of complete property drafts;
-- `PENDING_REVIEW` / `CHANGES_REQUESTED` / `APPROVED` / `PUBLISHED` / `PAUSED` lifecycle;
-- Operations/Super Admin review controls;
-- separate approval and publication actions;
-- append-only property review history + audit events;
-- host edit/image locking while a listing is under review, approved or published;
-- guest-safe public catalog/detail RPCs that never expose private address/contact fields;
-- published property visibility on `/`, `/stays` and `/stays/[slug]`;
-- public current/old slug resolution;
-- signed public image access only for actually published properties;
-- explicit non-bookable/no-availability public state while booking/calendar systems remain disconnected;
-- no fake map pins before the real interactive map is implemented.
+This cleanup does not add a database migration or npm dependency. It keeps the accepted Step 8 property lifecycle intact while tightening the UI and code around it.
 
-It still does **not** connect calendars, calculate live availability, create reservations, accept checkout, process payments, calculate/remit taxes or send operational booking email.
+Changes include:
+
+- Admin overview metric cards now work as redundant navigation where the matching admin destination exists.
+- Listing-review and Published cards open the correct status-filtered property views.
+- Partner-request navigation remains role-aware.
+- Admin metric-grid CSS was consolidated so desktop/tablet/mobile breakpoints no longer compete with older milestone rules.
+- Stale development/milestone copy was removed from host/public/admin screens where it no longer matched the current build.
+- Next 16 dev type generation is included in `tsconfig.json`, preventing the framework from repeatedly patching the include list during local development.
+- Public listing index image signing is limited to the three photos actually used by listing cards; full property detail still supports the gallery.
+
+No calendar sync, availability, reservation, checkout, payment, tax, payout or live-money behavior is added here.
 
 See:
 
-- `docs/PROJECT_STATE.md` — authoritative project handoff.
-- `docs/APPLY_MILESTONE_8.md` — migration/testing/checkpoint sequence.
-- previous milestone docs — retained regression history.
+- `docs/PROJECT_STATE.md` — current authoritative technical state.
+- `docs/APPLY_MILESTONE_8_CLEANUP.md` — cleanup verification/checkpoint sequence.
+- `docs/APPLY_MILESTONE_8.md` — original Step 8 lifecycle acceptance sequence.
 
 ## Local verification
 
@@ -41,16 +38,10 @@ npm run build
 npm run dev
 ```
 
-Also verify:
+Health route remains:
 
 `http://localhost:3000/api/health/supabase`
 
-Expected schema after migrations 009 + 010: `property-review-publication-v1`.
+Expected schema: `property-review-publication-v1`.
 
-Do not deploy to Vercel merely because the milestone is committed. Development remains local-first until hosted behavior is specifically required.
-
-## Environment
-
-Use `.env.local` for real local values and never commit it. Supabase/Resend/payment secrets and banking data must never be checked into Git.
-
-Application-level email sender/domain configuration remains environment-driven so development can use `hometownwebservicesar.cc` and production can later change domains without rewriting email routes.
+Development remains local-first. Preserve the repository's existing `.git`, `.env.local` and `package-lock.json` when applying this package.

@@ -50,7 +50,7 @@ export function HostOnboardingWizard({ initial }: { initial: HostOnboardingRecor
   const [onboardingStatus, setOnboardingStatus] = useState(initial.onboardingStatus);
   const [saveState, setSaveState] = useState<SaveState>({
     tone: initial.onboardingStatus === "READY_FOR_PROPERTY" ? "ready" : "saved",
-    message: initial.onboardingStatus === "READY_FOR_PROPERTY" ? "Host setup saved — ready to create the real property." : formatSavedAt(initial.savedAt),
+    message: initial.onboardingStatus === "READY_FOR_PROPERTY" ? "Host setup saved — ready to create the property." : formatSavedAt(initial.savedAt),
   });
 
   function markDirty() {
@@ -174,11 +174,11 @@ export function HostOnboardingWizard({ initial }: { initial: HostOnboardingRecor
             <label className="full"><span>Business email</span><input value={form.email} onChange={(e) => update("email", e.target.value)} type="email" placeholder="Email address" /></label>
             <label className="full"><span>Business location</span><input value={form.businessLocation} onChange={(e) => update("businessLocation", e.target.value)} placeholder="City, state" /></label>
           </div>
-          <div className="inline-note"><strong>Organization ID: {initial.organizationId.slice(0, 8)}…</strong><span>This real organization persists across sign-out/sign-in. Property records, units and additional team members are added in later milestones.</span></div>
+          <div className="inline-note"><strong>Organization ID: {initial.organizationId.slice(0, 8)}…</strong><span>This organization persists across sign-out/sign-in. Property records are managed in Properties; additional team-member controls can be added later.</span></div>
         </>}
 
         {step === 1 && <>
-          <p className="eyebrow dark">Property draft</p><h2>Give the first stay a clear identity.</h2><p>These details are now saved with onboarding, but they remain a draft until the property CRUD milestone creates the actual property/listing record.</p>
+          <p className="eyebrow dark">Property draft</p><h2>Give the first stay a clear identity.</h2><p>These details are saved with onboarding and can seed the first real property record. After creation, listing edits happen in Properties.</p>
           <div className="field-grid onboarding-fields">
             <label className="full"><span>Property name</span><input value={form.propertyName} onChange={(e) => update("propertyName", e.target.value)} placeholder="Public listing name" /></label>
             <label><span>Property type</span><select value={form.propertyType} onChange={(e) => update("propertyType", e.target.value)}><option value="">Select type</option>{propertyTypes.map((type) => <option key={type}>{type}</option>)}</select></label>
@@ -213,16 +213,16 @@ export function HostOnboardingWizard({ initial }: { initial: HostOnboardingRecor
         </>}
 
         {step === 4 && <>
-          <p className="eyebrow dark">Photos</p><h2>Show the property before you explain it.</h2><p>Permanent image upload begins with real property storage. For now, filenames are remembered with the draft while image previews stay local to this browser session.</p>
+          <p className="eyebrow dark">Photos</p><h2>Show the property before you explain it.</h2><p>Onboarding remembers the selected filenames and local previews. Upload the actual image files from Properties after the property record is created.</p>
           <label className="upload-drop">
             <span>＋</span><strong>Add property photos</strong><p>Choose multiple JPG, PNG or WebP images. The first image is treated as the cover in this local preview.</p><span className="button button-small button-quiet">Choose photos</span>
             <input className="visually-hidden" type="file" accept="image/png,image/jpeg,image/webp" multiple onChange={(event) => { const files = Array.from(event.target.files || []).slice(0, 12); setPhotos(files.map((file) => ({ name: file.name, url: URL.createObjectURL(file) }))); setPhotoNames(files.map((file) => file.name)); markDirty(); }} />
           </label>
-          {photos.length > 0 ? <div className="photo-preview-grid">{photos.map((photo, index) => <div key={`${photo.name}-${index}`}><img src={photo.url} alt="Local property preview" /><span>{index === 0 ? "Cover" : `Photo ${index + 1}`}</span></div>)}</div> : photoNames.length > 0 ? <div className="saved-photo-names"><strong>Saved photo selections</strong>{photoNames.map((name, index) => <span key={`${name}-${index}`}>{index === 0 ? "Cover" : `Photo ${index + 1}`} · {name}</span>)}<small>The files themselves are not uploaded yet. Permanent previews begin when Supabase property storage is connected.</small></div> : <div className="photo-slots">{[1, 2, 3, 4].map((item) => <div key={item}><span>{item === 1 ? "Cover" : `Photo ${item}`}</span></div>)}</div>}
+          {photos.length > 0 ? <div className="photo-preview-grid">{photos.map((photo, index) => <div key={`${photo.name}-${index}`}><img src={photo.url} alt="Local property preview" /><span>{index === 0 ? "Cover" : `Photo ${index + 1}`}</span></div>)}</div> : photoNames.length > 0 ? <div className="saved-photo-names"><strong>Saved photo selections</strong>{photoNames.map((name, index) => <span key={`${name}-${index}`}>{index === 0 ? "Cover" : `Photo ${index + 1}`} · {name}</span>)}<small>The files themselves are not uploaded from onboarding. Add the actual photos from Properties after creating the listing.</small></div> : <div className="photo-slots">{[1, 2, 3, 4].map((item) => <div key={item}><span>{item === 1 ? "Cover" : `Photo ${item}`}</span></div>)}</div>}
         </>}
 
         {step === 5 && <>
-          <p className="eyebrow dark">Rates & fees</p><h2>Keep the nightly stay separate from host fees.</h2><p>These save with onboarding and are carried into the real property pricing records when you create the property from the Properties screen.</p>
+          <p className="eyebrow dark">Rates & fees</p><h2>Keep the nightly stay separate from host fees.</h2><p>These save with onboarding and carry into the property pricing record when you create the property from the Properties screen.</p>
           <div className="field-grid onboarding-fields">
             <label><span>Weeknight rate</span><div className="money-input"><b>$</b><input value={form.weeknight} onChange={(e) => update("weeknight", e.target.value)} type="number" min="0" inputMode="decimal" placeholder="0" /></div></label>
             <label><span>Weekend rate</span><div className="money-input"><b>$</b><input value={form.weekend} onChange={(e) => update("weekend", e.target.value)} type="number" min="0" inputMode="decimal" placeholder="0" /></div></label>
@@ -232,7 +232,7 @@ export function HostOnboardingWizard({ initial }: { initial: HostOnboardingRecor
         </>}
 
         {step === 6 && <>
-          <p className="eyebrow dark">Policies</p><h2>Pick the rules. We keep the presentation clean.</h2><p>Common policy choices and their details now persist with onboarding. Real property policy snapshots are created in the property/booking milestones.</p>
+          <p className="eyebrow dark">Policies</p><h2>Pick the rules. We keep the presentation clean.</h2><p>Common policy choices and their details persist with onboarding and carry into the property record. Confirmed bookings will later retain the accepted policy snapshot.</p>
           <div className="field-grid onboarding-fields policy-time-grid"><label><span>Check-in after</span><input value={form.checkIn} onChange={(e) => update("checkIn", e.target.value)} type="time" /></label><label><span>Checkout by</span><input value={form.checkout} onChange={(e) => update("checkout", e.target.value)} type="time" /></label><label className="full"><span>Cancellation policy</span><select value={form.cancellation} onChange={(e) => update("cancellation", e.target.value)}><option value="">Choose a policy</option><option value="flexible">Flexible</option><option value="moderate">Moderate</option><option value="firm">Firm</option><option value="strict">Strict</option></select><small>Exact platform cancellation terms will be finalized before live bookings.</small></label></div>
           <div className="selection-groups policy-selection-groups">
             {policyGroups.map((group) => <details key={group.title}><summary><span>{group.title}</span><b>{group.items.filter((item) => policies.includes(item)).length || ""}</b></summary><div className="amenity-picker policy-picker">{group.items.map((item) => <label className={policies.includes(item) ? "selected" : ""} key={item}><input checked={policies.includes(item)} onChange={() => toggle(item, setPolicies)} type="checkbox" /><span>{item}</span></label>)}</div></details>)}
@@ -245,9 +245,9 @@ export function HostOnboardingWizard({ initial }: { initial: HostOnboardingRecor
         </>}
 
         {step === 7 && <>
-          <p className="eyebrow dark">Calendar</p><h2>Choose the source of truth for availability.</h2><p>You can save the preferred calendar approach now. The actual iCal/PMS connection still activates only after the real property record exists.</p>
+          <p className="eyebrow dark">Calendar</p><h2>Choose the source of truth for availability.</h2><p>You can save the preferred calendar approach now. The actual iCal/PMS connection is managed per property once calendar sync is enabled.</p>
           <div className="calendar-preference-grid">{calendarPreferences.map((option) => <button type="button" key={option.value} className={form.calendarPreference === option.value ? "selected" : ""} onClick={() => update("calendarPreference", option.value)}><strong>{option.label}</strong><span>{option.detail}</span></button>)}</div>
-          <div className="connection-card"><div className="connection-icon">↻</div><div><strong>Preference saved; connection comes later</strong><span>Property setup carries this choice onto the real property. Calendar URLs, PMS credentials and sync jobs remain disabled until the calendar milestone.</span></div><button type="button" className="button button-small" disabled>Connect calendar</button></div>
+          <div className="connection-card"><div className="connection-icon">↻</div><div><strong>Preference saved; connection comes later</strong><span>Property setup carries this choice onto the real property. Calendar URLs, PMS credentials and sync jobs remain disabled until calendar sync is enabled.</span></div><button type="button" className="button button-small" disabled>Connect calendar</button></div>
         </>}
 
         {step === 8 && <>
@@ -288,7 +288,7 @@ export function HostOnboardingWizard({ initial }: { initial: HostOnboardingRecor
         </div>
       </section>
 
-      <aside className="onboarding-plan"><small>Current organization tier</small><strong>{commissionTier === "PARTNER_5" ? "5%" : "7%"}</strong><span>{partnerStatus === "VERIFIED" ? "verified Find A Place partner" : partnerStatus === "PARTNER_PENDING" ? "partner claim pending review" : "standard host"}</span><hr /><p>A partner claim never changes the organization from 7% to 5% on the host side. Only an authorized admin verification can do that.</p><div className="plan-points"><span>✓ Progress saved to Supabase</span><span>✓ Commission uses lodging only</span><span>✓ Partner changes are audit logged</span><span>✓ Property creation available in Properties</span></div></aside>
+      <aside className="onboarding-plan"><small>Current organization tier</small><strong>{commissionTier === "PARTNER_5" ? "5%" : "7%"}</strong><span>{partnerStatus === "VERIFIED" ? "verified Find A Place partner" : partnerStatus === "PARTNER_PENDING" ? "partner claim pending review" : "standard host"}</span><hr /><p>A partner claim never changes the organization from 7% to 5% on the host side. Only an authorized admin verification can do that.</p><div className="plan-points"><span>✓ Progress saved to your account</span><span>✓ Commission uses lodging only</span><span>✓ Partner changes are audit logged</span><span>✓ Property creation available in Properties</span></div></aside>
     </div>
   );
 }

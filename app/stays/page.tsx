@@ -28,7 +28,7 @@ export default async function StaysPage({ searchParams }: { searchParams: Promis
         <div className="shell">
           <div className="results-search"><SearchBar compact where={where} checkin={checkin} checkout={checkout} guests={guests} /></div>
           <div className="results-head">
-            <div><p className="eyebrow dark">{tripLine}</p><h1>{where ? `Stays around ${where}` : "Browse published stays"}</h1><p>Browse approved listings by location and trip details. Date availability and reservations remain intentionally disabled until the calendar and booking milestones.</p></div>
+            <div><p className="eyebrow dark">{tripLine}</p><h1>{where ? `Stays around ${where}` : "Browse published stays"}</h1><p>Browse approved listings by location and trip details. Date availability and reservations are not enabled yet.</p></div>
             <div className="availability-fresh"><i/> Published inventory is live; date availability is not connected yet</div>
           </div>
         </div>

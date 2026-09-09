@@ -136,7 +136,7 @@ export default async function AdminPartnersPage({
       </section>
 
       <section className="panel admin-system-boundary">
-        <p className="eyebrow dark">Existing partner import</p><h2>Claim records are real; preloaded matching comes later</h2><p className="muted">Milestone 6 now stores the exact business/owner/email/phone submitted by the host. A future import can compare the existing 50–75+ Find A Place partner directory against these normalized claims and flag likely matches without ever auto-granting PARTNER_5.</p>
+        <p className="eyebrow dark">Existing partner import</p><h2>Claim records are real; directory matching is not enabled yet</h2><p className="muted">The exact business, owner, email and phone submitted by the host are stored with the claim. A future directory import can compare existing Find A Place partners against these normalized claims and flag likely matches without ever auto-granting PARTNER_5.</p>
       </section>
     </AdminShell>
   );
