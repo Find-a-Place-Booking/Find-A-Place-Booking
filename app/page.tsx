@@ -7,8 +7,7 @@ import { getPublishedProperties } from "@/lib/public/listings";
 import { PropertyCard } from "@/components/PropertyCard";
 
 export default async function HomePage() {
-  const properties = await getPublishedProperties();
-  const featured = properties.slice(0, 3);
+  const featured = await getPublishedProperties(3);
   return (
     <>
       <div className="home-hero">

@@ -6,13 +6,13 @@ This is the authoritative technical handoff for the production conversion. Updat
 
 ## Current Git baseline
 
-**Milestone 9A.1 — pricing/promotion hardening: PUSHED AND LOCALLY ACCEPTED FOR 9B START**
+**Milestone 9B — canonical availability + owner blocks + iCal/ICS: PUSHED; HARDENING PASS PREPARED**
 
 Current remote `main` reviewed on 2026-09-14:
 
-`563fc11` — `update A9.1 Stuff`
+`841d98c` — `Calander Initial Commit`
 
-This commit is the accepted 9B starting baseline. It contains migrations through 013 and the hardened pricing/promotion foundation.
+This commit contains migrations through 014 and the first canonical calendar/availability implementation. Post-commit review found no architecture-breaking issue; Milestone 9B.1 is a contained safety/privacy/performance follow-up before reservation/payment work.
 
 Earlier known-good checkpoints remain:
 
@@ -26,37 +26,37 @@ Earlier known-good checkpoints remain:
 - `68eae1d` — Milestone 8 cleanup checkpoint.
 - `878b88e` — Milestone 9A pricing/promotions baseline.
 - `563fc11` — Milestone 9A.1 hardening / 9B starting baseline.
+- `841d98c` — Milestone 9B initial calendar foundation.
 
 ## Current package
 
-**Milestone 9B — canonical availability + owner blocks + iCal/ICS: IMPLEMENTED, PENDING LOCAL ACCEPTANCE**
+**Milestone 9B.1 — calendar safety/privacy/performance hardening: IMPLEMENTED, PENDING LOCAL ACCEPTANCE/PUSH**
 
 New migration:
 
-- `supabase/migrations/20260914001400_calendar_availability_ical.sql`
+- `supabase/migrations/20260914001500_calendar_hardening_performance.sql`
 
-Apply only migration 014 on a database already current through 013.
+Apply only migration 015 on a database already current through 014.
 
-9B adds:
+9B.1 hardens the existing 9B architecture by:
 
-- unit-scoped canonical availability records using exclusive checkout date ranges `[start_date, end_date)`;
-- host owner/manual blocks;
-- unit-scoped external calendar connections with independent source identity;
-- universal iCal/ICS import with stable event IDs and source-safe reconciliation;
-- tokenized Find A Place iCal exports, including source-specific feeds that exclude the originating source to reduce echo loops;
-- calendar sync state, last-success/error visibility and sync history;
-- authoritative `check_unit_availability` for future guest search/checkout;
-- host Calendar workspace for property/unit selection, block management, source connection, manual sync, disconnect and export rotation;
-- existing 9A nightly pricing/special/minimum-stay information displayed alongside availability without coupling ownership;
-- read-only Admin calendar/integration-health visibility;
-- reserved canonical block types for future temporary checkout holds and Find A Place reservations without enabling either yet;
-- health schema `calendar-availability-ical-v1`.
+- stopping iCal reconciliation before database mutation when recurrence rules, malformed event identifiers/dates or truncated calendars cannot be normalized safely;
+- preserving existing imported availability on an unsafe sync instead of potentially clearing it;
+- de-duplicating external event keys before database reconciliation;
+- bounding DNS lookup and streaming iCal response bodies under the active timeout/2 MB limit;
+- restricting private external feed URLs and outbound bearer tokens to organization OWNER/MANAGER users and active admins;
+- aggregating host current/future source-block counts in PostgreSQL instead of transferring all historical source blocks to Next.js;
+- replacing the Admin calendar page's platform-wide block download/multi-query ownership resolution with one bounded admin-only health RPC;
+- folding outbound iCalendar lines at the RFC 5545 75-octet physical-line limit;
+- trimming exports to current/future availability plus 30 days of recent history;
+- batching private Storage image signing on public/host/Admin property views and signing only the cover image needed by public listing cards;
+- health schema `calendar-availability-hardening-v1`.
 
-9B deliberately does **not** add live reservations, scheduled background polling, direct PMS APIs/webhooks, taxes, Stripe/Square, payouts or live money. Manual host sync is the local acceptance boundary.
+9B/9B.1 still deliberately do **not** add live reservations, scheduled background polling, direct PMS APIs/webhooks, taxes, Stripe/Square, payouts or live money. Manual host sync remains the local calendar acceptance boundary.
 
-See `docs/MILESTONE_9B_CALENDAR_FOUNDATION.md` and `docs/APPLY_MILESTONE_9B.md`.
+See `docs/MILESTONE_9B_CALENDAR_FOUNDATION.md`, `docs/MILESTONE_9B_1_HARDENING.md`, `docs/APPLY_MILESTONE_9B.md` and `docs/APPLY_MILESTONE_9B_1.md`.
 
-Do not begin the payment-processing milestone until migration 014, owner blocks, iCal import/export, source isolation, admin health, auth/property/pricing/publication regressions, typecheck and production build all pass and 9B is checkpointed.
+Do not begin reservation/payment implementation until migration 015, the full calendar regression, typecheck and production build pass locally and 9B.1 is checkpointed.
 
 ---
 
@@ -338,21 +338,24 @@ Host routes require a valid Supabase session. Admin routes additionally require 
 
 ---
 
-## Next exact milestone after Milestone 9A acceptance
+## Next exact milestone after Milestone 9B.1 acceptance
 
-**Milestone 9B — canonical availability & calendar foundation**
+**Reservation / payment foundation — local-first**
 
-Expected scope:
+Expected sequence:
 
-1. canonical unit-night availability/source model;
-2. owner/manual blocks;
-3. property/unit calendar connection records;
-4. iCal/ICS import + export baseline;
-5. sync health, last success/error and source precedence;
-6. conflict-safe availability resolution independent from 9A pricing;
-7. combine resolved availability with `resolve_unit_pricing_days` for host calendar presentation;
-8. no live checkout/payment;
-9. after 9B local acceptance, establish Vercel staging for real HTTPS calendar/email/auth integration testing before deeper booking/payment work.
+1. reservation records and immutable booking snapshots;
+2. temporary checkout holds tied to canonical unit availability;
+3. final availability revalidation before payment;
+4. authoritative 9A pricing/promotion snapshot and atomic promo redemption boundary;
+5. tax boundary/provider abstraction before final charge;
+6. Stripe Connect first, with processor/account routing resolved from organization/property IDs rather than names/emails;
+7. launch processing policy defaults to host-paid processor fees while the ledger/schema preserves future Find A Place processing credits/subsidies;
+8. payment/refund/processor-fee/platform-commission/host-proceeds ledger records remain separate and auditable;
+9. Square remains a later adapter behind the same payment boundary;
+10. no live-money activation during local development.
+
+After the payment foundation is locally accepted, perform the planned final UI cleanup pass. Only then establish Vercel staging for real HTTPS/auth/calendar/payment-test integration, multi-device testing and outside tester accounts.
 
 ## Step 6 save hotfixes — 2026-09-09
 

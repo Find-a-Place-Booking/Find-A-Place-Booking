@@ -1,5 +1,8 @@
 # Apply / Test Milestone 9B
 
+> **Superseded for current development by Milestone 9B.1.** Use `docs/APPLY_MILESTONE_9B_1.md` after migration 014 is in place. After migration 015, the health schema is `calendar-availability-hardening-v1`.
+
+
 Baseline expected before applying: `563fc11` (`update A9.1 Stuff`).
 
 ## 1. Overlay the files

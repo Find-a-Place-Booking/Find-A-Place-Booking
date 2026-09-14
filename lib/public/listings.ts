@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 
 import type { Property } from "@/data/catalog";
 import { createClient } from "@/lib/supabase/server";
+import { createSignedUrlMap } from "@/lib/storage/signed-urls";
 
 type PublicIndexRow = {
   property_id: string;
@@ -92,18 +93,7 @@ function regionName(code: string | null) {
   return normalized;
 }
 
-async function signImages(paths: string[], expiresIn = 3600, limit = 12) {
-  if (!paths.length) return [];
-  const supabase = await createClient();
-  const signed = await Promise.all(paths.slice(0, limit).map(async (path) => {
-    const { data, error } = await supabase.storage.from("property-images").createSignedUrl(path, expiresIn);
-    if (error) return null;
-    return data?.signedUrl ?? null;
-  }));
-  return signed.filter((value): value is string => Boolean(value));
-}
-
-export async function getPublishedProperties(): Promise<Property[]> {
+export async function getPublishedProperties(limit?: number): Promise<Property[]> {
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("public_listing_index");
   if (error) {
@@ -111,9 +101,16 @@ export async function getPublishedProperties(): Promise<Property[]> {
     return [];
   }
 
-  const rows = (data ?? []) as PublicIndexRow[];
-  return Promise.all(rows.map(async (row) => {
-    const images = await signImages(row.image_paths ?? [], 3600, 3);
+  const allRows = (data ?? []) as PublicIndexRow[];
+  const rows = typeof limit === "number" && limit >= 0 ? allRows.slice(0, limit) : allRows;
+  // Listing cards render only the cover image. Sign all covers in bounded batch
+  // requests instead of making 1-3 Storage signing calls per property.
+  const coverPaths = rows.map((row) => row.image_paths?.[0] ?? null);
+  const signedCovers = await createSignedUrlMap(supabase, "property-images", coverPaths, 3600);
+
+  return rows.map((row) => {
+    const coverPath = row.image_paths?.[0] ?? null;
+    const cover = coverPath ? signedCovers.get(coverPath) ?? "" : "";
     const location = row.public_area || [row.city, row.region_code].filter(Boolean).join(", ") || "Regional stay";
     const price = Math.round((row.weeknight_cents ?? 0) / 100);
     return {
@@ -130,9 +127,9 @@ export async function getPublishedProperties(): Promise<Property[]> {
       price,
       rating: 0,
       reviews: 0,
-      image: images[0] ?? "",
-      image2: images[1] ?? images[0] ?? "",
-      image3: images[2] ?? images[0] ?? "",
+      image: cover,
+      image2: cover,
+      image3: cover,
       tags: row.amenity_labels ?? [],
       blurb: row.description || "Independent stay listed with Find A Place Booking.",
       hostName: row.host_name || "Find A Place host",
@@ -140,7 +137,7 @@ export async function getPublishedProperties(): Promise<Property[]> {
       lat: 0,
       lng: 0,
     } satisfies Property;
-  }));
+  });
 }
 
 export async function getPublishedListingBySlug(requestedSlug: string): Promise<PublishedListingDetail | null> {
@@ -155,7 +152,9 @@ export async function getPublishedListingBySlug(requestedSlug: string): Promise<
   if (!row) return null;
   if (row.requested_is_history && row.canonical_slug && row.canonical_slug !== requestedSlug) redirect(`/stays/${row.canonical_slug}`);
 
-  const images = await signImages(row.image_paths ?? []);
+  const imagePaths = (row.image_paths ?? []).slice(0, 12);
+  const signedImages = await createSignedUrlMap(supabase, "property-images", imagePaths, 3600);
+  const images = imagePaths.map((path) => signedImages.get(path)).filter((value): value is string => Boolean(value));
   return {
     propertyId: row.property_id,
     unitId: row.unit_id,

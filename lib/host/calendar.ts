@@ -279,12 +279,9 @@ export async function getCalendarWorkspace(input: { unitId?: string; month?: str
       .eq("unit_id", selected.unitId)
       .eq("is_active", true)
       .order("created_at", { ascending: true }),
-    supabase
-      .from("availability_blocks")
-      .select("connection_id")
-      .eq("unit_id", selected.unitId)
-      .eq("block_type", "EXTERNAL_BLOCK")
-      .eq("state", "ACTIVE"),
+    supabase.rpc("calendar_connection_active_block_counts", {
+      target_unit_id: selected.unitId,
+    }),
     supabase.rpc("resolve_unit_pricing_days", {
       target_unit_id: selected.unitId,
       range_start: window.gridStart,
@@ -299,9 +296,8 @@ export async function getCalendarWorkspace(input: { unitId?: string; month?: str
   }
 
   const blockCounts = new Map<string, number>();
-  for (const row of (blockCountResult.data ?? []) as Array<{ connection_id: string | null }>) {
-    if (!row.connection_id) continue;
-    blockCounts.set(row.connection_id, (blockCounts.get(row.connection_id) ?? 0) + 1);
+  for (const row of (blockCountResult.data ?? []) as Array<{ connection_id: string; active_block_count: number | string }>) {
+    blockCounts.set(row.connection_id, Number(row.active_block_count) || 0);
   }
 
   const connections = ((connectionResult.data ?? []) as Omit<CalendarConnectionRecord, "sourceHost" | "activeBlockCount">[]).map((connection) => {

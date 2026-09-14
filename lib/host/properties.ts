@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 
 import { createClient } from "@/lib/supabase/server";
+import { createSignedUrlMap } from "@/lib/storage/signed-urls";
 
 export type HostPropertySummary = {
   id: string;
@@ -180,16 +181,13 @@ export async function getHostProperties(): Promise<HostPropertySummary[]> {
     if (!firstImageByUnit.has(image.unit_id)) firstImageByUnit.set(image.unit_id, image);
   }
 
+  const coverPaths = unitIds.map((unitId) => firstImageByUnit.get(unitId)?.storage_path ?? null);
+  const signedCoverByPath = await createSignedUrlMap(supabase, "property-images", coverPaths, 3600);
   const coverUrlByUnit = new Map<string, string | null>();
-  await Promise.all(unitIds.map(async (unitId) => {
-    const image = firstImageByUnit.get(unitId);
-    if (!image) {
-      coverUrlByUnit.set(unitId, null);
-      return;
-    }
-    const { data: signed } = await supabase.storage.from("property-images").createSignedUrl(image.storage_path, 3600);
-    coverUrlByUnit.set(unitId, signed?.signedUrl ?? null);
-  }));
+  for (const unitId of unitIds) {
+    const path = firstImageByUnit.get(unitId)?.storage_path;
+    coverUrlByUnit.set(unitId, path ? signedCoverByPath.get(path) ?? null : null);
+  }
 
   return properties.flatMap((property) => {
     const unit = unitByProperty.get(property.id);
@@ -273,20 +271,19 @@ export async function getHostPropertyBySlug(requestedSlug: string): Promise<Prop
   const feeByType = new Map<string, { fee_type: string; amount_cents: number }>(fees.map((fee) => [fee.fee_type, fee]));
   const rate = rateResult.data as { weeknight_cents: number | null; weekend_cents: number | null } | null;
 
-  const images: PropertyImageRecord[] = await Promise.all(((imageResult.data ?? []) as {
+  const imageRows = (imageResult.data ?? []) as {
     id: string; storage_path: string; original_name: string | null; content_type: string | null; size_bytes: number | null; sort_order: number; alt_text: string | null;
-  }[]).map(async (image) => {
-    const { data: signed } = await supabase.storage.from("property-images").createSignedUrl(image.storage_path, 3600);
-    return {
-      id: image.id,
-      storagePath: image.storage_path,
-      originalName: image.original_name,
-      contentType: image.content_type,
-      sizeBytes: image.size_bytes,
-      sortOrder: image.sort_order,
-      altText: image.alt_text,
-      signedUrl: signed?.signedUrl ?? null,
-    };
+  }[];
+  const signedImageByPath = await createSignedUrlMap(supabase, "property-images", imageRows.map((image) => image.storage_path), 3600);
+  const images: PropertyImageRecord[] = imageRows.map((image) => ({
+    id: image.id,
+    storagePath: image.storage_path,
+    originalName: image.original_name,
+    contentType: image.content_type,
+    sizeBytes: image.size_bytes,
+    sortOrder: image.sort_order,
+    altText: image.alt_text,
+    signedUrl: signedImageByPath.get(image.storage_path) ?? null,
   }));
 
   const centsToText = (value: number | null | undefined) => value == null ? "" : (value / 100).toFixed(value % 100 ? 2 : 0);

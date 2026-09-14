@@ -6,6 +6,7 @@ import { AdminShell } from "@/components/AdminShell";
 import { getAdminContext, hasAnyAdminRole } from "@/lib/admin/context";
 import { cleanStatus, formatAdminDate } from "@/lib/admin/format";
 import { createClient } from "@/lib/supabase/server";
+import { createSignedUrlMap } from "@/lib/storage/signed-urls";
 
 export default async function AdminPropertyDetailPage({
   params,
@@ -48,7 +49,9 @@ export default async function AdminPropertyDetailPage({
   ]);
   const amenityMap = new Map((amenityCatalog ?? []).map((row) => [row.code as string, row.label as string]));
   const policyMap = new Map((policyCatalog ?? []).map((row) => [row.code as string, row.label as string]));
-  const images = await Promise.all((imagesResult.data ?? []).map(async (image) => ({ ...image, signedUrl: (await supabase.storage.from("property-images").createSignedUrl(image.storage_path as string, 3600)).data?.signedUrl ?? null })));
+  const imageRows = imagesResult.data ?? [];
+  const signedImageByPath = await createSignedUrlMap(supabase, "property-images", imageRows.map((image) => image.storage_path as string), 3600);
+  const images = imageRows.map((image) => ({ ...image, signedUrl: signedImageByPath.get(image.storage_path as string) ?? null }));
   const money = (cents: number | null | undefined) => cents == null ? "Not set" : new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(cents / 100);
 
   return <AdminShell active="properties" eyebrow="Property review" title={property.name} context={context}>

@@ -54,6 +54,14 @@ async function syncConnectedCalendar(connectionId: string, unitId: string) {
   try {
     const fetched = await fetchIcalFeed(connection.feed_url);
     const parsed = parseIcalAvailability(fetched.body);
+    if (parsed.unsafeSkipped > 0) {
+      const count = parsed.unsafeSkipped;
+      const recurring = parsed.recurringSkipped;
+      const recurringDetail = recurring ? ` (${recurring} recurring rule${recurring === 1 ? "" : "s"})` : "";
+      throw new Error(
+        `Calendar sync stopped safely: ${count} event${count === 1 ? "" : "s"}${recurringDetail} could not be normalized without guessing. Existing imported availability was preserved.`,
+      );
+    }
     const { data, error } = await supabase.rpc("apply_ical_sync", {
       target_connection_id: connectionId,
       source_events: parsed.events,
@@ -65,8 +73,7 @@ async function syncConnectedCalendar(connectionId: string, unitId: string) {
     const removed = result.deactivated_count ?? 0;
     const notes = [`${imported} current event${imported === 1 ? "" : "s"} synchronized`];
     if (removed) notes.push(`${removed} old event${removed === 1 ? "" : "s"} cleared`);
-    if (parsed.recurringSkipped) notes.push(`${parsed.recurringSkipped} recurring event${parsed.recurringSkipped === 1 ? "" : "s"} skipped`);
-    else if (parsed.skipped) notes.push(`${parsed.skipped} non-blocking/invalid event${parsed.skipped === 1 ? "" : "s"} skipped`);
+    if (parsed.skipped) notes.push(`${parsed.skipped} cancelled, transparent or duplicate event${parsed.skipped === 1 ? "" : "s"} skipped`);
     return { ok: true as const, message: notes.join(" · ") };
   } catch (error) {
     const message = errorMessage(error);

@@ -9,6 +9,7 @@ export type ParsedIcalFeed = {
   events: CanonicalIcalEvent[];
   skipped: number;
   recurringSkipped: number;
+  unsafeSkipped: number;
 };
 
 type RawEvent = Record<string, string>;
@@ -82,13 +83,17 @@ function toRawEvents(lines: string[]) {
 }
 
 export function parseIcalAvailability(input: string): ParsedIcalFeed {
-  if (!input.includes("BEGIN:VCALENDAR")) throw new Error("The URL did not return a valid iCalendar feed.");
+  if (!input.includes("BEGIN:VCALENDAR") || !input.includes("END:VCALENDAR")) {
+    throw new Error("The URL did not return a complete iCalendar feed.");
+  }
   const rawEvents = toRawEvents(unfoldIcal(input));
   if (rawEvents.length > 10000) throw new Error("The calendar feed contains too many events to import safely.");
 
   const events: CanonicalIcalEvent[] = [];
+  const seenKeys = new Set<string>();
   let skipped = 0;
   let recurringSkipped = 0;
+  let unsafeSkipped = 0;
 
   for (const raw of rawEvents) {
     if ((raw.STATUS ?? "").toUpperCase() === "CANCELLED") {
@@ -104,6 +109,7 @@ export function parseIcalAvailability(input: string): ParsedIcalFeed {
       // rules need expansion with an explicit property timezone, which belongs
       // in a later richer calendar adapter rather than being guessed here.
       recurringSkipped += 1;
+      unsafeSkipped += 1;
       skipped += 1;
       continue;
     }
@@ -111,6 +117,7 @@ export function parseIcalAvailability(input: string): ParsedIcalFeed {
     const uid = raw.UID?.trim();
     const start = canonicalDate(raw.DTSTART);
     if (!uid || !start) {
+      unsafeSkipped += 1;
       skipped += 1;
       continue;
     }
@@ -118,14 +125,20 @@ export function parseIcalAvailability(input: string): ParsedIcalFeed {
     const parsedEnd = canonicalDate(raw.DTEND);
     const end = parsedEnd ?? addDays(start, 1);
     if (end <= start) {
+      unsafeSkipped += 1;
       skipped += 1;
       continue;
     }
 
     const recurrenceId = canonicalDate(raw["RECURRENCE-ID"]);
-    const key = recurrenceId ? `${uid}::${recurrenceId}` : uid;
-    events.push({ key: key.slice(0, 500), uid: uid.slice(0, 500), start, end });
+    const key = (recurrenceId ? `${uid}::${recurrenceId}` : uid).slice(0, 500);
+    if (seenKeys.has(key)) {
+      skipped += 1;
+      continue;
+    }
+    seenKeys.add(key);
+    events.push({ key, uid: uid.slice(0, 500), start, end });
   }
 
-  return { events, skipped, recurringSkipped };
+  return { events, skipped, recurringSkipped, unsafeSkipped };
 }

@@ -1,5 +1,8 @@
 # Find A Place Booking — Milestone 9B Calendar / Availability Foundation
 
+> **Historical 9B foundation document.** The current calendar baseline includes the 9B.1 hardening in `docs/MILESTONE_9B_1_HARDENING.md` and migration 015.
+
+
 Baseline: `563fc11` — `update A9.1 Stuff` on remote `main`.
 
 Milestone 9B establishes canonical unit-level availability before reservations, taxes or payment processing are connected.

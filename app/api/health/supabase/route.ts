@@ -41,6 +41,7 @@ export async function GET() {
       { error: blockError },
       { error: exportTokenError },
       { error: syncRunError },
+      { data: calendarVersion, error: calendarVersionError },
     ] = await Promise.all([
       supabase.from("profiles").select("id,avatar_storage_path").limit(1),
       supabase.from("host_onboarding_drafts").select("id").limit(1),
@@ -56,9 +57,10 @@ export async function GET() {
       supabase.from("availability_blocks").select("id,block_type,state").limit(1),
       supabase.from("calendar_export_tokens").select("id").limit(1),
       supabase.from("calendar_sync_runs").select("id,status").limit(1),
+      supabase.rpc("calendar_hardening_version"),
     ]);
 
-    const error = profileError ?? onboardingError ?? propertyError ?? unitError ?? reviewError ?? publicCatalogError ?? rateRuleError ?? stayRuleError ?? addOnError ?? promotionError ?? connectionError ?? blockError ?? exportTokenError ?? syncRunError;
+    const error = profileError ?? onboardingError ?? propertyError ?? unitError ?? reviewError ?? publicCatalogError ?? rateRuleError ?? stayRuleError ?? addOnError ?? promotionError ?? connectionError ?? blockError ?? exportTokenError ?? syncRunError ?? calendarVersionError;
     if (error) {
       return NextResponse.json(
         {
@@ -72,11 +74,23 @@ export async function GET() {
       );
     }
 
+    if (calendarVersion !== "calendar-availability-hardening-v1") {
+      return NextResponse.json(
+        {
+          ok: false,
+          service: "supabase",
+          configured: true,
+          message: "Supabase is reachable, but the calendar hardening migration is not current.",
+        },
+        { status: 503 },
+      );
+    }
+
     return NextResponse.json({
       ok: true,
       service: "supabase",
       configured: true,
-      schema: "calendar-availability-ical-v1",
+      schema: calendarVersion,
     });
   } catch {
     return NextResponse.json(

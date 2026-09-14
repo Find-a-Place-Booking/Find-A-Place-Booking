@@ -18,9 +18,10 @@ Current sequence:
 12. `20260913001200_promotion_codes_pricing_quote.sql` — host promotion/discount codes, property/organization scope, promo eligibility rules and promotion-aware quote/commission math.
 13. `20260914001300_pricing_promotion_hardening.sql` — onboarding included-guest seed fix, advertised-special promo stacking control, promo currency enforcement and history-safe promo removal.
 14. `20260914001400_calendar_availability_ical.sql` — canonical unit availability, owner blocks, source-scoped iCal connections/imports, tokenized exports, sync health/history and authoritative availability checks.
+15. `20260914001500_calendar_hardening_performance.sql` — fail-closed calendar hardening support, private calendar-config visibility, bounded source/admin count RPCs, export-history trimming and hardening health marker.
 
-After migration 014, `/api/health/supabase` should report `calendar-availability-ical-v1`.
+After migration 015, `/api/health/supabase` should report `calendar-availability-hardening-v1`.
 
-On a database already current through 013, run only 014. Never rerun already-applied migrations to pick up this calendar foundation.
+On a database already current through 014, run only 015. Never rerun already-applied migrations to pick up the hardening pass.
 
 Do not add live payment credentials, raw banking details or SSNs to Supabase tables or migration files.
