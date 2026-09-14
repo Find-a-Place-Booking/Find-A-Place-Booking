@@ -1,72 +1,45 @@
-# Find A Place Booking — Production Milestone 9A (Revised)
+# Find A Place Booking — Milestone 9A.1 Pricing & Promotion Hardening
 
-Baseline: `68eae1d` — accepted Step 8 cleanup.
+Baseline: `878b88e` — `Latest 9A+Review` on remote `main`.
 
-This package completes the **pricing / stay-rule / promotion foundation before calendar availability** and includes the Amenities selected-count alignment cleanup.
+This is a small hardening pass on top of the pushed Milestone 9A pricing/promotion foundation. It does **not** add calendar availability, reservations, payment-provider calls or live money.
 
-## What is real now
+## What this fixes
 
-- Host `/host/rates` property pricing index.
-- Property pricing workspace at `/host/rates/[slug]`.
-- Base weeknight/weekend pricing plus the default/fallback minimum stay.
-- Rates & fees is the single operational pricing owner; general property saves no longer overwrite rates/fees/minimum-stay values.
-- Cleaning and pet fees.
-- Additional guest fee + included guest threshold.
-- Date-bound special/seasonal/custom rates.
-- Guest-facing special label metadata for future date search.
-- Date-bound minimum-night rules for holidays/events.
-- Optional guest add-ons such as romance packages.
-- Structured calculation modes for add-ons.
-- Host-created promo/discount codes:
-  - percentage or fixed-dollar;
-  - property or organization scope;
-  - optional eligible check-in dates;
-  - optional minimum nights / lodging;
-  - future maximum-use configuration.
-- Promo-aware quote math with discount applied to lodging before commission.
-- Deterministic overlapping-rate resolution.
-- Pre-tax pricing preview using the same structured quote boundary intended for checkout.
-- Admin read-only visibility into operational pricing and promo codes.
-- Durable audit events for pricing/promotion mutations.
-- Amenities category summary counts aligned in a fixed, symmetrical column.
-
-## What remains deliberately disconnected
-
-- real availability / owner blocks;
-- iCal/PMS connections;
-- reservation holds;
-- reservations;
-- atomic promo redemption history/consumption;
-- tax calculation/remittance;
-- Stripe/Square calls;
-- payouts;
-- live money.
-
-The quote RPC explicitly marks availability, taxes, payment processing, promo redemption and bookability as unresolved/false.
+- Onboarding now captures the **included guest count** required to make an additional-guest fee deterministic when the first property is created from the saved setup.
+- Host setup cannot be finalized for saved-first-property creation without a property name.
+- First-property conversion persists `unit_rate_settings.included_guests` and validates it against maximum guests.
+- Promo codes do not combine with a guest-facing advertised special by default; the host can explicitly opt a code into stacking.
+- Promo quote eligibility now requires the promo currency to match resolved stay currency.
+- Removing an unused promo still deletes it; once a promo has redemption history, removal archives/deactivates it rather than destroying the configuration record.
+- Organization-wide promo removal is labeled clearly in the host UI.
+- Admin pricing visibility includes the advertised-special stacking flag.
+- Health schema becomes `pricing-promotions-hardening-v1`.
 
 ## Supabase
 
-Complete 9A migrations:
+Run **only** the new migration on top of an already-current 9A database:
 
-1. `supabase/migrations/20260911001100_pricing_stay_rules_addons.sql`
-2. `supabase/migrations/20260913001200_promotion_codes_pricing_quote.sql`
+`supabase/migrations/20260914001300_pricing_promotion_hardening.sql`
 
-If 011 has already been applied to the current Supabase project, **do not rerun it**. Run only 012.
+Do not rewrite or rerun migrations 011/012 if they are already applied.
 
-If 011 has not been applied, run 011 and then 012.
+## Payment boundary
 
-Expected health schema after both:
+Promotions remain Find A Place pricing rules, not Stripe/Square coupons. The future reservation/hold transaction will atomically reserve/consume limited promo usage and snapshot the applied discount before the processor adapter is called.
 
-`pricing-stay-rules-promotions-v1`
+See:
 
-## Local verification
+- `docs/PROMOTION_PAYMENT_BOUNDARY.md`
+- `docs/FULL_PROJECT_REVIEW_2026-09-13.md`
+- `docs/APPLY_MILESTONE_9A_1.md`
 
-```bash
+## Verify
+
+```powershell
 npm run typecheck
 npm run build
 npm run dev
 ```
 
-Full acceptance sequence: `docs/APPLY_MILESTONE_9A.md`.
-
-After 9A is accepted and checkpointed, the next milestone is **9B canonical availability + calendar/iCal foundation**. After 9B passes locally, establish the Vercel staging environment for real HTTPS integration testing.
+After local acceptance, checkpoint 9A.1 before starting **Milestone 9B canonical availability + owner blocks + iCal/ICS**.

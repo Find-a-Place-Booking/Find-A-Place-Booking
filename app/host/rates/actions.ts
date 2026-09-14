@@ -164,6 +164,7 @@ export async function savePromotionCode(formData: FormData) {
       minimumNights: text(formData, "minimumNights", 10),
       minimumLodging: text(formData, "minimumLodging", 40),
       maxRedemptions: text(formData, "maxRedemptions", 10),
+      allowWithPublicSpecial: checked(formData, "allowWithPublicSpecial"),
       isActive: checked(formData, "isActive"),
     },
   });

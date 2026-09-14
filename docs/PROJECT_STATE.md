@@ -4,81 +4,69 @@ Last updated: 2026-09-13
 
 This is the authoritative technical handoff for the production conversion. Update it after every verified milestone before beginning the next one. Never record secret values here.
 
-## Current verified checkpoint
+## Current Git baseline
 
-**Milestone 8 cleanup — VERIFIED / PUSHED**
+**Milestone 9A — pricing, stay rules, promotions & optional add-ons: PUSHED**
 
-Current known-good Git checkpoint supplied by Jake:
+Current remote `main` reviewed on 2026-09-13:
 
-`68eae1d` — `chore: clean up Step 8 admin navigation and UI copy`
+`878b88e` — `Latest 9A+Review`
 
-This is the baseline for Milestone 9A. Earlier verified checkpoints remain:
+This commit is one commit ahead of the accepted Step 8 cleanup (`68eae1d`) and contains migrations 011/012 plus the full host pricing workspace, date rates, minimum-stay rules, add-ons and the initial promotion-code/quote foundation.
+
+Earlier known-good checkpoints remain:
 
 - `d0c4695` — Milestone 1 production baseline.
-- Milestone 2 — production/demo-data cleanup, verified by Jake; hash was not supplied in the build chat.
+- Milestone 2 — production/demo-data cleanup; hash not supplied.
 - `43dbf81` — Milestone 3 Supabase application foundation.
 - `81346f6` — Milestone 3.5 UI/UX + mobile stabilization.
 - `19665ba` — Milestone 4 Supabase authentication foundation.
 - `1aee0bb` — Milestone 5 real admin operations foundation.
 - `00bb71d` — Milestone 8 property review/publication checkpoint, including accumulated Steps 6–8.
 - `68eae1d` — Milestone 8 cleanup checkpoint.
+- `878b88e` — Milestone 9A pricing/promotions baseline.
 
 ## Current package
 
-**Milestone 9A — pricing, stay rules, promotions & optional add-ons: IMPLEMENTED, PENDING LOCAL ACCEPTANCE**
+**Milestone 9A.1 — pricing/promotion hardening: IMPLEMENTED, PENDING LOCAL ACCEPTANCE**
 
-Database migrations:
+New migration:
 
-- `supabase/migrations/20260911001100_pricing_stay_rules_addons.sql`
-- `supabase/migrations/20260913001200_promotion_codes_pricing_quote.sql`
+- `supabase/migrations/20260914001300_pricing_promotion_hardening.sql`
 
-If migration 011 has already been applied locally, do not rerun it; apply only migration 012. If not, run 011 and then 012.
+Do not rewrite or rerun already-applied migrations 011/012. Apply only 013 on a database that already has current 9A.
 
-Milestone 9A establishes the pricing layer before calendar availability so calendar/PMS, checkout, taxes and payment processors can integrate without owning host pricing:
+9A.1 closes the issues found in the full post-push review before availability, reservations and payment processors are added:
 
-- base weeknight/weekend pricing remains in `unit_rate_settings`;
-- `/host/rates/[slug]` is now the single operational owner of base rates, standard fees, included-guest threshold and default minimum stay; the general property editor is summary-only for those values and `save_property_listing` no longer mutates pricing tables;
-- included-guest threshold supports deterministic additional-guest fees;
-- `unit_rate_rules` provides date-bound special/seasonal/custom nightly overrides;
-- guest-facing special metadata is stored for future public date search;
-- `unit_stay_rules` provides date-bound minimum-night requirements such as holiday stays;
-- `unit_add_ons` provides structured optional extras such as romance packages, firewood or breakfast baskets;
-- add-ons support per-stay, per-night, per-person and per-person/per-night calculations;
-- `promotion_codes` provides host-created percentage or fixed-dollar lodging discounts;
-- promotions may apply to one property or every property in the host organization;
-- promo eligibility can constrain check-in dates, minimum nights, minimum lodging and future maximum redemption count;
-- quote preview validates promo eligibility but never consumes a redemption;
-- future reservation creation must atomically consume/reserve promo usage and snapshot the exact promotion/discount into immutable reservation/ledger history;
-- promotion discounts apply to lodging only, and Find A Place commission follows the **discounted** lodging subtotal;
-- pricing writes run through audited security-definer RPCs and remain host organization-owner/manager controlled;
-- pricing can be changed on published properties without reopening listing identity/photo review;
-- deterministic overlap resolution uses priority, then narrower date range, then newest rule;
-- Friday/Saturday use weekend pricing;
-- arrival-date stay rules determine the applicable minimum-night requirement;
-- `resolve_unit_pricing_days` is the calendar/PMS integration boundary;
-- `quote_unit_stay` is the processor-neutral pre-tax quote boundary and now resolves date rates, stay rules, host fees, add-ons and an optional promotion code;
-- quote output explicitly reports availability unchecked, taxes uncalculated, processor unquoted, promo redemption unconsumed and quote non-bookable;
-- host `/host/rates` is a real property pricing index;
-- `/host/rates/[slug]` manages base rates, date specials, minimum-stay rules, guest fees, promo codes and add-ons;
-- Admin property detail has read-only operational visibility into date rates, stay rules, promo codes and add-ons;
-- property Amenities category rows use a fixed three-column summary layout so selected counts align consistently;
-- the health schema becomes `pricing-stay-rules-promotions-v1`.
+- onboarding now records the **included guest threshold** when an extra-guest fee is configured, so the first property created from onboarding does not carry a fee that can never trigger;
+- finishing onboarding now requires the first property name because the saved-first-property creation RPC requires it;
+- `create_property_from_onboarding` persists `unit_rate_settings.included_guests` and validates it against property capacity;
+- promotion codes default to **not stacking with an advertised/public special rate**; hosts may explicitly opt in per code;
+- promo currency must match the resolved stay currency before a quote can apply it;
+- unused promo codes can still be deleted, while codes with redemption history are archived/inactivated instead of hard-deleted so later reservation/ledger history can retain a durable source record;
+- organization-wide code removal is labeled clearly in the host UI;
+- the quote remains processor-neutral and still does not check availability, consume a promo use, calculate tax, create a hold/reservation or contact Stripe/Square;
+- health schema becomes `pricing-promotions-hardening-v1`.
 
-### Integration boundaries locked by 9A
+### Promotion/payment boundary after 9A.1
 
-**Calendar/PMS:** availability and pricing stay separate. Step 9B may block/open nights and track sync health, then resolve price/minimum stay through 9A. Calendar imports must not silently overwrite rates/promos. Any future provider-owned pricing mode must be explicit.
+Promotion configuration and discount math are owned by Find A Place/Supabase, not Stripe/Square. The future reservation transaction must:
 
-**Checkout/reservations:** the future hold/reservation engine consumes an authoritative structured quote after availability revalidation. It must snapshot nightly rates, stay rule, fees, add-ons, promotion/discount and commission tier/base. Later host edits never mutate an existing reservation.
+1. revalidate authoritative availability;
+2. obtain/validate the temporary hold;
+3. rerun authoritative pricing;
+4. atomically validate/reserve/consume promotion use with the reservation/hold so limited-use codes cannot race;
+5. snapshot nightly pricing, discount, fees, add-ons, commission tier/base and accepted policies;
+6. calculate/snapshot tax through the later jurisdiction layer;
+7. only then create/update payment-provider state through the provider adapter.
 
-**Promotions:** promo codes are Find A Place pricing rules, not Stripe/Square coupons. One code applies per quote. Preview does not consume uses. Reservation creation later owns atomic redemption and immutable redemption history.
+Do **not** add a standalone promo redemption counter before reservation/hold records exist. See `docs/PROMOTION_PAYMENT_BOUNDARY.md`.
 
-**Payments:** Stripe Connect/Square adapters receive finalized reservation line items. Processor IDs, coupons and fees do not belong in core pricing tables.
+### Full project review result
 
-**Taxes:** tax calculation/remittance remains a separate jurisdiction/provider layer. Discounts/add-ons must be mapped by the later tax layer without hard-coding host/platform tax responsibility now.
+The post-`878b88e` review found no architecture blocker requiring a redesign. Auth/admin separation, organization/property ownership, review/publication, private storage, public listing exposure, pricing ownership, calendar boundary and payment placeholders still line up with the planned product. The actionable issues are addressed by 9A.1. See `docs/FULL_PROJECT_REVIEW_2026-09-13.md`.
 
-Acceptance instructions: `docs/APPLY_MILESTONE_9A.md`.
-
-Do not start Milestone 9B until migrations 011/012, amenity-count alignment, base pricing, extra-guest threshold, overlapping rate resolution, holiday minimum stays, promo CRUD/quote behavior, add-on CRUD, Admin visibility, auth/mobile regressions, typecheck and production build all pass and Milestone 9A is committed as a known-good checkpoint.
+Do not start Milestone 9B until migration 013, onboarding seed behavior, promo stacking/currency/removal behavior, auth/mobile regressions, typecheck and production build all pass and 9A.1 is checkpointed.
 
 ---
 

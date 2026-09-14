@@ -14,7 +14,7 @@ const initialForm = {
   street: "", city: "", state: "AR", postal: "", publicArea: "",
   maxGuests: "", bedrooms: "", beds: "", bathrooms: "", minStay: "2",
   customAmenities: "",
-  weeknight: "", weekend: "", cleaning: "", pet: "", extraGuest: "",
+  weeknight: "", weekend: "", cleaning: "", pet: "", includedGuests: "", extraGuest: "",
   checkIn: "15:00", checkout: "11:00", cancellation: "",
   quietStart: "22:00", quietEnd: "07:00", maxPets: "", minimumAge: "", customPolicies: "",
   calendarPreference: "UNSET",
@@ -134,8 +134,10 @@ export function HostOnboardingWizard({ initial }: { initial: HostOnboardingRecor
     const missing = [
       !form.hostName.trim() && "business or host name",
       !form.contactName.trim() && "primary contact",
+      !form.propertyName.trim() && "first property name",
       !form.email.trim() && "business email",
       !partnerVerified && !form.partnerClaim && "partner-status answer",
+      (Number.parseFloat(form.extraGuest || "0") > 0) && !form.includedGuests.trim() && "guests included in the nightly rate",
       !authorityConfirmed && "authority confirmation",
     ].filter(Boolean) as string[];
 
@@ -227,7 +229,7 @@ export function HostOnboardingWizard({ initial }: { initial: HostOnboardingRecor
             <label><span>Weeknight rate</span><div className="money-input"><b>$</b><input value={form.weeknight} onChange={(e) => update("weeknight", e.target.value)} type="number" min="0" inputMode="decimal" placeholder="0" /></div></label>
             <label><span>Weekend rate</span><div className="money-input"><b>$</b><input value={form.weekend} onChange={(e) => update("weekend", e.target.value)} type="number" min="0" inputMode="decimal" placeholder="0" /></div></label>
           </div>
-          <div className="fee-section"><div><strong>Optional host fees</strong><span>Leave a field blank if it does not apply.</span></div><div className="field-grid onboarding-fields compact-fields"><label><span>Cleaning fee</span><div className="money-input"><b>$</b><input value={form.cleaning} onChange={(e) => update("cleaning", e.target.value)} type="number" min="0" inputMode="decimal" placeholder="0" /></div></label><label><span>Pet fee / stay</span><div className="money-input"><b>$</b><input value={form.pet} onChange={(e) => update("pet", e.target.value)} type="number" min="0" inputMode="decimal" placeholder="0" /></div></label><label><span>Extra guest / night</span><div className="money-input"><b>$</b><input value={form.extraGuest} onChange={(e) => update("extraGuest", e.target.value)} type="number" min="0" inputMode="decimal" placeholder="0" /></div></label></div></div>
+          <div className="fee-section"><div><strong>Optional host fees</strong><span>Leave a field blank if it does not apply.</span></div><div className="field-grid onboarding-fields compact-fields"><label><span>Cleaning fee</span><div className="money-input"><b>$</b><input value={form.cleaning} onChange={(e) => update("cleaning", e.target.value)} type="number" min="0" inputMode="decimal" placeholder="0" /></div></label><label><span>Pet fee / stay</span><div className="money-input"><b>$</b><input value={form.pet} onChange={(e) => update("pet", e.target.value)} type="number" min="0" inputMode="decimal" placeholder="0" /></div></label><label><span>Guests included in nightly rate</span><input value={form.includedGuests} onChange={(e) => update("includedGuests", e.target.value)} type="number" min="1" max={form.maxGuests || "100"} inputMode="numeric" placeholder={form.maxGuests || "All guests"} /><small>Required only when charging an additional-guest fee.</small></label><label><span>Extra guest / night</span><div className="money-input"><b>$</b><input value={form.extraGuest} onChange={(e) => update("extraGuest", e.target.value)} type="number" min="0" inputMode="decimal" placeholder="0" /></div><small>Charged only above the included-guest count.</small></label></div></div>
           <div className="inline-note commission-note"><strong>Find A Place commission is based on lodging only.</strong><span>The verified partner 5% or standard 7% commission is calculated from the nightly lodging subtotal after host discounts, not legitimate cleaning fees, pet fees, taxes, refundable deposits or optional add-ons.</span></div>
         </>}
 
@@ -274,7 +276,7 @@ export function HostOnboardingWizard({ initial }: { initial: HostOnboardingRecor
             <div><span>Property draft</span><strong>{form.propertyName || "Not provided yet"}</strong><small>{[form.propertyType, form.publicArea].filter(Boolean).join(" · ") || "Type and public area not provided"}</small></div>
             <div><span>Capacity</span><strong>{form.maxGuests ? `${form.maxGuests} guests` : "Not provided yet"}</strong><small>{[form.bedrooms && `${form.bedrooms} bedrooms`, form.beds && `${form.beds} beds`, form.bathrooms && `${form.bathrooms} baths`].filter(Boolean).join(" · ") || "Sleeping details not provided"}</small></div>
             <div><span>Amenities</span><strong>{amenities.length} selected</strong><small>{amenities.slice(0, 4).join(" · ") || "No amenities selected yet"}</small></div>
-            <div><span>Rates</span><strong>{form.weeknight ? `$${form.weeknight} weeknight` : "Not provided yet"}</strong><small>{form.weekend ? `$${form.weekend} weekend` : "Weekend rate not provided"}</small></div>
+            <div><span>Rates</span><strong>{form.weeknight ? `$${form.weeknight} weeknight` : "Not provided yet"}</strong><small>{form.weekend ? `$${form.weekend} weekend` : "Weekend rate not provided"}{form.extraGuest ? ` · ${form.includedGuests || "?"} guests included, then $${form.extraGuest}/guest/night` : ""}</small></div>
             <div><span>Policies</span><strong>{policies.length} common rules</strong><small>{form.customPolicies ? "Custom policies also added" : "No custom policies"}</small></div>
             <div><span>Partner status</span><strong>{partnerStatus === "VERIFIED" ? "Verified partner — 5%" : partnerStatus === "PARTNER_PENDING" || form.partnerClaim === "yes" ? "Pending verification — 7%" : "Standard host — 7%"}</strong><small>Hosts cannot self-award the partner rate</small></div>
           </div>

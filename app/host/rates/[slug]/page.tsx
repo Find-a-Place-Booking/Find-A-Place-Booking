@@ -127,7 +127,7 @@ export default async function PropertyRatesPage({
 
     <section className="panel pricing-rule-section pricing-promotions-section">
       <div className="panel-head"><div><p className="eyebrow dark">Promo & discount codes</p><h2>Host-controlled lodging discounts</h2></div><span>{pricing.promotion_codes.length}</span></div>
-      <p className="muted">Create a percentage or fixed-dollar code without changing the underlying nightly rate. Codes discount lodging only, so Find A Place commission follows the discounted lodging subtotal. Only one code can apply to a quote.</p>
+      <p className="muted">Create a percentage or fixed-dollar code without changing the underlying nightly rate. Codes discount lodging only, so Find A Place commission follows the discounted lodging subtotal. Only one code can apply to a quote, and advertised special rates do not stack with codes unless the host explicitly allows it.</p>
       <details className="pricing-create" open={!pricing.promotion_codes.length}>
         <summary>+ Add promo code</summary>
         <PromotionCodeForm unitId={property.unitId} slug={property.form.slug} />
@@ -135,7 +135,7 @@ export default async function PropertyRatesPage({
       <div className="pricing-addon-grid">{pricing.promotion_codes.map((promotion) => <details className="pricing-addon-card" key={promotion.id}>
         <summary><div><strong>{promotion.code}</strong><span>{promotion.label} · {promotion.scope === "ORGANIZATION" ? "All organization properties" : "This property"}</span></div><div><b>{promotionValueLabel(promotion)}</b><em>{promotion.is_active ? "Active" : "Inactive"}</em></div></summary>
         <PromotionCodeForm unitId={property.unitId} slug={property.form.slug} promotion={promotion} />
-        <form action={deletePromotionCode} className="pricing-delete"><input type="hidden" name="unitId" value={property.unitId} /><input type="hidden" name="slug" value={property.form.slug} /><input type="hidden" name="promotionId" value={promotion.id} /><button type="submit">Remove promo code</button></form>
+        <form action={deletePromotionCode} className="pricing-delete"><input type="hidden" name="unitId" value={property.unitId} /><input type="hidden" name="slug" value={property.form.slug} /><input type="hidden" name="promotionId" value={promotion.id} /><button type="submit">{promotion.scope === "ORGANIZATION" ? "Remove code from all organization properties" : "Remove promo code"}</button></form>
       </details>)}</div>
       <div className="inline-note commission-note"><strong>Redemption boundary</strong><span>Maximum-use settings are stored now, but previewing a quote never consumes a use. The future reservation transaction will atomically reserve/redeem the code and snapshot it with the booking.</span></div>
     </section>
@@ -215,6 +215,7 @@ function PromotionCodeForm({ unitId, slug, promotion }: { unitId: string; slug: 
     <label><span>Minimum nights</span><input type="number" min="1" max="365" name="minimumNights" defaultValue={promotion?.minimum_nights ?? ""} /></label>
     <label><span>Minimum lodging subtotal</span><div className="money-input"><i>$</i><input type="number" min="0" step="0.01" name="minimumLodging" defaultValue={dollars(promotion?.minimum_lodging_cents)} /></div></label>
     <label><span>Maximum uses</span><input type="number" min="1" name="maxRedemptions" defaultValue={promotion?.max_redemptions ?? ""} /><small>Enforced atomically when reservation creation is wired. Preview does not consume uses.</small></label>
+    <label className="checkline wide"><input type="checkbox" name="allowWithPublicSpecial" defaultChecked={promotion?.allow_with_public_special ?? false} /><span>Allow this code to combine with an advertised special rate.</span></label>
     <label className="checkline wide"><input type="checkbox" name="isActive" defaultChecked={promotion?.is_active ?? true} /><span>Promo code active</span></label>
     <div className="pricing-inline-actions"><button className="button button-small" type="submit">{promotion ? "Save promo code" : "Add promo code"}</button></div>
   </form>;

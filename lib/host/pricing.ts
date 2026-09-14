@@ -55,6 +55,7 @@ export type PromotionCode = {
   minimum_lodging_cents: number | null;
   max_redemptions: number | null;
   redemption_count: number;
+  allow_with_public_special: boolean;
   is_active: boolean;
 };
 
@@ -79,6 +80,7 @@ export type PricingQuote = {
     scope: "PROPERTY" | "ORGANIZATION";
     max_redemptions: number | null;
     redemption_count: number;
+    allow_with_public_special: boolean;
   };
   discount_cents: number;
   lodging_subtotal_cents: number;

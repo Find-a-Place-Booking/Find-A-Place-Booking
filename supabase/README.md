@@ -16,9 +16,10 @@ Current sequence:
 10. `20260909001000_property_review_publication.sql` — host submission, admin review/approval/publication, safe public listing RPCs and review audit history.
 11. `20260911001100_pricing_stay_rules_addons.sql` — date-based pricing, holiday minimum stays, additional-guest threshold, optional add-ons, deterministic pricing resolver and processor-neutral pre-tax quote boundary.
 12. `20260913001200_promotion_codes_pricing_quote.sql` — host promotion/discount codes, property/organization scope, promo eligibility rules and promotion-aware quote/commission math.
+13. `20260914001300_pricing_promotion_hardening.sql` — onboarding included-guest seed fix, advertised-special promo stacking control, promo currency enforcement and history-safe promo removal.
 
-After migrations 011 and 012, `/api/health/supabase` should report `pricing-stay-rules-promotions-v1`.
+After migration 013, `/api/health/supabase` should report `pricing-promotions-hardening-v1`.
 
-If migration 011 was already applied during local testing, do not rerun it; apply only migration 012.
+On a database already current through 012, run only 013. Never rerun already-applied migrations to pick up this hardening pass.
 
 Do not add live payment credentials, raw banking details or SSNs to Supabase tables or migration files.

@@ -47,7 +47,7 @@ export async function GET() {
       supabase.from("unit_rate_rules").select("id").limit(1),
       supabase.from("unit_stay_rules").select("id").limit(1),
       supabase.from("unit_add_ons").select("id").limit(1),
-      supabase.from("promotion_codes").select("id").limit(1),
+      supabase.from("promotion_codes").select("id,allow_with_public_special,archived_at").limit(1),
     ]);
 
     const error = profileError ?? onboardingError ?? propertyError ?? unitError ?? reviewError ?? publicCatalogError ?? rateRuleError ?? stayRuleError ?? addOnError ?? promotionError;
@@ -68,7 +68,7 @@ export async function GET() {
       ok: true,
       service: "supabase",
       configured: true,
-      schema: "pricing-stay-rules-promotions-v1",
+      schema: "pricing-promotions-hardening-v1",
     });
   } catch {
     return NextResponse.json(
