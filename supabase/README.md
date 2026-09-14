@@ -11,8 +11,14 @@ Current sequence:
 5. `20260909000500_fix_host_onboarding_save.sql` — contact-column ambiguity hotfix.
 6. `20260909000600_fix_host_onboarding_organization_id.sql` — remaining onboarding `organization_id` ambiguity hotfix.
 7. `20260909000700_property_crud.sql` — real properties/units, slug history, structured listing data, private property-image Storage, audited create/update/archive RPCs and Admin property visibility.
-8. `20260909000800_step7_cleanup_host_avatar.sql` — private host-avatar Storage + host profile avatar path/RPC used by the Step 7 cleanup pass.
+8. `20260909000800_step7_cleanup_host_avatar.sql` — private host-avatar Storage + host profile avatar path/RPC.
+9. `20260909000900_add_changes_requested_status.sql` — property-review enum extension. Run and commit before migration 010.
+10. `20260909001000_property_review_publication.sql` — host submission, admin review/approval/publication, safe public listing RPCs and review audit history.
+11. `20260911001100_pricing_stay_rules_addons.sql` — date-based pricing, holiday minimum stays, additional-guest threshold, optional add-ons, deterministic pricing resolver and processor-neutral pre-tax quote boundary.
+12. `20260913001200_promotion_codes_pricing_quote.sql` — host promotion/discount codes, property/organization scope, promo eligibility rules and promotion-aware quote/commission math.
 
-After migration 008, `/api/health/supabase` should report `property-crud-v1-cleanup`.
+After migrations 011 and 012, `/api/health/supabase` should report `pricing-stay-rules-promotions-v1`.
+
+If migration 011 was already applied during local testing, do not rerun it; apply only migration 012.
 
 Do not add live payment credentials, raw banking details or SSNs to Supabase tables or migration files.

@@ -9,8 +9,7 @@ export const dynamic = "force-dynamic";
  * Development/operations smoke check for the current verified Supabase schema.
  *
  * Tables remain protected by RLS. The request only proves that the application
- * can reach the expected project and that the Milestone 8 review/publication
- * schema exists. No row contents or secrets are returned.
+ * can reach the expected project and that the pricing/stay-rule schema exists on top of the verified review/publication foundation. No row contents or secrets are returned.
  */
 export async function GET() {
   if (!isSupabaseConfigured()) {
@@ -34,6 +33,10 @@ export async function GET() {
       { error: unitError },
       { error: reviewError },
       { error: publicCatalogError },
+      { error: rateRuleError },
+      { error: stayRuleError },
+      { error: addOnError },
+      { error: promotionError },
     ] = await Promise.all([
       supabase.from("profiles").select("id,avatar_storage_path").limit(1),
       supabase.from("host_onboarding_drafts").select("id").limit(1),
@@ -41,9 +44,13 @@ export async function GET() {
       supabase.from("property_units").select("id").limit(1),
       supabase.from("property_review_events").select("id").limit(1),
       supabase.rpc("public_listing_index"),
+      supabase.from("unit_rate_rules").select("id").limit(1),
+      supabase.from("unit_stay_rules").select("id").limit(1),
+      supabase.from("unit_add_ons").select("id").limit(1),
+      supabase.from("promotion_codes").select("id").limit(1),
     ]);
 
-    const error = profileError ?? onboardingError ?? propertyError ?? unitError ?? reviewError ?? publicCatalogError;
+    const error = profileError ?? onboardingError ?? propertyError ?? unitError ?? reviewError ?? publicCatalogError ?? rateRuleError ?? stayRuleError ?? addOnError ?? promotionError;
     if (error) {
       return NextResponse.json(
         {
@@ -61,7 +68,7 @@ export async function GET() {
       ok: true,
       service: "supabase",
       configured: true,
-      schema: "property-review-publication-v1",
+      schema: "pricing-stay-rules-promotions-v1",
     });
   } catch {
     return NextResponse.json(

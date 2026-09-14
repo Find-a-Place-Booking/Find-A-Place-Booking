@@ -18,5 +18,5 @@ export const calendarPreferences = [
   { value: "UNSET", label: "Decide later", detail: "Save the property now and choose the connection when calendar setup begins." },
   { value: "ICAL", label: "iCal / ICS", detail: "Universal import/export fallback for Airbnb, Vrbo and many booking systems." },
   { value: "PMS", label: "PMS / channel manager", detail: "Use the system you already manage as the source of truth where a direct integration is available." },
-  { value: "NONE", label: "Find A Place only", detail: "No outside calendar source selected yet. Availability tools are added in the calendar milestone." },
+  { value: "NONE", label: "Find A Place only", detail: "No outside calendar source selected yet. Availability connections will be managed from the Calendar workspace." },
 ] as const;

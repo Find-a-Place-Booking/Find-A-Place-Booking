@@ -1,20 +1,18 @@
 # Find A Place Booking — Production Build State
 
-Last updated: 2026-09-09
+Last updated: 2026-09-13
 
 This is the authoritative technical handoff for the production conversion. Update it after every verified milestone before beginning the next one. Never record secret values here.
 
 ## Current verified checkpoint
 
-**Milestone 8 — property review, approval & publication foundation: VERIFIED / PUSHED**
+**Milestone 8 cleanup — VERIFIED / PUSHED**
 
 Current known-good Git checkpoint supplied by Jake:
 
-`00bb71d` — `feat: add property review and publication foundation`
+`68eae1d` — `chore: clean up Step 8 admin navigation and UI copy`
 
-This checkpoint contains the accumulated Milestone 6–8 work because Steps 6 and 7 were not separately checkpointed before Step 8. From this point forward, return to one accepted milestone = one Git checkpoint.
-
-Verified earlier checkpoints:
+This is the baseline for Milestone 9A. Earlier verified checkpoints remain:
 
 - `d0c4695` — Milestone 1 production baseline.
 - Milestone 2 — production/demo-data cleanup, verified by Jake; hash was not supplied in the build chat.
@@ -23,43 +21,64 @@ Verified earlier checkpoints:
 - `19665ba` — Milestone 4 Supabase authentication foundation.
 - `1aee0bb` — Milestone 5 real admin operations foundation.
 - `00bb71d` — Milestone 8 property review/publication checkpoint, including accumulated Steps 6–8.
+- `68eae1d` — Milestone 8 cleanup checkpoint.
 
 ## Current package
 
-**Milestone 8 cleanup — UI/navigation consistency pass: IMPLEMENTED, PENDING LOCAL ACCEPTANCE**
+**Milestone 9A — pricing, stay rules, promotions & optional add-ons: IMPLEMENTED, PENDING LOCAL ACCEPTANCE**
 
-Jake accepted and pushed the Step 8 property lifecycle at `00bb71d`. This cleanup is intentionally code/UI-only: no new database migration. It makes Admin overview metrics directly navigable, removes stale milestone-era user-facing copy, consolidates conflicting Admin metric-grid CSS, and reduces public index image signing to the three images the card UI actually consumes.
+Database migrations:
 
-Milestone 8 migrations:
+- `supabase/migrations/20260911001100_pricing_stay_rules_addons.sql`
+- `supabase/migrations/20260913001200_promotion_codes_pricing_quote.sql`
 
-- `supabase/migrations/20260909000900_add_changes_requested_status.sql`
-- `supabase/migrations/20260909001000_property_review_publication.sql`
+If migration 011 has already been applied locally, do not rerun it; apply only migration 012. If not, run 011 and then 012.
 
-Run migration 009 first and let it commit, then run 010. The split is intentional because PostgreSQL enum values must be committed before later functions can safely use them.
+Milestone 9A establishes the pricing layer before calendar availability so calendar/PMS, checkout, taxes and payment processors can integrate without owning host pricing:
 
-### Milestone 8 implementation
+- base weeknight/weekend pricing remains in `unit_rate_settings`;
+- `/host/rates/[slug]` is now the single operational owner of base rates, standard fees, included-guest threshold and default minimum stay; the general property editor is summary-only for those values and `save_property_listing` no longer mutates pricing tables;
+- included-guest threshold supports deterministic additional-guest fees;
+- `unit_rate_rules` provides date-bound special/seasonal/custom nightly overrides;
+- guest-facing special metadata is stored for future public date search;
+- `unit_stay_rules` provides date-bound minimum-night requirements such as holiday stays;
+- `unit_add_ons` provides structured optional extras such as romance packages, firewood or breakfast baskets;
+- add-ons support per-stay, per-night, per-person and per-person/per-night calculations;
+- `promotion_codes` provides host-created percentage or fixed-dollar lodging discounts;
+- promotions may apply to one property or every property in the host organization;
+- promo eligibility can constrain check-in dates, minimum nights, minimum lodging and future maximum redemption count;
+- quote preview validates promo eligibility but never consumes a redemption;
+- future reservation creation must atomically consume/reserve promo usage and snapshot the exact promotion/discount into immutable reservation/ledger history;
+- promotion discounts apply to lodging only, and Find A Place commission follows the **discounted** lodging subtotal;
+- pricing writes run through audited security-definer RPCs and remain host organization-owner/manager controlled;
+- pricing can be changed on published properties without reopening listing identity/photo review;
+- deterministic overlap resolution uses priority, then narrower date range, then newest rule;
+- Friday/Saturday use weekend pricing;
+- arrival-date stay rules determine the applicable minimum-night requirement;
+- `resolve_unit_pricing_days` is the calendar/PMS integration boundary;
+- `quote_unit_stay` is the processor-neutral pre-tax quote boundary and now resolves date rates, stay rules, host fees, add-ons and an optional promotion code;
+- quote output explicitly reports availability unchecked, taxes uncalculated, processor unquoted, promo redemption unconsumed and quote non-bookable;
+- host `/host/rates` is a real property pricing index;
+- `/host/rates/[slug]` manages base rates, date specials, minimum-stay rules, guest fees, promo codes and add-ons;
+- Admin property detail has read-only operational visibility into date rates, stay rules, promo codes and add-ons;
+- property Amenities category rows use a fixed three-column summary layout so selected counts align consistently;
+- the health schema becomes `pricing-stay-rules-promotions-v1`.
 
-- Host can submit a complete editable property (`DRAFT`, `CHANGES_REQUESTED`, `REJECTED`) for admin review.
-- Server-side submission validation requires minimum guest-facing completeness: name, description, type, location/state, active primary unit, guest capacity, weeknight rate and at least one uploaded property photo.
-- Submission sets `PENDING_REVIEW` and locks host-side listing/image changes while review is active.
-- New explicit `CHANGES_REQUESTED` state lets Admin return a listing with a note without treating it as a final rejection.
-- `SUPER_ADMIN` and `OPERATIONS_ADMIN` can request changes, approve or reject. Other internal roles remain read-only for property review decisions.
-- Approval is deliberately separate from publication: `APPROVED` is still private until an authorized admin publishes it.
-- Admin can publish `APPROVED` / `PAUSED` inventory and pause `PUBLISHED` inventory.
-- `property_review_events` creates append-only property review/publication history alongside the existing global audit log.
-- Host property editor displays review notes/readiness and prevents silent changes underneath a pending/approved/published record.
-- Safe public listing RPCs expose only deliberately guest-facing fields from `PUBLISHED` inventory; exact private addresses, host notification emails and internal fields are not exposed.
-- Private property images remain in the private bucket; anonymous/authenticated public viewers can receive signed image URLs only when the underlying property is actually `PUBLISHED`.
-- `/`, `/stays` and `/stays/[slug]` now read real published Supabase inventory.
-- Historical public slugs resolve to the current published slug.
-- Public listing UI explicitly keeps availability, reservation and checkout controls disabled.
-- The decorative/fake map pins remain disabled; a real interactive map is still a later subsystem.
-- Host sidebar/live-property status can reflect actual `PUBLISHED` count.
-- Supabase health schema becomes `property-review-publication-v1`.
+### Integration boundaries locked by 9A
 
-Acceptance instructions: `docs/APPLY_MILESTONE_8.md`.
+**Calendar/PMS:** availability and pricing stay separate. Step 9B may block/open nights and track sync health, then resolve price/minimum stay through 9A. Calendar imports must not silently overwrite rates/promos. Any future provider-owned pricing mode must be explicit.
 
-Do not start Milestone 9 until this Step 8 cleanup passes local typecheck/build plus a short regression of Admin metric links, host/admin/public property lifecycle, auth and mobile behavior, then is committed as a new known-good checkpoint.
+**Checkout/reservations:** the future hold/reservation engine consumes an authoritative structured quote after availability revalidation. It must snapshot nightly rates, stay rule, fees, add-ons, promotion/discount and commission tier/base. Later host edits never mutate an existing reservation.
+
+**Promotions:** promo codes are Find A Place pricing rules, not Stripe/Square coupons. One code applies per quote. Preview does not consume uses. Reservation creation later owns atomic redemption and immutable redemption history.
+
+**Payments:** Stripe Connect/Square adapters receive finalized reservation line items. Processor IDs, coupons and fees do not belong in core pricing tables.
+
+**Taxes:** tax calculation/remittance remains a separate jurisdiction/provider layer. Discounts/add-ons must be mapped by the later tax layer without hard-coding host/platform tax responsibility now.
+
+Acceptance instructions: `docs/APPLY_MILESTONE_9A.md`.
+
+Do not start Milestone 9B until migrations 011/012, amenity-count alignment, base pricing, extra-guest threshold, overlapping rate resolution, holiday minimum stays, promo CRUD/quote behavior, add-on CRUD, Admin visibility, auth/mobile regressions, typecheck and production build all pass and Milestone 9A is committed as a known-good checkpoint.
 
 ---
 
@@ -122,7 +141,10 @@ Do not start Milestone 7 until Milestone 6 migration, persistence, partner queue
 
 ### Marketplace
 
-- Standalone Find A Place Booking marketplace, separate from the existing Find A Place AR site.
+- Product remains the Find A Place booking marketplace, but the current launch direction is to **replace the existing `findaplacear.com` public site with this platform** rather than maintain two permanent public Find A Place sites.
+- Treat that as a controlled site migration, not a redesign: preserve the current booking-platform visual/UX direction and selectively carry forward recognizable Find A Place branding, useful content and SEO value from the existing site.
+- Before production cutover, inventory old public URLs and create redirects/replacement content so valuable backlinks/search traffic are not discarded.
+- Development remains local-first through 9B; after 9B acceptance, establish a Vercel staging environment for real HTTPS calendar/email/auth/payment-test integrations. Production DNS cutover happens only after staged end-to-end acceptance.
 - Core guest search remains location + dates + guest count, returning only suitable available stays.
 - Preserve the clean regional/travel UI; do not turn the product into generic SaaS dashboard design.
 - Decorative demo map must be replaced later with a legitimate interactive map tied to real search results, coordinates and availability.
@@ -135,6 +157,7 @@ Do not start Milestone 7 until Milestone 6 migration, persistence, partner queue
 - Host claim flow: `PARTNER_PENDING` + remains `STANDARD_7` until authorized admin verification.
 - Existing partner directory (50–75+ expected) will later support preload/import + likely-match assistance; matching never auto-grants 5%.
 - Platform commission base is **nightly lodging subtotal after host discounts only**.
+- Host promotion codes are platform-owned pricing rules (not processor coupons); valid promo discounts reduce the lodging/commission base before Stripe/Square is contacted.
 - Cleaning fees, legitimate pet fees, taxes, refundable security deposits and legitimate optional add-ons are excluded from Find A Place commission.
 - Prevent hosts from disguising lodging revenue as vague mandatory fees to avoid commission.
 - Every booking must later snapshot commission tier, rate and commission base so historical bookings never change when an organization tier changes later.
@@ -262,7 +285,7 @@ Admin reporting should eventually support completed stays, upcoming stays, cance
 
 - Dedicated Supabase project: created and connected.
 - Project technical email: `FindAPlaceBookingTech@gmail.com`.
-- GitHub organization/repository: Find-a-Place-Booking; current supplied verified checkpoint is `00bb71d` (Step 8, including accumulated Steps 6–8).
+- GitHub organization/repository: Find-a-Place-Booking; current supplied verified checkpoint is `68eae1d` (accepted Step 8 cleanup baseline).
 - Vercel: Jake's existing Pro account, intentionally not used for normal development yet.
 - Resend development sender/domain: Jake's existing account + `hometownwebservicesar.cc`.
 - Supabase Auth custom SMTP configured through Resend during Step 4 testing.
@@ -313,6 +336,7 @@ Host:
 - `/host/calendar`
 - `/host/reservations`
 - `/host/rates`
+- `/host/rates/[slug]`
 - `/host/payments`
 - `/host/messages`
 - `/host/reports`
@@ -334,20 +358,21 @@ Host routes require a valid Supabase session. Admin routes additionally require 
 
 ---
 
-## Next exact milestone after Milestone 8 acceptance
+## Next exact milestone after Milestone 9A acceptance
 
-**Milestone 9 — availability/calendar foundation**
+**Milestone 9B — canonical availability & calendar foundation**
 
-Expected scope (final slice only after Step 8 passes):
+Expected scope:
 
-1. canonical internal property/unit availability model;
-2. owner/manual availability blocks;
-3. property-specific calendar connection records and sync-health state;
-4. iCal/ICS import/export baseline;
-5. safe conflict detection and source-of-truth rules;
-6. no real payment processing;
-7. booking holds/reservation engine only after the availability foundation is verified, unless Step 9 is intentionally split into smaller sub-milestones;
-8. preserve all Step 8 publication behavior and public/private boundaries.
+1. canonical unit-night availability/source model;
+2. owner/manual blocks;
+3. property/unit calendar connection records;
+4. iCal/ICS import + export baseline;
+5. sync health, last success/error and source precedence;
+6. conflict-safe availability resolution independent from 9A pricing;
+7. combine resolved availability with `resolve_unit_pricing_days` for host calendar presentation;
+8. no live checkout/payment;
+9. after 9B local acceptance, establish Vercel staging for real HTTPS calendar/email/auth integration testing before deeper booking/payment work.
 
 ## Step 6 save hotfixes — 2026-09-09
 

@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 import { savePropertyListing } from "@/app/host/properties/actions";
@@ -199,7 +200,6 @@ export function PropertyEditor({ initial }: { initial: PropertyEditorRecord }) {
             <label><span>Bedrooms</span><input type="number" min="0" value={form.bedrooms || ""} onChange={(e) => update("bedrooms", e.target.value)} /></label>
             <label><span>Beds</span><input type="number" min="0" value={form.beds || ""} onChange={(e) => update("beds", e.target.value)} /></label>
             <label><span>Bathrooms</span><input type="number" min="0" step="0.5" value={form.bathrooms || ""} onChange={(e) => update("bathrooms", e.target.value)} /></label>
-            <label><span>Minimum stay</span><input type="number" min="1" value={form.minStay || "1"} onChange={(e) => update("minStay", e.target.value)} /></label>
             <label className="checkline full"><input type="checkbox" checked={form.exactAddressPublic === "true"} onChange={(e) => update("exactAddressPublic", e.target.checked ? "true" : "false")} /><span>Allow the exact street address to be shown publicly. Leave unchecked to keep search/listing views at the general-area level.</span></label>
           </div>
         </details>
@@ -214,13 +214,13 @@ export function PropertyEditor({ initial }: { initial: PropertyEditorRecord }) {
 
         <details className="property-edit-section">
           <summary><span><b>4</b><strong>Rates & fees</strong></span><small>{form.weeknight ? `$${form.weeknight}/night` : "Not priced"}</small></summary>
-          <div className="property-edit-body field-grid onboarding-fields">
-            <label><span>Weeknight rate</span><input type="number" min="0" step="0.01" value={form.weeknight || ""} onChange={(e) => update("weeknight", e.target.value)} /></label>
-            <label><span>Weekend rate</span><input type="number" min="0" step="0.01" value={form.weekend || ""} onChange={(e) => update("weekend", e.target.value)} /></label>
-            <label><span>Cleaning fee</span><input type="number" min="0" step="0.01" value={form.cleaning || ""} onChange={(e) => update("cleaning", e.target.value)} /></label>
-            <label><span>Pet fee</span><input type="number" min="0" step="0.01" value={form.pet || ""} onChange={(e) => update("pet", e.target.value)} /></label>
-            <label><span>Extra guest fee</span><input type="number" min="0" step="0.01" value={form.extraGuest || ""} onChange={(e) => update("extraGuest", e.target.value)} /></label>
-            <div className="inline-note full"><strong>Commission stays separate from legitimate fees.</strong><span>The future 5%/7% platform commission is calculated from nightly lodging subtotal, not cleaning/pet fees. Booking math is not enabled yet.</span></div>
+          <div className="property-edit-body">
+            <div className="property-pricing-summary">
+              <div><span>Weeknight</span><strong>{form.weeknight ? `$${form.weeknight}` : "Not set"}</strong></div>
+              <div><span>Weekend</span><strong>{form.weekend ? `$${form.weekend}` : "Uses weeknight"}</strong></div>
+              <div><span>Default minimum</span><strong>{form.minStay || "1"} night{(form.minStay || "1") === "1" ? "" : "s"}</strong></div>
+            </div>
+            <div className="inline-note commission-note"><strong>Pricing has one owner.</strong><span>Base rates, standard fees, additional-guest thresholds, date specials, holiday minimum stays, promo codes and guest add-ons are managed in Rates & fees so a stale property-details screen cannot overwrite operational pricing.</span><Link className="inline-note-link" href={`/host/rates/${form.slug || initial.form.slug}`}>Open Rates & fees →</Link></div>
           </div>
         </details>
 

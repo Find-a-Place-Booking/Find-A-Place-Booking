@@ -1,34 +1,63 @@
-# Find A Place Booking — Production Conversion
+# Find A Place Booking — Production Milestone 9A (Revised)
 
-Production build for **Find A Place Booking: Stays in Arkansas, Missouri & Beyond**.
+Baseline: `68eae1d` — accepted Step 8 cleanup.
 
-## Current package
+This package completes the **pricing / stay-rule / promotion foundation before calendar availability** and includes the Amenities selected-count alignment cleanup.
 
-**Milestone 8 cleanup — admin navigation + consistency audit**
+## What is real now
 
-Baseline:
+- Host `/host/rates` property pricing index.
+- Property pricing workspace at `/host/rates/[slug]`.
+- Base weeknight/weekend pricing plus the default/fallback minimum stay.
+- Rates & fees is the single operational pricing owner; general property saves no longer overwrite rates/fees/minimum-stay values.
+- Cleaning and pet fees.
+- Additional guest fee + included guest threshold.
+- Date-bound special/seasonal/custom rates.
+- Guest-facing special label metadata for future date search.
+- Date-bound minimum-night rules for holidays/events.
+- Optional guest add-ons such as romance packages.
+- Structured calculation modes for add-ons.
+- Host-created promo/discount codes:
+  - percentage or fixed-dollar;
+  - property or organization scope;
+  - optional eligible check-in dates;
+  - optional minimum nights / lodging;
+  - future maximum-use configuration.
+- Promo-aware quote math with discount applied to lodging before commission.
+- Deterministic overlapping-rate resolution.
+- Pre-tax pricing preview using the same structured quote boundary intended for checkout.
+- Admin read-only visibility into operational pricing and promo codes.
+- Durable audit events for pricing/promotion mutations.
+- Amenities category summary counts aligned in a fixed, symmetrical column.
 
-`00bb71d` — `feat: add property review and publication foundation`
+## What remains deliberately disconnected
 
-This cleanup does not add a database migration or npm dependency. It keeps the accepted Step 8 property lifecycle intact while tightening the UI and code around it.
+- real availability / owner blocks;
+- iCal/PMS connections;
+- reservation holds;
+- reservations;
+- atomic promo redemption history/consumption;
+- tax calculation/remittance;
+- Stripe/Square calls;
+- payouts;
+- live money.
 
-Changes include:
+The quote RPC explicitly marks availability, taxes, payment processing, promo redemption and bookability as unresolved/false.
 
-- Admin overview metric cards now work as redundant navigation where the matching admin destination exists.
-- Listing-review and Published cards open the correct status-filtered property views.
-- Partner-request navigation remains role-aware.
-- Admin metric-grid CSS was consolidated so desktop/tablet/mobile breakpoints no longer compete with older milestone rules.
-- Stale development/milestone copy was removed from host/public/admin screens where it no longer matched the current build.
-- Next 16 dev type generation is included in `tsconfig.json`, preventing the framework from repeatedly patching the include list during local development.
-- Public listing index image signing is limited to the three photos actually used by listing cards; full property detail still supports the gallery.
+## Supabase
 
-No calendar sync, availability, reservation, checkout, payment, tax, payout or live-money behavior is added here.
+Complete 9A migrations:
 
-See:
+1. `supabase/migrations/20260911001100_pricing_stay_rules_addons.sql`
+2. `supabase/migrations/20260913001200_promotion_codes_pricing_quote.sql`
 
-- `docs/PROJECT_STATE.md` — current authoritative technical state.
-- `docs/APPLY_MILESTONE_8_CLEANUP.md` — cleanup verification/checkpoint sequence.
-- `docs/APPLY_MILESTONE_8.md` — original Step 8 lifecycle acceptance sequence.
+If 011 has already been applied to the current Supabase project, **do not rerun it**. Run only 012.
+
+If 011 has not been applied, run 011 and then 012.
+
+Expected health schema after both:
+
+`pricing-stay-rules-promotions-v1`
 
 ## Local verification
 
@@ -38,10 +67,6 @@ npm run build
 npm run dev
 ```
 
-Health route remains:
+Full acceptance sequence: `docs/APPLY_MILESTONE_9A.md`.
 
-`http://localhost:3000/api/health/supabase`
-
-Expected schema: `property-review-publication-v1`.
-
-Development remains local-first. Preserve the repository's existing `.git`, `.env.local` and `package-lock.json` when applying this package.
+After 9A is accepted and checkpointed, the next milestone is **9B canonical availability + calendar/iCal foundation**. After 9B passes locally, establish the Vercel staging environment for real HTTPS integration testing.
