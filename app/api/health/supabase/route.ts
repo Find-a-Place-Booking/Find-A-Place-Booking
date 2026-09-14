@@ -7,9 +7,9 @@ export const dynamic = "force-dynamic";
 
 /**
  * Development/operations smoke check for the current verified Supabase schema.
- *
  * Tables remain protected by RLS. The request only proves that the application
- * can reach the expected project and that the pricing/stay-rule schema exists on top of the verified review/publication foundation. No row contents or secrets are returned.
+ * can reach the expected project and that the pricing + calendar/availability
+ * foundation exists. No row contents or secrets are returned.
  */
 export async function GET() {
   if (!isSupabaseConfigured()) {
@@ -37,6 +37,10 @@ export async function GET() {
       { error: stayRuleError },
       { error: addOnError },
       { error: promotionError },
+      { error: connectionError },
+      { error: blockError },
+      { error: exportTokenError },
+      { error: syncRunError },
     ] = await Promise.all([
       supabase.from("profiles").select("id,avatar_storage_path").limit(1),
       supabase.from("host_onboarding_drafts").select("id").limit(1),
@@ -48,9 +52,13 @@ export async function GET() {
       supabase.from("unit_stay_rules").select("id").limit(1),
       supabase.from("unit_add_ons").select("id").limit(1),
       supabase.from("promotion_codes").select("id,allow_with_public_special,archived_at").limit(1),
+      supabase.from("calendar_connections").select("id,sync_status").limit(1),
+      supabase.from("availability_blocks").select("id,block_type,state").limit(1),
+      supabase.from("calendar_export_tokens").select("id").limit(1),
+      supabase.from("calendar_sync_runs").select("id,status").limit(1),
     ]);
 
-    const error = profileError ?? onboardingError ?? propertyError ?? unitError ?? reviewError ?? publicCatalogError ?? rateRuleError ?? stayRuleError ?? addOnError ?? promotionError;
+    const error = profileError ?? onboardingError ?? propertyError ?? unitError ?? reviewError ?? publicCatalogError ?? rateRuleError ?? stayRuleError ?? addOnError ?? promotionError ?? connectionError ?? blockError ?? exportTokenError ?? syncRunError;
     if (error) {
       return NextResponse.json(
         {
@@ -68,7 +76,7 @@ export async function GET() {
       ok: true,
       service: "supabase",
       configured: true,
-      schema: "pricing-promotions-hardening-v1",
+      schema: "calendar-availability-ical-v1",
     });
   } catch {
     return NextResponse.json(

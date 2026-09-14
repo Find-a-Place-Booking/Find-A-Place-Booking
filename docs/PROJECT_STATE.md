@@ -1,18 +1,18 @@
 # Find A Place Booking — Production Build State
 
-Last updated: 2026-09-13
+Last updated: 2026-09-14
 
 This is the authoritative technical handoff for the production conversion. Update it after every verified milestone before beginning the next one. Never record secret values here.
 
 ## Current Git baseline
 
-**Milestone 9A — pricing, stay rules, promotions & optional add-ons: PUSHED**
+**Milestone 9A.1 — pricing/promotion hardening: PUSHED AND LOCALLY ACCEPTED FOR 9B START**
 
-Current remote `main` reviewed on 2026-09-13:
+Current remote `main` reviewed on 2026-09-14:
 
-`878b88e` — `Latest 9A+Review`
+`563fc11` — `update A9.1 Stuff`
 
-This commit is one commit ahead of the accepted Step 8 cleanup (`68eae1d`) and contains migrations 011/012 plus the full host pricing workspace, date rates, minimum-stay rules, add-ons and the initial promotion-code/quote foundation.
+This commit is the accepted 9B starting baseline. It contains migrations through 013 and the hardened pricing/promotion foundation.
 
 Earlier known-good checkpoints remain:
 
@@ -25,48 +25,38 @@ Earlier known-good checkpoints remain:
 - `00bb71d` — Milestone 8 property review/publication checkpoint, including accumulated Steps 6–8.
 - `68eae1d` — Milestone 8 cleanup checkpoint.
 - `878b88e` — Milestone 9A pricing/promotions baseline.
+- `563fc11` — Milestone 9A.1 hardening / 9B starting baseline.
 
 ## Current package
 
-**Milestone 9A.1 — pricing/promotion hardening: IMPLEMENTED, PENDING LOCAL ACCEPTANCE**
+**Milestone 9B — canonical availability + owner blocks + iCal/ICS: IMPLEMENTED, PENDING LOCAL ACCEPTANCE**
 
 New migration:
 
-- `supabase/migrations/20260914001300_pricing_promotion_hardening.sql`
+- `supabase/migrations/20260914001400_calendar_availability_ical.sql`
 
-Do not rewrite or rerun already-applied migrations 011/012. Apply only 013 on a database that already has current 9A.
+Apply only migration 014 on a database already current through 013.
 
-9A.1 closes the issues found in the full post-push review before availability, reservations and payment processors are added:
+9B adds:
 
-- onboarding now records the **included guest threshold** when an extra-guest fee is configured, so the first property created from onboarding does not carry a fee that can never trigger;
-- finishing onboarding now requires the first property name because the saved-first-property creation RPC requires it;
-- `create_property_from_onboarding` persists `unit_rate_settings.included_guests` and validates it against property capacity;
-- promotion codes default to **not stacking with an advertised/public special rate**; hosts may explicitly opt in per code;
-- promo currency must match the resolved stay currency before a quote can apply it;
-- unused promo codes can still be deleted, while codes with redemption history are archived/inactivated instead of hard-deleted so later reservation/ledger history can retain a durable source record;
-- organization-wide code removal is labeled clearly in the host UI;
-- the quote remains processor-neutral and still does not check availability, consume a promo use, calculate tax, create a hold/reservation or contact Stripe/Square;
-- health schema becomes `pricing-promotions-hardening-v1`.
+- unit-scoped canonical availability records using exclusive checkout date ranges `[start_date, end_date)`;
+- host owner/manual blocks;
+- unit-scoped external calendar connections with independent source identity;
+- universal iCal/ICS import with stable event IDs and source-safe reconciliation;
+- tokenized Find A Place iCal exports, including source-specific feeds that exclude the originating source to reduce echo loops;
+- calendar sync state, last-success/error visibility and sync history;
+- authoritative `check_unit_availability` for future guest search/checkout;
+- host Calendar workspace for property/unit selection, block management, source connection, manual sync, disconnect and export rotation;
+- existing 9A nightly pricing/special/minimum-stay information displayed alongside availability without coupling ownership;
+- read-only Admin calendar/integration-health visibility;
+- reserved canonical block types for future temporary checkout holds and Find A Place reservations without enabling either yet;
+- health schema `calendar-availability-ical-v1`.
 
-### Promotion/payment boundary after 9A.1
+9B deliberately does **not** add live reservations, scheduled background polling, direct PMS APIs/webhooks, taxes, Stripe/Square, payouts or live money. Manual host sync is the local acceptance boundary.
 
-Promotion configuration and discount math are owned by Find A Place/Supabase, not Stripe/Square. The future reservation transaction must:
+See `docs/MILESTONE_9B_CALENDAR_FOUNDATION.md` and `docs/APPLY_MILESTONE_9B.md`.
 
-1. revalidate authoritative availability;
-2. obtain/validate the temporary hold;
-3. rerun authoritative pricing;
-4. atomically validate/reserve/consume promotion use with the reservation/hold so limited-use codes cannot race;
-5. snapshot nightly pricing, discount, fees, add-ons, commission tier/base and accepted policies;
-6. calculate/snapshot tax through the later jurisdiction layer;
-7. only then create/update payment-provider state through the provider adapter.
-
-Do **not** add a standalone promo redemption counter before reservation/hold records exist. See `docs/PROMOTION_PAYMENT_BOUNDARY.md`.
-
-### Full project review result
-
-The post-`878b88e` review found no architecture blocker requiring a redesign. Auth/admin separation, organization/property ownership, review/publication, private storage, public listing exposure, pricing ownership, calendar boundary and payment placeholders still line up with the planned product. The actionable issues are addressed by 9A.1. See `docs/FULL_PROJECT_REVIEW_2026-09-13.md`.
-
-Do not start Milestone 9B until migration 013, onboarding seed behavior, promo stacking/currency/removal behavior, auth/mobile regressions, typecheck and production build all pass and 9A.1 is checkpointed.
+Do not begin the payment-processing milestone until migration 014, owner blocks, iCal import/export, source isolation, admin health, auth/property/pricing/publication regressions, typecheck and production build all pass and 9B is checkpointed.
 
 ---
 
@@ -132,7 +122,7 @@ Do not start Milestone 7 until Milestone 6 migration, persistence, partner queue
 - Product remains the Find A Place booking marketplace, but the current launch direction is to **replace the existing `findaplacear.com` public site with this platform** rather than maintain two permanent public Find A Place sites.
 - Treat that as a controlled site migration, not a redesign: preserve the current booking-platform visual/UX direction and selectively carry forward recognizable Find A Place branding, useful content and SEO value from the existing site.
 - Before production cutover, inventory old public URLs and create redirects/replacement content so valuable backlinks/search traffic are not discarded.
-- Development remains local-first through 9B; after 9B acceptance, establish a Vercel staging environment for real HTTPS calendar/email/auth/payment-test integrations. Production DNS cutover happens only after staged end-to-end acceptance.
+- Development remains local-first through Milestone 9B, the payment-processing foundation and the final UI cleanup pass. After those local milestones are accepted, establish Vercel staging for real HTTPS/auth/calendar/payment-test integration and more rigorous multi-device testing. Production DNS cutover happens only after staged end-to-end acceptance.
 - Core guest search remains location + dates + guest count, returning only suitable available stays.
 - Preserve the clean regional/travel UI; do not turn the product into generic SaaS dashboard design.
 - Decorative demo map must be replaced later with a legitimate interactive map tied to real search results, coordinates and availability.
@@ -222,6 +212,8 @@ Before Milestone 8, the Step 7 cleanup pass addresses issues found in local prop
 - Find A Place platform commission goes to the platform business, not split six ways inside every guest transaction.
 - Owner distributions happen separately after business expenses/reserves/tax-distribution policy.
 - Raw bank data/SSNs are never stored in Supabase.
+- Launch/default processing-cost policy: the connected host is responsible for third-party Stripe/Square processing fees; Find A Place's 5%/7% commission remains a separate platform charge.
+- Payment/ledger architecture must leave room for a later partner processing-fee credit/subsidy (percentage, fixed amount or full platform credit) without changing processor routing. Commercial terms are snapshotted per reservation so later policy changes never rewrite old bookings.
 - **Open decision before payment implementation:** whether host proceeds follow normal connected-account payout timing or Find A Place deliberately controls delayed release until stay completion/refund exposure clears. Do not promise/build a fund-hold model until the Connect/legal/accounting implications are confirmed.
 - Reservation, payment, refund exposure, payout eligibility, payout status and settlement status must be modeled separately.
 
