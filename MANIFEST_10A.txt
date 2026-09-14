@@ -1,0 +1,25 @@
+./.env.example
+./MANIFEST_10A.txt
+./README_10A_OVERLAY.txt
+./app/admin/reservations/page.tsx
+./app/api/health/supabase/route.ts
+./app/host/payments/page.tsx
+./app/host/reservations/actions.ts
+./app/host/reservations/page.tsx
+./components/AdminMobileNav.tsx
+./components/AdminSidebar.tsx
+./docs/APPLY_MILESTONE_10A.md
+./docs/MILESTONE_10A_RESERVATION_PAYMENT_FOUNDATION.md
+./docs/PAYMENT_PROVIDER_ARCHITECTURE.md
+./lib/host/payments.ts
+./lib/host/reservations.ts
+./lib/payments/index.ts
+./lib/payments/provider.ts
+./lib/payments/square.ts
+./lib/payments/stripe.ts
+./supabase/README.md
+./supabase/migrations/20260914001600_reservation_payment_foundation.sql
+
+Baseline: e710828cd6fdc18195ad6267ed24c947b83fa17f
+Migration: 20260914001600_reservation_payment_foundation.sql
+Expected health: reservation-payment-foundation-v1

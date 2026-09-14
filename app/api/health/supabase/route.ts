@@ -7,19 +7,12 @@ export const dynamic = "force-dynamic";
 
 /**
  * Development/operations smoke check for the current verified Supabase schema.
- * Tables remain protected by RLS. The request only proves that the application
- * can reach the expected project and that the pricing + calendar/availability
- * foundation exists. No row contents or secrets are returned.
+ * Tables remain protected by RLS. No row contents or secrets are returned.
  */
 export async function GET() {
   if (!isSupabaseConfigured()) {
     return NextResponse.json(
-      {
-        ok: false,
-        service: "supabase",
-        configured: false,
-        message: "Supabase environment variables are not configured.",
-      },
+      { ok: false, service: "supabase", configured: false, message: "Supabase environment variables are not configured." },
       { status: 503 },
     );
   }
@@ -42,6 +35,13 @@ export async function GET() {
       { error: exportTokenError },
       { error: syncRunError },
       { data: calendarVersion, error: calendarVersionError },
+      { error: reservationError },
+      { error: paymentAccountError },
+      { error: paymentError },
+      { error: refundError },
+      { error: ledgerError },
+      { error: processorEventError },
+      { data: reservationVersion, error: reservationVersionError },
     ] = await Promise.all([
       supabase.from("profiles").select("id,avatar_storage_path").limit(1),
       supabase.from("host_onboarding_drafts").select("id").limit(1),
@@ -54,34 +54,30 @@ export async function GET() {
       supabase.from("unit_add_ons").select("id").limit(1),
       supabase.from("promotion_codes").select("id,allow_with_public_special,archived_at").limit(1),
       supabase.from("calendar_connections").select("id,sync_status").limit(1),
-      supabase.from("availability_blocks").select("id,block_type,state").limit(1),
+      supabase.from("availability_blocks").select("id,block_type,state,reservation_id").limit(1),
       supabase.from("calendar_export_tokens").select("id").limit(1),
       supabase.from("calendar_sync_runs").select("id,status").limit(1),
       supabase.rpc("calendar_hardening_version"),
+      supabase.from("reservations").select("id,status,payment_status").limit(1),
+      supabase.from("payment_accounts").select("id,provider,status").limit(1),
+      supabase.from("payments").select("id,provider,status").limit(1),
+      supabase.from("refunds").select("id,status").limit(1),
+      supabase.from("financial_ledger_entries").select("id,entry_type").limit(1),
+      supabase.from("processor_events").select("id,provider,processing_status").limit(1),
+      supabase.rpc("reservation_payment_foundation_version"),
     ]);
 
-    const error = profileError ?? onboardingError ?? propertyError ?? unitError ?? reviewError ?? publicCatalogError ?? rateRuleError ?? stayRuleError ?? addOnError ?? promotionError ?? connectionError ?? blockError ?? exportTokenError ?? syncRunError ?? calendarVersionError;
+    const error = profileError ?? onboardingError ?? propertyError ?? unitError ?? reviewError ?? publicCatalogError ?? rateRuleError ?? stayRuleError ?? addOnError ?? promotionError ?? connectionError ?? blockError ?? exportTokenError ?? syncRunError ?? calendarVersionError ?? reservationError ?? paymentAccountError ?? paymentError ?? refundError ?? ledgerError ?? processorEventError ?? reservationVersionError;
     if (error) {
       return NextResponse.json(
-        {
-          ok: false,
-          service: "supabase",
-          configured: true,
-          message: "Supabase is reachable, but the current schema check failed.",
-          code: error.code ?? null,
-        },
+        { ok: false, service: "supabase", configured: true, message: "Supabase is reachable, but the current schema check failed.", code: error.code ?? null },
         { status: 503 },
       );
     }
 
-    if (calendarVersion !== "calendar-availability-hardening-v1") {
+    if (calendarVersion !== "calendar-availability-hardening-v1" || reservationVersion !== "reservation-payment-foundation-v1") {
       return NextResponse.json(
-        {
-          ok: false,
-          service: "supabase",
-          configured: true,
-          message: "Supabase is reachable, but the calendar hardening migration is not current.",
-        },
+        { ok: false, service: "supabase", configured: true, message: "Supabase is reachable, but the reservation/payment foundation is not current." },
         { status: 503 },
       );
     }
@@ -90,16 +86,13 @@ export async function GET() {
       ok: true,
       service: "supabase",
       configured: true,
-      schema: calendarVersion,
+      schema: reservationVersion,
+      calendar_schema: calendarVersion,
+      live_money_enabled: false,
     });
   } catch {
     return NextResponse.json(
-      {
-        ok: false,
-        service: "supabase",
-        configured: true,
-        message: "Supabase connection check failed.",
-      },
+      { ok: false, service: "supabase", configured: true, message: "Supabase connection check failed." },
       { status: 503 },
     );
   }

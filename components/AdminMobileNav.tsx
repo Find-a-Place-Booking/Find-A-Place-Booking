@@ -9,6 +9,7 @@ const links: MobileLink[] = [
   ["Hosts", "/admin/hosts", "hosts"],
   ["Properties", "/admin/properties", "properties"],
   ["Calendars", "/admin/calendars", "calendars"],
+  ["Reservations", "/admin/reservations", "reservations"],
   ["Partner verification", "/admin/partners", "partners", ["SUPER_ADMIN", "PARTNER_ADMIN"]],
   ["Audit log", "/admin/audit", "audit"],
 ];

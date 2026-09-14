@@ -19,9 +19,10 @@ Current sequence:
 13. `20260914001300_pricing_promotion_hardening.sql` — onboarding included-guest seed fix, advertised-special promo stacking control, promo currency enforcement and history-safe promo removal.
 14. `20260914001400_calendar_availability_ical.sql` — canonical unit availability, owner blocks, source-scoped iCal connections/imports, tokenized exports, sync health/history and authoritative availability checks.
 15. `20260914001500_calendar_hardening_performance.sql` — fail-closed calendar hardening support, private calendar-config visibility, bounded source/admin count RPCs, export-history trimming and hardening health marker.
+16. `20260914001600_reservation_payment_foundation.sql` — reservation snapshots, 10-minute canonical holds, promo reservation boundary, processor-account routing, payment/refund state, append-only ledger and provider-neutral payment foundation.
 
-After migration 015, `/api/health/supabase` should report `calendar-availability-hardening-v1`.
+After migration 016, `/api/health/supabase` should report `reservation-payment-foundation-v1` and `calendar_schema: calendar-availability-hardening-v1`.
 
-On a database already current through 014, run only 015. Never rerun already-applied migrations to pick up the hardening pass.
+On a database already current through 015, run only 016. Never rerun already-applied migrations.
 
-Do not add live payment credentials, raw banking details or SSNs to Supabase tables or migration files.
+Migration 016 does not call Stripe or Square, does not store bank account numbers/SSNs/provider secret credentials, and does not enable live money.
