@@ -6,7 +6,7 @@ import { Brand } from "./Brand";
 
 const primaryLinks = [
   ["Find a stay", "/stays"],
-  ["Destinations", "/#regions"],
+  ["Explore", "/#regions"],
   ["For hosts", "/hosts"],
   ["Why Find A Place", "/#story"]
 ];

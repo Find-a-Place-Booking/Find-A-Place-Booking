@@ -11,28 +11,46 @@ function prettyDate(value?: string) {
   return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
-export default async function StaysPage({ searchParams }: { searchParams: Promise<{ where?: string; checkin?: string; checkout?: string; guests?: string }> }) {
+const collectionHeadings: Record<string, string> = {
+  Cabin: "Cabins",
+  "RV Site": "RV stays",
+  "Hot tub": "Stays with hot tubs",
+  "Pet friendly": "Pet-friendly stays",
+  Waterfront: "Waterfront stays",
+  "Under $250": "Stays under $250",
+  "2+ bedrooms": "Stays with room to spread out"
+};
+
+export default async function StaysPage({ searchParams }: { searchParams: Promise<{ where?: string; checkin?: string; checkout?: string; guests?: string; filter?: string }> }) {
   const [params, properties] = await Promise.all([searchParams, getPublishedProperties()]);
   const where = params.where || "";
   const checkin = params.checkin || "";
   const checkout = params.checkout || "";
   const guests = params.guests || "2";
+  const initialFilter = params.filter && collectionHeadings[params.filter] ? params.filter : "";
   const start = prettyDate(checkin);
   const end = prettyDate(checkout);
   const tripLine = start && end ? `${start}–${end} · ${guests} guests` : `${guests} guests`;
+  const collectionHeading = initialFilter ? collectionHeadings[initialFilter] : "";
+  const heading = where && collectionHeading ? `${collectionHeading} near ${where}` : where ? `Stays near ${where}` : collectionHeading || "Find your next stay";
 
   return (
     <>
       <Header />
       <main className="results-main">
-        <div className="shell">
-          <div className="results-search"><SearchBar compact where={where} checkin={checkin} checkout={checkout} guests={guests} /></div>
-          <div className="results-head">
-            <div><p className="eyebrow dark">{tripLine}</p><h1>{where ? `Stays around ${where}` : "Browse published stays"}</h1><p>Browse approved listings by location and trip details. Date availability and reservations are not enabled yet.</p></div>
-            <div className="availability-fresh"><i/> Published inventory is live; date availability is not connected yet</div>
+        <section className="results-search-band">
+          <div className="shell">
+            <div className="results-search"><SearchBar compact where={where} checkin={checkin} checkout={checkout} guests={guests} /></div>
+            <p className="results-trip-line">{tripLine}</p>
           </div>
-        </div>
-        <StayResults properties={properties} destination={where} guests={Number.parseInt(guests, 10) || 2} />
+        </section>
+        <section className="shell results-summary-band">
+          <div className="results-head">
+            <div><h1>{heading}</h1><p>Browse published Find A Place stays and compare the places that fit your trip.</p></div>
+            <div className="availability-fresh"><i/> Date matching coming soon</div>
+          </div>
+        </section>
+        <StayResults properties={properties} destination={where} guests={Number.parseInt(guests, 10) || 2} initialFilter={initialFilter} />
       </main>
       <Footer />
     </>

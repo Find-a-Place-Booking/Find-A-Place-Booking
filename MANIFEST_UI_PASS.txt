@@ -1,0 +1,33 @@
+Find A Place Booking — public brand/UI pass v1.17
+Base: main @ 1ff4d3ae455a15de54a6a181929c467fb776d7b6
+
+Scope:
+- shared Find A Place brand/header/footer
+- guest homepage/search/results/property/checkout/trip/not-found presentation
+- public host marketing presentation
+- supplied Find A Place image assets
+- presentation-only theme layered after globals.css
+
+v1.17 marketplace modernization:
+- homepage is more inventory-forward: up to 8 published stays near the top
+- second stay row appears automatically when enough additional published inventory exists
+- six browse-by-stay-type/amenity collections link into the existing results/filter system
+- collection links can preselect an existing search filter through ?filter=
+- destination cards are softer/rounder and no longer use rigid table styling
+- removed the explanatory four-step booking section from the homepage
+- featured-stay hero slot now uses the first published stay and safely falls back only when no stay is published
+- guest surfaces use consistent modern radii, spacing, cards, chips and softer depth
+- property detail, booking card, results, trip, checkout, confirmation and not-found states share the same guest visual language
+- booking/testing notices are shorter and written to guests instead of as internal platform explanations
+- actual host/admin workspaces remain intentionally simple and utilitarian
+
+No lib/, Supabase, auth, calendar, pricing, reservation, payment, publication, RLS, host CRUD or admin mechanics changed.
+
+- homepage hero simplified further: no decorative patterning, more natural scale and a more real-listing feel
+- guest sections are cleaner and more product-led so the site feels premium without the AI/template vibe
+- hero-based pages now use a warm cream top navigation bar with dark charcoal text so the header reads as a separate part of the layout without clashing with the dark pine hero
+- featured stay card now uses the same warm cream family as the header for a more cohesive top section
+- more spacing added between the homepage search panel and the next section
+- homepage search and Popular shortcuts now sit in their own warm cream band with a divider before the white Featured Stays section
+- repaired marketplace bands to be full-bleed while keeping inventory aligned to the shared shell
+- tightened first Featured Stays band spacing for light inventory

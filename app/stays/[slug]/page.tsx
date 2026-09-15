@@ -17,12 +17,12 @@ export default async function PropertyPage({ params }: { params: Promise<{ slug:
   const thirdImage = images[2] ?? mainImage;
 
   return <><Header /><main className="property-page">
-    <div className="shell property-title"><div><p className="eyebrow dark">{property.state} · {property.type}</p><h1>{property.name}</h1><p>{property.location} · Newly published on Find A Place</p></div><PropertyActions /></div>
+    <div className="shell property-title"><div><p className="eyebrow dark">{property.state} · {property.type}</p><h1>{property.name}</h1><p>{property.location} · New to Find A Place</p></div><PropertyActions /></div>
     <div className="shell gallery">
       {mainImage ? <img className="gallery-main" src={mainImage} alt={`${property.name} exterior`} /> : <div className="gallery-main gallery-placeholder">Property photo</div>}
       {secondImage ? <img src={secondImage} alt={`${property.name} surroundings`} /> : <div className="gallery-placeholder">Property photo</div>}
       {thirdImage ? <img src={thirdImage} alt={`${property.name} detail`} /> : <div className="gallery-placeholder">Property photo</div>}
-      <div className="gallery-detail"><span>{images.length}</span><strong>stored photos</strong></div>
+      <div className="gallery-detail"><span>{images.length}</span><strong>photos</strong></div>
     </div>
     <div className="shell property-content"><article className="property-copy">
       <div className="stay-summary"><div><strong>{property.sleeps}</strong><span>guests</span></div>{property.bedrooms > 0 && <div><strong>{property.bedrooms}</strong><span>bedrooms</span></div>}<div><strong>{property.baths}</strong><span>baths</span></div><div><strong>{property.type}</strong><span>stay type</span></div></div>
@@ -33,7 +33,7 @@ export default async function PropertyPage({ params }: { params: Promise<{ slug:
       {property.customPolicies ? <p className="listing-custom-copy">{property.customPolicies}</p> : null}
       <div className="listing-stay-details"><span>Minimum stay: {property.minimumStayNights} night{property.minimumStayNights === 1 ? "" : "s"}</span>{property.checkIn ? <span>Check-in: {property.checkIn.slice(0,5)}</span> : null}{property.checkout ? <span>Checkout: {property.checkout.slice(0,5)}</span> : null}</div>
       {property.cancellationPolicy ? <p><strong>Cancellation:</strong> {property.cancellationPolicy}</p> : null}
-      <hr/><div className="host-block"><div className="host-avatar">{property.hostName.split(" ").slice(0,2).map((word)=>word[0]).join("")}</div><div><small>Hosted by</small><h3>{property.hostName}</h3><p>Independent property · Find A Place Booking host</p></div></div>
+      <hr/><div className="host-block"><div className="host-avatar">{property.hostName.split(" ").slice(0,2).map((word)=>word[0]).join("")}</div><div><small>Hosted by</small><h3>{property.hostName}</h3><p>Independent host · Listed on Find A Place</p></div></div>
     </article><BookingCard slug={property.slug} price={property.price} rating={0} /></div>
   </main><Footer /></>;
 }

@@ -4,5 +4,5 @@ import { Footer } from "@/components/Footer";
 
 export default async function TripPage({ params }: { params: Promise<{ confirmation: string }> }) {
   await params;
-  return <><Header /><main className="trip-page"><div className="shell standalone-empty"><p className="eyebrow dark">Trip management</p><h1>No reservation record is available.</h1><p>Trip details will appear here after a reservation is confirmed.</p><Link href="/stays" className="button">Find a stay</Link></div></main><Footer /></>;
+  return <><Header /><main className="guest-state-wrap"><section className="shell standalone-empty guest-state-card"><p className="eyebrow dark">Your trip</p><h1>We couldn’t find a reservation here yet.</h1><p>Confirmed trip details will live on this page once online booking opens.</p><Link href="/stays" className="button">Find a stay</Link></section></main><Footer /></>;
 }
