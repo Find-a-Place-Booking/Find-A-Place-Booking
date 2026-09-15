@@ -38,16 +38,32 @@ async function requireHost() {
 export async function getHostReservationWorkspace() {
   const [properties, supabase] = await Promise.all([getHostProperties(), requireHost()]);
   const unitIds = properties.map((property) => property.unitId);
-  if (!unitIds.length) return { properties, reservations: [] as HostReservationRow[] };
+  if (!unitIds.length) {
+    return { properties, reservations: [] as HostReservationRow[], testToolsEnabled: false };
+  }
 
-  await supabase.rpc("expire_reservation_holds", { target_unit_id: null });
+  const [expireResult, testToolsResult] = await Promise.all([
+    supabase.rpc("expire_reservation_holds", { target_unit_id: null }),
+    supabase.rpc("test_reservation_tools_enabled"),
+  ]);
+  if (expireResult.error) {
+    console.error("[expire_reservation_holds]", { code: expireResult.error.code, message: expireResult.error.message });
+  }
+  if (testToolsResult.error) {
+    console.error("[test_reservation_tools_enabled]", { code: testToolsResult.error.code, message: testToolsResult.error.message });
+  }
+
   const { data, error } = await supabase
     .from("reservations")
     .select("id,confirmation_code,organization_id,property_id,unit_id,status,check_in,check_out,hold_expires_at,guest_name,guest_email,guest_count,pet_count,currency,guest_total_cents,platform_commission_cents,commission_tier,commission_rate_bps,payment_provider,payment_status,tax_status,created_at")
     .in("unit_id", unitIds)
     .order("created_at", { ascending: false })
     .limit(100);
-  if (error) throw new Error("Unable to load reservations. Apply Milestone 10A migration 016 and refresh.");
+  if (error) throw new Error("Unable to load reservations. Apply Milestone 10A.1 migration 017 and refresh.");
 
-  return { properties, reservations: (data ?? []) as HostReservationRow[] };
+  return {
+    properties,
+    reservations: (data ?? []) as HostReservationRow[],
+    testToolsEnabled: testToolsResult.error ? false : testToolsResult.data === true,
+  };
 }

@@ -20,8 +20,14 @@ function go(result: string, detail?: string): never {
   redirect(`/host/reservations?${params.toString()}`);
 }
 
+function requireLocalDevelopmentTool() {
+  if (process.env.NODE_ENV === "production") {
+    go("error", "Local reservation test tools are disabled in production.");
+  }
+}
+
 export async function createTestHold(formData: FormData) {
-  if (process.env.NODE_ENV === "production") go("error", "Local test holds are disabled in production.");
+  requireLocalDevelopmentTool();
 
   const unitId = field(formData, "unitId", 100);
   const checkIn = field(formData, "checkIn", 20);
@@ -56,6 +62,8 @@ export async function createTestHold(formData: FormData) {
 }
 
 export async function cancelTestHold(formData: FormData) {
+  requireLocalDevelopmentTool();
+
   const reservationId = field(formData, "reservationId", 100);
   const supabase = await createClient();
   const { error } = await supabase.rpc("cancel_test_reservation_hold", { target_reservation_id: reservationId });

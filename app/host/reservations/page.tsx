@@ -22,7 +22,7 @@ export default async function ReservationsPage({ searchParams }: { searchParams:
   const notice = message(params.result, params.detail);
   const activeHolds = workspace.reservations.filter((reservation) => reservation.status === "HOLD").length;
   const confirmed = workspace.reservations.filter((reservation) => reservation.status === "CONFIRMED").length;
-  const isDevelopment = process.env.NODE_ENV !== "production";
+  const localToolsAvailable = process.env.NODE_ENV !== "production" && workspace.testToolsEnabled;
 
   return <DashboardShell active="Reservations" title="Reservations" eyebrow="Booking operations">
     {notice ? <div className={`panel ${params.result === "error" ? "status-danger" : ""}`}><strong>{notice}</strong></div> : null}
@@ -34,7 +34,12 @@ export default async function ReservationsPage({ searchParams }: { searchParams:
       <div><span>Payment foundation</span><strong>Local only</strong><small>Stripe / Square adapters fail closed</small></div>
     </div>
 
-    {isDevelopment ? <section className="panel">
+    {process.env.NODE_ENV !== "production" && !workspace.testToolsEnabled ? <section className="panel">
+      <div className="panel-head"><div><p className="eyebrow dark">Development safety</p><h2>Local reservation tools are database-gated</h2></div><span className="status-pill status-muted">Disabled</span></div>
+      <p className="muted">Migration 017 disables test reservation RPCs by default. Enable the development flag from a privileged local Supabase SQL session only when you intentionally want to exercise test holds.</p>
+    </section> : null}
+
+    {localToolsAvailable ? <section className="panel">
       <div className="panel-head"><div><p className="eyebrow dark">Development test tool</p><h2>Create a real canonical hold without charging money</h2></div><span className="status-pill status-muted">Local only</span></div>
       <p className="muted">This exercises the same unit IDs, 9B availability, 9A pricing/promo snapshot, 5%/7% commission snapshot and future payment-account routing boundary. It cannot contact Stripe or Square.</p>
       {workspace.properties.length ? <form action={createTestHold} className="settings-form">
@@ -59,10 +64,10 @@ export default async function ReservationsPage({ searchParams }: { searchParams:
             <span>{date(reservation.check_in)} → {date(reservation.check_out)}</span>
             <span><strong>{money(reservation.guest_total_cents, reservation.currency)}</strong><small>Tax: {reservation.tax_status.replaceAll("_", " ")}</small></span>
             <span><strong>{reservation.status.replaceAll("_", " ")}</strong><small>{reservation.payment_provider ?? "No processor routed"} · {reservation.payment_status.replaceAll("_", " ")}</small></span>
-            <span>{reservation.status === "HOLD" ? <form action={cancelTestHold}><input type="hidden" name="reservationId" value={reservation.id}/><button className="button button-small button-quiet" type="submit">Release hold</button></form> : null}</span>
+            <span>{localToolsAvailable && reservation.status === "HOLD" ? <form action={cancelTestHold}><input type="hidden" name="reservationId" value={reservation.id}/><button className="button button-small button-quiet" type="submit">Release test hold</button></form> : null}</span>
           </div>;
         })}
-      </div> : <div className="panel-empty panel-empty-large"><strong>No reservations yet.</strong><span>Create a local test hold above to verify the reservation/availability boundary without moving money.</span></div>}
+      </div> : <div className="panel-empty panel-empty-large"><strong>No reservations yet.</strong><span>{localToolsAvailable ? "Create a local test hold above to verify the reservation/availability boundary without moving money." : "Reservation records will appear here as booking testing progresses."}</span></div>}
     </section>
   </DashboardShell>;
 }

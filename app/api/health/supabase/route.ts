@@ -42,6 +42,7 @@ export async function GET() {
       { error: ledgerError },
       { error: processorEventError },
       { data: reservationVersion, error: reservationVersionError },
+      { data: hardeningVersion, error: hardeningVersionError },
     ] = await Promise.all([
       supabase.from("profiles").select("id,avatar_storage_path").limit(1),
       supabase.from("host_onboarding_drafts").select("id").limit(1),
@@ -65,9 +66,10 @@ export async function GET() {
       supabase.from("financial_ledger_entries").select("id,entry_type").limit(1),
       supabase.from("processor_events").select("id,provider,processing_status").limit(1),
       supabase.rpc("reservation_payment_foundation_version"),
+      supabase.rpc("reservation_payment_hardening_version"),
     ]);
 
-    const error = profileError ?? onboardingError ?? propertyError ?? unitError ?? reviewError ?? publicCatalogError ?? rateRuleError ?? stayRuleError ?? addOnError ?? promotionError ?? connectionError ?? blockError ?? exportTokenError ?? syncRunError ?? calendarVersionError ?? reservationError ?? paymentAccountError ?? paymentError ?? refundError ?? ledgerError ?? processorEventError ?? reservationVersionError;
+    const error = profileError ?? onboardingError ?? propertyError ?? unitError ?? reviewError ?? publicCatalogError ?? rateRuleError ?? stayRuleError ?? addOnError ?? promotionError ?? connectionError ?? blockError ?? exportTokenError ?? syncRunError ?? calendarVersionError ?? reservationError ?? paymentAccountError ?? paymentError ?? refundError ?? ledgerError ?? processorEventError ?? reservationVersionError ?? hardeningVersionError;
     if (error) {
       return NextResponse.json(
         { ok: false, service: "supabase", configured: true, message: "Supabase is reachable, but the current schema check failed.", code: error.code ?? null },
@@ -75,9 +77,13 @@ export async function GET() {
       );
     }
 
-    if (calendarVersion !== "calendar-availability-hardening-v1" || reservationVersion !== "reservation-payment-foundation-v1") {
+    if (
+      calendarVersion !== "calendar-availability-hardening-v1"
+      || reservationVersion !== "reservation-payment-foundation-v1"
+      || hardeningVersion !== "reservation-payment-hardening-v1"
+    ) {
       return NextResponse.json(
-        { ok: false, service: "supabase", configured: true, message: "Supabase is reachable, but the reservation/payment foundation is not current." },
+        { ok: false, service: "supabase", configured: true, message: "Supabase is reachable, but the reservation/payment hardening migration is not current." },
         { status: 503 },
       );
     }
@@ -86,7 +92,8 @@ export async function GET() {
       ok: true,
       service: "supabase",
       configured: true,
-      schema: reservationVersion,
+      schema: hardeningVersion,
+      reservation_schema: reservationVersion,
       calendar_schema: calendarVersion,
       live_money_enabled: false,
     });
