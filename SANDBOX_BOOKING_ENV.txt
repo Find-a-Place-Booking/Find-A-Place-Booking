@@ -1,0 +1,13 @@
+# Add these to .env.local for sandbox guest booking testing:
+BOOKING_SANDBOX_ENABLED=true
+STRIPE_SANDBOX_PROCESSING_RATE_BPS=290
+STRIPE_SANDBOX_PROCESSING_FIXED_CENTS=30
+
+# Already required by the Stripe host integration:
+# NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_test_...
+# STRIPE_SECRET_KEY=sk_test_...
+# SUPABASE_SECRET_KEY=...   (or SUPABASE_SERVICE_ROLE_KEY)
+#
+# STRIPE_WEBHOOK_SECRET is NOT required for the first localhost happy-path test
+# because /api/booking/sandbox/finalize verifies the succeeded PaymentIntent
+# directly with Stripe. It IS required before deployed/live booking.

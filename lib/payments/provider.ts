@@ -9,6 +9,7 @@ export type ProviderReadiness = {
 
 export type CreateProviderPaymentInput = {
   reservationId: string;
+  paymentId?: string | null;
   paymentAccountId: string;
   providerAccountId: string;
   providerLocationId?: string | null;
@@ -16,11 +17,13 @@ export type CreateProviderPaymentInput = {
   applicationFeeCents: number;
   currency: string;
   idempotencyKey: string;
+  customerEmail?: string | null;
 };
 
 export type CreateProviderPaymentResult = {
   provider: PaymentProviderName;
   providerPaymentId: string;
+  clientSecret?: string | null;
   status: "REQUIRES_ACTION" | "PROCESSING" | "SUCCEEDED";
 };
 
@@ -37,7 +40,10 @@ export interface PaymentProviderAdapter {
   readonly name: PaymentProviderName;
   readiness(): ProviderReadiness;
   createPayment(input: CreateProviderPaymentInput): Promise<CreateProviderPaymentResult>;
-  refundPayment(input: RefundProviderPaymentInput): Promise<{ providerRefundId: string; status: "PENDING" | "SUCCEEDED" }>;
+  refundPayment(input: RefundProviderPaymentInput): Promise<{
+    providerRefundId: string;
+    status: "PENDING" | "SUCCEEDED";
+  }>;
 }
 
 export class ProviderNotReadyError extends Error {
