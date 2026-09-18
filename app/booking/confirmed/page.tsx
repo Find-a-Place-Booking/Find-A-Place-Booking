@@ -18,6 +18,15 @@ export default async function ConfirmedPage({
     process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || "";
   const testMode = publishableKey.startsWith("pk_test_");
 
+  const tripHref =
+    params.code && params.reservationId && params.checkoutToken
+      ? `/trip/${encodeURIComponent(
+          params.code,
+        )}?reservationId=${encodeURIComponent(
+          params.reservationId,
+        )}&checkoutToken=${encodeURIComponent(params.checkoutToken)}`
+      : null;
+
   return (
     <main className="confirm-page">
       <header className="checkout-header shell">
@@ -41,7 +50,16 @@ export default async function ConfirmedPage({
           </>
         )}
 
-        <Link className="button" href="/stays">Find another stay</Link>
+        {tripHref ? (
+          <Link className="button" href={tripHref}>
+            Open your trip
+          </Link>
+        ) : (
+          <Link className="button" href="/stays">
+            Find another stay
+          </Link>
+        )}
+
         <Link className="confirm-secondary" href="/">
           Back to Find A Place
         </Link>

@@ -1,9 +1,12 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 
+import { AvailabilityDatePicker } from "@/components/AvailabilityDatePicker";
+
 type Props = {
+  unitId: string;
   slug: string;
   price: number;
   rating: number;
@@ -13,13 +16,8 @@ type Props = {
   testMode: boolean;
 };
 
-function addDays(date: string, days: number) {
-  const value = new Date(`${date}T12:00:00`);
-  value.setDate(value.getDate() + days);
-  return value.toISOString().slice(0, 10);
-}
-
 export function BookingCard({
+  unitId,
   slug,
   price,
   maxGuests,
@@ -31,11 +29,6 @@ export function BookingCard({
   const [checkIn, setCheckIn] = useState("");
   const [checkOut, setCheckOut] = useState("");
   const [guests, setGuests] = useState(1);
-
-  const today = useMemo(() => new Date().toISOString().slice(0, 10), []);
-  const checkoutMin = checkIn
-    ? addDays(checkIn, Math.max(1, minimumStayNights))
-    : today;
 
   if (!checkoutEnabled) {
     return (
@@ -78,37 +71,18 @@ export function BookingCard({
         </strong>
       </div>
 
+      <AvailabilityDatePicker
+        unitId={unitId}
+        minimumStayNights={minimumStayNights}
+        checkIn={checkIn}
+        checkOut={checkOut}
+        onChange={(dates) => {
+          setCheckIn(dates.checkIn);
+          setCheckOut(dates.checkOut);
+        }}
+      />
+
       <div className="booking-dates">
-        <label>
-          <span>Check in</span>
-          <input
-            type="date"
-            min={today}
-            value={checkIn}
-            onChange={(event) => {
-              const value = event.target.value;
-              setCheckIn(value);
-
-              if (
-                checkOut &&
-                checkOut < addDays(value, minimumStayNights)
-              ) {
-                setCheckOut("");
-              }
-            }}
-          />
-        </label>
-
-        <label>
-          <span>Check out</span>
-          <input
-            type="date"
-            min={checkoutMin}
-            value={checkOut}
-            onChange={(event) => setCheckOut(event.target.value)}
-          />
-        </label>
-
         <label className="full">
           <span>Guests</span>
           <select

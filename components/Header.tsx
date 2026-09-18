@@ -8,7 +8,7 @@ const primaryLinks = [
   ["Find a stay", "/stays"],
   ["Explore", "/#regions"],
   ["For hosts", "/hosts"],
-  ["Why Find A Place", "/#story"]
+  ["About Find A Place", "/about"],
 ];
 
 export function Header({ light = false }: { light?: boolean }) {
@@ -20,12 +20,27 @@ export function Header({ light = false }: { light?: boolean }) {
       <div className="shell header-inner">
         <Brand />
         <nav className="main-nav" aria-label="Main navigation">
-          {primaryLinks.map(([label, href]) => <Link key={label} href={href}>{label}</Link>)}
+          {primaryLinks.map(([label, href]) => (
+            <Link key={label} href={href}>
+              {label}
+            </Link>
+          ))}
         </nav>
+
         <div className="header-actions">
-          <Link className="text-link" href="/trip">My trip</Link>
-          <Link className="text-link" href="/host/sign-in">Host sign in</Link>
-          <Link className="button button-small button-outline header-list-property" href="/host/sign-up?next=%2Fhost%2Fonboarding">List your property</Link>
+          <Link className="text-link" href="/trip">
+            My trip
+          </Link>
+          <Link className="text-link" href="/host/sign-in">
+            Host sign in
+          </Link>
+          <Link
+            className="button button-small button-outline header-list-property"
+            href="/host/sign-up?next=%2Fhost%2Fonboarding"
+          >
+            List your property
+          </Link>
+
           <button
             className="mobile-menu-toggle"
             type="button"
@@ -39,15 +54,33 @@ export function Header({ light = false }: { light?: boolean }) {
           </button>
         </div>
       </div>
+
       {menuOpen && (
         <div className="mobile-menu-shell">
           <nav className="shell mobile-menu" aria-label="Mobile navigation">
-            {primaryLinks.map(([label, href]) => <Link key={label} href={href} onClick={closeMenu}>{label}<span>→</span></Link>)}
+            {primaryLinks.map(([label, href]) => (
+              <Link key={label} href={href} onClick={closeMenu}>
+                {label}
+                <span>→</span>
+              </Link>
+            ))}
+
             <div className="mobile-menu-secondary">
-              <Link href="/trip" onClick={closeMenu}>My trip</Link>
-              <Link href="/host/sign-in" onClick={closeMenu}>Host sign in</Link>
+              <Link href="/trip" onClick={closeMenu}>
+                My trip
+              </Link>
+              <Link href="/host/sign-in" onClick={closeMenu}>
+                Host sign in
+              </Link>
             </div>
-            <Link className="button button-full" href="/host/sign-up?next=%2Fhost%2Fonboarding" onClick={closeMenu}>List your property</Link>
+
+            <Link
+              className="button button-full"
+              href="/host/sign-up?next=%2Fhost%2Fonboarding"
+              onClick={closeMenu}
+            >
+              List your property
+            </Link>
           </nav>
         </div>
       )}

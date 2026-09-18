@@ -1,0 +1,11 @@
+{
+  "files": [
+    "AVAILABILITY_PICKER_README.md",
+    "app/api/booking/availability/route.ts",
+    "app/stays/[slug]/page.tsx",
+    "components/AvailabilityDatePicker.module.css",
+    "components/AvailabilityDatePicker.tsx",
+    "components/BookingCard.tsx"
+  ],
+  "booking_payment_mutation_files_modified": []
+}

@@ -22,10 +22,9 @@ export default async function PropertyPage({
 
   const checkoutEnabled =
     process.env.BOOKING_CHECKOUT_ENABLED === "true";
-  const testMode =
-    (process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || "").startsWith(
-      "pk_test_",
-    );
+  const testMode = (
+    process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || ""
+  ).startsWith("pk_test_");
 
   return (
     <>
@@ -38,7 +37,14 @@ export default async function PropertyPage({
               {property.state} · {property.type}
             </p>
             <h1>{property.name}</h1>
-            <p>{property.location} · New to Find A Place</p>
+            <p>
+              {property.location}
+              {property.reviewCount
+                ? ` · ${property.rating}/5 from ${property.reviewCount} verified review${
+                    property.reviewCount === 1 ? "" : "s"
+                  }`
+                : " · New to Find A Place"}
+            </p>
           </div>
 
           <PropertyActions />
@@ -78,7 +84,10 @@ export default async function PropertyPage({
         <div className="shell property-content">
           <article className="property-copy">
             <div className="stay-summary">
-              <div><strong>{property.sleeps}</strong><span>guests</span></div>
+              <div>
+                <strong>{property.sleeps}</strong>
+                <span>guests</span>
+              </div>
 
               {property.bedrooms > 0 && (
                 <div>
@@ -87,8 +96,15 @@ export default async function PropertyPage({
                 </div>
               )}
 
-              <div><strong>{property.baths}</strong><span>baths</span></div>
-              <div><strong>{property.type}</strong><span>stay type</span></div>
+              <div>
+                <strong>{property.baths}</strong>
+                <span>baths</span>
+              </div>
+
+              <div>
+                <strong>{property.type}</strong>
+                <span>stay type</span>
+              </div>
             </div>
 
             <h2>About this stay</h2>
@@ -125,6 +141,19 @@ export default async function PropertyPage({
             {property.customPolicies ? (
               <p className="listing-custom-copy">
                 {property.customPolicies}
+              </p>
+            ) : null}
+
+            {property.policyDocument ? (
+              <p>
+                <a
+                  className="under-link"
+                  href={property.policyDocument.url}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  Read full property policies (PDF) →
+                </a>
               </p>
             ) : null}
 
@@ -167,12 +196,54 @@ export default async function PropertyPage({
                 <p>Independent host · Listed on Find A Place</p>
               </div>
             </div>
+
+            <hr />
+            <h3>
+              {property.reviewCount
+                ? `${property.rating}/5 from ${property.reviewCount} verified review${
+                    property.reviewCount === 1 ? "" : "s"
+                  }`
+                : "Guest reviews"}
+            </h3>
+
+            {property.reviews.length ? (
+              <div className="admin-list compact">
+                {property.reviews.map((review) => (
+                  <div className="admin-list-row static" key={review.id}>
+                    <span>
+                      <strong>
+                        {review.rating}/5 · {review.guestName}
+                      </strong>
+                      <small>
+                        {review.body || "Rating submitted without written copy."}
+                      </small>
+                      {review.hostResponse ? (
+                        <small>
+                          <strong>Host response:</strong>{" "}
+                          {review.hostResponse}
+                        </small>
+                      ) : null}
+                    </span>
+                    <span>
+                      <small>
+                        {new Date(review.createdAt).toLocaleDateString("en-US")}
+                      </small>
+                    </span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="muted">
+                No verified guest reviews yet.
+              </p>
+            )}
           </article>
 
           <BookingCard
+            unitId={property.unitId}
             slug={property.slug}
             price={property.price}
-            rating={0}
+            rating={property.rating}
             maxGuests={property.sleeps}
             minimumStayNights={property.minimumStayNights}
             checkoutEnabled={checkoutEnabled}

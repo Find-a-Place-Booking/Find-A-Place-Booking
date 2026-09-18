@@ -1,0 +1,8 @@
+{
+  "files": [
+    "CALENDAR_HOTFIX_README.md",
+    "app/api/cron/calendar-sync/route.ts",
+    "supabase/migrations/20260917002500_calendar_background_sync_hotfix.sql"
+  ],
+  "booking_payment_files_modified": []
+}
