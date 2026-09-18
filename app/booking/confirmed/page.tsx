@@ -1,15 +1,22 @@
 import Link from "next/link";
 
+import { BookingConfirmation } from "@/components/BookingConfirmation";
 import { Brand } from "@/components/Brand";
-import { SandboxBookingConfirmation } from "@/components/SandboxBookingConfirmation";
 
 export default async function ConfirmedPage({
   searchParams,
 }: {
-  searchParams: Promise<{ code?: string; reservationId?: string }>;
+  searchParams: Promise<{
+    code?: string;
+    reservationId?: string;
+    checkoutToken?: string;
+  }>;
 }) {
   const params = await searchParams;
-  const sandboxEnabled = process.env.BOOKING_SANDBOX_ENABLED === "true";
+
+  const publishableKey =
+    process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || "";
+  const testMode = publishableKey.startsWith("pk_test_");
 
   return (
     <main className="confirm-page">
@@ -19,24 +26,25 @@ export default async function ConfirmedPage({
       </header>
 
       <section className="confirm-card guest-state-card">
-        {sandboxEnabled && params.code && params.reservationId ? (
-          <SandboxBookingConfirmation
+        {params.code && params.reservationId && params.checkoutToken ? (
+          <BookingConfirmation
             confirmationCode={params.code}
             reservationId={params.reservationId}
+            checkoutToken={params.checkoutToken}
+            testMode={testMode}
           />
         ) : (
           <>
             <p className="eyebrow dark">No trip loaded</p>
-            <h1>There isn’t a confirmed booking here yet.</h1>
-            <p>
-              Live booking remains closed while the sandbox payment flow is
-              being tested.
-            </p>
+            <h1>There isn’t a reservation to display here.</h1>
+            <p>Return to the stays page to start a booking.</p>
           </>
         )}
 
         <Link className="button" href="/stays">Find another stay</Link>
-        <Link className="confirm-secondary" href="/">Back to Find A Place</Link>
+        <Link className="confirm-secondary" href="/">
+          Back to Find A Place
+        </Link>
       </section>
     </main>
   );

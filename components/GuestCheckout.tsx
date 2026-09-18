@@ -10,7 +10,7 @@ import {
 import { loadStripe } from "@stripe/stripe-js/pure";
 import type { Stripe } from "@stripe/stripe-js";
 
-import styles from "./SandboxGuestCheckout.module.css";
+import styles from "./GuestCheckout.module.css";
 
 type PropertySummary = {
   unitId: string;
@@ -27,11 +27,14 @@ type Props = {
   checkOut: string;
   guests: number;
   publishableKey: string;
+  testMode: boolean;
   initialReservationId?: string | null;
+  initialCheckoutToken?: string | null;
 };
 
 type Hold = {
   reservationId: string;
+  checkoutToken: string;
   confirmationCode: string;
   holdExpiresAt: string;
   guestTotalCents: number;
@@ -56,18 +59,39 @@ function money(cents: number) {
   }).format(cents / 100);
 }
 
-function persistReservationInUrl(reservationId: string) {
+function persistCheckoutInUrl(
+  reservationId: string,
+  checkoutToken: string,
+) {
   const url = new URL(window.location.href);
   url.searchParams.set("reservationId", reservationId);
+  url.searchParams.set("checkoutToken", checkoutToken);
   window.history.replaceState({}, "", url.toString());
+}
+
+function confirmedUrl(
+  reservationId: string,
+  checkoutToken: string,
+  confirmationCode: string,
+) {
+  return (
+    `${window.location.origin}/booking/confirmed` +
+    `?reservationId=${encodeURIComponent(reservationId)}` +
+    `&checkoutToken=${encodeURIComponent(checkoutToken)}` +
+    `&code=${encodeURIComponent(confirmationCode)}`
+  );
 }
 
 function StripePaymentForm({
   reservationId,
+  checkoutToken,
   confirmationCode,
+  testMode,
 }: {
   reservationId: string;
+  checkoutToken: string;
   confirmationCode: string;
+  testMode: boolean;
 }) {
   const stripe = useStripe();
   const elements = useElements();
@@ -76,94 +100,86 @@ function StripePaymentForm({
 
   async function submit(event: FormEvent) {
     event.preventDefault();
+
     if (!stripe || !elements || busy) return;
 
     setBusy(true);
     setError(null);
 
-    const confirmedUrl =
-      `${window.location.origin}/booking/confirmed` +
-      `?reservationId=${encodeURIComponent(reservationId)}` +
-      `&code=${encodeURIComponent(confirmationCode)}`;
+    const returnUrl = confirmedUrl(
+      reservationId,
+      checkoutToken,
+      confirmationCode,
+    );
 
     const result = await stripe.confirmPayment({
       elements,
       confirmParams: {
-        return_url: confirmedUrl,
+        return_url: returnUrl,
       },
       redirect: "if_required",
     });
 
     if (result.error) {
       setError(
-        result.error.message || "Stripe could not complete the test payment.",
+        result.error.message || "Stripe could not complete the payment.",
       );
       setBusy(false);
       return;
     }
 
-    try {
-      const finalize = await fetch("/api/booking/sandbox/finalize", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ reservationId }),
-      });
-
-      const payload = await finalize.json();
-
-      if (!finalize.ok) {
-        throw new Error(
-          payload.error ||
-            "Payment succeeded but booking finalization is still processing.",
-        );
-      }
-
-      window.location.assign(confirmedUrl);
-    } catch (finalizeError) {
-      setError(
-        finalizeError instanceof Error
-          ? finalizeError.message
-          : "Payment succeeded but booking finalization is still processing.",
-      );
-      setBusy(false);
-    }
+    // The webhook, not the browser, owns the CONFIRMED transition. For card
+    // payments that don't redirect, move to the confirmation screen and let it
+    // poll the canonical reservation state while the webhook finishes.
+    window.location.assign(returnUrl);
   }
 
   return (
     <form className={styles.paymentForm} onSubmit={submit}>
       <PaymentElement />
+
       {error ? <div className={styles.error}>{error}</div> : null}
+
       <button
         className="button button-full"
         type="submit"
         disabled={!stripe || busy}
       >
-        {busy ? "Processing test payment…" : "Pay with Stripe test card"}
+        {busy ? "Processing payment…" : "Pay securely"}
       </button>
-      <small>
-        Use Stripe sandbox card 4242 4242 4242 4242. No live money moves.
-      </small>
+
+      {testMode ? (
+        <small>
+          Stripe test mode. Use 4242 4242 4242 4242 with any future expiry.
+        </small>
+      ) : (
+        <small>Secure payment processing is provided by Stripe.</small>
+      )}
     </form>
   );
 }
 
-export function SandboxGuestCheckout({
+export function GuestCheckout({
   property,
   checkIn,
   checkOut,
   guests,
   publishableKey,
+  testMode,
   initialReservationId,
+  initialCheckoutToken,
 }: Props) {
-  const [guestName, setGuestName] = useState("Test Guest");
-  const [guestEmail, setGuestEmail] = useState("testguest@example.com");
+  const [guestName, setGuestName] = useState("");
+  const [guestEmail, setGuestEmail] = useState("");
   const [guestPhone, setGuestPhone] = useState("");
   const [pets, setPets] = useState(0);
   const [hold, setHold] = useState<Hold | null>(null);
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [stripePromise, setStripePromise] =
     useState<PromiseLike<Stripe | null> | null>(null);
-  const [busy, setBusy] = useState(Boolean(initialReservationId));
+  const [busy, setBusy] = useState(
+    Boolean(initialReservationId && initialCheckoutToken),
+  );
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -171,9 +187,10 @@ export function SandboxGuestCheckout({
   }, [publishableKey]);
 
   useEffect(() => {
-    if (!initialReservationId) return;
+    if (!initialReservationId || !initialCheckoutToken) return;
 
     const reservationId = initialReservationId;
+    const checkoutToken = initialCheckoutToken;
     let cancelled = false;
 
     async function resumeExistingReservation() {
@@ -181,18 +198,18 @@ export function SandboxGuestCheckout({
       setError(null);
 
       try {
-        // First see whether the reservation is already confirmed.
         const statusResponse = await fetch(
-          `/api/booking/sandbox/status?reservationId=${encodeURIComponent(
+          `/api/booking/status?reservationId=${encodeURIComponent(
             reservationId,
-          )}`,
+          )}&checkoutToken=${encodeURIComponent(checkoutToken)}`,
           { cache: "no-store" },
         );
+
         const statusPayload = await statusResponse.json();
 
         if (!statusResponse.ok) {
           throw new Error(
-            statusPayload.error || "Unable to recover this sandbox booking.",
+            statusPayload.error || "Unable to recover this booking.",
           );
         }
 
@@ -200,77 +217,77 @@ export function SandboxGuestCheckout({
 
         if (status.status === "CONFIRMED") {
           window.location.replace(
-            `/booking/confirmed?reservationId=${encodeURIComponent(
-              status.reservationId,
-            )}&code=${encodeURIComponent(status.confirmationCode)}`,
+            confirmedUrl(
+              reservationId,
+              checkoutToken,
+              status.confirmationCode,
+            ),
           );
           return;
         }
 
-        // If Stripe already succeeded before the page refresh, finalize it now.
-        const finalizeResponse = await fetch("/api/booking/sandbox/finalize", {
+        const paymentResponse = await fetch("/api/booking/payment-intent", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ reservationId }),
+          body: JSON.stringify({ reservationId, checkoutToken }),
         });
-        const finalizePayload = await finalizeResponse.json();
 
-        if (finalizeResponse.ok) {
-          const code =
-            finalizePayload.confirmationCode || status.confirmationCode;
+        const paymentPayload = await paymentResponse.json();
 
+        if (
+          paymentResponse.ok &&
+          paymentPayload.reservationStatus === "CONFIRMED"
+        ) {
           window.location.replace(
-            `/booking/confirmed?reservationId=${encodeURIComponent(
+            confirmedUrl(
               reservationId,
-            )}&code=${encodeURIComponent(code)}`,
+              checkoutToken,
+              paymentPayload.confirmationCode || status.confirmationCode,
+            ),
           );
           return;
         }
 
-        // A 409 with a non-succeeded Stripe intent just means checkout still
-        // needs payment. Resume the existing PaymentIntent instead of creating
-        // another reservation or another charge.
-        if (finalizeResponse.status !== 409) {
+        if (!paymentResponse.ok) {
           throw new Error(
-            finalizePayload.error ||
-              "Unable to recover the existing Stripe payment.",
+            paymentPayload.error || "Unable to resume this payment.",
           );
         }
 
-        const paymentResponse = await fetch(
-          "/api/booking/sandbox/payment-intent",
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ reservationId }),
-          },
-        );
-        const paymentPayload = await paymentResponse.json();
-
-        if (!paymentResponse.ok || !paymentPayload.clientSecret) {
-          throw new Error(
-            paymentPayload.error ||
-              "Unable to resume the existing Stripe test payment.",
+        if (paymentPayload.paymentIntentStatus === "succeeded") {
+          window.location.replace(
+            confirmedUrl(
+              reservationId,
+              checkoutToken,
+              status.confirmationCode,
+            ),
           );
+          return;
+        }
+
+        if (!paymentPayload.clientSecret) {
+          throw new Error("Stripe payment session is unavailable.");
         }
 
         if (cancelled) return;
 
         setHold({
-          reservationId: status.reservationId || reservationId,
+          reservationId,
+          checkoutToken,
           confirmationCode: status.confirmationCode,
           holdExpiresAt: status.holdExpiresAt || new Date().toISOString(),
           guestTotalCents: status.guestTotalCents,
           platformCommissionCents: status.platformCommissionCents,
           commissionRateBps: 0,
         });
+
         setClientSecret(paymentPayload.clientSecret);
       } catch (resumeError) {
         if (!cancelled) {
           setError(
             resumeError instanceof Error
               ? resumeError.message
-              : "Unable to recover this sandbox booking.",
+              : "Unable to recover this booking.",
           );
         }
       } finally {
@@ -283,11 +300,12 @@ export function SandboxGuestCheckout({
     return () => {
       cancelled = true;
     };
-  }, [initialReservationId]);
+  }, [initialReservationId, initialCheckoutToken]);
 
   const nights = useMemo(() => {
     const start = new Date(`${checkIn}T12:00:00`);
     const end = new Date(`${checkOut}T12:00:00`);
+
     return Math.max(
       0,
       Math.round((end.getTime() - start.getTime()) / 86400000),
@@ -299,7 +317,7 @@ export function SandboxGuestCheckout({
     setError(null);
 
     try {
-      const holdResponse = await fetch("/api/booking/sandbox/hold", {
+      const holdResponse = await fetch("/api/booking/hold", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -322,25 +340,27 @@ export function SandboxGuestCheckout({
 
       const nextHold = holdPayload as Hold;
 
-      // Put the canonical reservation UUID in the URL immediately. A browser
-      // refresh can now recover this exact checkout instead of losing it.
-      persistReservationInUrl(nextHold.reservationId);
+      persistCheckoutInUrl(
+        nextHold.reservationId,
+        nextHold.checkoutToken,
+      );
+
       setHold(nextHold);
 
-      const paymentResponse = await fetch(
-        "/api/booking/sandbox/payment-intent",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ reservationId: nextHold.reservationId }),
-        },
-      );
+      const paymentResponse = await fetch("/api/booking/payment-intent", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          reservationId: nextHold.reservationId,
+          checkoutToken: nextHold.checkoutToken,
+        }),
+      });
 
       const paymentPayload = await paymentResponse.json();
 
       if (!paymentResponse.ok || !paymentPayload.clientSecret) {
         throw new Error(
-          paymentPayload.error || "Unable to start Stripe test payment.",
+          paymentPayload.error || "Unable to start Stripe payment.",
         );
       }
 
@@ -349,7 +369,7 @@ export function SandboxGuestCheckout({
       setError(
         requestError instanceof Error
           ? requestError.message
-          : "Unable to start sandbox checkout.",
+          : "Unable to start checkout.",
       );
     } finally {
       setBusy(false);
@@ -359,17 +379,23 @@ export function SandboxGuestCheckout({
   return (
     <div className={styles.layout}>
       <section className={styles.checkoutCard}>
-        <p className="eyebrow dark">Sandbox booking test</p>
-        <h1>Complete your test booking</h1>
+        <p className="eyebrow dark">
+          {testMode ? "Test checkout" : "Secure checkout"}
+        </p>
+        <h1>Complete your booking</h1>
 
-        {busy && initialReservationId && !clientSecret ? (
-          <p>Recovering your existing sandbox booking…</p>
+        {busy &&
+        initialReservationId &&
+        initialCheckoutToken &&
+        !clientSecret ? (
+          <p>Recovering your booking…</p>
         ) : !clientSecret ? (
           <>
             <div className={styles.guestGrid}>
               <label>
                 <span>Name</span>
                 <input
+                  autoComplete="name"
                   value={guestName}
                   onChange={(event) => setGuestName(event.target.value)}
                 />
@@ -379,6 +405,7 @@ export function SandboxGuestCheckout({
                 <span>Email</span>
                 <input
                   type="email"
+                  autoComplete="email"
                   value={guestEmail}
                   onChange={(event) => setGuestEmail(event.target.value)}
                 />
@@ -387,6 +414,7 @@ export function SandboxGuestCheckout({
               <label>
                 <span>Phone</span>
                 <input
+                  autoComplete="tel"
                   value={guestPhone}
                   onChange={(event) => setGuestPhone(event.target.value)}
                 />
@@ -421,16 +449,14 @@ export function SandboxGuestCheckout({
                 !checkOut
               }
             >
-              {busy ? "Checking dates…" : "Hold dates & continue to payment"}
+              {busy ? "Checking dates…" : "Continue to secure payment"}
             </button>
           </>
         ) : stripePromise && hold ? (
           <>
             <div className={styles.holdNotice}>
-              <strong>Dates held for test checkout</strong>
-              <span>
-                Reservation {hold.confirmationCode}
-              </span>
+              <strong>Your dates are held during checkout</strong>
+              <span>Reservation {hold.confirmationCode}</span>
             </div>
 
             <Elements
@@ -444,14 +470,16 @@ export function SandboxGuestCheckout({
             >
               <StripePaymentForm
                 reservationId={hold.reservationId}
+                checkoutToken={hold.checkoutToken}
                 confirmationCode={hold.confirmationCode}
+                testMode={testMode}
               />
             </Elements>
           </>
         ) : (
           <>
             {error ? <div className={styles.error}>{error}</div> : null}
-            <p>Loading Stripe test payment…</p>
+            <p>Loading secure payment…</p>
           </>
         )}
       </section>
@@ -469,18 +497,24 @@ export function SandboxGuestCheckout({
           <div><span>Check out</span><b>{checkOut}</b></div>
           <div><span>Nights</span><b>{nights}</b></div>
           <div><span>Guests</span><b>{guests}</b></div>
+
           {hold ? (
             <div className={styles.total}>
-              <span>Test total</span>
+              <span>Total</span>
               <b>{money(hold.guestTotalCents)}</b>
             </div>
           ) : null}
         </div>
 
-        <small>
-          Sandbox only. Taxes are still intentionally not calculated in this
-          test milestone.
-        </small>
+        {testMode ? (
+          <small>
+            Stripe test mode is active. No live money will move.
+          </small>
+        ) : (
+          <small>
+            Your payment is processed securely by Stripe.
+          </small>
+        )}
       </aside>
     </div>
   );

@@ -5,6 +5,8 @@ import { useEffect, useState } from "react";
 type Props = {
   confirmationCode: string;
   reservationId: string;
+  checkoutToken: string;
+  testMode: boolean;
 };
 
 type BookingStatus = {
@@ -26,9 +28,11 @@ function money(cents: number) {
   }).format(cents / 100);
 }
 
-export function SandboxBookingConfirmation({
+export function BookingConfirmation({
   confirmationCode,
   reservationId,
+  checkoutToken,
+  testMode,
 }: Props) {
   const [booking, setBooking] = useState<BookingStatus | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -36,19 +40,23 @@ export function SandboxBookingConfirmation({
   useEffect(() => {
     let cancelled = false;
     let attempts = 0;
+    let timer: number | undefined;
 
     async function load() {
       attempts += 1;
 
       const response = await fetch(
-        `/api/booking/sandbox/status?reservationId=${encodeURIComponent(
+        `/api/booking/status?reservationId=${encodeURIComponent(
           reservationId,
-        )}`,
+        )}&checkoutToken=${encodeURIComponent(checkoutToken)}`,
         { cache: "no-store" },
       );
 
       if (!response.ok) {
-        if (!cancelled) setError("Unable to load this sandbox booking.");
+        if (!cancelled) {
+          const payload = await response.json().catch(() => null);
+          setError(payload?.error || "Unable to load this booking.");
+        }
         return;
       }
 
@@ -61,9 +69,9 @@ export function SandboxBookingConfirmation({
       if (
         payload.confirmationCode === confirmationCode &&
         payload.status !== "CONFIRMED" &&
-        attempts < 10
+        attempts < 30
       ) {
-        window.setTimeout(load, 700);
+        timer = window.setTimeout(load, 1000);
       }
     }
 
@@ -71,27 +79,36 @@ export function SandboxBookingConfirmation({
 
     return () => {
       cancelled = true;
+      if (timer) window.clearTimeout(timer);
     };
-  }, [confirmationCode, reservationId]);
+  }, [confirmationCode, reservationId, checkoutToken]);
 
-  if (error) return <p>{error}</p>;
+  if (error) {
+    return (
+      <>
+        <p className="eyebrow dark">Booking status</p>
+        <h1>We couldn’t load this reservation.</h1>
+        <p>{error}</p>
+      </>
+    );
+  }
 
   if (!booking) {
-    return <p>Confirming your Stripe sandbox payment…</p>;
+    return <p>Confirming your payment and reservation…</p>;
   }
 
   if (booking.confirmationCode !== confirmationCode) {
-    return <p>This confirmation does not match the sandbox reservation.</p>;
+    return <p>This confirmation does not match the reservation.</p>;
   }
 
   if (booking.status !== "CONFIRMED") {
     return (
       <>
-        <p className="eyebrow dark">Payment processing</p>
-        <h1>We’re confirming the test booking.</h1>
+        <p className="eyebrow dark">Payment received</p>
+        <h1>We’re finishing your reservation.</h1>
         <p>
-          Stripe payment status: {booking.paymentStatus}. This page will refresh
-          the booking state automatically.
+          Payment status: {booking.paymentStatus}. This page checks the
+          reservation automatically while Stripe’s webhook finishes.
         </p>
       </>
     );
@@ -99,17 +116,23 @@ export function SandboxBookingConfirmation({
 
   return (
     <>
-      <p className="eyebrow dark">Sandbox booking confirmed</p>
+      <p className="eyebrow dark">Booking confirmed</p>
       <h1>{booking.propertyName || "Your stay"} is confirmed.</h1>
+
       <p>
         Confirmation <strong>{booking.confirmationCode}</strong>
       </p>
+
       <p>
-        {booking.checkIn} → {booking.checkOut} · {money(booking.guestTotalCents)}
+        {booking.checkIn} → {booking.checkOut} ·{" "}
+        {money(booking.guestTotalCents)}
       </p>
-      <p>
-        This was a Stripe sandbox transaction. No live money moved.
-      </p>
+
+      {testMode ? (
+        <p>This was a Stripe test-mode transaction. No live money moved.</p>
+      ) : (
+        <p>Your payment has been received and your dates are reserved.</p>
+      )}
     </>
   );
 }

@@ -1,20 +1,23 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import {
-  requireSandboxBooking,
+  createGuestCheckoutToken,
+  requireBookingCheckout,
   sameOrigin,
-  setReservationCookie,
-} from "@/lib/payments/sandbox-booking";
+} from "@/lib/payments/booking-runtime";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export const runtime = "nodejs";
 
 export async function POST(request: NextRequest) {
   try {
-    requireSandboxBooking();
+    requireBookingCheckout();
 
     if (!sameOrigin(request)) {
-      return NextResponse.json({ error: "Invalid request origin." }, { status: 403 });
+      return NextResponse.json(
+        { error: "Invalid request origin." },
+        { status: 403 },
+      );
     }
 
     const body = (await request.json()) as {
@@ -26,6 +29,8 @@ export async function POST(request: NextRequest) {
       guestName?: string;
       guestEmail?: string;
       guestPhone?: string;
+      addOnIds?: string[];
+      promotionCode?: string | null;
     };
 
     if (
@@ -43,33 +48,39 @@ export async function POST(request: NextRequest) {
 
     const guests = Number(body.guests || 1);
     const pets = Number(body.pets || 0);
+    const addOnIds = Array.isArray(body.addOnIds) ? body.addOnIds : [];
 
     if (!Number.isInteger(guests) || guests < 1) {
-      return NextResponse.json({ error: "Invalid guest count." }, { status: 400 });
+      return NextResponse.json(
+        { error: "Invalid guest count." },
+        { status: 400 },
+      );
     }
+
     if (!Number.isInteger(pets) || pets < 0) {
-      return NextResponse.json({ error: "Invalid pet count." }, { status: 400 });
+      return NextResponse.json(
+        { error: "Invalid pet count." },
+        { status: 400 },
+      );
     }
 
     const admin = createAdminClient();
-    const { data, error } = await admin.rpc(
-      "create_sandbox_guest_reservation_hold",
-      {
-        target_unit_id: body.unitId,
-        requested_check_in: body.checkIn,
-        requested_check_out: body.checkOut,
-        requested_guest_count: guests,
-        requested_pet_count: pets,
-        requested_add_on_ids: [],
-        requested_promotion_code: null,
-        requested_guest_name: body.guestName,
-        requested_guest_email: body.guestEmail,
-        requested_guest_phone: body.guestPhone || null,
-      },
-    );
+
+    const { data, error } = await admin.rpc("create_guest_reservation_hold", {
+      target_unit_id: body.unitId,
+      requested_check_in: body.checkIn,
+      requested_check_out: body.checkOut,
+      requested_guest_count: guests,
+      requested_pet_count: pets,
+      requested_add_on_ids: addOnIds,
+      requested_promotion_code: body.promotionCode?.trim() || null,
+      requested_guest_name: body.guestName,
+      requested_guest_email: body.guestEmail,
+      requested_guest_phone: body.guestPhone || null,
+    });
 
     if (error) {
-      console.error("[sandbox hold] RPC failed", error);
+      console.error("[booking hold] RPC failed", error);
       return NextResponse.json(
         { error: error.message || "Unable to hold those dates." },
         { status: 400 },
@@ -86,8 +97,9 @@ export async function POST(request: NextRequest) {
       quote?: unknown;
     };
 
-    const response = NextResponse.json({
+    return NextResponse.json({
       reservationId: result.reservation_id,
+      checkoutToken: createGuestCheckoutToken(result.reservation_id),
       confirmationCode: result.confirmation_code,
       holdExpiresAt: result.hold_expires_at,
       guestTotalCents: Number(result.guest_total_cents),
@@ -95,17 +107,15 @@ export async function POST(request: NextRequest) {
       commissionRateBps: Number(result.commission_rate_bps),
       quote: result.quote ?? null,
     });
-
-    setReservationCookie(response, result.reservation_id);
-    return response;
   } catch (error) {
-    console.error("[sandbox hold]", error);
+    console.error("[booking hold]", error);
+
     return NextResponse.json(
       {
         error:
           error instanceof Error
             ? error.message
-            : "Unable to create sandbox booking hold.",
+            : "Unable to create booking hold.",
       },
       { status: 500 },
     );
