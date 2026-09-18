@@ -25,6 +25,33 @@ type PublicIndexRow = {
   image_paths: string[] | null;
 };
 
+type PublicMapCoordinateRow = {
+  property_id: string;
+  map_latitude: number | string | null;
+  map_longitude: number | string | null;
+};
+
+type PublicMapListingRow = {
+  property_id: string;
+  slug: string;
+  name: string;
+  public_area: string | null;
+  city: string | null;
+  region_code: string | null;
+  weeknight_cents: number | null;
+  map_latitude: number | string | null;
+  map_longitude: number | string | null;
+};
+
+export type PublicMapStay = {
+  slug: string;
+  name: string;
+  location: string;
+  price: number;
+  lat: number;
+  lng: number;
+};
+
 type PublicDetailRow = {
   property_id: string;
   unit_id: string;
@@ -145,7 +172,11 @@ export async function getPublishedProperties(
 ): Promise<Property[]> {
   const options = typeof input === "number" ? { limit: input } : input ?? {};
   const supabase = await createClient();
-  const { data, error } = await supabase.rpc("public_listing_index");
+  const [listingResult, coordinateResult] = await Promise.all([
+    supabase.rpc("public_listing_index"),
+    supabase.rpc("public_listing_map_coordinates"),
+  ]);
+  const { data, error } = listingResult;
 
   if (error) {
     console.error("[getPublishedProperties] public_listing_index failed", {
@@ -155,6 +186,18 @@ export async function getPublishedProperties(
       hint: error.hint,
     });
     return [];
+  }
+
+  const mapCoordinateByProperty = new Map<string, PublicMapCoordinateRow>();
+  if (coordinateResult.error) {
+    console.error(
+      "[getPublishedProperties] public_listing_map_coordinates failed",
+      coordinateResult.error,
+    );
+  } else {
+    for (const row of (coordinateResult.data ?? []) as PublicMapCoordinateRow[]) {
+      mapCoordinateByProperty.set(row.property_id, row);
+    }
   }
 
   let allRows = (data ?? []) as PublicIndexRow[];
@@ -239,6 +282,9 @@ export async function getPublishedProperties(
       "Regional stay";
     const price = Math.round((row.weeknight_cents ?? 0) / 100);
     const propertyReviews = stats.get(row.property_id);
+    const mapCoordinates = mapCoordinateByProperty.get(row.property_id);
+    const mapLatitude = Number(mapCoordinates?.map_latitude);
+    const mapLongitude = Number(mapCoordinates?.map_longitude);
 
     return {
       slug: row.slug,
@@ -265,9 +311,42 @@ export async function getPublishedProperties(
         "Independent stay listed with Find A Place Booking.",
       hostName: row.host_name || "Find A Place host",
       instantBook: false,
-      lat: 0,
-      lng: 0,
+      lat: Number.isFinite(mapLatitude) ? mapLatitude : 0,
+      lng: Number.isFinite(mapLongitude) ? mapLongitude : 0,
     } satisfies Property;
+  });
+}
+
+export async function getPublishedMapStays(): Promise<PublicMapStay[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("public_map_listing_index");
+
+  if (error) {
+    console.error("[getPublishedMapStays] public_map_listing_index failed", {
+      code: error.code,
+      message: error.message,
+      details: error.details,
+      hint: error.hint,
+    });
+    return [];
+  }
+
+  return ((data ?? []) as PublicMapListingRow[]).flatMap((row) => {
+    const lat = Number(row.map_latitude);
+    const lng = Number(row.map_longitude);
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return [];
+
+    return [{
+      slug: row.slug,
+      name: row.name,
+      location:
+        row.public_area ||
+        [row.city, row.region_code].filter(Boolean).join(", ") ||
+        "Regional stay",
+      price: Math.round((row.weeknight_cents ?? 0) / 100),
+      lat,
+      lng,
+    } satisfies PublicMapStay];
   });
 }
 

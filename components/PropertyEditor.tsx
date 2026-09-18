@@ -50,7 +50,7 @@ export function PropertyEditor({ initial }: { initial: PropertyEditorRecord }) {
       return;
     }
     setSaveTone("saved");
-    setMessage("Property saved.");
+    setMessage(result.message || "Property saved.");
     if (result.slug && result.slug !== form.slug) {
       setForm((current) => ({ ...current, slug: result.slug! }));
       router.replace(`/host/properties/${result.slug}`);

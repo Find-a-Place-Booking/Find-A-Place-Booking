@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { PropertyCard } from "./PropertyCard";
+import { StayMap } from "./StayMap";
 import type { Property } from "@/data/catalog";
 
 const filterOptions = ["Cabin", "RV Site", "Hot tub", "Pet friendly", "Waterfront", "Under $250", "2+ bedrooms"];
@@ -54,9 +55,9 @@ export function StayResults({ properties, destination, guests, initialFilter = "
           {filtered.length > 0 ? <div className="result-grid">{filtered.map((property) => <PropertyCard key={property.slug} property={property} />)}</div> :
             <div className="empty-results production-empty"><p className="eyebrow dark">{inventoryEmpty ? "More places are coming" : "Nothing matched"}</p><h2>{inventoryEmpty ? "We’re still getting the first places ready." : "No stays match those filters."}</h2><p>{inventoryEmpty ? "New stays will show up here as hosts finish getting them ready." : "Try removing a filter or searching a nearby destination."}</p>{!inventoryEmpty && <button type="button" className="button button-quiet" onClick={() => setFilters([])}>Clear filters</button>}</div>}
         </section>
-        {mapOpen && <aside className="map-shell map-shell-empty" aria-label="Regional search map">
+        {mapOpen && <aside className="map-shell live-map" aria-label="Regional search map">
           <div className="map-label"><strong>Map view</strong><span>{filtered.length} {filtered.length === 1 ? "stay" : "stays"}</span></div>
-          <div className="map-empty-message"><span>⌖</span><strong>Map view is coming soon.</strong><p>Until then, every place in the list is a real published Find A Place stay.</p></div>
+          <StayMap stays={filtered} emptyMessage="Try a different destination or filter to see mapped stays." />
         </aside>}
       </div>
     </>

@@ -4,8 +4,9 @@ import { Footer } from "@/components/Footer";
 import { Header } from "@/components/Header";
 import { PropertyCard } from "@/components/PropertyCard";
 import { SearchBar } from "@/components/SearchBar";
+import { StayMap } from "@/components/StayMap";
 import { destinations } from "@/data/catalog";
-import { getPublishedProperties } from "@/lib/public/listings";
+import { getPublishedMapStays, getPublishedProperties } from "@/lib/public/listings";
 import { getSiteContentBlocks } from "@/lib/public/site-content";
 
 const stayCollections = [
@@ -80,8 +81,9 @@ const defaults = {
 };
 
 export default async function HomePage() {
-  const [published, content] = await Promise.all([
+  const [published, mapStays, content] = await Promise.all([
     getPublishedProperties(14),
+    getPublishedMapStays(),
     getSiteContentBlocks(["home.hero", "home.story", "home.host_cta"]),
   ]);
 
@@ -244,6 +246,22 @@ export default async function HomePage() {
             )}
           </div>
         </section>
+
+        {mapStays.length > 0 ? (
+          <section className="home-map-section">
+            <div className="shell section-heading marketplace-heading home-map-heading">
+              <div>
+                <p className="eyebrow dark">Explore the map</p>
+                <h2>See where the stays are.</h2>
+                <p>Every pin is a published Find A Place stay. Private-address listings show the general area instead of the exact driveway.</p>
+              </div>
+              <Link className="under-link" href="/stays">Browse all stays →</Link>
+            </div>
+            <div className="shell-wide home-map-frame">
+              <StayMap stays={mapStays} className="home-stay-map" />
+            </div>
+          </section>
+        ) : null}
 
         <section className="stay-types-section">
           <div className="stay-type-backdrop" aria-hidden="true">
