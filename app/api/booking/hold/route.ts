@@ -3,11 +3,16 @@ import { NextRequest, NextResponse } from "next/server";
 import {
   createGuestCheckoutToken,
   requireBookingCheckout,
+  requireLiveCheckoutDependencies,
   sameOrigin,
+  stripeEnvironment,
 } from "@/lib/payments/booking-runtime";
+import { refreshUnitCalendarsOrThrow } from "@/lib/calendar/sync-ical";
+import { verifyBookingTurnstile } from "@/lib/security/turnstile";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export const runtime = "nodejs";
+export const maxDuration = 60;
 
 export async function POST(request: NextRequest) {
   try {
@@ -31,6 +36,7 @@ export async function POST(request: NextRequest) {
       guestPhone?: string;
       addOnIds?: string[];
       promotionCode?: string | null;
+      turnstileToken?: string | null;
     };
 
     if (
@@ -49,6 +55,8 @@ export async function POST(request: NextRequest) {
     const guests = Number(body.guests || 1);
     const pets = Number(body.pets || 0);
     const addOnIds = Array.isArray(body.addOnIds) ? body.addOnIds : [];
+    const paymentEnvironment = stripeEnvironment();
+    requireLiveCheckoutDependencies();
 
     if (!Number.isInteger(guests) || guests < 1) {
       return NextResponse.json(
@@ -64,6 +72,21 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const forwardedFor = request.headers.get("x-forwarded-for");
+    const turnstile = await verifyBookingTurnstile({
+      token: body.turnstileToken,
+      remoteIp: forwardedFor?.split(",")[0]?.trim() || null,
+    });
+
+    if (!turnstile.success) {
+      return NextResponse.json({ error: turnstile.error }, { status: 403 });
+    }
+
+    // Background polling keeps normal availability fresh. Every real booking
+    // attempt also refreshes all active inbound feeds immediately and fails
+    // closed before the canonical database lock is taken.
+    await refreshUnitCalendarsOrThrow(body.unitId);
+
     const admin = createAdminClient();
 
     const { data, error } = await admin.rpc("create_guest_reservation_hold", {
@@ -77,6 +100,7 @@ export async function POST(request: NextRequest) {
       requested_guest_name: body.guestName,
       requested_guest_email: body.guestEmail,
       requested_guest_phone: body.guestPhone || null,
+      requested_payment_environment: paymentEnvironment,
     });
 
     if (error) {

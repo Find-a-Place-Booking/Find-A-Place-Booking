@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 
 import { createClient } from "@/lib/supabase/server";
 
-const MAX_AVATAR_BYTES = 5 * 1024 * 1024;
+const MAX_SERVER_ACTION_IMAGE_BYTES = 3 * 1024 * 1024;
 const ALLOWED_AVATAR_TYPES = new Set([
   "image/jpeg",
   "image/png",
@@ -43,9 +43,9 @@ export async function uploadHostAvatar(formData: FormData) {
     redirect("/host/settings?avatarError=Use+JPG%2C+PNG+or+WebP");
   }
 
-  if (file.size > MAX_AVATAR_BYTES) {
+  if (file.size > MAX_SERVER_ACTION_IMAGE_BYTES) {
     redirect(
-      "/host/settings?avatarError=Profile+photo+must+be+5MB+or+smaller",
+      "/host/settings?avatarError=Profile+photo+must+be+3MB+or+smaller",
     );
   }
 
@@ -138,20 +138,19 @@ export async function uploadHostGallery(formData: FormData) {
     redirect("/host/settings?galleryError=Host+gallery+is+limited+to+6+photos.");
   }
 
-  const selected = files.slice(0, remaining);
-
-  if (!selected.length) {
-    redirect("/host/settings?galleryError=Choose+at+least+one+image.");
+  if (files.length !== 1) {
+    redirect("/host/settings?galleryError=Choose+one+image+at+a+time.");
   }
 
+  const selected = files.slice(0, Math.min(1, remaining));
   let sortOrder = count ?? 0;
 
   for (const file of selected) {
-    if (
-      !ALLOWED_AVATAR_TYPES.has(file.type) ||
-      file.size > MAX_AVATAR_BYTES
-    ) {
-      continue;
+    if (!ALLOWED_AVATAR_TYPES.has(file.type)) {
+      redirect("/host/settings?galleryError=Use+JPG%2C+PNG+or+WebP.");
+    }
+    if (file.size > MAX_SERVER_ACTION_IMAGE_BYTES) {
+      redirect("/host/settings?galleryError=Host+photo+must+be+3MB+or+smaller.");
     }
 
     const storagePath = `${profileId}/gallery/${crypto.randomUUID()}.${extensionFor(

@@ -3,7 +3,7 @@ import { createHash } from "node:crypto";
 const STRIPE_V1_API = "https://api.stripe.com/v1";
 const STRIPE_V2_API = "https://api.stripe.com/v2";
 
-const STRIPE_V2_VERSION = "2025-12-15.clover";
+const STRIPE_V2_VERSION = "2026-07-29.dahlia";
 
 function stripeSecretKey() {
   const key = process.env.STRIPE_SECRET_KEY;
@@ -139,7 +139,7 @@ export async function createEmbeddedRecipientAccount(input: {
   const body = {
     contact_email: input.email,
     display_name: input.displayName,
-    dashboard: "none",
+    dashboard: "express",
     identity: {
       country,
     },
@@ -193,6 +193,9 @@ export async function createAccountSession(accountId: string) {
   const body = new URLSearchParams();
   body.set("account", accountId);
   body.set("components[account_onboarding][enabled]", "true");
+  body.set("components[notification_banner][enabled]", "true");
+  body.set("components[account_management][enabled]", "true");
+  body.set("components[payouts][enabled]", "true");
 
   return stripeV1FormRequest<{ client_secret: string; expires_at: number }>(
     "/account_sessions",

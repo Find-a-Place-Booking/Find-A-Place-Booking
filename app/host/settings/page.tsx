@@ -105,7 +105,7 @@ export default async function SettingsPage({
           ) : null}
 
           <small className="settings-helper">
-            JPG, PNG or WebP · maximum 5MB.
+            JPG, PNG or WebP · maximum 3MB.
           </small>
         </section>
 
@@ -176,18 +176,20 @@ export default async function SettingsPage({
         {profile.gallery.length < 6 ? (
           <form className="settings-form" action={uploadHostGallery}>
             <label>
-              <span>Add host photos</span>
+              <span>Add one host photo</span>
               <input
                 type="file"
                 name="gallery"
                 accept="image/jpeg,image/png,image/webp"
-                multiple
                 required
               />
             </label>
             <button className="button button-small" type="submit">
-              Upload photos
+              Upload photo
             </button>
+            <small className="settings-helper">
+              Add photos one at a time · JPG, PNG or WebP · maximum 3MB.
+            </small>
           </form>
         ) : null}
       </section>

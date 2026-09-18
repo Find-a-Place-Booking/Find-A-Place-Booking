@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import {
   Elements,
   PaymentElement,
@@ -10,6 +10,7 @@ import {
 import { loadStripe } from "@stripe/stripe-js/pure";
 import type { Stripe } from "@stripe/stripe-js";
 
+import { TurnstileWidget } from "@/components/TurnstileWidget";
 import styles from "./GuestCheckout.module.css";
 
 type PropertySummary = {
@@ -28,6 +29,7 @@ type Props = {
   guests: number;
   publishableKey: string;
   testMode: boolean;
+  turnstileSiteKey: string;
   initialReservationId?: string | null;
   initialCheckoutToken?: string | null;
 };
@@ -166,6 +168,7 @@ export function GuestCheckout({
   guests,
   publishableKey,
   testMode,
+  turnstileSiteKey,
   initialReservationId,
   initialCheckoutToken,
 }: Props) {
@@ -181,6 +184,11 @@ export function GuestCheckout({
     Boolean(initialReservationId && initialCheckoutToken),
   );
   const [error, setError] = useState<string | null>(null);
+  const [turnstileToken, setTurnstileToken] = useState("");
+  const [turnstileReset, setTurnstileReset] = useState(0);
+  const handleTurnstileToken = useCallback((token: string) => {
+    setTurnstileToken(token);
+  }, []);
 
   useEffect(() => {
     setStripePromise(loadStripe(publishableKey));
@@ -225,6 +233,18 @@ export function GuestCheckout({
           );
           return;
         }
+
+        const resumedHold: Hold = {
+          reservationId,
+          checkoutToken,
+          confirmationCode: status.confirmationCode,
+          holdExpiresAt: status.holdExpiresAt || new Date().toISOString(),
+          guestTotalCents: status.guestTotalCents,
+          platformCommissionCents: status.platformCommissionCents,
+          commissionRateBps: 0,
+        };
+
+        if (!cancelled) setHold(resumedHold);
 
         const paymentResponse = await fetch("/api/booking/payment-intent", {
           method: "POST",
@@ -271,16 +291,6 @@ export function GuestCheckout({
 
         if (cancelled) return;
 
-        setHold({
-          reservationId,
-          checkoutToken,
-          confirmationCode: status.confirmationCode,
-          holdExpiresAt: status.holdExpiresAt || new Date().toISOString(),
-          guestTotalCents: status.guestTotalCents,
-          platformCommissionCents: status.platformCommissionCents,
-          commissionRateBps: 0,
-        });
-
         setClientSecret(paymentPayload.clientSecret);
       } catch (resumeError) {
         if (!cancelled) {
@@ -315,6 +325,7 @@ export function GuestCheckout({
   async function createHold() {
     setBusy(true);
     setError(null);
+    let createdHold: Hold | null = null;
 
     try {
       const holdResponse = await fetch("/api/booking/hold", {
@@ -329,6 +340,7 @@ export function GuestCheckout({
           guestName,
           guestEmail,
           guestPhone,
+          turnstileToken,
         }),
       });
 
@@ -339,6 +351,7 @@ export function GuestCheckout({
       }
 
       const nextHold = holdPayload as Hold;
+      createdHold = nextHold;
 
       persistCheckoutInUrl(
         nextHold.reservationId,
@@ -366,10 +379,60 @@ export function GuestCheckout({
 
       setClientSecret(paymentPayload.clientSecret);
     } catch (requestError) {
+      if (!createdHold) {
+        setTurnstileToken("");
+        setTurnstileReset((value) => value + 1);
+      }
       setError(
         requestError instanceof Error
           ? requestError.message
           : "Unable to start checkout.",
+      );
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function retryHeldPayment() {
+    if (!hold) return;
+
+    setBusy(true);
+    setError(null);
+
+    try {
+      const paymentResponse = await fetch("/api/booking/payment-intent", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          reservationId: hold.reservationId,
+          checkoutToken: hold.checkoutToken,
+        }),
+      });
+      const paymentPayload = await paymentResponse.json();
+
+      if (paymentPayload.reservationStatus === "CONFIRMED") {
+        window.location.assign(
+          confirmedUrl(
+            hold.reservationId,
+            hold.checkoutToken,
+            hold.confirmationCode,
+          ),
+        );
+        return;
+      }
+
+      if (!paymentResponse.ok || !paymentPayload.clientSecret) {
+        throw new Error(
+          paymentPayload.error || "Unable to resume Stripe payment.",
+        );
+      }
+
+      setClientSecret(paymentPayload.clientSecret);
+    } catch (requestError) {
+      setError(
+        requestError instanceof Error
+          ? requestError.message
+          : "Unable to resume Stripe payment.",
       );
     } finally {
       setBusy(false);
@@ -389,6 +452,22 @@ export function GuestCheckout({
         initialCheckoutToken &&
         !clientSecret ? (
           <p>Recovering your booking…</p>
+        ) : hold && !clientSecret ? (
+          <>
+            <div className={styles.holdNotice}>
+              <strong>Your existing dates are still held</strong>
+              <span>Reservation {hold.confirmationCode}</span>
+            </div>
+            {error ? <div className={styles.error}>{error}</div> : null}
+            <button
+              className="button button-full"
+              type="button"
+              onClick={retryHeldPayment}
+              disabled={busy}
+            >
+              {busy ? "Recovering payment…" : "Retry secure payment"}
+            </button>
+          </>
         ) : !clientSecret ? (
           <>
             <div className={styles.guestGrid}>
@@ -437,6 +516,16 @@ export function GuestCheckout({
 
             {error ? <div className={styles.error}>{error}</div> : null}
 
+            {turnstileSiteKey ? (
+              <TurnstileWidget
+                siteKey={turnstileSiteKey}
+                resetSignal={turnstileReset}
+                onToken={handleTurnstileToken}
+              />
+            ) : testMode ? (
+              <small>Security verification is bypassed in this test environment.</small>
+            ) : null}
+
             <button
               className="button button-full"
               type="button"
@@ -446,7 +535,8 @@ export function GuestCheckout({
                 !guestName.trim() ||
                 !guestEmail.trim() ||
                 !checkIn ||
-                !checkOut
+                !checkOut ||
+                (Boolean(turnstileSiteKey) && !turnstileToken)
               }
             >
               {busy ? "Checking dates…" : "Continue to secure payment"}

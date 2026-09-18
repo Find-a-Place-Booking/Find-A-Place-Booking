@@ -247,15 +247,15 @@ export function HostOnboardingWizard({ initial }: { initial: HostOnboardingRecor
         </>}
 
         {step === 7 && <>
-          <p className="eyebrow dark">Calendar</p><h2>Choose the source of truth for availability.</h2><p>You can save the preferred calendar approach now. The actual iCal/PMS connection is managed per property once calendar sync is enabled.</p>
+          <p className="eyebrow dark">Calendar</p><h2>Choose the source of truth for availability.</h2><p>Save the preferred calendar approach here, then connect the actual iCal feed from the Calendar screen after the property is created.</p>
           <div className="calendar-preference-grid">{calendarPreferences.map((option) => <button type="button" key={option.value} className={form.calendarPreference === option.value ? "selected" : ""} onClick={() => update("calendarPreference", option.value)}><strong>{option.label}</strong><span>{option.detail}</span></button>)}</div>
-          <div className="connection-card"><div className="connection-icon">↻</div><div><strong>Preference saved; connection comes later</strong><span>Property setup carries this choice onto the real property. Calendar URLs, PMS credentials and sync jobs remain disabled until calendar sync is enabled.</span></div><button type="button" className="button button-small" disabled>Connect calendar</button></div>
+          <div className="connection-card"><div className="connection-icon">↻</div><div><strong>Connect after creating the property</strong><span>Calendar URLs are managed per property. Connected iCal feeds sync automatically and are checked again before a booking hold.</span></div></div>
         </>}
 
         {step === 8 && <>
-          <p className="eyebrow dark">Payments</p><h2>Where should we send booking money?</h2><p>Payment onboarding remains intentionally disabled. Stripe Connect and Square are added only after the property/booking foundation is proven.</p>
-          <div className="connection-card payout-card"><div className="connection-icon">$</div><div><strong>Connect a payout account</strong><span>Secure provider onboarding will collect identity and bank details later. Find A Place Booking will not store raw bank-account data or SSNs.</span></div><button type="button" className="button button-small" disabled>Connect payouts</button></div>
-          <div className="inline-note"><strong>Multiple-property architecture is preserved.</strong><span>The future payment-account model will allow supported processor accounts to be assigned appropriately instead of assuming every property under a manager must use one bank account forever.</span></div>
+          <p className="eyebrow dark">Payments</p><h2>Where should we send booking money?</h2><p>Finish the property setup, then open Payments &amp; taxes to complete Stripe&apos;s secure embedded payout onboarding.</p>
+          <div className="connection-card payout-card"><div className="connection-icon">$</div><div><strong>Stripe handles bank and identity details</strong><span>Find A Place stores the connected account reference, not raw bank-account data, identity documents, or SSNs.</span></div></div>
+          <div className="inline-note"><strong>TEST and LIVE accounts stay separate.</strong><span>The live pilot uses a new live connected account; the sandbox account remains isolated from real payouts.</span></div>
         </>}
 
         {step === 9 && <>

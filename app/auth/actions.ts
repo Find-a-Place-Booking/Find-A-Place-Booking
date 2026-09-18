@@ -16,6 +16,15 @@ function authError(path: string, message: string, next?: string): never {
   redirect(`${path}?${params.toString()}`);
 }
 
+function recoveryError(
+  path: "/auth/password-reset" | "/auth/update-password",
+  message: string,
+  portal: "admin" | "host",
+): never {
+  const params = new URLSearchParams({ error: message, portal });
+  redirect(`${path}?${params.toString()}`);
+}
+
 function siteUrl() {
   const configured = process.env.NEXT_PUBLIC_SITE_URL?.trim();
   if (configured) return configured.replace(/\/$/, "");
@@ -115,6 +124,78 @@ export async function signInAdmin(formData: FormData) {
   }
 
   redirect("/admin");
+}
+
+export async function requestPasswordReset(formData: FormData) {
+  const email = value(formData, "email").toLowerCase();
+  const portal = value(formData, "portal") === "admin" ? "admin" : "host";
+
+  if (!email) {
+    recoveryError(
+      "/auth/password-reset",
+      "Enter the email address for your account.",
+      portal,
+    );
+  }
+
+  const supabase = await createClient();
+  const redirectTo = `${siteUrl()}/auth/confirm?next=${encodeURIComponent(
+    `/auth/update-password?portal=${portal}`,
+  )}`;
+  const { error } = await supabase.auth.resetPasswordForEmail(email, {
+    redirectTo,
+  });
+
+  if (error) {
+    console.error("[requestPasswordReset] Supabase request failed", error);
+  }
+
+  const params = new URLSearchParams({ sent: "1", portal });
+  redirect(`/auth/password-reset?${params.toString()}`);
+}
+
+export async function updatePassword(formData: FormData) {
+  const password = value(formData, "password");
+  const confirmPassword = value(formData, "confirm_password");
+  const portal = value(formData, "portal") === "admin" ? "admin" : "host";
+
+  if (password.length < 8) {
+    recoveryError(
+      "/auth/update-password",
+      "Use a password with at least 8 characters.",
+      portal,
+    );
+  }
+  if (password !== confirmPassword) {
+    recoveryError(
+      "/auth/update-password",
+      "The passwords don't match.",
+      portal,
+    );
+  }
+
+  const supabase = await createClient();
+  const { data } = await supabase.auth.getClaims();
+  if (!data?.claims?.sub) {
+    recoveryError(
+      "/auth/password-reset",
+      "That recovery session is invalid or expired. Request a new link.",
+      portal,
+    );
+  }
+
+  const { error } = await supabase.auth.updateUser({ password });
+  if (error) {
+    recoveryError(
+      "/auth/update-password",
+      "We couldn't update the password. Request a new recovery link and try again.",
+      portal,
+    );
+  }
+
+  await supabase.auth.signOut();
+  const destination = portal === "admin" ? "/admin/sign-in" : "/host/sign-in";
+  redirect(`${destination}?saved=${encodeURIComponent("Password updated. Sign in with your new password.")}`);
 }
 
 async function signOut(destination: string) {

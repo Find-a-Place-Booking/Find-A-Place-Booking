@@ -111,6 +111,7 @@ export default async function CheckoutPage({
           guests={guests}
           publishableKey={publishableKey}
           testMode={testMode}
+          turnstileSiteKey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || ""}
           initialReservationId={params.reservationId || null}
           initialCheckoutToken={params.checkoutToken || null}
         />

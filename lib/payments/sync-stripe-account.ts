@@ -20,6 +20,23 @@ export async function syncStripePaymentAccount(
   paymentAccountId: string,
   providerAccountId: string,
 ) {
+  const { data: storedAccount, error: storedAccountError } = await admin
+    .from("payment_accounts")
+    .select("metadata")
+    .eq("id", paymentAccountId)
+    .eq("provider", "STRIPE")
+    .eq("provider_account_id", providerAccountId)
+    .single();
+
+  if (storedAccountError || !storedAccount) {
+    throw new Error("Unable to load the Stripe payout account before synchronization.");
+  }
+
+  const storedMetadata =
+    storedAccount.metadata && typeof storedAccount.metadata === "object"
+      ? (storedAccount.metadata as Record<string, unknown>)
+      : {};
+
   const account = await retrieveEmbeddedRecipientAccount(providerAccountId);
 
   const transfersStatus = capabilityStatus(account, "stripe_transfers");
@@ -42,6 +59,7 @@ export async function syncStripePaymentAccount(
       payouts_enabled: payoutsEnabled,
       currency: (account.defaults?.currency || "usd").toUpperCase(),
       metadata: {
+        ...storedMetadata,
         source: "stripe_connect_embedded",
         api_namespace: "accounts_v2",
         account_configuration: "recipient",

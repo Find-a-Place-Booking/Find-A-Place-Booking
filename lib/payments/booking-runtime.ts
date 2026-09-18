@@ -63,6 +63,36 @@ export function stripeIsTestMode() {
   return key.startsWith("sk_test_");
 }
 
+export type PaymentEnvironment = "TEST" | "LIVE";
+
+export function stripeEnvironment(): PaymentEnvironment {
+  return assertStripeKeyModesMatch() === "test" ? "TEST" : "LIVE";
+}
+
+export function requireLiveCheckoutDependencies() {
+  if (stripeEnvironment() !== "LIVE") return;
+
+  const missing = [
+    "TURNSTILE_SECRET_KEY",
+    "NEXT_PUBLIC_TURNSTILE_SITE_KEY",
+    "TURNSTILE_EXPECTED_HOSTNAME",
+    "RESEND_API_KEY",
+    "EMAIL_DOMAIN",
+    "NEXT_PUBLIC_SITE_URL",
+    "CRON_SECRET",
+    "STRIPE_WEBHOOK_SECRET",
+    "STRIPE_PROCESSING_RATE_BPS",
+    "STRIPE_PROCESSING_FIXED_CENTS",
+    "BOOKING_GUEST_TOKEN_SECRET",
+  ].filter((name) => !process.env[name]?.trim());
+
+  if (missing.length) {
+    throw new Error(
+      `Live checkout is blocked until these production settings are configured: ${missing.join(", ")}.`,
+    );
+  }
+}
+
 export function assertStripeKeyModesMatch() {
   const secret = process.env.STRIPE_SECRET_KEY || "";
   const publishable = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || "";

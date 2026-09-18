@@ -50,7 +50,7 @@ export function StayResults({ properties, destination, guests, initialFilter = "
       </div>
       <div className={`results-layout shell-wide ${mapOpen ? "" : "map-hidden"}`}>
         <section>
-          <div className="results-count"><strong>{filtered.length}</strong> {filtered.length === 1 ? "stay" : "stays"} <span>· Dates above don’t narrow results yet</span></div>
+          <div className="results-count"><strong>{filtered.length}</strong> {filtered.length === 1 ? "stay" : "stays"} <span>· Availability is rechecked again before checkout</span></div>
           {filtered.length > 0 ? <div className="result-grid">{filtered.map((property) => <PropertyCard key={property.slug} property={property} />)}</div> :
             <div className="empty-results production-empty"><p className="eyebrow dark">{inventoryEmpty ? "More places are coming" : "Nothing matched"}</p><h2>{inventoryEmpty ? "We’re still getting the first places ready." : "No stays match those filters."}</h2><p>{inventoryEmpty ? "New stays will show up here as hosts finish getting them ready." : "Try removing a filter or searching a nearby destination."}</p>{!inventoryEmpty && <button type="button" className="button button-quiet" onClick={() => setFilters([])}>Clear filters</button>}</div>}
         </section>

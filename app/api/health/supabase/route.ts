@@ -41,12 +41,14 @@ export async function GET() {
       { error: refundError },
       { error: ledgerError },
       { error: processorEventError },
+      { error: notificationDeliveryError },
       { data: reservationVersion, error: reservationVersionError },
       { data: hardeningVersion, error: hardeningVersionError },
+      { data: preLiveVersion, error: preLiveVersionError },
     ] = await Promise.all([
       supabase.from("profiles").select("id,avatar_storage_path").limit(1),
       supabase.from("host_onboarding_drafts").select("id").limit(1),
-      supabase.from("properties").select("id").limit(1),
+      supabase.from("properties").select("id,live_checkout_enabled").limit(1),
       supabase.from("property_units").select("id").limit(1),
       supabase.from("property_review_events").select("id").limit(1),
       supabase.rpc("public_listing_index"),
@@ -59,17 +61,19 @@ export async function GET() {
       supabase.from("calendar_export_tokens").select("id").limit(1),
       supabase.from("calendar_sync_runs").select("id,status").limit(1),
       supabase.rpc("calendar_hardening_version"),
-      supabase.from("reservations").select("id,status,payment_status").limit(1),
-      supabase.from("payment_accounts").select("id,provider,status").limit(1),
-      supabase.from("payments").select("id,provider,status").limit(1),
+      supabase.from("reservations").select("id,status,payment_status,payment_environment,tax_provider,tax_provider_calculation_id,tax_provider_transaction_id").limit(1),
+      supabase.from("payment_accounts").select("id,provider,status,environment").limit(1),
+      supabase.from("payments").select("id,provider,status,payment_environment").limit(1),
       supabase.from("refunds").select("id,status").limit(1),
       supabase.from("financial_ledger_entries").select("id,entry_type").limit(1),
-      supabase.from("processor_events").select("id,provider,processing_status").limit(1),
+      supabase.from("processor_events").select("id,provider,payment_environment,processing_status").limit(1),
+      supabase.from("notification_deliveries").select("id,status,notification_type").limit(1),
       supabase.rpc("reservation_payment_foundation_version"),
       supabase.rpc("reservation_payment_hardening_version"),
+      supabase.rpc("pre_live_hardening_version"),
     ]);
 
-    const error = profileError ?? onboardingError ?? propertyError ?? unitError ?? reviewError ?? publicCatalogError ?? rateRuleError ?? stayRuleError ?? addOnError ?? promotionError ?? connectionError ?? blockError ?? exportTokenError ?? syncRunError ?? calendarVersionError ?? reservationError ?? paymentAccountError ?? paymentError ?? refundError ?? ledgerError ?? processorEventError ?? reservationVersionError ?? hardeningVersionError;
+    const error = profileError ?? onboardingError ?? propertyError ?? unitError ?? reviewError ?? publicCatalogError ?? rateRuleError ?? stayRuleError ?? addOnError ?? promotionError ?? connectionError ?? blockError ?? exportTokenError ?? syncRunError ?? calendarVersionError ?? reservationError ?? paymentAccountError ?? paymentError ?? refundError ?? ledgerError ?? processorEventError ?? notificationDeliveryError ?? reservationVersionError ?? hardeningVersionError ?? preLiveVersionError;
     if (error) {
       return NextResponse.json(
         { ok: false, service: "supabase", configured: true, message: "Supabase is reachable, but the current schema check failed.", code: error.code ?? null },
@@ -81,6 +85,7 @@ export async function GET() {
       calendarVersion !== "calendar-availability-hardening-v1"
       || reservationVersion !== "reservation-payment-foundation-v1"
       || hardeningVersion !== "reservation-payment-hardening-v1"
+      || preLiveVersion !== "pre-live-hardening-026-v1"
     ) {
       return NextResponse.json(
         { ok: false, service: "supabase", configured: true, message: "Supabase is reachable, but the reservation/payment hardening migration is not current." },
@@ -93,6 +98,7 @@ export async function GET() {
       service: "supabase",
       configured: true,
       schema: hardeningVersion,
+      pre_live_schema: preLiveVersion,
       reservation_schema: reservationVersion,
       calendar_schema: calendarVersion,
       live_money_enabled: false,

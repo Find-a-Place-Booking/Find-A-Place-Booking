@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { syncStripePaymentAccount } from "@/lib/payments/sync-stripe-account";
+import { stripeEnvironment } from "@/lib/payments/booking-runtime";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
@@ -55,12 +56,14 @@ export async function POST(request: Request) {
     }
 
     const admin = createAdminClient();
+    const environment = stripeEnvironment();
 
     const { data: paymentAccount, error: accountError } = await admin
       .from("payment_accounts")
       .select("id,provider_account_id")
       .eq("organization_id", organizationId)
       .eq("provider", "STRIPE")
+      .eq("environment", environment)
       .neq("status", "DISABLED")
       .order("created_at", { ascending: true })
       .limit(1)
@@ -89,6 +92,7 @@ export async function POST(request: Request) {
       status: result.status,
       transfersEnabled: result.transfersEnabled,
       payoutsEnabled: result.payoutsEnabled,
+      environment,
     });
   } catch (error) {
     console.error("[stripe connect sync]", error);

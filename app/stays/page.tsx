@@ -22,10 +22,11 @@ const collectionHeadings: Record<string, string> = {
 };
 
 export default async function StaysPage({ searchParams }: { searchParams: Promise<{ where?: string; checkin?: string; checkout?: string; guests?: string; filter?: string }> }) {
-  const [params, properties] = await Promise.all([searchParams, getPublishedProperties()]);
+  const params = await searchParams;
   const where = params.where || "";
   const checkin = params.checkin || "";
   const checkout = params.checkout || "";
+  const properties = await getPublishedProperties({ checkIn: checkin, checkOut: checkout });
   const guests = params.guests || "2";
   const initialFilter = params.filter && collectionHeadings[params.filter] ? params.filter : "";
   const start = prettyDate(checkin);
@@ -47,7 +48,7 @@ export default async function StaysPage({ searchParams }: { searchParams: Promis
         <section className="shell results-summary-band">
           <div className="results-head">
             <div><h1>{heading}</h1><p>Browse published Find A Place stays and compare the places that fit your trip.</p></div>
-            <div className="availability-fresh"><i/> Date matching coming soon</div>
+            <div className="availability-fresh"><i/> {start && end ? "Availability checked for these dates" : "Live availability on each stay"}</div>
           </div>
         </section>
         <StayResults properties={properties} destination={where} guests={Number.parseInt(guests, 10) || 2} initialFilter={initialFilter} />

@@ -76,7 +76,7 @@ export default async function AdminContentPage({
         </p>
       </section>
 
-      <div className="admin-list">
+      <div className="admin-list content-editor-list">
         {order.map((key) => {
           const block = byKey.get(key);
           if (!block) return null;

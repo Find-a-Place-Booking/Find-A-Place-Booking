@@ -4,13 +4,14 @@ import {
   createAccountSession,
   createEmbeddedRecipientAccount,
 } from "@/lib/payments/stripe-rest";
+import { stripeEnvironment } from "@/lib/payments/booking-runtime";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
 export const runtime = "nodejs";
 
 const STRIPE_ACCOUNT_SCHEMA =
-  "accounts_v2_recipient_embedded_application_responsibility_v2";
+  "accounts_v2_recipient_express_application_responsibility_v3";
 
 function jsonError(error: unknown, status = 500) {
   const message =
@@ -87,12 +88,14 @@ export async function POST(request: Request) {
 
     const displayName = (organization.name || "Find A Place host").trim();
     const admin = createAdminClient();
+    const environment = stripeEnvironment();
 
     const { data: existing, error: existingError } = await admin
       .from("payment_accounts")
       .select("id,provider_account_id,status,is_default,metadata")
       .eq("organization_id", organizationId)
       .eq("provider", "STRIPE")
+      .eq("environment", environment)
       .neq("status", "DISABLED")
       .order("created_at", { ascending: true })
       .limit(1)
@@ -104,21 +107,12 @@ export async function POST(request: Request) {
       );
     }
 
-    const existingMetadata =
-      existing?.metadata && typeof existing.metadata === "object"
-        ? (existing.metadata as Record<string, unknown>)
-        : {};
-
     let paymentAccountId = existing?.id ?? null;
     let providerAccountId = existing?.provider_account_id ?? null;
 
-    // Sandbox cleanup only. Earlier broken test payloads stored stale account
-    // references and stale schema markers. This creates one clean account when
-    // the marker does not match the corrected integration.
-    if (
-      !providerAccountId ||
-      existingMetadata.integration_schema !== STRIPE_ACCOUNT_SCHEMA
-    ) {
+    // Never replace a real provider account merely because descriptive
+    // metadata changed. TEST and LIVE each receive their own database row.
+    if (!providerAccountId) {
       const stripeAccount = await createEmbeddedRecipientAccount({
         email,
         displayName,
@@ -133,11 +127,10 @@ export async function POST(request: Request) {
         integration_schema: STRIPE_ACCOUNT_SCHEMA,
         api_namespace: "accounts_v2",
         account_configuration: "recipient",
-        dashboard: "none",
+        dashboard: "express",
         fees_collector: "application",
         losses_collector: "application",
-        previous_test_provider_account_id:
-          existing?.provider_account_id ?? null,
+        payment_environment: environment,
       };
 
       if (paymentAccountId) {
@@ -145,6 +138,7 @@ export async function POST(request: Request) {
           .from("payment_accounts")
           .update({
             provider_account_id: providerAccountId,
+            environment,
             connection_mode: "STRIPE_CONNECT",
             status: "PENDING",
             charges_enabled: false,
@@ -163,6 +157,7 @@ export async function POST(request: Request) {
           .from("payment_accounts")
           .select("id")
           .eq("organization_id", organizationId)
+          .eq("environment", environment)
           .eq("is_default", true)
           .neq("status", "DISABLED")
           .limit(1)
@@ -181,6 +176,7 @@ export async function POST(request: Request) {
             provider: "STRIPE",
             connection_mode: "STRIPE_CONNECT",
             provider_account_id: providerAccountId,
+            environment,
             status: "PENDING",
             is_default: !defaultAccount,
             country_code: "US",
@@ -218,6 +214,7 @@ export async function POST(request: Request) {
     return NextResponse.json({
       clientSecret: session.client_secret,
       paymentAccountId,
+      environment,
     });
   } catch (error) {
     return jsonError(error);

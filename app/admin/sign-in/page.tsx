@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { signInAdmin } from "@/app/auth/actions";
@@ -7,7 +8,7 @@ import { createClient } from "@/lib/supabase/server";
 export default async function AdminSignInPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string }>;
+  searchParams: Promise<{ error?: string; saved?: string }>;
 }) {
   const params = await searchParams;
   const supabase = await createClient();
@@ -26,6 +27,7 @@ export default async function AdminSignInPage({
       intro="This sign-in is reserved for authorized Find A Place staff, partners and technical administrators. Host accounts do not receive admin access automatically."
     >
       {params.error ? <div className="auth-message auth-error" role="alert">{params.error}</div> : null}
+      {params.saved ? <div className="admin-message success">{params.saved}</div> : null}
       {userId ? <div className="auth-message auth-warning">A non-admin account is currently signed in. Submitting this form will switch to the authorized admin account.</div> : null}
       <form className="auth-form" action={signInAdmin}>
         <label><span>Admin email</span><input name="email" type="email" autoComplete="email" required /></label>
@@ -33,6 +35,7 @@ export default async function AdminSignInPage({
         <button className="button button-full" type="submit">Open admin workspace</button>
       </form>
       <p className="auth-help">There is no public admin registration. Internal accounts must exist in Supabase Auth and be explicitly granted an active admin record and role.</p>
+      <p className="auth-help"><Link href="/auth/password-reset?portal=admin">Forgot your password?</Link></p>
     </AuthShell>
   );
 }

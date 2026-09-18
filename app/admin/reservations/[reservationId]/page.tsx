@@ -2,10 +2,10 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { AdminShell } from "@/components/AdminShell";
-import { getAdminContext } from "@/lib/admin/context";
+import { getAdminContext, hasAnyAdminRole } from "@/lib/admin/context";
 import { createClient } from "@/lib/supabase/server";
 
-import { addReservationSupportNote } from "../actions";
+import { addReservationSupportNote, issueReservationRefund } from "../actions";
 
 function money(cents: number | null | undefined, currency = "USD") {
   return new Intl.NumberFormat("en-US", {
@@ -119,6 +119,17 @@ export default async function AdminReservationDetailPage({
   const notes = notesResult.data ?? [];
   const messages = messagesResult.data ?? [];
   const review = reviewResult.data;
+  const paidPayment = payments.find((payment) =>
+    ["SUCCEEDED", "PARTIALLY_REFUNDED", "DISPUTED"].includes(payment.status),
+  );
+  const refundedCents = refunds
+    .filter((refund) => ["PENDING", "SUCCEEDED"].includes(refund.status))
+    .reduce((sum, refund) => sum + Number(refund.amount_cents), 0);
+  const refundableCents = Math.max(
+    0,
+    Number(paidPayment?.amount_cents ?? 0) - refundedCents,
+  );
+  const canRefund = hasAnyAdminRole(context, ["SUPER_ADMIN", "FINANCE_ADMIN"]);
 
   return (
     <AdminShell
@@ -284,6 +295,37 @@ export default async function AdminReservationDetailPage({
           </div>
         ) : null}
       </section>
+
+      {paidPayment && refundableCents > 0 && canRefund ? (
+        <section className="panel">
+          <p className="eyebrow dark">Refund controls</p>
+          <h2>Issue a Stripe refund</h2>
+          <p className="muted">
+            A full refund returns all remaining guest funds, reverses host proceeds,
+            and returns Find A Place&apos;s application fee. A partial refund is
+            host-funded and the original platform commission remains earned.
+          </p>
+          <form className="settings-form" action={issueReservationRefund}>
+            <input type="hidden" name="reservation_id" value={reservation.id} />
+            <label>
+              <span>Refund type</span>
+              <select name="refund_type" defaultValue="partial">
+                <option value="partial">Partial refund</option>
+                <option value="full">Full remaining refund ({money(refundableCents, reservation.currency)})</option>
+              </select>
+            </label>
+            <label>
+              <span>Partial amount in dollars</span>
+              <input name="amount" type="number" min="0.01" step="0.01" max={(refundableCents / 100).toFixed(2)} placeholder="0.00" />
+            </label>
+            <label>
+              <span>Internal reason</span>
+              <textarea name="reason" rows={3} required />
+            </label>
+            <button className="button button-small" type="submit">Submit refund</button>
+          </form>
+        </section>
+      ) : null}
 
       <div className="dash-two">
         <section className="panel">

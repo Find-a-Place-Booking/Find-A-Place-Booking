@@ -45,7 +45,7 @@ export default async function PaymentsPage() {
           </h2>
           <p>
             {readyAccount
-              ? "This organization can receive its share of Stripe sandbox bookings."
+              ? `This organization can receive its share of Stripe ${workspace.environment === "TEST" ? "test" : "live"} bookings.`
               : "Connect payouts here without leaving Find A Place. Stripe securely handles bank and identity information inside the embedded component."}
           </p>
         </div>
@@ -113,8 +113,8 @@ export default async function PaymentsPage() {
         </div>
         <div>
           <span>Money mode</span>
-          <strong>Sandbox</strong>
-          <small>Stripe test data only</small>
+          <strong>{workspace.environment === "TEST" ? "Test" : "Live"}</strong>
+          <small>{workspace.environment === "TEST" ? "Stripe test data only" : "Real cards and payouts"}</small>
         </div>
       </div>
 

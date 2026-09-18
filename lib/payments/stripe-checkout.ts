@@ -60,6 +60,7 @@ export async function createDestinationPaymentIntent(input: {
   platformCommissionCents: number;
   processorFeeRecoveryCents: number;
   commissionRateBps: number;
+  paymentEnvironment: "TEST" | "LIVE";
 }) {
   const stripe = getStripeClient();
 
@@ -79,6 +80,7 @@ export async function createDestinationPaymentIntent(input: {
         processor_fee_recovery_cents: String(input.processorFeeRecoveryCents),
         commission_rate_bps: String(input.commissionRateBps),
         processing_fee_policy: "HOST_FULL",
+        payment_environment: input.paymentEnvironment,
       },
       description: `Find A Place booking ${input.confirmationCode}`,
     },
@@ -86,6 +88,102 @@ export async function createDestinationPaymentIntent(input: {
       idempotencyKey: `fap-booking-${input.paymentId}`,
     },
   );
+}
+
+export async function createConnectedRefund(input: {
+  paymentIntentId: string;
+  refundId: string;
+  reservationId: string;
+  amountCents: number;
+  fullRefund: boolean;
+  platformFeeRefundCents: number;
+  reason?: string | null;
+}) {
+  const stripe = getStripeClient();
+  const refund = await stripe.refunds.create(
+    {
+      payment_intent: input.paymentIntentId,
+      amount: input.amountCents,
+      reverse_transfer: true,
+      refund_application_fee: input.fullRefund,
+      reason: "requested_by_customer",
+      metadata: {
+        refund_id: input.refundId,
+        reservation_id: input.reservationId,
+        refund_policy: input.fullRefund
+          ? "FULL_GUEST_100_PERCENT"
+          : "PARTIAL_HOST_FUNDED",
+        internal_reason: (input.reason || "").slice(0, 450),
+      },
+    },
+    { idempotencyKey: `fap-refund-${input.refundId}` },
+  );
+
+  let feeReconciliationPending = false;
+  if (input.fullRefund && input.platformFeeRefundCents > 0) {
+    try {
+      await ensureFullRefundApplicationFee({
+        paymentIntentId: input.paymentIntentId,
+        refundId: input.refundId,
+        reservationId: input.reservationId,
+        platformFeeRefundCents: input.platformFeeRefundCents,
+      });
+    } catch (error) {
+      feeReconciliationPending = true;
+      console.error("[Stripe full refund] application-fee reconciliation pending", error);
+    }
+  }
+
+  return { refund, feeReconciliationPending };
+}
+
+export async function ensureFullRefundApplicationFee(input: {
+  paymentIntentId: string;
+  refundId: string;
+  reservationId: string;
+  platformFeeRefundCents: number;
+}) {
+  const stripe = getStripeClient();
+  const intent = await stripe.paymentIntents.retrieve(input.paymentIntentId, {
+    expand: ["latest_charge.application_fee"],
+  });
+  const charge = typeof intent.latest_charge === "string"
+    ? await stripe.charges.retrieve(intent.latest_charge, {
+        expand: ["application_fee"],
+      })
+    : intent.latest_charge;
+  const applicationFeeRef = charge?.application_fee ?? null;
+  const applicationFee = typeof applicationFeeRef === "string"
+    ? await stripe.applicationFees.retrieve(applicationFeeRef)
+    : applicationFeeRef;
+
+  if (!applicationFee) {
+    throw new Error("The Stripe application fee could not be found for the full refund.");
+  }
+
+  const remainingFeeCents = Math.max(
+    0,
+    applicationFee.amount - applicationFee.amount_refunded,
+  );
+  const feeRefundCents = Math.min(
+    input.platformFeeRefundCents,
+    remainingFeeCents,
+  );
+
+  if (feeRefundCents > 0) {
+    await stripe.applicationFees.createRefund(
+      applicationFee.id,
+      {
+        amount: feeRefundCents,
+        metadata: {
+          refund_id: input.refundId,
+          reservation_id: input.reservationId,
+          refund_policy: "FULL_GUEST_100_PERCENT",
+        },
+      },
+      { idempotencyKey: `fap-application-fee-refund-${input.refundId}` },
+    );
+  }
 }
 
 export async function retrievePaymentIntent(paymentIntentId: string) {

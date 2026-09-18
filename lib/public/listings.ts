@@ -134,9 +134,16 @@ function reviewStats(
   return byProperty;
 }
 
+type PublishedPropertySearch = {
+  limit?: number;
+  checkIn?: string;
+  checkOut?: string;
+};
+
 export async function getPublishedProperties(
-  limit?: number,
+  input?: number | PublishedPropertySearch,
 ): Promise<Property[]> {
+  const options = typeof input === "number" ? { limit: input } : input ?? {};
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("public_listing_index");
 
@@ -150,10 +157,43 @@ export async function getPublishedProperties(
     return [];
   }
 
-  const allRows = (data ?? []) as PublicIndexRow[];
+  let allRows = (data ?? []) as PublicIndexRow[];
+  const validDateRange =
+    /^\d{4}-\d{2}-\d{2}$/.test(options.checkIn || "") &&
+    /^\d{4}-\d{2}-\d{2}$/.test(options.checkOut || "") &&
+    options.checkOut! > options.checkIn!;
+
+  if (validDateRange && allRows.length) {
+    const admin = createAdminClient();
+    const { data: blocks, error: blockError } = await admin
+      .from("availability_blocks")
+      .select("unit_id,block_type,expires_at")
+      .in("unit_id", allRows.map((row) => row.unit_id))
+      .eq("state", "ACTIVE")
+      .lt("start_date", options.checkOut!)
+      .gt("end_date", options.checkIn!);
+
+    if (blockError) {
+      console.error("[getPublishedProperties] availability filter failed", blockError);
+    } else {
+      const now = Date.now();
+      const blockedUnits = new Set(
+        (blocks ?? [])
+          .filter(
+            (block) =>
+              block.block_type !== "INTERNAL_HOLD" ||
+              !block.expires_at ||
+              new Date(block.expires_at).getTime() > now,
+          )
+          .map((block) => block.unit_id),
+      );
+      allRows = allRows.filter((row) => !blockedUnits.has(row.unit_id));
+    }
+  }
+
   const rows =
-    typeof limit === "number" && limit >= 0
-      ? allRows.slice(0, limit)
+    typeof options.limit === "number" && options.limit >= 0
+      ? allRows.slice(0, options.limit)
       : allRows;
 
   const coverPaths = rows.map((row) => row.image_paths?.[0] ?? null);

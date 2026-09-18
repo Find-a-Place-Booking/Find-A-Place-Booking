@@ -1,27 +1,56 @@
-# Find A Place Booking — Milestone 10A.1 Reservation / Payment Hardening
+# Find A Place Booking
 
-Baseline: `ecfca766` — pushed Milestone 10A reservation/payment foundation.
+This branch contains pre-live hardening pass **026** for a controlled first-property pilot. It keeps live charging closed by default while making the TEST path suitable for full end-to-end rehearsal.
 
-This contained follow-up hardens ownership, processor routing and reservation snapshot integrity before the UI cleanup pass. It still does **not** add Stripe/Square network calls, OAuth, webhooks, tax calculation, payouts or live money.
+## What 026 adds
 
-## Apply
+- explicit TEST/LIVE separation for Stripe accounts, assignments, reservations, payments, refunds, disputes, and processor events;
+- a database-enforced per-property live checkout allowlist;
+- one atomic, idempotent Stripe payment attempt per reservation/environment;
+- destination-charge refunds with host transfer reversal and verified application-fee reconciliation;
+- signed Stripe webhooks with idempotent event processing, refund reconciliation, dispute records, and booking notifications;
+- Turnstile protection for public hold creation;
+- scheduled iCal polling plus a fail-closed feed refresh immediately before each hold;
+- date-aware public search results and canonical availability enforcement;
+- deployment-safe host image upload limits;
+- a health endpoint that verifies the 026 schema marker.
 
-Run only:
+## Apply and verify
 
-`supabase/migrations/20260914001700_reservation_payment_hardening.sql`
+1. Apply all Supabase migrations through:
 
-Migration 016 must already be applied.
+   `supabase/migrations/20260918002600_pre_live_hardening.sql`
 
-Then run:
+2. Copy `.env.example` to your deployment settings and supply real secrets. Keep `BOOKING_CHECKOUT_ENABLED=false` until TEST verification is complete.
 
-```powershell
-npm run typecheck
-npm run build
-npm run dev
-```
+3. Run:
 
-Expected health schema:
+   ```bash
+   npm ci
+   npm run typecheck
+   npm run build
+   ```
 
-`reservation-payment-hardening-v1`
+4. Confirm `/api/health/supabase` returns:
 
-Local reservation test RPCs now default **off at the database layer**. See `docs/APPLY_MILESTONE_10A_1.md` for the privileged local-only SQL toggle and regression procedure.
+   ```json
+   {
+     "ok": true,
+     "pre_live_schema": "pre-live-hardening-026-v1",
+     "live_money_enabled": false
+   }
+   ```
+
+5. Follow the release checklist in [`docs/PRE_LIVE_HARDENING_026.md`](docs/PRE_LIVE_HARDENING_026.md).
+
+## Live-money invariant
+
+LIVE checkout requires all of the following at the same time:
+
+- matching Stripe live secret and publishable keys;
+- all required production dependencies from `.env.example`;
+- a LIVE Stripe payout account in READY state for the property;
+- `properties.live_checkout_enabled = true`, changed only by a SUPER_ADMIN or OPERATIONS_ADMIN;
+- a reservation with a real, snapshotted `CALCULATED` lodging-tax result.
+
+The repository does **not** guess an Arkansas lodging tax code or rate. Stripe Tax registration, product tax treatment, local jurisdiction coverage, and refund/reversal behavior must be validated before enabling the first live property.

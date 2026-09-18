@@ -6,9 +6,9 @@ import { redirect } from "next/navigation";
 import { getAdminContext, hasAnyAdminRole } from "@/lib/admin/context";
 import { createClient } from "@/lib/supabase/server";
 
-function field(formData: FormData, key: string) {
+function field(formData: FormData, key: string, max = 5000) {
   const raw = formData.get(key);
-  return typeof raw === "string" ? raw.trim() : "";
+  return typeof raw === "string" ? raw.trim().slice(0, max) : "";
 }
 
 export async function reviewPartnerVerification(formData: FormData) {
@@ -111,3 +111,27 @@ export async function setPropertyPublication(formData: FormData) {
   redirect(`/admin/properties/${propertyId}?saved=${encodeURIComponent(action === "publish" ? "Listing published to the marketplace." : "Listing paused and removed from the public marketplace.")}`);
 }
 
+export async function setPropertyLiveCheckout(formData: FormData) {
+  const context = await getAdminContext();
+  const propertyId = field(formData, "property_id", 100);
+  const enabled = field(formData, "live_checkout_enabled", 10) === "true";
+  const reason = field(formData, "live_checkout_reason", 500);
+
+  if (!hasAnyAdminRole(context, ["SUPER_ADMIN", "OPERATIONS_ADMIN"])) {
+    redirect(`/admin/properties/${encodeURIComponent(propertyId)}?error=${encodeURIComponent("Your admin role cannot change the live checkout gate.")}`);
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("set_property_live_checkout", {
+    target_property_id: propertyId,
+    enabled,
+    change_reason: reason || null,
+  });
+
+  if (error) {
+    redirect(`/admin/properties/${encodeURIComponent(propertyId)}?error=${encodeURIComponent(error.message)}`);
+  }
+
+  revalidatePath(`/admin/properties/${propertyId}`);
+  redirect(`/admin/properties/${encodeURIComponent(propertyId)}?saved=${encodeURIComponent(enabled ? "Live checkout enabled for this pilot property." : "Live checkout disabled.")}`);
+}

@@ -1,12 +1,11 @@
-import { randomUUID } from "node:crypto";
-
 import { NextRequest, NextResponse } from "next/server";
 
 import {
   guestCheckoutTokenMatches,
   requireBookingCheckout,
+  requireLiveCheckoutDependencies,
   sameOrigin,
-  stripeIsTestMode,
+  stripeEnvironment,
 } from "@/lib/payments/booking-runtime";
 import {
   createDestinationPaymentIntent,
@@ -47,11 +46,13 @@ export async function POST(request: NextRequest) {
     }
 
     const admin = createAdminClient();
+    const environment = stripeEnvironment();
+    requireLiveCheckoutDependencies();
 
     const { data: reservation, error: reservationError } = await admin
       .from("reservations")
       .select(
-        "id,confirmation_code,status,hold_expires_at,payment_status,guest_total_cents,platform_commission_cents,commission_rate_bps,currency,tax_status,payment_account_id,payment_provider,provider_account_ref",
+        "id,confirmation_code,status,hold_expires_at,payment_status,guest_total_cents,platform_commission_cents,commission_rate_bps,currency,tax_status,payment_environment,payment_account_id,payment_provider,provider_account_ref",
       )
       .eq("id", reservationId)
       .single();
@@ -98,7 +99,7 @@ export async function POST(request: NextRequest) {
     // We intentionally allow tax=0 while using Stripe TEST keys so the same
     // production path can be tested end-to-end. Live money is blocked until a
     // tax calculation has been snapshotted onto the reservation.
-    if (!stripeIsTestMode() && reservation.tax_status !== "CALCULATED") {
+    if (environment === "LIVE" && reservation.tax_status !== "CALCULATED") {
       return NextResponse.json(
         {
           error:
@@ -121,7 +122,7 @@ export async function POST(request: NextRequest) {
 
     const { data: account, error: accountError } = await admin
       .from("payment_accounts")
-      .select("id,status,payouts_enabled,provider_account_id")
+      .select("id,status,environment,payouts_enabled,provider_account_id")
       .eq("id", reservation.payment_account_id)
       .single();
 
@@ -129,8 +130,11 @@ export async function POST(request: NextRequest) {
       accountError ||
       !account ||
       account.status !== "READY" ||
+      account.environment !== environment ||
       !account.payouts_enabled ||
-      !account.provider_account_id
+      !account.provider_account_id ||
+      account.provider_account_id !== reservation.provider_account_ref ||
+      reservation.payment_environment !== environment
     ) {
       return NextResponse.json(
         { error: "The host payout account is not ready." },
@@ -138,16 +142,39 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    let { data: payment } = await admin
-      .from("payments")
-      .select(
-        "id,status,provider_payment_id,amount_cents,application_fee_cents,processor_fee_host_share_cents",
-      )
-      .eq("reservation_id", reservationId)
-      .eq("provider", "STRIPE")
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
+    const amountCents = Number(reservation.guest_total_cents);
+    const commissionCents = Number(reservation.platform_commission_cents);
+    const processorFeeRecoveryCents =
+      estimatedHostProcessingRecoveryCents(amountCents);
+
+    const { data: claimedPayment, error: claimError } = await admin.rpc(
+      "claim_stripe_payment_attempt",
+      {
+        target_reservation_id: reservationId,
+        expected_environment: environment,
+        processor_fee_recovery_cents: processorFeeRecoveryCents,
+      },
+    );
+
+    if (claimError || !claimedPayment) {
+      throw new Error(
+        claimError?.message || "Unable to claim the Stripe payment attempt.",
+      );
+    }
+
+    const payment = claimedPayment as {
+      id: string;
+      status: string;
+      provider_payment_id: string | null;
+      amount_cents: number;
+      application_fee_cents: number;
+      processor_fee_host_share_cents: number | null;
+      connected_account_id: string;
+    };
+
+    if (payment.connected_account_id !== reservation.provider_account_ref) {
+      throw new Error("The Stripe payout destination changed during checkout.");
+    }
 
     if (payment?.provider_payment_id) {
       const intent = await retrievePaymentIntent(payment.provider_payment_id);
@@ -168,54 +195,26 @@ export async function POST(request: NextRequest) {
         });
       }
 
-      payment = null;
-    }
-
-    const amountCents = Number(reservation.guest_total_cents);
-    const commissionCents = Number(reservation.platform_commission_cents);
-    const processorFeeRecoveryCents =
-      estimatedHostProcessingRecoveryCents(amountCents);
-
-    const applicationFeeCents = Math.min(
-      amountCents,
-      commissionCents + processorFeeRecoveryCents,
-    );
-
-    if (!payment) {
-      const { data: createdPayment, error: paymentError } = await admin
+      const { error: cancelError } = await admin
         .from("payments")
-        .insert({
-          reservation_id: reservationId,
-          payment_account_id: reservation.payment_account_id,
-          provider: "STRIPE",
-          status: "NOT_STARTED",
-          idempotency_key: `booking-${reservationId}-${randomUUID()}`,
-          amount_cents: amountCents,
-          application_fee_cents: applicationFeeCents,
-          processor_fee_host_share_cents: processorFeeRecoveryCents,
-          processor_fee_platform_share_cents: 0,
-          processing_fee_credit_cents: 0,
-          host_proceeds_cents: Math.max(0, amountCents - applicationFeeCents),
-          currency: reservation.currency,
-        })
-        .select("id,status,provider_payment_id,amount_cents,application_fee_cents,processor_fee_host_share_cents")
-        .single();
+        .update({ status: "CANCELLED", updated_at: new Date().toISOString() })
+        .eq("id", payment.id)
+        .neq("status", "SUCCEEDED");
 
-      if (paymentError || !createdPayment) {
-        throw new Error(
-          `Unable to create payment record: ${
-            paymentError?.message || "Unknown database error"
-          }`,
-        );
-      }
+      if (cancelError) throw new Error(cancelError.message);
 
-      payment = createdPayment;
+      return NextResponse.json(
+        { error: "The previous payment session was cancelled. Try again to start a fresh payment." },
+        { status: 409 },
+      );
     }
+
+    const applicationFeeCents = Number(payment.application_fee_cents);
 
     const intent = await createDestinationPaymentIntent({
       amountCents,
       currency: reservation.currency,
-      connectedAccountId: account.provider_account_id,
+      connectedAccountId: payment.connected_account_id,
       applicationFeeCents,
       reservationId,
       paymentId: payment.id,
@@ -223,6 +222,7 @@ export async function POST(request: NextRequest) {
       platformCommissionCents: commissionCents,
       processorFeeRecoveryCents,
       commissionRateBps: Number(reservation.commission_rate_bps),
+      paymentEnvironment: environment,
     });
 
     if (!intent.client_secret) {
@@ -233,7 +233,7 @@ export async function POST(request: NextRequest) {
 
     const now = new Date().toISOString();
 
-    await admin
+    const { error: paymentUpdateError } = await admin
       .from("payments")
       .update({
         status:
@@ -243,7 +243,9 @@ export async function POST(request: NextRequest) {
       })
       .eq("id", payment.id);
 
-    await admin
+    if (paymentUpdateError) throw new Error(paymentUpdateError.message);
+
+    const { error: reservationUpdateError } = await admin
       .from("reservations")
       .update({
         status: "PAYMENT_PENDING",
@@ -254,7 +256,9 @@ export async function POST(request: NextRequest) {
       })
       .eq("id", reservationId);
 
-    await admin
+    if (reservationUpdateError) throw new Error(reservationUpdateError.message);
+
+    const { error: blockUpdateError } = await admin
       .from("availability_blocks")
       .update({
         expires_at: extendedHold,
@@ -263,6 +267,8 @@ export async function POST(request: NextRequest) {
       .eq("reservation_id", reservationId)
       .eq("state", "ACTIVE")
       .eq("block_type", "INTERNAL_HOLD");
+
+    if (blockUpdateError) throw new Error(blockUpdateError.message);
 
     return NextResponse.json({
       reservationId,

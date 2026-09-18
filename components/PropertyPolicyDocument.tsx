@@ -73,7 +73,7 @@ export function PropertyPolicyDocument({
   }
 
   return (
-    <section className="panel">
+    <section className="panel property-policy-document">
       <div className="panel-head">
         <div>
           <p className="eyebrow dark">Property policies</p>
@@ -91,7 +91,7 @@ export function PropertyPolicyDocument({
       </p>
 
       {current ? (
-        <div className="setting-row">
+        <div className="setting-row property-policy-current">
           <span>Current document</span>
           <strong>
             {current.signedUrl ? (
@@ -105,8 +105,10 @@ export function PropertyPolicyDocument({
         </div>
       ) : null}
 
-      <label>
+      <label className={`property-policy-upload${busy ? " busy" : ""}`}>
         <span>{current ? "Replace with a new version" : "Upload policy PDF"}</span>
+        <strong>{busy ? "Uploading…" : "Choose a PDF"}</strong>
+        <small>PDF only · maximum 10 MB. Selecting a file uploads it immediately.</small>
         <input
           type="file"
           accept="application/pdf"
@@ -115,8 +117,7 @@ export function PropertyPolicyDocument({
         />
       </label>
 
-      {message ? <p className="muted">{message}</p> : null}
-      <small>PDF only · maximum 10 MB.</small>
+      {message ? <p className="property-policy-message">{message}</p> : null}
     </section>
   );
 }
