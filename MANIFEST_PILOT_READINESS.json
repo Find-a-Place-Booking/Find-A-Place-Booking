@@ -1,0 +1,18 @@
+{
+  "base_commit": "d7d8ddd7c8140a01fb4ee8ea4d7aabe32bd472da",
+  "new_migration": "20260920005000_restore_live_safety_hardening.sql",
+  "restores_migration_file": "20260919004600_live_safety_hardening.sql",
+  "core_payment_math_changed": false,
+  "commission_math_changed": false,
+  "tax_math_changed": false,
+  "stripe_destination_charge_changed": false,
+  "features": [
+    "host reports",
+    "admin reports",
+    "CSV exports",
+    "admin tax/report navigation",
+    "ResNexus/iCal diagnostics",
+    "stale pilot UI copy cleanup",
+    "blank-046 database repair replay"
+  ]
+}

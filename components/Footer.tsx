@@ -33,8 +33,8 @@ export function Footer() {
         <div>
           <strong>Your trip</strong>
           <Link href="/trip">Manage a trip</Link>
-          <span>Property policies</span>
-          <span>Help & support</span>
+          <Link href="/property-policies">Property policies</Link>
+          <Link href="/help">Help &amp; support</Link>
         </div>
       </div>
 

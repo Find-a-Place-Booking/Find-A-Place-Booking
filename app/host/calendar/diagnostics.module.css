@@ -1,0 +1,36 @@
+.availabilityOnly{
+  display:grid;
+  gap:4px;
+  margin:0 0 14px;
+  padding:12px 13px;
+  border:1px solid #cbd9d1;
+  background:#eef4f0;
+}
+.availabilityOnly strong{
+  font-size:.72rem;
+  color:#214638;
+}
+.availabilityOnly span{
+  font-size:.68rem;
+  line-height:1.55;
+  color:#545d57;
+}
+.resNexusTip{
+  margin:9px 0 0;
+  padding:9px 10px;
+  border-left:3px solid #8a7352;
+  background:#f6f1e8;
+  color:#625d54;
+  font-size:.66rem;
+  line-height:1.55;
+}
+.resNexusTip strong{
+  color:#4d493f;
+}
+.testButton{
+  border-color:#8fa79a!important;
+  color:#315f4b!important;
+}
+.testButton:hover{
+  background:#edf4ef!important;
+}

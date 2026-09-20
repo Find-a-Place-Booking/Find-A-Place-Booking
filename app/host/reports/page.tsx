@@ -1,17 +1,57 @@
+import Link from "next/link";
+
 import { DashboardShell } from "@/components/DashboardShell";
+import { getHostReport } from "@/lib/host/reports";
+import { reportMoney } from "@/lib/reports/common";
 
-const reportGroups = [
-  ["Stay activity", "Completed stays, upcoming stays, cancellations and occupancy."],
-  ["Host money", "Booked revenue, host proceeds, payout eligible/pending/completed and refunds."],
-  ["Platform & processing", "Find A Place commission, commission tier, processor fees and adjustments."],
-  ["Taxes", "Taxes collected, remitted and still pending by property/jurisdiction."],
-  ["Issues", "Refund exposure, disputes, chargebacks and financial adjustments."],
-  ["Performance", "Revenue by property, average nightly rate, listing views, discovery and booking sources."],
-];
+function exportHref(report: Awaited<ReturnType<typeof getHostReport>>) {
+  const params = new URLSearchParams({ from: report.range.from, to: report.range.to });
+  if (report.propertyFilter) params.set("property", report.propertyFilter);
+  return `/host/reports/export?${params.toString()}`;
+}
 
-export default function ReportsPage(){return <DashboardShell active="Reports" title="Reports">
-  <div className="dash-toolbar"><p>See how listings perform across bookings, occupancy, money and Find A Place discovery.</p><button className="button button-small button-quiet" disabled>Export report</button></div>
-  <div className="dash-grid metrics"><div><span>Booked revenue</span><strong>$0</strong><small>No bookings yet</small></div><div><span>Occupancy</span><strong>—</strong><small>No reporting period yet</small></div><div><span>Avg. nightly rate</span><strong>—</strong><small>No completed stays yet</small></div><div><span>Listing views</span><strong>0</strong><small>No live listings yet</small></div></div>
-  <div className="dash-two"><section className="panel performance"><p className="eyebrow dark">Discovery</p><h2>Listing performance</h2><div className="panel-empty"><strong>No listing data yet.</strong><span>Search impressions and property views will appear after listings are live.</span></div></section><section className="panel"><p className="eyebrow dark">Booking sources</p><h2>Where stays came from</h2><div className="panel-empty"><strong>No booking-source data yet.</strong><span>Find A Place bookings and connected-calendar activity will be reported separately.</span></div></section></div>
-  <section className="panel report-library"><p className="eyebrow dark">Reporting library</p><h2>Operational and accounting reports planned for the finished system</h2><div className="report-filter-preview"><button disabled>Date range</button><button disabled>Property</button><button disabled>Booking status</button><button disabled>Payout status</button><button disabled>Tax jurisdiction</button></div><div className="report-library-grid">{reportGroups.map(([title, detail])=><div key={title}><strong>{title}</strong><span>{detail}</span></div>)}</div><p className="muted">These reports will be generated from reservation, payment and immutable-ledger records rather than email history. CSV/accounting export will activate once the reporting ledger is connected.</p></section>
-</DashboardShell>}
+export default async function ReportsPage({ searchParams }: { searchParams: Promise<{ from?: string; to?: string; property?: string }> }) {
+  const query = await searchParams;
+  const report = await getHostReport({ from: query.from, to: query.to, propertyId: query.property });
+  const currency = report.rows[0]?.currency || "USD";
+
+  return <DashboardShell active="Reports" title="Reports" eyebrow="Booking & payout reporting">
+    <div className="dash-toolbar">
+      <div><p>Real booking, refund and payout reporting from Find A Place financial records.</p><small>Period filters use stay dates. TEST and LIVE money are always kept separate.</small></div>
+      <Link className="button button-small button-quiet" href={exportHref(report)}>Export CSV</Link>
+    </div>
+
+    <form className="panel settings-form" method="get">
+      <div className="form-row">
+        <label><span>From</span><input type="date" name="from" defaultValue={report.range.from} /></label>
+        <label><span>Through</span><input type="date" name="to" defaultValue={report.range.to} /></label>
+      </div>
+      <label><span>Property</span><select name="property" defaultValue={report.propertyFilter || ""}><option value="">All properties</option>{report.properties.map((property) => <option value={property.id} key={property.id}>{property.name}</option>)}</select></label>
+      <div className="pricing-inline-actions"><button className="button button-small" type="submit">Run report</button><span className="status-pill status-muted">{report.environment} money</span></div>
+    </form>
+
+    <div className="dash-grid metrics">
+      <div><span>Guest payments</span><strong>{reportMoney(report.totals.grossGuestCents, currency)}</strong><small>Successful booking charges</small></div>
+      <div><span>Host proceeds booked</span><strong>{reportMoney(report.totals.hostProceedsCents, currency)}</strong><small>Before later refund adjustments</small></div>
+      <div><span>Payouts paid</span><strong>{reportMoney(report.totals.paidPayoutCents, currency)}</strong><small>Completed bank payouts</small></div>
+      <div><span>Refunded</span><strong>{reportMoney(report.totals.refundCents, currency)}</strong><small>Successful guest refunds</small></div>
+    </div>
+
+    <div className="dash-grid metrics">
+      <div><span>Confirmed stays</span><strong>{report.totals.confirmedStays}</strong><small>{report.totals.bookedNights} booked nights</small></div>
+      <div><span>Taxes collected by FAP</span><strong>{reportMoney(report.totals.taxCents, currency)}</strong><small>Booking tax collected; net liability is in Tax operations</small></div>
+      <div><span>FAP commission booked</span><strong>{reportMoney(report.totals.commissionCents, currency)}</strong><small>5% / 7% lodging commission</small></div>
+      <div><span>Host processing</span><strong>{reportMoney(report.totals.processingCents, currency)}</strong><small>Processor recovery charged to host</small></div>
+    </div>
+
+    <section className="panel">
+      <div className="panel-head"><div><p className="eyebrow dark">By property</p><h2>Booking and payout summary</h2></div><span className="status-pill status-muted">{report.propertyBreakdown.length} properties</span></div>
+      {report.propertyBreakdown.length ? <div className="big-table"><div className="big-row head"><span>Property</span><span>Stays / nights</span><span>Guest paid</span><span>Host proceeds</span><span>Refunds</span><span>Paid out</span></div>{report.propertyBreakdown.map((row) => <div className="big-row" key={row.propertyId}><span><strong>{row.propertyName}</strong><small>{row.reservations} reservation records</small></span><span><strong>{row.confirmedStays} / {row.bookedNights}</strong><small>{row.cancelledStays} cancelled</small></span><span>{reportMoney(row.grossGuestCents, row.currency)}</span><span>{reportMoney(row.hostProceedsCents, row.currency)}</span><span>{reportMoney(row.refundCents, row.currency)}</span><span>{reportMoney(row.paidPayoutCents, row.currency)}</span></div>)}</div> : <div className="panel-empty"><strong>No reportable bookings in this period.</strong><span>Choose a wider date range or another property.</span></div>}
+    </section>
+
+    <section className="panel">
+      <div className="panel-head"><div><p className="eyebrow dark">Reservations</p><h2>Financial booking detail</h2></div><Link href="/host/reservations">Open reservations →</Link></div>
+      {report.rows.length ? <div className="admin-list compact">{report.rows.map((row) => <Link className="admin-list-row" href={`/host/reservations/${row.reservationId}`} key={row.reservationId}><span><strong>{row.confirmationCode} · {row.propertyName}</strong><small>{row.guestName} · {row.checkIn} → {row.checkOut}</small><small>{row.status.replaceAll("_", " ")} · {row.paymentStatus.replaceAll("_", " ")} · payout {row.payoutStatus.replaceAll("_", " ")}</small></span><span><strong>{reportMoney(row.guestPaidCents, row.currency)}</strong><small>Host proceeds {reportMoney(row.hostProceedsCents, row.currency)}</small>{row.refundCents ? <small>Refunded {reportMoney(row.refundCents, row.currency)}</small> : null}</span></Link>)}</div> : <div className="panel-empty"><strong>No reservation rows for this report.</strong></div>}
+    </section>
+  </DashboardShell>;
+}

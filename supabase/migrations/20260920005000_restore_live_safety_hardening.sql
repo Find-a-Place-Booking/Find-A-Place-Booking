@@ -1,4 +1,6 @@
 -- Find A Place Booking
+-- Repair/replay of live-safety hardening 046 under migration 050.
+-- The pushed 046 file was accidentally blank, so this migration safely replays the idempotent hardening body.
 -- Live-safety hardening 046.
 --
 -- Goals:
@@ -643,5 +645,23 @@ grant execute on function public.live_safety_hardening_version() to anon, authen
 
 comment on function public.live_safety_hardening_version() is
   'Marker for payout environment, policy-timezone, atomic tax-profile and exact LIVE Arkansas tax-rule hardening.';
+
+create or replace function public.pilot_readiness_cleanup_version()
+returns text
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select 'pilot-readiness-cleanup-050-v1'::text;
+$$;
+
+revoke all on function public.pilot_readiness_cleanup_version() from public;
+grant execute on function public.pilot_readiness_cleanup_version() to anon, authenticated;
+
+comment on function public.pilot_readiness_cleanup_version() is
+  'Marker that the blank-046 repository repair and pilot-readiness cleanup migration has been applied.';
+
+notify pgrst, 'reload schema';
 
 commit;

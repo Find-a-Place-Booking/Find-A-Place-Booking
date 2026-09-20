@@ -17,8 +17,10 @@ import {
   ensureGeneralExport,
   rotateExportToken,
   syncIcalCalendar,
+  testIcalCalendar,
 } from "./actions";
 import styles from "./calendar.module.css";
+import diagnosticStyles from "./diagnostics.module.css";
 
 const weekDays = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
@@ -62,6 +64,8 @@ function resultMessage(result?: string, detail?: string) {
     "owner-block-removed": "Owner block removed.",
     "calendar-connected": "Calendar connected and synchronized.",
     "calendar-synced": "Calendar synchronized.",
+    "calendar-test-ok": "Calendar connection test passed. No availability was changed.",
+    "calendar-test-error": "Calendar connection test found a compatibility problem. No availability was changed.",
     "calendar-disconnected": "Calendar disconnected.",
     "export-created": "Calendar export created.",
     "export-rotated": "Calendar export URL rotated.",
@@ -77,7 +81,10 @@ export default async function CalendarPage({
   const params = await searchParams;
   const workspace = await getCalendarWorkspace({ unitId: params.unit, month: params.month });
   const message = resultMessage(params.result, params.detail);
-  const isError = params.result === "error" || params.result === "connected-sync-error";
+  const isError =
+    params.result === "error" ||
+    params.result === "connected-sync-error" ||
+    params.result === "calendar-test-error";
 
   if (!workspace.selected) {
     return (
@@ -198,16 +205,23 @@ export default async function CalendarPage({
 
           <section className={styles.sidePanel}>
             <h2>Connected calendars</h2>
-            <p>Import an iCal/ICS feed from Airbnb, Vrbo or another channel. Each source stays tied to this unit and can only update its own imported blocks.</p>
+            <p>Import an iCal/ICS feed from Airbnb, Vrbo, ResNexus or another channel. Each source stays tied to this unit and can only update its own imported blocks.</p>
+
+            <div className={diagnosticStyles.availabilityOnly}>
+              <strong>Availability only</strong>
+              <span>iCal can block or reopen dates. It never imports nightly rates, cleaning fees, pet fees, taxes, discounts, policies or payout settings into Find A Place.</span>
+            </div>
+
             <form action={connectIcalCalendar} className={styles.connectForm}>
               <input type="hidden" name="unitId" value={selected.unitId} />
               <input type="hidden" name="month" value={workspace.month} />
               <label><span>Provider</span><select name="provider" defaultValue="AIRBNB"><option value="AIRBNB">Airbnb</option><option value="VRBO">Vrbo</option><option value="BOOKING_COM">Booking.com</option><option value="LODGIFY">Lodgify</option><option value="OWNEREZ">OwnerRez</option><option value="RESNEXUS">ResNexus</option><option value="GOOGLE">Google Calendar</option><option value="OTHER_ICAL">Other iCal / ICS</option></select></label>
               <label><span>Connection label</span><input name="label" required maxLength={120} placeholder="Airbnb main calendar" /></label>
               <label><span>Private iCal feed URL</span><input type="text" inputMode="url" name="feedUrl" required placeholder="https://…/calendar.ics or webcal://…" autoComplete="off" /></label>
-              <button className="button button-small" type="submit">Connect & sync</button>
+              <button className="button button-small" type="submit">Test, connect & sync</button>
             </form>
-            <p className={styles.help}>Only HTTPS public feeds are fetched. The server blocks local/private network destinations and limits redirects, response size and fetch time.</p>
+            <p className={styles.help}>Before a new source is saved, Find A Place performs a read-only compatibility test. Unsafe recurring/time-based events are rejected instead of guessing at blocked nights.</p>
+            <p className={diagnosticStyles.resNexusTip}><strong>ResNexus:</strong> use the property&apos;s private iCal/ICS export URL. If a test reports recurring or timed events, the feed is reachable but is using calendar semantics Find A Place will not guess at.</p>
 
             <div className={styles.connections}>
               {workspace.connections.map((connection) => {
@@ -220,6 +234,7 @@ export default async function CalendarPage({
                     <div className={styles.connectionMeta}><span>{connection.activeBlockCount} active imported blocks</span><span>Last success: {displayTimestamp(connection.last_success_at)}</span></div>
                     {connection.last_error ? <div className={styles.connectionError}>{connection.last_error}</div> : null}
                     <div className={styles.actionRow}>
+                      <form action={testIcalCalendar}><input type="hidden" name="unitId" value={selected.unitId} /><input type="hidden" name="month" value={workspace.month} /><input type="hidden" name="connectionId" value={connection.id} /><button className={`button button-small button-quiet ${diagnosticStyles.testButton}`} type="submit">Test connection</button></form>
                       <form action={syncIcalCalendar}><input type="hidden" name="unitId" value={selected.unitId} /><input type="hidden" name="month" value={workspace.month} /><input type="hidden" name="connectionId" value={connection.id} /><button className="button button-small button-quiet" type="submit">Sync now</button></form>
                       <form action={disconnectCalendar}><input type="hidden" name="unitId" value={selected.unitId} /><input type="hidden" name="month" value={workspace.month} /><input type="hidden" name="connectionId" value={connection.id} /><button className={`button button-small button-quiet ${styles.danger}`} type="submit">Disconnect</button></form>
                     </div>
@@ -233,7 +248,7 @@ export default async function CalendarPage({
 
           <section className={styles.sidePanel}>
             <h2>General iCal export</h2>
-            <p>Use a tokenized Find A Place feed when another system needs the unit's canonical unavailable dates and is not one of the source connections above.</p>
+            <p>Use a tokenized Find A Place feed when another system needs the unit&apos;s canonical unavailable dates and is not one of the source connections above.</p>
             {genericToken ? <>
               <code className={styles.exportUrl}>{calendarExportUrl(genericToken.token)}</code>
               <div className={styles.actionRow}><CalendarCopyButton value={calendarExportUrl(genericToken.token)} /><form action={rotateExportToken}><input type="hidden" name="unitId" value={selected.unitId} /><input type="hidden" name="month" value={workspace.month} /><input type="hidden" name="exportTokenId" value={genericToken.id} /><button className="button button-small button-quiet" type="submit">Rotate URL</button></form></div>

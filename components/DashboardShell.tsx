@@ -8,7 +8,6 @@ import { HostSidebar } from "./HostSidebar";
 export async function DashboardShell({ active, title, eyebrow, children }: { active: string; title: string; eyebrow?: string; children: React.ReactNode }) {
   const profile = await getHostAccountProfile();
   const initials = initialsForHost(profile);
-
   return (
     <div className="dashboard-layout">
       <HostSidebar active={active} />
@@ -18,7 +17,7 @@ export async function DashboardShell({ active, title, eyebrow, children }: { act
           <div><small>{eyebrow || "Host dashboard"}</small><h1>{title}</h1></div>
           <div className="dash-actions">
             <Link className="button button-small button-quiet dash-marketplace-link" href="/">View marketplace</Link>
-            <button className="notification" type="button" aria-label="Notifications">•</button>
+            <Link className="notification" href="/host/messages" aria-label="Reservation messages">•</Link>
             <Link className={`avatar ${profile.avatarUrl ? "has-image" : ""}`} href="/host/settings" aria-label="Host account settings">
               {profile.avatarUrl ? <img src={profile.avatarUrl} alt="" /> : initials}
             </Link>

@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
+import { inspectIcalFeed } from "@/lib/calendar/diagnostics";
 import { assertSafeCalendarUrl, normalizeIcalUrl } from "@/lib/calendar/fetch-ical";
 import {
   syncIcalConnection,
@@ -38,6 +39,46 @@ function errorMessage(error: unknown) {
   return error instanceof Error
     ? error.message
     : "Calendar synchronization failed.";
+}
+
+async function inspectConnectedCalendar(connectionId: string, unitId: string) {
+  const supabase = await createClient();
+  const { data: connection, error: connectionError } = await supabase
+    .from("calendar_connections")
+    .select("id,unit_id,provider,feed_url,connection_kind,is_active")
+    .eq("id", connectionId)
+    .eq("unit_id", unitId)
+    .maybeSingle();
+
+  if (
+    connectionError ||
+    !connection ||
+    !connection.is_active ||
+    connection.connection_kind !== "ICAL" ||
+    !connection.feed_url
+  ) {
+    return {
+      ok: false as const,
+      message: "That iCal connection is not available to test.",
+    };
+  }
+
+  try {
+    const diagnostic = await inspectIcalFeed(
+      connection.feed_url,
+      connection.provider,
+    );
+
+    return {
+      ok: diagnostic.compatible,
+      message: diagnostic.message,
+    };
+  } catch (error) {
+    return {
+      ok: false as const,
+      message: errorMessage(error),
+    };
+  }
 }
 
 async function syncConnectedCalendar(connectionId: string, unitId: string) {
@@ -137,8 +178,17 @@ export async function connectIcalCalendar(formData: FormData) {
 
   try {
     await assertSafeCalendarUrl(normalizedUrl);
+    const diagnostic = await inspectIcalFeed(normalizedUrl, provider);
+    if (!diagnostic.compatible) {
+      calendarRedirect(
+        unitId,
+        month,
+        "calendar-test-error",
+        diagnostic.message,
+      );
+    }
   } catch (error) {
-    calendarRedirect(unitId, month, "error", errorMessage(error));
+    calendarRedirect(unitId, month, "calendar-test-error", errorMessage(error));
   }
 
   const supabase = await createClient();
@@ -171,6 +221,30 @@ export async function connectIcalCalendar(formData: FormData) {
     );
   }
   calendarRedirect(unitId, month, "calendar-connected", sync.message);
+}
+
+export async function testIcalCalendar(formData: FormData) {
+  const unitId = field(formData, "unitId", 100);
+  const month = field(formData, "month", 20);
+  const connectionId = field(formData, "connectionId", 100);
+
+  const diagnostic = await inspectConnectedCalendar(connectionId, unitId);
+
+  if (!diagnostic.ok) {
+    calendarRedirect(
+      unitId,
+      month,
+      "calendar-test-error",
+      `${diagnostic.message} Existing imported dates were not changed.`,
+    );
+  }
+
+  calendarRedirect(
+    unitId,
+    month,
+    "calendar-test-ok",
+    `${diagnostic.message} This test did not change availability.`,
+  );
 }
 
 export async function syncIcalCalendar(formData: FormData) {

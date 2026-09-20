@@ -1,0 +1,11 @@
+{
+  "name": "Find A Place footer links fix",
+  "date": "2026-09-20",
+  "files": [
+    "components/Footer.tsx",
+    "app/property-policies/page.tsx",
+    "app/help/page.tsx",
+    "README_FOOTER_LINKS_FIX.txt"
+  ],
+  "migration": null
+}

@@ -16,6 +16,13 @@ const nav: NavItem[] = [
   { label: "Properties", href: "/admin/properties", key: "properties" },
   { label: "Calendars", href: "/admin/calendars", key: "calendars" },
   { label: "Reservations", href: "/admin/reservations", key: "reservations" },
+  { label: "Reports", href: "/admin/reports", key: "reports" },
+  {
+    label: "Taxes & remittance",
+    href: "/admin/taxes",
+    key: "taxes",
+    roles: ["SUPER_ADMIN", "FINANCE_ADMIN"],
+  },
   {
     label: "Site content",
     href: "/admin/content",
@@ -31,36 +38,19 @@ const nav: NavItem[] = [
   { label: "Audit log", href: "/admin/audit", key: "audit" },
 ];
 
-export function AdminSidebar({
-  active,
-  roles,
-}: {
-  active: string;
-  roles: AdminRole[];
-}) {
-  const visibleNav = nav.filter(
-    (item) =>
-      !item.roles || item.roles.some((role) => roles.includes(role)),
-  );
-
+export function AdminSidebar({ active, roles }: { active: string; roles: AdminRole[] }) {
+  const visibleNav = nav.filter((item) => !item.roles || item.roles.some((role) => roles.includes(role)));
   return (
     <aside className="admin-side">
       <Brand compact />
       <p className="admin-label">Find A Place team</p>
-
       <nav>
         {visibleNav.map((item) => (
-          <Link
-            className={active === item.key ? "active" : ""}
-            href={item.href}
-            key={item.key}
-          >
-            {item.label}
-            <span>›</span>
+          <Link className={active === item.key ? "active" : ""} href={item.href} key={item.key}>
+            {item.label}<span>›</span>
           </Link>
         ))}
       </nav>
-
       <Link href="/">← Booking marketplace</Link>
     </aside>
   );
