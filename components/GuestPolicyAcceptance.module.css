@@ -1,1 +1,22 @@
-.card{display:grid;gap:18px;border:1px solid #d8d0c3;background:#fff;padding:22px;margin-top:18px}.heading{display:flex;justify-content:space-between;gap:18px;align-items:flex-start}.heading h2{font-family:Georgia,"Times New Roman",serif;font-weight:500;margin:0;font-size:1.55rem}.intro{margin:0;color:#676b66;line-height:1.65}.reviewGrid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.reviewCard{border:1px solid #ddd7cc;background:#f8f6f1;padding:15px;display:grid;gap:8px}.reviewCard strong{font-size:.9rem}.reviewCard p{margin:0;color:#6d706b;font-size:.78rem;line-height:1.55}.reviewed{border-color:#789487;background:#f0f5f2}.policyCopy{display:grid;gap:8px;border-top:1px solid #ece7de;padding-top:12px}.policyCopy ul{margin:0;padding-left:20px;color:#555b56}.policyCopy p{white-space:pre-wrap;margin:0;color:#555b56;font-size:.84rem;line-height:1.6}.links{display:flex;gap:14px;flex-wrap:wrap;font-size:.76rem}.links a{font-weight:800;color:#315f4b;text-decoration:underline}.agreement{display:flex;gap:10px;align-items:flex-start;border-top:1px solid #ece7de;padding-top:14px;font-size:.84rem;line-height:1.55}.agreement input{margin-top:3px}.error{background:#fff0ed;color:#8a3f31;border:1px solid #edc8bf;padding:10px 12px;font-size:.8rem}.status{font-size:.7rem;text-transform:uppercase;letter-spacing:.08em;font-weight:850;color:#315f4b}@media(max-width:700px){.reviewGrid{grid-template-columns:1fr}.card{padding:18px}.heading{display:grid}}
+.card{display:grid;gap:18px;border:1px solid #d8d0c3;background:#fff;padding:22px;margin-top:18px}.heading{display:flex;justify-content:space-between;gap:18px;align-items:flex-start}.heading h2{font-family:Georgia,"Times New Roman",serif;font-weight:500;margin:0;font-size:1.55rem}.intro{margin:0;color:#676b66;line-height:1.65}.reviewGrid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.reviewCard{border:1px solid #ddd7cc;background:#f8f6f1;padding:15px;display:grid;gap:8px}.reviewCard strong{font-size:.9rem}.reviewCard p{margin:0;color:#6d706b;font-size:.78rem;line-height:1.55}.reviewed{border-color:#789487;background:#f0f5f2}.policyCopy{display:grid;gap:8px;border-top:1px solid #ece7de;padding-top:12px}.policyCopy ul{margin:0;padding-left:20px;color:#555b56}.policyCopy p{white-space:pre-wrap;margin:0;color:#555b56;font-size:.84rem;line-height:1.6}.links{display:flex;gap:14px;flex-wrap:wrap;font-size:.76rem}.links a{font-weight:800;color:#315f4b;text-decoration:underline}.agreement{display:flex;gap:10px;align-items:flex-start;border-top:1px solid #ece7de;padding-top:14px;font-size:.84rem;line-height:1.55}.agreement input{margin-top:3px}.error{background:#fff0ed;color:#8a3f31;border:1px solid #edc8bf;padding:10px 12px;font-size:.8rem}.status{font-size:.7rem;text-transform:uppercase;letter-spacing:.08em;font-weight:850;color:#315f4b}
+
+/* These are required review actions, not low-emphasis controls. Keep their
+   foreground readable even when global button-quiet styles are layered later. */
+.reviewCard :global(.button.button-quiet){
+  background:#111411;
+  border-color:#111411;
+  color:#fff;
+}
+.reviewCard :global(.button.button-quiet:hover){
+  background:#263a33;
+  border-color:#263a33;
+  color:#fff;
+}
+.reviewCard :global(.button.button-quiet:disabled){
+  background:#111411;
+  border-color:#111411;
+  color:#fff;
+  opacity:.65;
+}
+
+@media(max-width:700px){.reviewGrid{grid-template-columns:1fr}.card{padding:18px}.heading{display:grid}}

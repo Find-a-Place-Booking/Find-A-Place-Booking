@@ -38,6 +38,7 @@ export async function saveBasePricing(formData: FormData) {
       weekend: text(formData, "weekend", 40),
       cleaning: text(formData, "cleaning", 40),
       pet: text(formData, "pet", 40),
+      petCalculation: text(formData, "petCalculation", 40) || "PER_NIGHT",
       extraGuest: text(formData, "extraGuest", 40),
       includedGuests: text(formData, "includedGuests", 20),
       minimumStay: text(formData, "minimumStay", 20) || "1",

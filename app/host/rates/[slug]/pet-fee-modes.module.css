@@ -1,0 +1,14 @@
+.modeSelect{
+  width:100%;
+  min-height:42px;
+  border:1px solid var(--line);
+  background:#fff;
+  color:var(--ink);
+  padding:10px 11px;
+  font:inherit;
+}
+.modeSelect:focus{
+  outline:2px solid rgba(49,95,75,.18);
+  outline-offset:1px;
+  border-color:#718b7e;
+}

@@ -13,6 +13,7 @@ import {
 } from "@/app/host/rates/actions";
 import { DashboardShell } from "@/components/DashboardShell";
 import { calculationLabel, getHostQuotePreview, getPricingWorkspaceBySlug, money, promotionValueLabel } from "@/lib/host/pricing";
+import petStyles from "./pet-fee-modes.module.css";
 
 function dollars(cents: number | null | undefined) {
   return cents == null ? "" : (cents / 100).toFixed(cents % 100 ? 2 : 0);
@@ -35,6 +36,18 @@ function resultMessage(value?: string) {
   return null;
 }
 
+function petModeLabel(value: string | null | undefined) {
+  if (value === "PER_NIGHT") return "per pet / night";
+  if (value === "PER_PET_PER_STAY") return "per pet / stay";
+  if (value === "FLAT_PER_STAY") return "flat per stay";
+  return "per pet / night";
+}
+
+function normalizedPetMode(value: string | null | undefined) {
+  if (value === "PER_NIGHT" || value === "PER_PET_PER_STAY" || value === "FLAT_PER_STAY") return value;
+  return "PER_NIGHT";
+}
+
 export default async function PropertyRatesPage({
   params,
   searchParams,
@@ -44,7 +57,10 @@ export default async function PropertyRatesPage({
 }) {
   const [{ slug }, query] = await Promise.all([params, searchParams]);
   const { property, pricing } = await getPricingWorkspaceBySlug(slug);
-  const fee = (type: string) => pricing.fees.find((item) => item.fee_type === type)?.amount_cents ?? null;
+  const feeRecord = (type: string) => pricing.fees.find((item) => item.fee_type === type) ?? null;
+  const fee = (type: string) => feeRecord(type)?.amount_cents ?? null;
+  const petFee = feeRecord("PET");
+  const petMode = normalizedPetMode(petFee?.calculation);
   const success = resultMessage(query.result);
   const selectedAddOns = Array.isArray(query.addOn) ? query.addOn : query.addOn ? [query.addOn] : [];
   const preview = query.preview ? await getHostQuotePreview({
@@ -74,11 +90,13 @@ export default async function PropertyRatesPage({
         <label><span>Weekend rate</span><div className="money-input"><i>$</i><input type="number" min="1" step="0.01" name="weekend" defaultValue={dollars(pricing.base.weekend_cents)} /></div><small>Friday–Saturday. Blank uses weeknight rate.</small></label>
         <label><span>Default minimum stay</span><input required type="number" min="1" max="365" name="minimumStay" defaultValue={pricing.base.minimum_stay_nights || 1} /><small>Used unless a date-specific minimum-stay rule overrides it.</small></label>
         <label><span>Cleaning fee</span><div className="money-input"><i>$</i><input type="number" min="0" step="0.01" name="cleaning" defaultValue={dollars(fee("CLEANING"))} /></div><small>Flat per stay.</small></label>
-        <label><span>Pet fee</span><div className="money-input"><i>$</i><input type="number" min="0" step="0.01" name="pet" defaultValue={dollars(fee("PET"))} /></div><small>Currently modeled per pet / stay.</small></label>
+        <label><span>Pet fee amount</span><div className="money-input"><i>$</i><input type="number" min="0" step="0.01" name="pet" defaultValue={dollars(fee("PET"))} /></div><small>Enter the amount used by the pet-fee mode beside it.</small></label>
+        <label><span>Pet fee charge</span><select className={petStyles.modeSelect} name="petCalculation" defaultValue={petMode}><option value="PER_NIGHT">Per pet, per night</option><option value="PER_PET_PER_STAY">Per pet, per stay</option><option value="FLAT_PER_STAY">Flat per stay</option></select><small>Per pet/night multiplies the amount by pets × nights. Existing pet-fee settings are preserved until changed.</small></label>
         <label><span>Guests included in nightly rate</span><input type="number" min="1" max={property.form.maxGuests || "100"} name="includedGuests" defaultValue={pricing.base.included_guests ?? ""} placeholder={property.form.maxGuests || "All guests"} /><small>Leave blank if there is no additional-guest fee.</small></label>
         <label><span>Additional guest fee</span><div className="money-input"><i>$</i><input type="number" min="0" step="0.01" name="extraGuest" defaultValue={dollars(fee("EXTRA_GUEST"))} /></div><small>Per additional guest, per night.</small></label>
         <div className="pricing-form-actions"><div><strong>Commission basis</strong><span>Find A Place commission remains based on nightly lodging subtotal only. Standard fees and optional add-ons stay separate.</span></div><button className="button" type="submit">Save base pricing</button></div>
       </form>
+      {petFee ? <div className="inline-note commission-note"><strong>Current pet-fee mode: {petModeLabel(petFee.calculation)}</strong><span>The booking quote calculates the full pet-fee total before tax. Pet fees remain outside the 5% / 7% lodging commission base.</span></div> : null}
     </section>
 
     <div className="pricing-two-column">
@@ -156,7 +174,7 @@ export default async function PropertyRatesPage({
       {preview.error ? <div className="admin-message error pricing-preview-message">{preview.error}</div> : null}
       {preview.quote ? <div className="pricing-quote-result">
         <div className="pricing-quote-summary"><div><span>Nights</span><strong>{preview.quote.nights}</strong></div><div><span>Minimum stay</span><strong>{preview.quote.minimum_stay_nights}</strong></div><div><span>Lodging</span><strong>{money(preview.quote.lodging_subtotal_cents)}</strong>{preview.quote.discount_cents > 0 ? <small>{money(preview.quote.lodging_subtotal_before_discount_cents)} before discount</small> : null}</div><div><span>Pre-tax total</span><strong>{money(preview.quote.pre_tax_total_cents)}</strong></div></div>
-        <div className="pricing-quote-lines"><strong>Nightly resolution</strong>{preview.quote.lodging_lines.map((line) => <div key={line.date}><span>{line.date}{line.special_label ? ` · ${line.special_label}` : ""}</span><b>{money(line.amount_cents)}</b></div>)}{preview.quote.promotion ? <div className="discount-line"><span>Promo {preview.quote.promotion.code} · {preview.quote.promotion.label}</span><b>−{money(preview.quote.discount_cents)}</b></div> : null}{preview.quote.fee_lines.map((line) => <div key={line.id}><span>{line.label}</span><b>{money(line.amount_cents)}</b></div>)}{preview.quote.add_on_lines.map((line) => <div key={line.id}><span>{line.name}</span><b>{money(line.amount_cents)}</b></div>)}</div>
+        <div className="pricing-quote-lines"><strong>Nightly resolution</strong>{preview.quote.lodging_lines.map((line) => <div key={line.date}><span>{line.date}{line.special_label ? ` · ${line.special_label}` : ""}</span><b>{money(line.amount_cents)}</b></div>)}{preview.quote.promotion ? <div className="discount-line"><span>Promo {preview.quote.promotion.code} · {preview.quote.promotion.label}</span><b>−{money(preview.quote.discount_cents)}</b></div> : null}{preview.quote.fee_lines.map((line) => <div key={line.id}><span>{line.label}{line.type === "PET" && petFee ? ` · ${petModeLabel(petFee.calculation)}` : ""}</span><b>{money(line.amount_cents)}</b></div>)}{preview.quote.add_on_lines.map((line) => <div key={line.id}><span>{line.name}</span><b>{money(line.amount_cents)}</b></div>)}</div>
         <div className="pricing-quote-boundary"><span>Commission base: <b>{money(preview.quote.commission_base_cents)}</b></span><span>Availability: <b>not checked</b></span><span>Taxes: <b>not calculated</b></span><span>Payment processor: <b>not contacted</b></span><span>Promo redemption: <b>not consumed</b></span></div>
       </div> : null}
     </section>

@@ -1,0 +1,55 @@
+/* Find A Place accessibility contrast hardening.
+   Loaded after the base/theme layers so these light-surface text values win
+   without changing the intentionally softer palette used on dark surfaces. */
+
+.eyebrow.dark {
+  color: #5e635d;
+}
+
+.dash-main .metrics small,
+.admin-main .metrics small,
+.guest-state-wrap .metrics small,
+.checkout-page .checkout-intro,
+.checkout-page .payment-foot,
+.checkout-page .secure-note,
+.property-page .price-line span,
+.property-page .property-kicker {
+  color: #5e635d;
+}
+
+/* Public hosts hero: transparent header sits on a dark hero, so all
+   navigation/brand text must use the light palette. */
+.hosts-hero .site-header {
+  background: transparent;
+  border-bottom-color: rgba(255,255,255,.14);
+  box-shadow: none;
+}
+
+.hosts-hero .header-light .main-nav a,
+.hosts-hero .header-light .text-link,
+.hosts-hero .header-light .brand-copy strong,
+.hosts-hero .header-light .brand-copy small {
+  color: #fff;
+}
+
+.hosts-hero .header-light .brand-seal {
+  box-shadow: 0 0 0 1px rgba(255,255,255,.22);
+}
+
+.hosts-hero .header-light .button-outline {
+  background: var(--fap-cream);
+  border-color: var(--fap-cream);
+  color: var(--fap-charcoal);
+}
+
+.hosts-hero .header-light .button-outline:hover {
+  background: #fff;
+  border-color: #fff;
+  color: var(--fap-charcoal);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+}

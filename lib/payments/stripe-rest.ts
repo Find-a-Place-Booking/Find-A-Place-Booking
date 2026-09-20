@@ -94,11 +94,17 @@ export type StripeAccountV2 = {
         stripe_balance?: {
           stripe_transfers?: {
             status?: string | null;
-            status_details?: Array<{ code?: string | null; resolution?: string | null }> | null;
+            status_details?: Array<{
+              code?: string | null;
+              resolution?: string | null;
+            }> | null;
           } | null;
           payouts?: {
             status?: string | null;
-            status_details?: Array<{ code?: string | null; resolution?: string | null }> | null;
+            status_details?: Array<{
+              code?: string | null;
+              resolution?: string | null;
+            }> | null;
           } | null;
         } | null;
       } | null;
@@ -115,10 +121,6 @@ export type StripeAccountV2 = {
 };
 
 function accountCreationIdempotencyKey(scope: string, body: unknown) {
-  // Stripe rejects an idempotency key when it is reused with different
-  // parameters. Hashing BOTH the organization scope and exact request payload
-  // means identical retries reuse the same key, while any payload change gets
-  // a fresh key automatically.
   const fingerprint = createHash("sha256")
     .update(scope)
     .update("\n")
@@ -195,8 +197,10 @@ export async function createAccountSession(accountId: string) {
   body.set("components[account_onboarding][enabled]", "true");
   body.set("components[notification_banner][enabled]", "true");
   body.set("components[account_management][enabled]", "true");
-  body.set("components[payouts][enabled]", "true");
 
+  // Do not expose Stripe's payouts component inside the host portal. Find A
+  // Place owns the manual payout schedule and releases reservation proceeds
+  // according to the platform's check-in-minus-13-days policy.
   return stripeV1FormRequest<{ client_secret: string; expires_at: number }>(
     "/account_sessions",
     body,

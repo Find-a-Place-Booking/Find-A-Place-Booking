@@ -10,6 +10,12 @@ import {
   retrieveChargeWithBalanceTransaction,
 } from "@/lib/payments/stripe-checkout";
 import { sendBookingNotifications } from "@/lib/notifications/reservation-emails";
+import {
+  sendDisputeNotifications,
+  sendPaymentConfirmedNotification,
+  sendPayoutNotifications,
+  sendRefundNotifications,
+} from "@/lib/notifications/operational-emails";
 import { stripeEnvironment } from "@/lib/payments/booking-runtime";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -34,26 +40,63 @@ async function markProcessorEvent(
     .eq("external_event_id", eventId);
 }
 
+function constructStripeEvent(rawBody: string, signature: string) {
+  const secrets = [
+    process.env.STRIPE_WEBHOOK_SECRET?.trim(),
+    process.env.STRIPE_CONNECT_WEBHOOK_SECRET?.trim(),
+  ].filter((value): value is string => Boolean(value));
+
+  if (!secrets.length) {
+    throw new Error("Stripe webhook secrets are not configured.");
+  }
+
+  let lastError: unknown = null;
+  for (const secret of secrets) {
+    try {
+      return getStripeClient().webhooks.constructEvent(
+        rawBody,
+        signature,
+        secret,
+      );
+    } catch (error) {
+      lastError = error;
+    }
+  }
+
+  throw lastError instanceof Error
+    ? lastError
+    : new Error("Invalid Stripe webhook signature.");
+}
+
+function payoutStatus(status: string) {
+  if (status === "paid") return "PAID";
+  if (status === "failed") return "FAILED";
+  if (status === "canceled") return "CANCELLED";
+  if (status === "in_transit") return "IN_TRANSIT";
+  return "PENDING";
+}
+
+function arrivalIso(unixSeconds?: number | null) {
+  if (!unixSeconds) return null;
+  const value = new Date(unixSeconds * 1000);
+  return Number.isNaN(value.getTime()) ? null : value.toISOString();
+}
+
 export async function POST(request: NextRequest) {
   const rawBody = await request.text();
   const signature = request.headers.get("stripe-signature");
-  const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
 
-  if (!signature || !webhookSecret) {
+  if (!signature) {
     return NextResponse.json(
-      { error: "Stripe webhook is not configured." },
-      { status: 500 },
+      { error: "Stripe webhook signature is missing." },
+      { status: 400 },
     );
   }
 
   let event: Stripe.Event;
 
   try {
-    event = getStripeClient().webhooks.constructEvent(
-      rawBody,
-      signature,
-      webhookSecret,
-    );
+    event = constructStripeEvent(rawBody, signature);
   } catch (error) {
     console.error("[stripe webhook] signature rejected", error);
     return NextResponse.json(
@@ -97,7 +140,12 @@ export async function POST(request: NextRequest) {
         external_object_id: object.id ?? null,
         payload_sha256: payloadSha256,
         processing_status: "RECEIVED",
-        metadata: {},
+        metadata: {
+          connected_account_id:
+            typeof (event as Stripe.Event & { account?: string | null }).account === "string"
+              ? (event as Stripe.Event & { account?: string | null }).account
+              : null,
+        },
       });
 
     if (insertError) {
@@ -162,7 +210,28 @@ export async function POST(request: NextRequest) {
 
       if (error) throw error;
 
-      await sendBookingNotifications(admin, reservationId);
+      // Booking confirmation is the money-critical operation. Email delivery is
+      // retried separately so a temporary Resend outage never makes Stripe
+      // retry an already-confirmed payment webhook.
+      try {
+        await sendBookingNotifications(admin, reservationId);
+      } catch (notificationError) {
+        console.error(
+          "[stripe webhook] booking confirmed but booking notification delivery failed",
+          reservationId,
+          notificationError,
+        );
+      }
+
+      try {
+        await sendPaymentConfirmedNotification(admin, reservationId, paymentId);
+      } catch (notificationError) {
+        console.error(
+          "[stripe webhook] payment confirmed but payment notification delivery failed",
+          reservationId,
+          notificationError,
+        );
+      }
 
       await markProcessorEvent(admin, event.id, "PROCESSED");
       return NextResponse.json({ received: true });
@@ -217,13 +286,14 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ received: true, ignored: true });
       }
 
-      const status = refund.status === "succeeded"
-        ? "SUCCEEDED"
-        : refund.status === "failed"
-          ? "FAILED"
-          : refund.status === "canceled"
-            ? "CANCELLED"
-            : "PENDING";
+      const status =
+        refund.status === "succeeded"
+          ? "SUCCEEDED"
+          : refund.status === "failed"
+            ? "FAILED"
+            : refund.status === "canceled"
+              ? "CANCELLED"
+              : "PENDING";
 
       if (
         status === "SUCCEEDED" &&
@@ -246,7 +316,9 @@ export async function POST(request: NextRequest) {
           .eq("payment_environment", environment)
           .single();
         if (localPaymentError || !localPayment?.provider_payment_id) {
-          throw new Error("The local Stripe payment for the full refund could not be loaded.");
+          throw new Error(
+            "The local Stripe payment for the full refund could not be loaded.",
+          );
         }
 
         await ensureFullRefundApplicationFee({
@@ -264,6 +336,16 @@ export async function POST(request: NextRequest) {
         target_failure_message: refund.failure_reason || null,
       });
       if (error) throw error;
+
+      try {
+        await sendRefundNotifications(admin, refundId);
+      } catch (notificationError) {
+        console.error(
+          "[stripe webhook] refund recorded but notification delivery failed",
+          refundId,
+          notificationError,
+        );
+      }
 
       await markProcessorEvent(admin, event.id, "PROCESSED");
       return NextResponse.json({ received: true });
@@ -292,6 +374,116 @@ export async function POST(request: NextRequest) {
         expected_environment: environment,
       });
       if (error) throw error;
+
+      try {
+        await sendDisputeNotifications(admin, {
+          paymentEnvironment: environment,
+          paymentIntentId,
+          chargeId,
+          disputeId: dispute.id,
+          amountCents: dispute.amount,
+          currency: dispute.currency || "usd",
+          status: dispute.status,
+          closed: event.type === "charge.dispute.closed",
+        });
+      } catch (notificationError) {
+        console.error(
+          "[stripe webhook] dispute recorded but notification delivery failed",
+          dispute.id,
+          notificationError,
+        );
+      }
+
+      await markProcessorEvent(admin, event.id, "PROCESSED");
+      return NextResponse.json({ received: true });
+    }
+
+    const eventType = event.type as string;
+    if (
+      [
+        "payout.created",
+        "payout.updated",
+        "payout.paid",
+        "payout.failed",
+        "payout.canceled",
+      ].includes(eventType)
+    ) {
+      const eventAccount = (event as Stripe.Event & { account?: string | null }).account;
+      const connectedAccountId = typeof eventAccount === "string" ? eventAccount : null;
+      const payout = event.data.object as Stripe.Payout & {
+        status: string;
+        arrival_date?: number | null;
+        failure_code?: string | null;
+        failure_message?: string | null;
+      };
+
+      if (!connectedAccountId || !payout.id) {
+        await markProcessorEvent(admin, event.id, "IGNORED");
+        return NextResponse.json({ received: true, ignored: true });
+      }
+
+      let { data: localPayout, error: payoutLookupError } = await admin
+        .from("reservation_payouts")
+        .select("id,status,provider_payout_id")
+        .eq("provider_payout_id", payout.id)
+        .eq("connected_account_id", connectedAccountId)
+        .eq("payment_environment", environment)
+        .maybeSingle();
+
+      if (payoutLookupError) throw payoutLookupError;
+
+      // payout.created can reach us before the HTTP request that created the
+      // payout has written provider_payout_id locally. Recover that race from
+      // the stable payout_record_id metadata sent with the Stripe request.
+      if (!localPayout && payout.metadata?.payout_record_id) {
+        const fallback = await admin
+          .from("reservation_payouts")
+          .select("id,status,provider_payout_id")
+          .eq("id", payout.metadata.payout_record_id)
+          .eq("connected_account_id", connectedAccountId)
+          .eq("payment_environment", environment)
+          .maybeSingle();
+        if (fallback.error) throw fallback.error;
+        localPayout = fallback.data;
+      }
+
+      if (!localPayout) {
+        await markProcessorEvent(admin, event.id, "IGNORED");
+        return NextResponse.json({ received: true, ignored: true });
+      }
+
+      const status = payoutStatus(payout.status);
+      const now = new Date().toISOString();
+      const patch: Record<string, unknown> = {
+        status,
+        provider_payout_id: payout.id,
+        estimated_arrival_at: arrivalIso(payout.arrival_date),
+        last_error:
+          status === "FAILED"
+            ? payout.failure_message || payout.failure_code || "Stripe payout failed."
+            : null,
+      };
+
+      if (status === "PAID") patch.paid_at = now;
+      if (status === "FAILED") patch.failed_at = now;
+
+      const { error: updateError } = await admin
+        .from("reservation_payouts")
+        .update(patch)
+        .eq("id", localPayout.id)
+        .eq("payment_environment", environment);
+
+      if (updateError) throw updateError;
+
+      try {
+        await sendPayoutNotifications(admin, localPayout.id);
+      } catch (notificationError) {
+        console.error(
+          "[stripe webhook] payout recorded but notification delivery failed",
+          localPayout.id,
+          notificationError,
+        );
+      }
 
       await markProcessorEvent(admin, event.id, "PROCESSED");
       return NextResponse.json({ received: true });

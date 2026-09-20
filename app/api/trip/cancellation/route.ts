@@ -6,20 +6,10 @@ import {
   stripeEnvironment,
 } from "@/lib/payments/booking-runtime";
 import { createConnectedRefund } from "@/lib/payments/stripe-checkout";
+import { sendRefundNotifications } from "@/lib/notifications/operational-emails";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export const runtime = "nodejs";
-
-function cutoffDate(checkIn: string) {
-  const [year, month, day] = checkIn.split("-").map(Number);
-  const date = new Date(Date.UTC(year, month - 1, day));
-  date.setUTCDate(date.getUTCDate() - 14);
-  return date.toISOString().slice(0, 10);
-}
-
-function todayDate() {
-  return new Date().toISOString().slice(0, 10);
-}
 
 async function loadReservation(
   reservationId: string,
@@ -38,6 +28,12 @@ async function loadReservation(
 
   if (error || !reservation) return null;
   return { admin, reservation };
+}
+
+function cutoffStillOpen(value: string | null | undefined) {
+  if (!value) return false;
+  const cutoff = new Date(value).getTime();
+  return Number.isFinite(cutoff) && Date.now() < cutoff;
 }
 
 export async function GET(request: NextRequest) {
@@ -59,28 +55,38 @@ export async function GET(request: NextRequest) {
   }
 
   const { admin, reservation } = loaded;
-  const cutoff = cutoffDate(reservation.check_in);
-  const today = todayDate();
   const [{ data: payout }, { data: refundActivity }] = await Promise.all([
     admin
       .from("reservation_payouts")
-      .select("status,payout_eligible_date")
+      .select(
+        "status,payout_eligible_date,payout_eligible_at,cancellation_cutoff_date,cancellation_cutoff_at,payment_environment",
+      )
       .eq("reservation_id", reservationId)
+      .eq("payment_environment", reservation.payment_environment)
       .maybeSingle(),
     admin
       .from("refunds")
       .select("id,status,amount_cents")
       .eq("reservation_id", reservationId)
+      .eq("payment_environment", reservation.payment_environment)
       .in("status", ["PENDING", "SUCCEEDED"])
       .limit(1),
   ]);
 
   const hasRefundActivity = (refundActivity ?? []).length > 0;
+  const scheduleAvailable = Boolean(
+    payout?.cancellation_cutoff_date && payout?.cancellation_cutoff_at,
+  );
   const canCancel =
+    scheduleAvailable &&
     reservation.status === "CONFIRMED" &&
-    today < cutoff &&
+    cutoffStillOpen(payout?.cancellation_cutoff_at) &&
     !hasRefundActivity &&
-    !["PENDING", "IN_TRANSIT", "PAID"].includes(payout?.status || "");
+    !["CREATING", "PENDING", "IN_TRANSIT", "PAID"].includes(
+      payout?.status || "",
+    );
+
+  const cutoffDate = payout?.cancellation_cutoff_date ?? null;
 
   return NextResponse.json({
     reservationId,
@@ -88,19 +94,23 @@ export async function GET(request: NextRequest) {
     reservationStatus: reservation.status,
     paymentStatus: reservation.payment_status,
     checkIn: reservation.check_in,
-    cancellationCutoffDate: cutoff,
+    cancellationCutoffDate: cutoffDate,
+    cancellationCutoffAt: payout?.cancellation_cutoff_at ?? null,
     payoutEligibleDate: payout?.payout_eligible_date ?? null,
+    payoutEligibleAt: payout?.payout_eligible_at ?? null,
     payoutStatus: payout?.status ?? null,
     canCancel,
     refundAmountCents: canCancel ? Number(reservation.guest_total_cents) : 0,
     currency: reservation.currency,
-    policy: canCancel
-      ? `Cancel before ${cutoff} for a full refund. Beginning ${cutoff}, the normal booking is non-refundable.`
-      : reservation.status === "CANCELLED"
-        ? "This reservation has been cancelled."
-        : hasRefundActivity
-          ? "This reservation already has refund activity. Contact Find A Place support for any further cancellation changes."
-          : `The normal cancellation window closed on ${cutoff}.`,
+    policy: !scheduleAvailable
+      ? "The cancellation schedule is temporarily unavailable. Contact Find A Place support before making a cancellation change."
+      : canCancel
+        ? `Cancel before ${cutoffDate} for a full refund. Beginning ${cutoffDate}, the normal booking is non-refundable.`
+        : reservation.status === "CANCELLED"
+          ? "This reservation has been cancelled."
+          : hasRefundActivity
+            ? "This reservation already has refund activity. Contact Find A Place support for any further cancellation changes."
+            : `The normal cancellation window closed on ${cutoffDate}.`,
   });
 }
 
@@ -130,8 +140,6 @@ export async function POST(request: NextRequest) {
     }
 
     const { admin, reservation } = loaded;
-    const cutoff = cutoffDate(reservation.check_in);
-    const today = todayDate();
 
     if (reservation.status === "CANCELLED") {
       return NextResponse.json({
@@ -148,22 +156,35 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (today >= cutoff) {
+    const { data: payout } = await admin
+      .from("reservation_payouts")
+      .select(
+        "id,status,cancellation_cutoff_date,cancellation_cutoff_at,payment_environment",
+      )
+      .eq("reservation_id", reservationId)
+      .eq("payment_environment", reservation.payment_environment)
+      .maybeSingle();
+
+    if (!payout?.cancellation_cutoff_at || !payout.cancellation_cutoff_date) {
       return NextResponse.json(
         {
-          error: `The normal cancellation window closed on ${cutoff}. Contact Find A Place support if an exceptional review is needed.`,
+          error:
+            "The cancellation schedule is unavailable. Contact Find A Place support before making a cancellation change.",
         },
         { status: 409 },
       );
     }
 
-    const { data: payout } = await admin
-      .from("reservation_payouts")
-      .select("id,status")
-      .eq("reservation_id", reservationId)
-      .maybeSingle();
+    if (!cutoffStillOpen(payout.cancellation_cutoff_at)) {
+      return NextResponse.json(
+        {
+          error: `The normal cancellation window closed on ${payout.cancellation_cutoff_date}. Contact Find A Place support if an exceptional review is needed.`,
+        },
+        { status: 409 },
+      );
+    }
 
-    if (payout && ["PENDING", "IN_TRANSIT", "PAID"].includes(payout.status)) {
+    if (["CREATING", "PENDING", "IN_TRANSIT", "PAID"].includes(payout.status)) {
       return NextResponse.json(
         {
           error:
@@ -177,6 +198,7 @@ export async function POST(request: NextRequest) {
       .from("refunds")
       .select("id,status,provider_refund_id,amount_cents")
       .eq("reservation_id", reservationId)
+      .eq("payment_environment", reservation.payment_environment)
       .in("status", ["PENDING", "SUCCEEDED"])
       .order("created_at", { ascending: false })
       .limit(1)
@@ -276,11 +298,22 @@ export async function POST(request: NextRequest) {
         event_type: "GUEST_CANCELLATION_REQUESTED",
         metadata: {
           source: "guest_trip",
-          cancellation_cutoff_date: cutoff,
+          cancellation_cutoff_date: payout.cancellation_cutoff_date,
+          cancellation_cutoff_at: payout.cancellation_cutoff_at,
           refund_id: refundRequest.refund_id,
           refund_status: recordedStatus,
         },
       });
+
+      try {
+        await sendRefundNotifications(admin, refundRequest.refund_id);
+      } catch (notificationError) {
+        console.error(
+          "[guest cancellation] refund recorded but notification delivery failed",
+          refundRequest.refund_id,
+          notificationError,
+        );
+      }
 
       return NextResponse.json({
         ok: recordedStatus === "SUCCEEDED",
@@ -300,6 +333,16 @@ export async function POST(request: NextRequest) {
             ? refundError.message
             : "Stripe refund result is pending reconciliation.",
       });
+
+      try {
+        await sendRefundNotifications(admin, refundRequest.refund_id);
+      } catch (notificationError) {
+        console.error(
+          "[guest cancellation] pending refund notification failed",
+          refundRequest.refund_id,
+          notificationError,
+        );
+      }
 
       return NextResponse.json(
         {

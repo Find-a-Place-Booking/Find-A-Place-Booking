@@ -7,6 +7,8 @@ import {
   retrieveConnectedBalance,
   retrieveConnectedPayout,
 } from "@/lib/payments/stripe-payouts";
+import { stripeEnvironment } from "@/lib/payments/booking-runtime";
+import { sendPayoutNotifications } from "@/lib/notifications/operational-emails";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export const runtime = "nodejs";
@@ -17,10 +19,6 @@ function authorized(request: NextRequest) {
   const secret = process.env.CRON_SECRET;
   if (!secret) return false;
   return request.headers.get("authorization") === `Bearer ${secret}`;
-}
-
-function isoDate() {
-  return new Date().toISOString().slice(0, 10);
 }
 
 function stripePayoutStatus(status: string) {
@@ -37,25 +35,50 @@ function arrivalIso(unixSeconds?: number | null) {
   return Number.isNaN(date.getTime()) ? null : date.toISOString();
 }
 
+async function runWithConcurrency<T>(
+  items: T[],
+  limit: number,
+  worker: (item: T) => Promise<void>,
+) {
+  let index = 0;
+
+  async function runner() {
+    while (true) {
+      const current = index++;
+      if (current >= items.length) return;
+      await worker(items[current]);
+    }
+  }
+
+  await Promise.all(
+    Array.from({ length: Math.min(limit, items.length) }, () => runner()),
+  );
+}
+
 async function enforceManualSchedules(
   admin: ReturnType<typeof createAdminClient>,
+  environment: "TEST" | "LIVE",
 ) {
   const { data, error } = await admin
     .from("payment_accounts")
-    .select("id,provider_account_id,metadata")
+    .select("id,provider_account_id,metadata,updated_at")
     .eq("provider", "STRIPE")
+    .eq("environment", environment)
     .eq("payouts_enabled", true)
     .not("provider_account_id", "is", null)
-    .limit(100);
+    .order("updated_at", { ascending: true })
+    .limit(25);
 
-  if (error) throw new Error(`Unable to load Stripe payout accounts: ${error.message}`);
+  if (error) {
+    throw new Error(`Unable to load Stripe payout accounts: ${error.message}`);
+  }
 
   let ready = 0;
   let failed = 0;
 
-  for (const account of data ?? []) {
+  await runWithConcurrency(data ?? [], 5, async (account) => {
     const providerAccountId = String(account.provider_account_id || "");
-    if (!providerAccountId) continue;
+    if (!providerAccountId) return;
 
     const metadata =
       account.metadata && typeof account.metadata === "object"
@@ -76,7 +99,8 @@ async function enforceManualSchedules(
             payout_schedule_checked_at: new Date().toISOString(),
           },
         })
-        .eq("id", account.id);
+        .eq("id", account.id)
+        .eq("environment", environment);
     } catch (scheduleError) {
       failed += 1;
       const message =
@@ -87,7 +111,6 @@ async function enforceManualSchedules(
       await admin
         .from("payment_accounts")
         .update({
-          status: "PENDING",
           metadata: {
             ...metadata,
             payout_schedule: "ERROR",
@@ -96,24 +119,25 @@ async function enforceManualSchedules(
             payout_schedule_checked_at: new Date().toISOString(),
           },
         })
-        .eq("id", account.id);
+        .eq("id", account.id)
+        .eq("environment", environment);
     }
-  }
+  });
 
   return { checked: (data ?? []).length, ready, failed };
 }
 
 async function reconcileCreatedPayouts(
   admin: ReturnType<typeof createAdminClient>,
+  environment: "TEST" | "LIVE",
 ) {
   const { data, error } = await admin
     .from("reservation_payouts")
-    .select(
-      "id,connected_account_id,provider_payout_id,status",
-    )
+    .select("id,connected_account_id,provider_payout_id,status")
+    .eq("payment_environment", environment)
     .in("status", ["PENDING", "IN_TRANSIT"])
     .not("provider_payout_id", "is", null)
-    .limit(100);
+    .limit(50);
 
   if (error) throw new Error(`Unable to load pending payouts: ${error.message}`);
 
@@ -144,9 +168,21 @@ async function reconcileCreatedPayouts(
       const { error: updateError } = await admin
         .from("reservation_payouts")
         .update(patch)
-        .eq("id", row.id);
+        .eq("id", row.id)
+        .eq("payment_environment", environment);
 
       if (updateError) throw updateError;
+
+      try {
+        await sendPayoutNotifications(admin, row.id);
+      } catch (notificationError) {
+        console.error(
+          "[payout cron] reconciled payout notification failed",
+          row.id,
+          notificationError,
+        );
+      }
+
       updated += 1;
     } catch (error) {
       errors += 1;
@@ -157,47 +193,59 @@ async function reconcileCreatedPayouts(
   return { checked: (data ?? []).length, updated, errors };
 }
 
+type ClaimedPayout = {
+  id: string;
+  reservation_id: string;
+  payment_id: string;
+  confirmation_code: string;
+  connected_account_id: string;
+  amount_cents: number | string;
+  currency: string;
+  payment_environment: "TEST" | "LIVE";
+  payout_eligible_at: string;
+  attempt_count: number;
+};
+
 async function processDuePayouts(
   admin: ReturnType<typeof createAdminClient>,
+  environment: "TEST" | "LIVE",
 ) {
-  const today = isoDate();
-  const { data, error } = await admin
-    .from("reservation_payouts")
-    .select(
-      "id,reservation_id,payment_id,confirmation_code,connected_account_id,amount_cents,currency,payout_eligible_date,status,attempt_count",
-    )
-    .in("status", ["SCHEDULED", "WAITING_FUNDS", "WAITING_REFUND", "RETRY"])
-    .lte("payout_eligible_date", today)
-    .gt("amount_cents", 0)
-    .order("payout_eligible_date", { ascending: true })
-    .limit(100);
+  const { data, error } = await admin.rpc("claim_due_reservation_payouts", {
+    expected_environment: environment,
+    max_rows: 25,
+  });
 
-  if (error) throw new Error(`Unable to load due payouts: ${error.message}`);
+  if (error) throw new Error(`Unable to claim due payouts: ${error.message}`);
 
-  let paid = 0;
+  const claimed = (data ?? []) as ClaimedPayout[];
+  let initiated = 0;
   let waitingFunds = 0;
   let waitingRefund = 0;
-  let retried = 0;
+  let retry = 0;
+  let cancelled = 0;
 
-  for (const row of data ?? []) {
+  for (const row of claimed) {
     const now = new Date().toISOString();
 
     const [{ data: reservation }, { data: payment }, { data: refunds }] =
       await Promise.all([
         admin
           .from("reservations")
-          .select("id,status,payment_status")
+          .select("id,status,payment_status,payment_environment")
           .eq("id", row.reservation_id)
+          .eq("payment_environment", environment)
           .maybeSingle(),
         admin
           .from("payments")
-          .select("id,status,host_proceeds_cents")
+          .select("id,status,host_proceeds_cents,payment_environment")
           .eq("id", row.payment_id)
+          .eq("payment_environment", environment)
           .maybeSingle(),
         admin
           .from("refunds")
-          .select("id,status,amount_cents")
+          .select("id,status,amount_cents,payment_environment")
           .eq("reservation_id", row.reservation_id)
+          .eq("payment_environment", environment)
           .in("status", ["PENDING", "SUCCEEDED"]),
       ]);
 
@@ -206,24 +254,36 @@ async function processDuePayouts(
         .from("reservation_payouts")
         .update({
           status: "CANCELLED",
-          last_attempt_at: now,
           last_error: "Reservation is no longer confirmed.",
         })
-        .eq("id", row.id);
+        .eq("id", row.id)
+        .eq("payment_environment", environment)
+        .eq("status", "CREATING");
+      cancelled += 1;
       continue;
     }
 
-    if (!payment || payment.status !== "SUCCEEDED") {
+    const payoutEligiblePaymentStatuses = new Set([
+      "SUCCEEDED",
+      "PARTIALLY_REFUNDED",
+    ]);
+
+    if (!payment || !payoutEligiblePaymentStatuses.has(payment.status)) {
+      const paymentReason =
+        payment?.status === "DISPUTED"
+          ? "Payment is disputed. Payout is paused until the dispute is resolved."
+          : "Successful payment record is not available yet.";
+
       await admin
         .from("reservation_payouts")
         .update({
           status: "RETRY",
-          attempt_count: Number(row.attempt_count || 0) + 1,
-          last_attempt_at: now,
-          last_error: "Successful payment record is not available yet.",
+          last_error: paymentReason,
         })
-        .eq("id", row.id);
-      retried += 1;
+        .eq("id", row.id)
+        .eq("payment_environment", environment)
+        .eq("status", "CREATING");
+      retry += 1;
       continue;
     }
 
@@ -233,43 +293,64 @@ async function processDuePayouts(
         .from("reservation_payouts")
         .update({
           status: "WAITING_REFUND",
-          last_attempt_at: now,
           last_error: "A refund is still pending reconciliation.",
         })
-        .eq("id", row.id);
+        .eq("id", row.id)
+        .eq("payment_environment", environment)
+        .eq("status", "CREATING");
       waitingRefund += 1;
       continue;
     }
 
-    if (refundRows.some((refund) => refund.status === "SUCCEEDED" && Number(refund.amount_cents) >= Number(payment.host_proceeds_cents || 0))) {
+    const successfulRefundCents = refundRows
+      .filter((refund) => refund.status === "SUCCEEDED")
+      .reduce((sum, refund) => sum + Number(refund.amount_cents || 0), 0);
+    const desiredAmount = Math.max(
+      0,
+      Number(payment.host_proceeds_cents || 0) - successfulRefundCents,
+    );
+
+    if (desiredAmount <= 0) {
       await admin
         .from("reservation_payouts")
         .update({
           status: "CANCELLED",
           amount_cents: 0,
-          last_attempt_at: now,
           last_error: null,
         })
-        .eq("id", row.id);
+        .eq("id", row.id)
+        .eq("payment_environment", environment)
+        .eq("status", "CREATING");
+      cancelled += 1;
       continue;
+    }
+
+    if (desiredAmount !== Number(row.amount_cents)) {
+      const { error: amountUpdateError } = await admin
+        .from("reservation_payouts")
+        .update({ amount_cents: desiredAmount })
+        .eq("id", row.id)
+        .eq("payment_environment", environment)
+        .eq("status", "CREATING");
+      if (amountUpdateError) throw amountUpdateError;
     }
 
     try {
       await ensureManualPayoutSchedule(row.connected_account_id);
       const balance = await retrieveConnectedBalance(row.connected_account_id);
       const available = availableBalanceCents(balance, row.currency);
-      const amount = Number(row.amount_cents);
+      const amount = desiredAmount;
 
       if (available < amount) {
         await admin
           .from("reservation_payouts")
           .update({
             status: "WAITING_FUNDS",
-            attempt_count: Number(row.attempt_count || 0) + 1,
-            last_attempt_at: now,
             last_error: `Connected Stripe balance has ${available} available cents; ${amount} cents are required.`,
           })
-          .eq("id", row.id);
+          .eq("id", row.id)
+          .eq("payment_environment", environment)
+          .eq("status", "CREATING");
         waitingFunds += 1;
         continue;
       }
@@ -287,8 +368,6 @@ async function processDuePayouts(
       const patch: Record<string, unknown> = {
         status: payoutStatus,
         provider_payout_id: payout.id,
-        attempt_count: Number(row.attempt_count || 0) + 1,
-        last_attempt_at: now,
         initiated_at: now,
         estimated_arrival_at: arrivalIso(payout.arrival_date),
         last_error: null,
@@ -296,42 +375,59 @@ async function processDuePayouts(
       if (payoutStatus === "PAID") patch.paid_at = now;
       if (payoutStatus === "FAILED") {
         patch.failed_at = now;
-        patch.last_error = payout.failure_message || payout.failure_code || "Stripe payout failed.";
+        patch.last_error =
+          payout.failure_message || payout.failure_code || "Stripe payout failed.";
       }
 
       const { error: updateError } = await admin
         .from("reservation_payouts")
         .update(patch)
         .eq("id", row.id)
-        .in("status", ["SCHEDULED", "WAITING_FUNDS", "WAITING_REFUND", "RETRY"]);
+        .eq("payment_environment", environment)
+        .eq("status", "CREATING");
 
       if (updateError) throw updateError;
-      paid += 1;
+
+      try {
+        await sendPayoutNotifications(admin, row.id);
+      } catch (notificationError) {
+        console.error(
+          "[payout cron] initiated payout notification failed",
+          row.id,
+          notificationError,
+        );
+      }
+
+      initiated += 1;
     } catch (payoutError) {
       const message =
         payoutError instanceof Error
           ? payoutError.message.slice(0, 1000)
           : "Stripe payout attempt failed.";
 
+      // The Stripe request uses a stable idempotency key tied to row.id. If the
+      // network result was uncertain, the next claim safely retries the same
+      // Stripe operation rather than creating a second bank payout.
       await admin
         .from("reservation_payouts")
         .update({
           status: "RETRY",
-          attempt_count: Number(row.attempt_count || 0) + 1,
-          last_attempt_at: now,
           last_error: message,
         })
-        .eq("id", row.id);
-      retried += 1;
+        .eq("id", row.id)
+        .eq("payment_environment", environment)
+        .eq("status", "CREATING");
+      retry += 1;
     }
   }
 
   return {
-    due: (data ?? []).length,
-    initiated: paid,
+    claimed: claimed.length,
+    initiated,
     waitingFunds,
     waitingRefund,
-    retry: retried,
+    retry,
+    cancelled,
   };
 }
 
@@ -342,12 +438,15 @@ export async function GET(request: NextRequest) {
 
   try {
     const admin = createAdminClient();
-    const schedules = await enforceManualSchedules(admin);
-    const reconciliation = await reconcileCreatedPayouts(admin);
-    const processing = await processDuePayouts(admin);
+    const environment = stripeEnvironment();
+
+    const schedules = await enforceManualSchedules(admin, environment);
+    const reconciliation = await reconcileCreatedPayouts(admin, environment);
+    const processing = await processDuePayouts(admin, environment);
 
     return NextResponse.json({
       ok: true,
+      environment,
       policy: {
         cancellationClosesDaysBeforeCheckIn: 14,
         payoutEligibleDaysBeforeCheckIn: 13,
@@ -361,9 +460,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(
       {
         error:
-          error instanceof Error
-            ? error.message
-            : "Payout scheduler failed.",
+          error instanceof Error ? error.message : "Payout scheduler failed.",
       },
       { status: 500 },
     );

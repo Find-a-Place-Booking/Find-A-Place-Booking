@@ -62,7 +62,7 @@ export default async function TripPage({
   const { data: reservation } = await admin
     .from("reservations")
     .select(
-      "id,confirmation_code,property_id,status,check_in,check_out,guest_name,guest_count,pet_count,pricing_snapshot,pre_tax_total_cents,tax_total_cents,tax_snapshot,guest_total_cents,currency,payment_status",
+      "id,confirmation_code,property_id,status,check_in,check_out,guest_name,guest_count,pet_count,pricing_snapshot,pre_tax_total_cents,tax_total_cents,tax_snapshot,guest_total_cents,currency,payment_status,cancelled_at",
     )
     .eq("id", reservationId)
     .maybeSingle();
@@ -70,19 +70,31 @@ export default async function TripPage({
   if (
     !reservation ||
     reservation.confirmation_code !== confirmation ||
-    reservation.status !== "CONFIRMED"
+    !["CONFIRMED", "CANCELLED"].includes(reservation.status)
   ) {
     notFound();
   }
 
-  const { data: property } = await admin
-    .from("properties")
-    .select("name,public_area,city,region_code")
-    .eq("id", reservation.property_id)
-    .maybeSingle();
+  const [{ data: property }, { data: refund }] = await Promise.all([
+    admin
+      .from("properties")
+      .select("name,public_area,city,region_code")
+      .eq("id", reservation.property_id)
+      .maybeSingle(),
+    reservation.status === "CANCELLED"
+      ? admin
+          .from("refunds")
+          .select("status,amount_cents,created_at")
+          .eq("reservation_id", reservation.id)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle()
+      : Promise.resolve({ data: null, error: null }),
+  ]);
 
   const today = new Date().toISOString().slice(0, 10);
-  const canReview = reservation.check_out <= today;
+  const canReview =
+    reservation.status === "CONFIRMED" && reservation.check_out <= today;
 
   return (
     <>
@@ -111,18 +123,48 @@ export default async function TripPage({
                 <small>{reservation.pet_count} pet(s)</small>
               </div>
               <div>
-                <span>Total</span>
+                <span>{reservation.status === "CANCELLED" ? "Booking" : "Total"}</span>
                 <strong>
-                  {money(reservation.guest_total_cents, reservation.currency)}
+                  {reservation.status === "CANCELLED"
+                    ? "Cancelled"
+                    : money(reservation.guest_total_cents, reservation.currency)}
                 </strong>
                 <small>{reservation.payment_status.replaceAll("_", " ")}</small>
               </div>
             </div>
           </section>
 
+          {reservation.status === "CANCELLED" ? (
+            <section className="panel">
+              <p className="eyebrow dark">Cancellation record</p>
+              <h2>This reservation was cancelled.</h2>
+              <div className="setting-row">
+                <span>Cancelled</span>
+                <strong>
+                  {reservation.cancelled_at
+                    ? new Date(reservation.cancelled_at).toLocaleString("en-US")
+                    : "Recorded"}
+                </strong>
+              </div>
+              <div className="setting-row">
+                <span>Refund status</span>
+                <strong>{refund?.status?.replaceAll("_", " ") || "No refund record"}</strong>
+              </div>
+              {refund ? (
+                <div className="setting-row">
+                  <span>Refund amount</span>
+                  <strong>{money(Number(refund.amount_cents || 0), reservation.currency)}</strong>
+                </div>
+              ) : null}
+              <p className="muted">
+                This secure page remains available as the booking and payment record.
+              </p>
+            </section>
+          ) : null}
+
           <section className="panel">
             <p className="eyebrow dark">Receipt</p>
-            <h2>What you paid</h2>
+            <h2>{reservation.status === "CANCELLED" ? "Original booking total" : "What you paid"}</h2>
             <BookingReceipt
               pricingSnapshot={reservation.pricing_snapshot}
               preTaxTotalCents={Number(reservation.pre_tax_total_cents)}
@@ -134,11 +176,13 @@ export default async function TripPage({
             <PrintReceiptButton />
           </section>
 
-          <GuestTripTools
-            reservationId={reservation.id}
-            checkoutToken={checkoutToken}
-            canReview={canReview}
-          />
+          {reservation.status === "CONFIRMED" ? (
+            <GuestTripTools
+              reservationId={reservation.id}
+              checkoutToken={checkoutToken}
+              canReview={canReview}
+            />
+          ) : null}
         </div>
       </main>
       <Footer />

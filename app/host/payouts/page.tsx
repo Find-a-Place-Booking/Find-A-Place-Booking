@@ -25,7 +25,7 @@ export default async function HostPayoutsPage() {
     ),
   );
   const moving = workspace.payouts.filter((payout) =>
-    ["PENDING", "IN_TRANSIT"].includes(payout.status),
+    ["CREATING", "PENDING", "IN_TRANSIT"].includes(payout.status),
   );
   const paid = workspace.payouts.filter((payout) => payout.status === "PAID");
   const scheduledCents = scheduled.reduce(
@@ -37,7 +37,7 @@ export default async function HostPayoutsPage() {
     <DashboardShell
       active="Payouts"
       title="Payouts"
-      eyebrow="Host settlement schedule"
+      eyebrow={`Host settlement schedule · ${workspace.environment}`}
     >
       <div className="payment-status">
         <div className="status-icon">$</div>
@@ -62,7 +62,7 @@ export default async function HostPayoutsPage() {
         <div>
           <span>Moving to bank</span>
           <strong>{moving.length}</strong>
-          <small>Pending / in transit</small>
+          <small>Creating / pending / in transit</small>
         </div>
         <div>
           <span>Paid</span>

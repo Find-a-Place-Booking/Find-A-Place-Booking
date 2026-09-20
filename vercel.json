@@ -6,6 +6,10 @@
       "schedule": "*/15 * * * *"
     },
     {
+      "path": "/api/cron/notifications",
+      "schedule": "5,20,35,50 * * * *"
+    },
+    {
       "path": "/api/cron/payouts",
       "schedule": "15 * * * *"
     }

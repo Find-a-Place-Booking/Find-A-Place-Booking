@@ -3,15 +3,23 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
-import { assertSafeCalendarUrl, fetchIcalFeed, normalizeIcalUrl } from "@/lib/calendar/fetch-ical";
-import { parseIcalAvailability } from "@/lib/calendar/ical";
+import { assertSafeCalendarUrl, normalizeIcalUrl } from "@/lib/calendar/fetch-ical";
+import {
+  syncIcalConnection,
+  type IcalConnection,
+} from "@/lib/calendar/sync-ical";
 import { createClient } from "@/lib/supabase/server";
 
 function field(formData: FormData, key: string, max = 1000) {
   return String(formData.get(key) ?? "").trim().slice(0, max);
 }
 
-function calendarRedirect(unitId: string, month: string, result: string, detail?: string): never {
+function calendarRedirect(
+  unitId: string,
+  month: string,
+  result: string,
+  detail?: string,
+): never {
   const params = new URLSearchParams();
   if (unitId) params.set("unit", unitId);
   if (month) params.set("month", month);
@@ -27,59 +35,55 @@ function refreshCalendar() {
 }
 
 function errorMessage(error: unknown) {
-  return error instanceof Error ? error.message : "Calendar synchronization failed.";
-}
-
-async function markSyncError(connectionId: string, message: string) {
-  const supabase = await createClient();
-  await supabase.rpc("mark_calendar_sync_error", {
-    target_connection_id: connectionId,
-    error_message: message.slice(0, 1000),
-  });
+  return error instanceof Error
+    ? error.message
+    : "Calendar synchronization failed.";
 }
 
 async function syncConnectedCalendar(connectionId: string, unitId: string) {
   const supabase = await createClient();
   const { data: connection, error: connectionError } = await supabase
     .from("calendar_connections")
-    .select("id,unit_id,feed_url,connection_kind,is_active")
+    .select(
+      "id,unit_id,provider,feed_url,connection_kind,is_active,last_sync_attempt_at,last_success_at",
+    )
     .eq("id", connectionId)
     .eq("unit_id", unitId)
     .maybeSingle();
 
-  if (connectionError || !connection || !connection.is_active || connection.connection_kind !== "ICAL" || !connection.feed_url) {
-    return { ok: false as const, message: "That iCal connection is not available to sync." };
+  if (
+    connectionError ||
+    !connection ||
+    !connection.is_active ||
+    connection.connection_kind !== "ICAL" ||
+    !connection.feed_url
+  ) {
+    return {
+      ok: false as const,
+      message: "That iCal connection is not available to sync.",
+    };
   }
 
-  try {
-    const fetched = await fetchIcalFeed(connection.feed_url);
-    const parsed = parseIcalAvailability(fetched.body);
-    if (parsed.unsafeSkipped > 0) {
-      const count = parsed.unsafeSkipped;
-      const recurring = parsed.recurringSkipped;
-      const recurringDetail = recurring ? ` (${recurring} recurring rule${recurring === 1 ? "" : "s"})` : "";
-      throw new Error(
-        `Calendar sync stopped safely: ${count} event${count === 1 ? "" : "s"}${recurringDetail} could not be normalized without guessing. Existing imported availability was preserved.`,
-      );
-    }
-    const { data, error } = await supabase.rpc("apply_ical_sync", {
-      target_connection_id: connectionId,
-      source_events: parsed.events,
-    });
-    if (error) throw new Error(error.message || "The calendar events could not be saved.");
+  // Authorization is proven by the RLS-protected lookup above. From here use
+  // the same canonical server sync path as the background cron so manual Sync
+  // now gets the same empty-feed confirmation, size limits, recurrence safety,
+  // and source-scoped writes as automatic synchronization.
+  const result = await syncIcalConnection(connection as IcalConnection);
 
-    const result = (data ?? {}) as { imported_count?: number; deactivated_count?: number };
-    const imported = result.imported_count ?? parsed.events.length;
-    const removed = result.deactivated_count ?? 0;
-    const notes = [`${imported} current event${imported === 1 ? "" : "s"} synchronized`];
-    if (removed) notes.push(`${removed} old event${removed === 1 ? "" : "s"} cleared`);
-    if (parsed.skipped) notes.push(`${parsed.skipped} cancelled, transparent or duplicate event${parsed.skipped === 1 ? "" : "s"} skipped`);
-    return { ok: true as const, message: notes.join(" · ") };
-  } catch (error) {
-    const message = errorMessage(error);
-    await markSyncError(connectionId, message);
-    return { ok: false as const, message };
+  if (!result.ok) {
+    return { ok: false as const, message: result.error };
   }
+
+  const notes = [
+    `${result.imported} current event${result.imported === 1 ? "" : "s"} synchronized`,
+  ];
+  if (result.deactivated) {
+    notes.push(
+      `${result.deactivated} old event${result.deactivated === 1 ? "" : "s"} cleared`,
+    );
+  }
+
+  return { ok: true as const, message: notes.join(" · ") };
 }
 
 export async function createOwnerBlock(formData: FormData) {
@@ -97,7 +101,12 @@ export async function createOwnerBlock(formData: FormData) {
   });
   if (error) calendarRedirect(unitId, month, "error", error.message);
   refreshCalendar();
-  calendarRedirect(unitId, month, "owner-block-created", "Dates blocked on the canonical calendar.");
+  calendarRedirect(
+    unitId,
+    month,
+    "owner-block-created",
+    "Dates blocked on the canonical calendar.",
+  );
 }
 
 export async function cancelOwnerBlock(formData: FormData) {
@@ -111,7 +120,12 @@ export async function cancelOwnerBlock(formData: FormData) {
   });
   if (error) calendarRedirect(unitId, month, "error", error.message);
   refreshCalendar();
-  calendarRedirect(unitId, month, "owner-block-removed", "Owner block removed.");
+  calendarRedirect(
+    unitId,
+    month,
+    "owner-block-removed",
+    "Owner block removed.",
+  );
 }
 
 export async function connectIcalCalendar(formData: FormData) {
@@ -137,10 +151,25 @@ export async function connectIcalCalendar(formData: FormData) {
   if (error) calendarRedirect(unitId, month, "error", error.message);
 
   const connectionId = String(data ?? "");
-  if (!connectionId) calendarRedirect(unitId, month, "error", "The calendar connection was created without an ID.");
+  if (!connectionId) {
+    calendarRedirect(
+      unitId,
+      month,
+      "error",
+      "The calendar connection was created without an ID.",
+    );
+  }
+
   const sync = await syncConnectedCalendar(connectionId, unitId);
   refreshCalendar();
-  if (!sync.ok) calendarRedirect(unitId, month, "connected-sync-error", `Calendar connected, but the first sync failed: ${sync.message}`);
+  if (!sync.ok) {
+    calendarRedirect(
+      unitId,
+      month,
+      "connected-sync-error",
+      `Calendar connected, but the first sync failed: ${sync.message}`,
+    );
+  }
   calendarRedirect(unitId, month, "calendar-connected", sync.message);
 }
 
@@ -165,7 +194,12 @@ export async function disconnectCalendar(formData: FormData) {
   });
   if (error) calendarRedirect(unitId, month, "error", error.message);
   refreshCalendar();
-  calendarRedirect(unitId, month, "calendar-disconnected", "Calendar disconnected and its imported blocks removed from active availability.");
+  calendarRedirect(
+    unitId,
+    month,
+    "calendar-disconnected",
+    "Calendar disconnected and its imported blocks removed from active availability.",
+  );
 }
 
 export async function ensureGeneralExport(formData: FormData) {
@@ -178,7 +212,12 @@ export async function ensureGeneralExport(formData: FormData) {
   });
   if (error) calendarRedirect(unitId, month, "error", error.message);
   refreshCalendar();
-  calendarRedirect(unitId, month, "export-created", "General Find A Place iCal export created.");
+  calendarRedirect(
+    unitId,
+    month,
+    "export-created",
+    "General Find A Place iCal export created.",
+  );
 }
 
 export async function rotateExportToken(formData: FormData) {
@@ -192,5 +231,10 @@ export async function rotateExportToken(formData: FormData) {
   });
   if (error) calendarRedirect(unitId, month, "error", error.message);
   refreshCalendar();
-  calendarRedirect(unitId, month, "export-rotated", "Calendar export URL rotated. Update any external channel still using the old URL.");
+  calendarRedirect(
+    unitId,
+    month,
+    "export-rotated",
+    "Calendar export URL rotated. Update any external channel still using the old URL.",
+  );
 }

@@ -29,7 +29,9 @@ export async function sendGuestVerificationCodeEmail(input: {
     throw new Error("RESEND_API_KEY is not configured.");
   }
 
-  const subject = `Your Find A Place verification code: ${input.code}`;
+  // Keep the one-time code out of notification previews / lock-screen subject
+  // lines. The code only appears inside the message body.
+  const subject = "Your Find A Place verification code";
   const text = [
     "Verify your email to continue your Find A Place booking.",
     "",

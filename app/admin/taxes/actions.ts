@@ -47,67 +47,29 @@ export async function savePropertyTaxProfile(formData: FormData) {
   const localityName = field(formData, "localityName", 120) || null;
   const verificationNotes = field(formData, "verificationNotes", 2000) || null;
   const verified = checked(formData, "verified");
-  const selectedRuleIds = formData
-    .getAll("taxRuleId")
-    .map((value) => String(value).trim())
-    .filter(Boolean);
+  const selectedRuleIds = [
+    ...new Set(
+      formData
+        .getAll("taxRuleId")
+        .map((value) => String(value).trim())
+        .filter(Boolean),
+    ),
+  ];
 
   if (!propertyId) taxRedirect("error", "Property is required.");
 
   const admin = createAdminClient();
-  const now = new Date().toISOString();
+  const { error } = await admin.rpc("service_save_property_tax_profile", {
+    target_property_id: propertyId,
+    actor_profile_id: context.profileId,
+    county_name_value: countyName,
+    locality_name_value: localityName,
+    verification_notes_value: verificationNotes,
+    verified_value: verified,
+    selected_rule_ids: selectedRuleIds,
+  });
 
-  const { error: profileError } = await admin
-    .from("property_tax_profiles")
-    .upsert(
-      {
-        property_id: propertyId,
-        verification_status: verified ? "VERIFIED" : "PENDING",
-        county_name: countyName,
-        locality_name: localityName,
-        verification_notes: verificationNotes,
-        verified_by: verified ? context.profileId : null,
-        verified_at: verified ? now : null,
-        last_rate_review_at: verified ? now : null,
-        updated_at: now,
-      },
-      { onConflict: "property_id" },
-    );
-
-  if (profileError) taxRedirect("error", profileError.message);
-
-  const { error: clearError } = await admin
-    .from("property_tax_rule_assignments")
-    .delete()
-    .eq("property_id", propertyId);
-
-  if (clearError) taxRedirect("error", clearError.message);
-
-  if (selectedRuleIds.length) {
-    const { data: validRules, error: ruleError } = await admin
-      .from("tax_rules")
-      .select("id")
-      .in("id", selectedRuleIds)
-      .eq("assignment_required", true)
-      .eq("is_active", true);
-
-    if (ruleError) taxRedirect("error", ruleError.message);
-
-    if (validRules?.length) {
-      const { error: assignmentError } = await admin
-        .from("property_tax_rule_assignments")
-        .insert(
-          validRules.map((rule) => ({
-            property_id: propertyId,
-            tax_rule_id: rule.id,
-            verified_by: context.profileId,
-            verified_at: now,
-          })),
-        );
-
-      if (assignmentError) taxRedirect("error", assignmentError.message);
-    }
-  }
+  if (error) taxRedirect("error", error.message);
 
   revalidatePath("/admin/taxes");
   taxRedirect(

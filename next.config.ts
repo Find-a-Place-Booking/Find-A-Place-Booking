@@ -17,7 +17,10 @@ const nextConfig: NextConfig = {
           { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
           { key: "X-Content-Type-Options", value: "nosniff" },
           { key: "X-Frame-Options", value: "DENY" },
-          { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=()" },
+          // Do not globally disable camera access. Stripe Identity's document
+          // + selfie flow needs to be able to request camera permission from
+          // the guest. Microphone/geolocation remain disabled platform-wide.
+          { key: "Permissions-Policy", value: "microphone=(), geolocation=()" },
         ],
       },
     ];

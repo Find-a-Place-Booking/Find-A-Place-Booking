@@ -110,8 +110,6 @@ export async function POST(request: Request) {
     let paymentAccountId = existing?.id ?? null;
     let providerAccountId = existing?.provider_account_id ?? null;
 
-    // Never replace a real provider account merely because descriptive
-    // metadata changed. TEST and LIVE each receive their own database row.
     if (!providerAccountId) {
       const stripeAccount = await createEmbeddedRecipientAccount({
         email,
@@ -149,7 +147,7 @@ export async function POST(request: Request) {
 
         if (error) {
           throw new Error(
-            `Unable to save the new Stripe test account: ${error.message}`,
+            `Unable to save the new Stripe account: ${error.message}`,
           );
         }
       } else {
@@ -205,6 +203,9 @@ export async function POST(request: Request) {
       throw new Error("Stripe payout setup could not be initialized.");
     }
 
+    // The embedded onboarding session intentionally does not expose Stripe's
+    // payouts component. Find A Place owns the payout schedule and releases
+    // bank payouts according to the reservation policy.
     const session = await createAccountSession(providerAccountId);
 
     if (!session.client_secret) {
