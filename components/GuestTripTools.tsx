@@ -18,6 +18,27 @@ type Review = {
   created_at: string;
 };
 
+type CancellationState = {
+  confirmationCode: string;
+  reservationStatus: string;
+  paymentStatus: string;
+  checkIn: string;
+  cancellationCutoffDate: string;
+  payoutEligibleDate: string | null;
+  payoutStatus: string | null;
+  canCancel: boolean;
+  refundAmountCents: number;
+  currency: string;
+  policy: string;
+};
+
+function money(cents: number, currency: string) {
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: currency || "USD",
+  }).format(cents / 100);
+}
+
 export function GuestTripTools({
   reservationId,
   checkoutToken,
@@ -29,10 +50,12 @@ export function GuestTripTools({
 }) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [review, setReview] = useState<Review | null>(null);
+  const [cancellation, setCancellation] = useState<CancellationState | null>(null);
   const [message, setMessage] = useState("");
   const [rating, setRating] = useState(5);
   const [reviewBody, setReviewBody] = useState("");
   const [busy, setBusy] = useState(false);
+  const [cancelBusy, setCancelBusy] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
 
   const load = useCallback(async () => {
@@ -41,9 +64,10 @@ export function GuestTripTools({
       checkoutToken,
     });
 
-    const [messageResponse, reviewResponse] = await Promise.all([
+    const [messageResponse, reviewResponse, cancellationResponse] = await Promise.all([
       fetch(`/api/trip/messages?${query.toString()}`, { cache: "no-store" }),
       fetch(`/api/trip/review?${query.toString()}`, { cache: "no-store" }),
+      fetch(`/api/trip/cancellation?${query.toString()}`, { cache: "no-store" }),
     ]);
 
     if (messageResponse.ok) {
@@ -55,10 +79,15 @@ export function GuestTripTools({
       const payload = await reviewResponse.json();
       setReview(payload.review ?? null);
     }
+
+    if (cancellationResponse.ok) {
+      const payload = (await cancellationResponse.json()) as CancellationState;
+      setCancellation(payload);
+    }
   }, [reservationId, checkoutToken]);
 
   useEffect(() => {
-    load();
+    void load();
   }, [load]);
 
   async function sendMessage(event: FormEvent) {
@@ -89,6 +118,40 @@ export function GuestTripTools({
     setMessage("");
     setNotice("Message sent to your host.");
     await load();
+  }
+
+  async function cancelReservation() {
+    if (!cancellation?.canCancel || cancelBusy) return;
+
+    const confirmed = window.confirm(
+      `Cancel reservation ${cancellation.confirmationCode} and refund ${money(
+        cancellation.refundAmountCents,
+        cancellation.currency,
+      )}? This cannot be undone.`,
+    );
+    if (!confirmed) return;
+
+    setCancelBusy(true);
+    setNotice(null);
+
+    const response = await fetch("/api/trip/cancellation", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ reservationId, checkoutToken }),
+    });
+    const payload = await response.json().catch(() => null);
+
+    if (!response.ok) {
+      setCancelBusy(false);
+      setNotice(payload?.error || "The reservation could not be cancelled.");
+      return;
+    }
+
+    const params = new URLSearchParams({
+      code: payload?.confirmationCode || cancellation.confirmationCode,
+      status: payload?.pending ? "pending" : "refunded",
+    });
+    window.location.assign(`/booking/cancelled?${params.toString()}`);
   }
 
   async function submitReview(event: FormEvent) {
@@ -136,9 +199,7 @@ export function GuestTripTools({
                   <small>{item.body}</small>
                 </span>
                 <span>
-                  <small>
-                    {new Date(item.created_at).toLocaleString("en-US")}
-                  </small>
+                  <small>{new Date(item.created_at).toLocaleString("en-US")}</small>
                 </span>
               </div>
             ))}
@@ -161,6 +222,45 @@ export function GuestTripTools({
             Send message
           </button>
         </form>
+      </section>
+
+      <section className="panel">
+        <p className="eyebrow dark">Cancellation policy</p>
+        <h2>
+          {cancellation?.canCancel
+            ? "This reservation is still inside the cancellation window."
+            : "Cancellation window"}
+        </h2>
+
+        {cancellation ? (
+          <>
+            <p>{cancellation.policy}</p>
+            <div className="setting-row">
+              <span>Normal cancellation closes</span>
+              <strong>{cancellation.cancellationCutoffDate}</strong>
+            </div>
+            {cancellation.canCancel ? (
+              <>
+                <div className="setting-row">
+                  <span>Refund if cancelled now</span>
+                  <strong>
+                    {money(cancellation.refundAmountCents, cancellation.currency)}
+                  </strong>
+                </div>
+                <button
+                  className="button button-small button-quiet"
+                  type="button"
+                  onClick={cancelReservation}
+                  disabled={cancelBusy}
+                >
+                  {cancelBusy ? "Cancelling…" : "Cancel reservation & refund"}
+                </button>
+              </>
+            ) : null}
+          </>
+        ) : (
+          <p className="muted">Loading cancellation policy…</p>
+        )}
       </section>
 
       <section className="panel">
@@ -203,11 +303,7 @@ export function GuestTripTools({
                   placeholder="What should another traveler know about this stay?"
                 />
               </label>
-              <button
-                className="button button-small"
-                type="submit"
-                disabled={busy}
-              >
+              <button className="button button-small" type="submit" disabled={busy}>
                 Submit review
               </button>
             </form>

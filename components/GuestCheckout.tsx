@@ -10,6 +10,8 @@ import {
 import { loadStripe } from "@stripe/stripe-js/pure";
 import type { Stripe } from "@stripe/stripe-js";
 
+import { GuestPolicyAcceptance } from "@/components/GuestPolicyAcceptance";
+import { GuestVerification } from "@/components/GuestVerification";
 import { TurnstileWidget } from "@/components/TurnstileWidget";
 import styles from "./GuestCheckout.module.css";
 
@@ -40,6 +42,7 @@ type Hold = {
   confirmationCode: string;
   holdExpiresAt: string;
   guestTotalCents: number;
+  taxTotalCents: number;
   platformCommissionCents: number;
   commissionRateBps: number;
 };
@@ -51,6 +54,7 @@ type BookingStatus = {
   paymentStatus: string;
   holdExpiresAt?: string | null;
   guestTotalCents: number;
+  taxTotalCents: number;
   platformCommissionCents: number;
 };
 
@@ -184,6 +188,8 @@ export function GuestCheckout({
     Boolean(initialReservationId && initialCheckoutToken),
   );
   const [error, setError] = useState<string | null>(null);
+  const [verificationComplete, setVerificationComplete] = useState(false);
+  const [policyComplete, setPolicyComplete] = useState(false);
   const [turnstileToken, setTurnstileToken] = useState("");
   const [turnstileReset, setTurnstileReset] = useState(0);
   const handleTurnstileToken = useCallback((token: string) => {
@@ -193,6 +199,69 @@ export function GuestCheckout({
   useEffect(() => {
     setStripePromise(loadStripe(publishableKey));
   }, [publishableKey]);
+
+  const startPayment = useCallback(async (targetHold: Hold) => {
+    setBusy(true);
+    setError(null);
+
+    try {
+      const paymentResponse = await fetch("/api/booking/payment-intent", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          reservationId: targetHold.reservationId,
+          checkoutToken: targetHold.checkoutToken,
+        }),
+      });
+
+      const paymentPayload = await paymentResponse.json();
+
+      if (
+        paymentResponse.ok &&
+        paymentPayload.reservationStatus === "CONFIRMED"
+      ) {
+        window.location.replace(
+          confirmedUrl(
+            targetHold.reservationId,
+            targetHold.checkoutToken,
+            paymentPayload.confirmationCode || targetHold.confirmationCode,
+          ),
+        );
+        return;
+      }
+
+      if (!paymentResponse.ok) {
+        throw new Error(
+          paymentPayload.error || "Unable to start Stripe payment.",
+        );
+      }
+
+      if (paymentPayload.paymentIntentStatus === "succeeded") {
+        window.location.replace(
+          confirmedUrl(
+            targetHold.reservationId,
+            targetHold.checkoutToken,
+            targetHold.confirmationCode,
+          ),
+        );
+        return;
+      }
+
+      if (!paymentPayload.clientSecret) {
+        throw new Error("Stripe payment session is unavailable.");
+      }
+
+      setClientSecret(paymentPayload.clientSecret);
+    } catch (paymentError) {
+      setError(
+        paymentError instanceof Error
+          ? paymentError.message
+          : "Unable to start Stripe payment.",
+      );
+    } finally {
+      setBusy(false);
+    }
+  }, []);
 
   useEffect(() => {
     if (!initialReservationId || !initialCheckoutToken) return;
@@ -240,58 +309,16 @@ export function GuestCheckout({
           confirmationCode: status.confirmationCode,
           holdExpiresAt: status.holdExpiresAt || new Date().toISOString(),
           guestTotalCents: status.guestTotalCents,
+          taxTotalCents: status.taxTotalCents,
           platformCommissionCents: status.platformCommissionCents,
           commissionRateBps: 0,
         };
 
-        if (!cancelled) setHold(resumedHold);
-
-        const paymentResponse = await fetch("/api/booking/payment-intent", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ reservationId, checkoutToken }),
-        });
-
-        const paymentPayload = await paymentResponse.json();
-
-        if (
-          paymentResponse.ok &&
-          paymentPayload.reservationStatus === "CONFIRMED"
-        ) {
-          window.location.replace(
-            confirmedUrl(
-              reservationId,
-              checkoutToken,
-              paymentPayload.confirmationCode || status.confirmationCode,
-            ),
-          );
-          return;
+        if (!cancelled) {
+          setHold(resumedHold);
+          setVerificationComplete(false);
+          setPolicyComplete(false);
         }
-
-        if (!paymentResponse.ok) {
-          throw new Error(
-            paymentPayload.error || "Unable to resume this payment.",
-          );
-        }
-
-        if (paymentPayload.paymentIntentStatus === "succeeded") {
-          window.location.replace(
-            confirmedUrl(
-              reservationId,
-              checkoutToken,
-              status.confirmationCode,
-            ),
-          );
-          return;
-        }
-
-        if (!paymentPayload.clientSecret) {
-          throw new Error("Stripe payment session is unavailable.");
-        }
-
-        if (cancelled) return;
-
-        setClientSecret(paymentPayload.clientSecret);
       } catch (resumeError) {
         if (!cancelled) {
           setError(
@@ -325,7 +352,6 @@ export function GuestCheckout({
   async function createHold() {
     setBusy(true);
     setError(null);
-    let createdHold: Hold | null = null;
 
     try {
       const holdResponse = await fetch("/api/booking/hold", {
@@ -351,38 +377,19 @@ export function GuestCheckout({
       }
 
       const nextHold = holdPayload as Hold;
-      createdHold = nextHold;
 
       persistCheckoutInUrl(
         nextHold.reservationId,
         nextHold.checkoutToken,
       );
 
+      setVerificationComplete(false);
+      setPolicyComplete(false);
+      setClientSecret(null);
       setHold(nextHold);
-
-      const paymentResponse = await fetch("/api/booking/payment-intent", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          reservationId: nextHold.reservationId,
-          checkoutToken: nextHold.checkoutToken,
-        }),
-      });
-
-      const paymentPayload = await paymentResponse.json();
-
-      if (!paymentResponse.ok || !paymentPayload.clientSecret) {
-        throw new Error(
-          paymentPayload.error || "Unable to start Stripe payment.",
-        );
-      }
-
-      setClientSecret(paymentPayload.clientSecret);
     } catch (requestError) {
-      if (!createdHold) {
-        setTurnstileToken("");
-        setTurnstileReset((value) => value + 1);
-      }
+      setTurnstileToken("");
+      setTurnstileReset((value) => value + 1);
       setError(
         requestError instanceof Error
           ? requestError.message
@@ -393,50 +400,21 @@ export function GuestCheckout({
     }
   }
 
+  const handleVerificationComplete = useCallback(async () => {
+    setVerificationComplete(true);
+  }, []);
+
+  const handlePolicyAccepted = useCallback(async () => {
+    if (!hold) return;
+    setPolicyComplete(true);
+    await startPayment(hold);
+  }, [hold, startPayment]);
+
   async function retryHeldPayment() {
     if (!hold) return;
-
-    setBusy(true);
-    setError(null);
-
-    try {
-      const paymentResponse = await fetch("/api/booking/payment-intent", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          reservationId: hold.reservationId,
-          checkoutToken: hold.checkoutToken,
-        }),
-      });
-      const paymentPayload = await paymentResponse.json();
-
-      if (paymentPayload.reservationStatus === "CONFIRMED") {
-        window.location.assign(
-          confirmedUrl(
-            hold.reservationId,
-            hold.checkoutToken,
-            hold.confirmationCode,
-          ),
-        );
-        return;
-      }
-
-      if (!paymentResponse.ok || !paymentPayload.clientSecret) {
-        throw new Error(
-          paymentPayload.error || "Unable to resume Stripe payment.",
-        );
-      }
-
-      setClientSecret(paymentPayload.clientSecret);
-    } catch (requestError) {
-      setError(
-        requestError instanceof Error
-          ? requestError.message
-          : "Unable to resume Stripe payment.",
-      );
-    } finally {
-      setBusy(false);
-    }
+    setVerificationComplete(true);
+    setPolicyComplete(true);
+    await startPayment(hold);
   }
 
   return (
@@ -450,23 +428,50 @@ export function GuestCheckout({
         {busy &&
         initialReservationId &&
         initialCheckoutToken &&
-        !clientSecret ? (
+        !hold ? (
           <p>Recovering your booking…</p>
         ) : hold && !clientSecret ? (
           <>
             <div className={styles.holdNotice}>
-              <strong>Your existing dates are still held</strong>
+              <strong>Your dates are held during verification</strong>
               <span>Reservation {hold.confirmationCode}</span>
             </div>
-            {error ? <div className={styles.error}>{error}</div> : null}
-            <button
-              className="button button-full"
-              type="button"
-              onClick={retryHeldPayment}
-              disabled={busy}
-            >
-              {busy ? "Recovering payment…" : "Retry secure payment"}
-            </button>
+
+            {!verificationComplete && stripePromise ? (
+              <GuestVerification
+                reservationId={hold.reservationId}
+                checkoutToken={hold.checkoutToken}
+                guestEmail={guestEmail}
+                stripePromise={stripePromise}
+                testMode={testMode}
+                onVerified={handleVerificationComplete}
+              />
+            ) : verificationComplete && !policyComplete ? (
+              <GuestPolicyAcceptance
+                reservationId={hold.reservationId}
+                checkoutToken={hold.checkoutToken}
+                onAccepted={handlePolicyAccepted}
+              />
+            ) : verificationComplete && policyComplete ? (
+              <>
+                {error ? <div className={styles.error}>{error}</div> : null}
+                {busy ? (
+                  <p>Loading secure payment…</p>
+                ) : error ? (
+                  <button
+                    className="button button-full"
+                    type="button"
+                    onClick={retryHeldPayment}
+                  >
+                    Retry secure payment
+                  </button>
+                ) : (
+                  <p>Loading secure payment…</p>
+                )}
+              </>
+            ) : (
+              <p>Loading secure verification…</p>
+            )}
           </>
         ) : !clientSecret ? (
           <>
@@ -493,6 +498,7 @@ export function GuestCheckout({
               <label>
                 <span>Phone</span>
                 <input
+                  type="tel"
                   autoComplete="tel"
                   value={guestPhone}
                   onChange={(event) => setGuestPhone(event.target.value)}
@@ -514,6 +520,12 @@ export function GuestCheckout({
               </label>
             </div>
 
+            <small>
+              Email verification and identity verification are required before
+              payment. Your phone number is required for the reservation but is
+              not verified by text message.
+            </small>
+
             {error ? <div className={styles.error}>{error}</div> : null}
 
             {turnstileSiteKey ? (
@@ -534,18 +546,19 @@ export function GuestCheckout({
                 busy ||
                 !guestName.trim() ||
                 !guestEmail.trim() ||
+                !guestPhone.trim() ||
                 !checkIn ||
                 !checkOut ||
                 (Boolean(turnstileSiteKey) && !turnstileToken)
               }
             >
-              {busy ? "Checking dates…" : "Continue to secure payment"}
+              {busy ? "Checking dates…" : "Continue to verification"}
             </button>
           </>
         ) : stripePromise && hold ? (
           <>
             <div className={styles.holdNotice}>
-              <strong>Your dates are held during checkout</strong>
+              <strong>Guest verification and policy agreement complete</strong>
               <span>Reservation {hold.confirmationCode}</span>
             </div>
 
@@ -587,6 +600,10 @@ export function GuestCheckout({
           <div><span>Check out</span><b>{checkOut}</b></div>
           <div><span>Nights</span><b>{nights}</b></div>
           <div><span>Guests</span><b>{guests}</b></div>
+
+          {hold?.taxTotalCents ? (
+            <div><span>Taxes</span><b>{money(hold.taxTotalCents)}</b></div>
+          ) : null}
 
           {hold ? (
             <div className={styles.total}>

@@ -325,7 +325,7 @@ begin
   patched_def := regexp_replace(
     original_def,
     'requested_guest_phone[[:space:]]+text[[:space:]]+DEFAULT[[:space:]]+NULL::text[[:space:]]*[)]',
-    'requested_guest_phone text DEFAULT NULL::text, requested_payment_environment public.payment_environment)',
+    'requested_guest_phone text DEFAULT NULL::text, requested_payment_environment public.payment_environment DEFAULT ''TEST'')',
     'i'
   );
 

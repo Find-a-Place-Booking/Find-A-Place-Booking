@@ -164,7 +164,7 @@ export default async function PropertyRatesPage({
     <section className="pricing-wiring-note">
       <div><strong>Calendar-safe</strong><span>These rules never mark a date open or blocked. The calendar layer will resolve availability separately, then apply the correct rate/minimum stay.</span></div>
       <div><strong>Payment-safe</strong><span>Pricing resolves rates, host discounts, fees and add-on line items before any processor sees the transaction. Stripe/Square can be swapped without changing pricing logic.</span></div>
-      <div><strong>Tax-safe</strong><span>Add-ons have a reserved tax-category field, but tax amounts stay unset until jurisdiction/provider logic is verified.</span></div>
+      <div><strong>Tax-safe</strong><span>Find A Place calculates marketplace lodging tax after pricing resolves. Statewide rules apply by region; local rules only apply after the exact property jurisdiction is finance-verified.</span></div>
     </section>
   </DashboardShell>;
 }

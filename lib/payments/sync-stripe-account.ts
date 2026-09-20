@@ -4,6 +4,7 @@ import {
   retrieveEmbeddedRecipientAccount,
   type StripeAccountV2,
 } from "@/lib/payments/stripe-rest";
+import { ensureManualPayoutSchedule } from "@/lib/payments/stripe-payouts";
 
 function capabilityStatus(
   account: StripeAccountV2,
@@ -29,7 +30,9 @@ export async function syncStripePaymentAccount(
     .single();
 
   if (storedAccountError || !storedAccount) {
-    throw new Error("Unable to load the Stripe payout account before synchronization.");
+    throw new Error(
+      "Unable to load the Stripe payout account before synchronization.",
+    );
   }
 
   const storedMetadata =
@@ -44,10 +47,29 @@ export async function syncStripePaymentAccount(
   const transfersEnabled = transfersStatus === "active";
   const payoutsEnabled = payoutsStatus === "active";
 
+  let payoutScheduleStatus: "MANUAL" | "NOT_READY" | "ERROR" =
+    payoutsEnabled ? "ERROR" : "NOT_READY";
+  let payoutScheduleError: string | null = null;
+
+  if (payoutsEnabled) {
+    try {
+      await ensureManualPayoutSchedule(providerAccountId);
+      payoutScheduleStatus = "MANUAL";
+    } catch (error) {
+      payoutScheduleError =
+        error instanceof Error
+          ? error.message.slice(0, 1000)
+          : "Stripe payout schedule could not be set to manual.";
+    }
+  }
+
+  const pastDue =
+    account.requirements?.summary?.minimum_deadline?.status === "past_due";
+
   const status =
-    transfersEnabled && payoutsEnabled
+    transfersEnabled && payoutsEnabled && payoutScheduleStatus === "MANUAL"
       ? ("READY" as const)
-      : account.requirements?.summary?.minimum_deadline?.status === "past_due"
+      : pastDue
         ? ("RESTRICTED" as const)
         : ("PENDING" as const);
 
@@ -70,6 +92,9 @@ export async function syncStripePaymentAccount(
           account.defaults?.responsibilities?.losses_collector ?? null,
         transfers_status: transfersStatus,
         payouts_status: payoutsStatus,
+        payout_schedule: payoutScheduleStatus,
+        payout_schedule_policy: "CHECKIN_MINUS_13_DAYS",
+        payout_schedule_error: payoutScheduleError,
         outstanding_requirement_count:
           account.requirements?.entries?.length ?? 0,
       },
@@ -79,8 +104,17 @@ export async function syncStripePaymentAccount(
     .eq("provider_account_id", providerAccountId);
 
   if (error) {
-    throw new Error(`Unable to synchronize Stripe payout account: ${error.message}`);
+    throw new Error(
+      `Unable to synchronize Stripe payout account: ${error.message}`,
+    );
   }
 
-  return { account, status, transfersEnabled, payoutsEnabled };
+  return {
+    account,
+    status,
+    transfersEnabled,
+    payoutsEnabled,
+    payoutScheduleStatus,
+    payoutScheduleError,
+  };
 }

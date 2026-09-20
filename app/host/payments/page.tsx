@@ -1,6 +1,19 @@
+import Link from "next/link";
+
 import { DashboardShell } from "@/components/DashboardShell";
 import { EmbeddedStripeOnboarding } from "@/components/payments/EmbeddedStripeOnboarding";
 import { getHostPaymentWorkspace } from "@/lib/host/payments";
+
+function money(cents: number, currency = "USD") {
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency,
+  }).format(Number(cents || 0) / 100);
+}
+
+function readable(value: string) {
+  return value.replaceAll("_", " ");
+}
 
 export default async function PaymentsPage() {
   const workspace = await getHostPaymentWorkspace();
@@ -114,9 +127,80 @@ export default async function PaymentsPage() {
         <div>
           <span>Money mode</span>
           <strong>{workspace.environment === "TEST" ? "Test" : "Live"}</strong>
-          <small>{workspace.environment === "TEST" ? "Stripe test data only" : "Real cards and payouts"}</small>
+          <small>
+            {workspace.environment === "TEST"
+              ? "Stripe test data only"
+              : "Real cards and payouts"}
+          </small>
         </div>
       </div>
+
+      <section className="panel">
+        <div className="panel-head">
+          <div>
+            <p className="eyebrow dark">Transactions</p>
+            <h2>Booking settlements</h2>
+          </div>
+          <span className="status-pill status-muted">
+            {workspace.transactions.length} shown
+          </span>
+        </div>
+
+        {workspace.transactions.length ? (
+          <div className="admin-list compact">
+            {workspace.transactions.map((transaction) => (
+              <Link
+                className="admin-list-row"
+                href={`/host/reservations/${transaction.reservationId}`}
+                key={transaction.paymentId}
+              >
+                <span>
+                  <strong>
+                    {transaction.confirmationCode} · {transaction.propertyName}
+                  </strong>
+                  <small>
+                    {transaction.guestName || "Guest"} · {transaction.checkIn} →{" "}
+                    {transaction.checkOut}
+                  </small>
+                  <small>
+                    Guest paid{" "}
+                    {money(transaction.amountCents, transaction.currency)}
+                    {" · "}Taxes{" "}
+                    {money(transaction.taxCents, transaction.currency)}
+                    {" · "}FAP commission{" "}
+                    {money(transaction.commissionCents, transaction.currency)}
+                  </small>
+                  <small>
+                    Processing{" "}
+                    {money(transaction.processorFeeCents, transaction.currency)}
+                    {transaction.processorFeeActualCents
+                      ? ` · Stripe actual ${money(
+                          transaction.processorFeeActualCents,
+                          transaction.currency,
+                        )}`
+                      : ""}
+                  </small>
+                </span>
+                <span>
+                  <em>
+                    Host proceeds{" "}
+                    {money(transaction.hostProceedsCents, transaction.currency)}
+                  </em>
+                  <small>{readable(transaction.status)}</small>
+                  <b>View breakdown →</b>
+                </span>
+              </Link>
+            ))}
+          </div>
+        ) : (
+          <div className="panel-empty">
+            <strong>No booking transactions yet.</strong>
+            <span>
+              Completed and in-progress Stripe booking payments will appear here.
+            </span>
+          </div>
+        )}
+      </section>
 
       <div className="dash-two">
         <section className="panel">

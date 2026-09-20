@@ -1,9 +1,12 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import { BookingReceipt } from "@/components/BookingReceipt";
 import { Footer } from "@/components/Footer";
 import { GuestTripTools } from "@/components/GuestTripTools";
 import { Header } from "@/components/Header";
+import { PrintReceiptButton } from "@/components/PrintReceiptButton";
+import { taxLinesFromSnapshot } from "@/lib/bookings/financial-display";
 import { guestCheckoutTokenMatches } from "@/lib/payments/booking-runtime";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -59,7 +62,7 @@ export default async function TripPage({
   const { data: reservation } = await admin
     .from("reservations")
     .select(
-      "id,confirmation_code,property_id,status,check_in,check_out,guest_name,guest_count,pet_count,guest_total_cents,currency,payment_status",
+      "id,confirmation_code,property_id,status,check_in,check_out,guest_name,guest_count,pet_count,pricing_snapshot,pre_tax_total_cents,tax_total_cents,tax_snapshot,guest_total_cents,currency,payment_status",
     )
     .eq("id", reservationId)
     .maybeSingle();
@@ -115,6 +118,20 @@ export default async function TripPage({
                 <small>{reservation.payment_status.replaceAll("_", " ")}</small>
               </div>
             </div>
+          </section>
+
+          <section className="panel">
+            <p className="eyebrow dark">Receipt</p>
+            <h2>What you paid</h2>
+            <BookingReceipt
+              pricingSnapshot={reservation.pricing_snapshot}
+              preTaxTotalCents={Number(reservation.pre_tax_total_cents)}
+              taxTotalCents={Number(reservation.tax_total_cents)}
+              guestTotalCents={Number(reservation.guest_total_cents)}
+              currency={reservation.currency}
+              taxLines={taxLinesFromSnapshot(reservation.tax_snapshot)}
+            />
+            <PrintReceiptButton />
           </section>
 
           <GuestTripTools

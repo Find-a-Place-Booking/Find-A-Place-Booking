@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
+import { taxLinesFromSnapshot } from "@/lib/bookings/financial-display";
 import { guestCheckoutTokenMatches } from "@/lib/payments/booking-runtime";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -27,7 +28,7 @@ export async function GET(request: NextRequest) {
     const { data: reservation, error: reservationError } = await admin
       .from("reservations")
       .select(
-        "id,property_id,confirmation_code,status,payment_status,hold_expires_at,check_in,check_out,guest_name,guest_count,guest_total_cents,platform_commission_cents,tax_total_cents,tax_status,currency",
+        "id,property_id,confirmation_code,status,payment_status,hold_expires_at,check_in,check_out,guest_name,guest_count,pricing_snapshot,pre_tax_total_cents,guest_total_cents,platform_commission_cents,tax_total_cents,tax_status,tax_snapshot,currency",
       )
       .eq("id", reservationId)
       .maybeSingle();
@@ -87,12 +88,15 @@ export async function GET(request: NextRequest) {
       checkOut: reservation.check_out,
       guestName: reservation.guest_name,
       guestCount: reservation.guest_count,
+      pricingSnapshot: reservation.pricing_snapshot ?? {},
+      preTaxTotalCents: Number(reservation.pre_tax_total_cents),
       guestTotalCents: Number(reservation.guest_total_cents),
       platformCommissionCents: Number(
         reservation.platform_commission_cents,
       ),
       taxTotalCents: Number(reservation.tax_total_cents),
       taxStatus: reservation.tax_status,
+      taxLines: taxLinesFromSnapshot(reservation.tax_snapshot),
       currency: reservation.currency,
       propertyName,
     });

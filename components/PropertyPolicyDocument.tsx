@@ -77,17 +77,18 @@ export function PropertyPolicyDocument({
       <div className="panel-head">
         <div>
           <p className="eyebrow dark">Property policies</p>
-          <h2>Upload the full rental-policy PDF.</h2>
+          <h2>Written rules and optional policy PDF</h2>
         </div>
         <span className="status-pill status-muted">
-          {current ? `Version ${current.version}` : "No PDF"}
+          {current ? `PDF version ${current.version}` : "No PDF"}
         </span>
       </div>
 
       <p className="muted">
-        Guests can open the current PDF before booking. Every replacement creates
-        a new version instead of deleting the old one, so the policy reference
-        can remain attached to the reservation record.
+        Use the Policies &amp; stay rules section above for written rules. You can
+        also upload a full rental-policy PDF here. Guests must open the policy
+        review and agree before payment, and each reservation keeps the policy
+        version that applied when the booking was started.
       </p>
 
       {current ? (
@@ -108,7 +109,7 @@ export function PropertyPolicyDocument({
       <label className={`property-policy-upload${busy ? " busy" : ""}`}>
         <span>{current ? "Replace with a new version" : "Upload policy PDF"}</span>
         <strong>{busy ? "Uploading…" : "Choose a PDF"}</strong>
-        <small>PDF only · maximum 10 MB. Selecting a file uploads it immediately.</small>
+        <small>Optional · PDF only · maximum 10 MB. Written policies can be used without a PDF.</small>
         <input
           type="file"
           accept="application/pdf"

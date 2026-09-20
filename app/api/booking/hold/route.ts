@@ -39,15 +39,37 @@ export async function POST(request: NextRequest) {
       turnstileToken?: string | null;
     };
 
+    const guestName = body.guestName?.trim() || "";
+    const guestEmail = body.guestEmail?.trim().toLowerCase() || "";
+    const guestPhone = body.guestPhone?.trim() || "";
+
     if (
       !body.unitId ||
       !body.checkIn ||
       !body.checkOut ||
-      !body.guestName ||
-      !body.guestEmail
+      !guestName ||
+      !guestEmail ||
+      !guestPhone
     ) {
       return NextResponse.json(
-        { error: "Missing required booking information." },
+        {
+          error:
+            "Name, email and phone number are required to start a booking.",
+        },
+        { status: 400 },
+      );
+    }
+
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(guestEmail)) {
+      return NextResponse.json(
+        { error: "Enter a valid email address." },
+        { status: 400 },
+      );
+    }
+
+    if (guestPhone.length < 7 || guestPhone.length > 60) {
+      return NextResponse.json(
+        { error: "Enter a valid phone number." },
         { status: 400 },
       );
     }
@@ -89,19 +111,22 @@ export async function POST(request: NextRequest) {
 
     const admin = createAdminClient();
 
-    const { data, error } = await admin.rpc("create_guest_reservation_hold", {
-      target_unit_id: body.unitId,
-      requested_check_in: body.checkIn,
-      requested_check_out: body.checkOut,
-      requested_guest_count: guests,
-      requested_pet_count: pets,
-      requested_add_on_ids: addOnIds,
-      requested_promotion_code: body.promotionCode?.trim() || null,
-      requested_guest_name: body.guestName,
-      requested_guest_email: body.guestEmail,
-      requested_guest_phone: body.guestPhone || null,
-      requested_payment_environment: paymentEnvironment,
-    });
+    const { data, error } = await admin.rpc(
+      "create_guest_taxed_reservation_hold",
+      {
+        target_unit_id: body.unitId,
+        requested_check_in: body.checkIn,
+        requested_check_out: body.checkOut,
+        requested_guest_count: guests,
+        requested_pet_count: pets,
+        requested_add_on_ids: addOnIds,
+        requested_promotion_code: body.promotionCode?.trim() || null,
+        requested_guest_name: guestName,
+        requested_guest_email: guestEmail,
+        requested_guest_phone: guestPhone,
+        requested_payment_environment: paymentEnvironment,
+      },
+    );
 
     if (error) {
       console.error("[booking hold] RPC failed", error);
@@ -116,6 +141,9 @@ export async function POST(request: NextRequest) {
       confirmation_code: string;
       hold_expires_at: string;
       guest_total_cents: number;
+      tax_total_cents: number;
+      tax_status: string;
+      platform_tax_retained_cents: number;
       platform_commission_cents: number;
       commission_rate_bps: number;
       quote?: unknown;
@@ -127,6 +155,11 @@ export async function POST(request: NextRequest) {
       confirmationCode: result.confirmation_code,
       holdExpiresAt: result.hold_expires_at,
       guestTotalCents: Number(result.guest_total_cents),
+      taxTotalCents: Number(result.tax_total_cents || 0),
+      taxStatus: result.tax_status || "CALCULATED",
+      platformTaxRetainedCents: Number(
+        result.platform_tax_retained_cents || 0,
+      ),
       platformCommissionCents: Number(result.platform_commission_cents),
       commissionRateBps: Number(result.commission_rate_bps),
       quote: result.quote ?? null,

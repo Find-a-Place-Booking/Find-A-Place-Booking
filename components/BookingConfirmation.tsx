@@ -2,6 +2,10 @@
 
 import { useEffect, useState } from "react";
 
+import { BookingReceipt } from "@/components/BookingReceipt";
+import { PrintReceiptButton } from "@/components/PrintReceiptButton";
+import type { GuestTaxLine } from "@/lib/bookings/financial-display";
+
 type Props = {
   confirmationCode: string;
   reservationId: string;
@@ -18,15 +22,13 @@ type BookingStatus = {
   checkIn: string;
   checkOut: string;
   guestName: string;
+  pricingSnapshot: unknown;
+  preTaxTotalCents: number;
+  taxTotalCents: number;
+  taxLines: GuestTaxLine[];
   guestTotalCents: number;
+  currency: string;
 };
-
-function money(cents: number) {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-  }).format(cents / 100);
-}
 
 export function BookingConfirmation({
   confirmationCode,
@@ -124,9 +126,22 @@ export function BookingConfirmation({
       </p>
 
       <p>
-        {booking.checkIn} → {booking.checkOut} ·{" "}
-        {money(booking.guestTotalCents)}
+        {booking.checkIn} → {booking.checkOut}
       </p>
+
+      <div className="panel">
+        <p className="eyebrow dark">Receipt</p>
+        <h2>Payment breakdown</h2>
+        <BookingReceipt
+          pricingSnapshot={booking.pricingSnapshot}
+          preTaxTotalCents={booking.preTaxTotalCents}
+          taxTotalCents={booking.taxTotalCents}
+          guestTotalCents={booking.guestTotalCents}
+          currency={booking.currency}
+          taxLines={booking.taxLines}
+        />
+        <PrintReceiptButton />
+      </div>
 
       {testMode ? (
         <p>This was a Stripe test-mode transaction. No live money moved.</p>

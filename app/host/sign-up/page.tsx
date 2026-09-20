@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { signUpHost } from "@/app/auth/actions";
 import { AuthShell } from "@/components/AuthShell";
 import { safeInternalPath } from "@/lib/auth/paths";
+import { HOST_AGREEMENT_VERSION } from "@/lib/policies/versions";
 import { createClient } from "@/lib/supabase/server";
 
 export default async function HostSignUpPage({
@@ -28,6 +29,7 @@ export default async function HostSignUpPage({
       {params.error ? <div className="auth-message auth-error" role="alert">{params.error}</div> : null}
       <form className="auth-form" action={signUpHost}>
         <input type="hidden" name="next" value={next} />
+        <input type="hidden" name="host_terms_version" value={HOST_AGREEMENT_VERSION} />
         <div className="auth-field-grid">
           <label><span>Your name</span><input name="full_name" autoComplete="name" required /></label>
           <label><span>Phone <small>optional</small></span><input name="phone" type="tel" autoComplete="tel" /></label>
@@ -37,6 +39,17 @@ export default async function HostSignUpPage({
           <label><span>Password</span><input name="password" type="password" autoComplete="new-password" minLength={8} required /></label>
           <label><span>Confirm password</span><input name="confirm_password" type="password" autoComplete="new-password" minLength={8} required /></label>
         </div>
+
+        <label className="checkline">
+          <input name="host_terms_accepted" type="checkbox" required />
+          <span>
+            I have read and agree to the <Link href="/host-agreement" target="_blank">Host Agreement</Link>,{" "}
+            <Link href="/terms" target="_blank">Terms of Service</Link>,{" "}
+            <Link href="/cancellation-policy" target="_blank">cancellation and payout rules</Link>, and{" "}
+            <Link href="/privacy" target="_blank">Privacy Notice</Link>.
+          </span>
+        </label>
+
         <p className="auth-form-note">Creating an account does not grant the 5% partner commission. Existing Find A Place partners are verified separately during onboarding.</p>
         <button className="button button-full" type="submit">Create host account</button>
       </form>

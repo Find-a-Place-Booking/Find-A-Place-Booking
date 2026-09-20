@@ -4,6 +4,8 @@ import { Footer } from "@/components/Footer";
 import { Header } from "@/components/Header";
 import { getSiteContentBlocks } from "@/lib/public/site-content";
 
+import styles from "./about-map.module.css";
+
 const defaults = {
   "about.hero": {
     eyebrow: "About Find A Place",
@@ -105,6 +107,45 @@ export default async function AboutPage() {
               <p className="eyebrow dark">{community.eyebrow}</p>
               <h2>{community.title}</h2>
               <p>{community.body}</p>
+            </div>
+          </div>
+        </section>
+
+        <section className={styles.partnerMapSection}>
+          <div className="shell">
+            <div className={styles.partnerMapHeading}>
+              <div>
+                <p className="eyebrow dark">Across the Find A Place network</p>
+                <h2>See where our partners are.</h2>
+              </div>
+              <p>
+                Find A Place started by connecting travelers with local stays and
+                outdoor destinations across Arkansas. This map shows the partner
+                locations that make up that growing network.
+              </p>
+            </div>
+
+            <div className={styles.partnerMapFrame}>
+              <iframe
+                title="Find A Place partner locations"
+                src="https://www.google.com/maps/d/u/0/embed?mid=1znr--DZK2UInog1toBsweyTKqHtFPnU"
+                loading="lazy"
+                referrerPolicy="no-referrer-when-downgrade"
+                allowFullScreen
+              />
+            </div>
+
+            <div className={styles.partnerMapFooter}>
+              <span>
+                Partner locations are maintained by Find A Place in Google My Maps.
+              </span>
+              <a
+                href="https://www.google.com/maps/d/u/0/viewer?mid=1znr--DZK2UInog1toBsweyTKqHtFPnU"
+                target="_blank"
+                rel="noreferrer"
+              >
+                Open full partner map →
+              </a>
             </div>
           </div>
         </section>

@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
+import { reservationVerificationReadiness } from "@/lib/bookings/guest-verification";
+import { reservationPolicyReadiness } from "@/lib/policies/booking-policy";
 import {
   guestCheckoutTokenMatches,
   requireBookingCheckout,
@@ -52,7 +54,7 @@ export async function POST(request: NextRequest) {
     const { data: reservation, error: reservationError } = await admin
       .from("reservations")
       .select(
-        "id,confirmation_code,status,hold_expires_at,payment_status,guest_total_cents,platform_commission_cents,commission_rate_bps,currency,tax_status,payment_environment,payment_account_id,payment_provider,provider_account_ref",
+        "id,confirmation_code,status,hold_expires_at,payment_status,guest_phone,guest_email_verified_at,stripe_identity_verification_session_id,identity_verification_status,identity_verified_at,guest_total_cents,platform_commission_cents,commission_rate_bps,currency,tax_status,payment_environment,payment_account_id,payment_provider,provider_account_ref",
       )
       .eq("id", reservationId)
       .single();
@@ -96,9 +98,52 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // We intentionally allow tax=0 while using Stripe TEST keys so the same
-    // production path can be tested end-to-end. Live money is blocked until a
-    // tax calculation has been snapshotted onto the reservation.
+    // Payment creation is server-gated. The browser cannot skip required guest
+    // verification and call Stripe directly: phone presence, email verification
+    // and the Stripe Identity result are checked again here before any PaymentIntent
+    // can be created or recovered.
+    const verification = await reservationVerificationReadiness(
+      admin,
+      reservation,
+    );
+
+    if (!verification.ready) {
+      return NextResponse.json(
+        {
+          error:
+            verification.error ||
+            "Complete guest verification before starting payment.",
+          verificationRequired: true,
+          emailVerified: verification.emailVerified,
+          identityStatus: verification.identityStatus,
+        },
+        { status: 409 },
+      );
+    }
+
+    const policyAcceptance = await reservationPolicyReadiness(
+      admin,
+      reservationId,
+    );
+
+    if (!policyAcceptance.ready) {
+      return NextResponse.json(
+        {
+          error:
+            policyAcceptance.error ||
+            "Review and accept the booking policies before payment.",
+          policyAcceptanceRequired: true,
+          propertyOpened: policyAcceptance.propertyOpened,
+          platformOpened: policyAcceptance.platformOpened,
+          policyAccepted: policyAcceptance.accepted,
+        },
+        { status: 409 },
+      );
+    }
+
+    // TEST and LIVE use the same marketplace tax calculation path.
+    // LIVE remains stricter: the property jurisdiction must be finance-verified
+    // before the hold can be created and paid.
     if (environment === "LIVE" && reservation.tax_status !== "CALCULATED") {
       return NextResponse.json(
         {
@@ -204,7 +249,10 @@ export async function POST(request: NextRequest) {
       if (cancelError) throw new Error(cancelError.message);
 
       return NextResponse.json(
-        { error: "The previous payment session was cancelled. Try again to start a fresh payment." },
+        {
+          error:
+            "The previous payment session was cancelled. Try again to start a fresh payment.",
+        },
         { status: 409 },
       );
     }

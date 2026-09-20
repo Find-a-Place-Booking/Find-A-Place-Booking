@@ -1,0 +1,31 @@
+{
+  "name": "Find A Place Policy & Agreement Pass 1",
+  "requires": [
+    "Guest Verification Pass 1 / migration 043 already applied"
+  ],
+  "migration": "supabase/migrations/20260919004400_policy_acceptance_foundation.sql",
+  "pet_fee_backlog": "Add configurable per-pet-per-night/per-pet-per-stay/flat-per-stay calculation modes in later rates & fees pass.",
+  "files": [
+    "README_POLICY_ACCEPTANCE_V1.txt",
+    "app/api/booking/payment-intent/route.ts",
+    "app/api/booking/policies/accept/route.ts",
+    "app/api/booking/policies/open/route.ts",
+    "app/api/booking/policies/status/route.ts",
+    "app/auth/actions.ts",
+    "app/cancellation-policy/page.tsx",
+    "app/host/sign-up/page.tsx",
+    "app/host-agreement/page.tsx",
+    "app/privacy/page.tsx",
+    "app/terms/page.tsx",
+    "components/GuestCheckout.tsx",
+    "components/GuestPolicyAcceptance.module.css",
+    "components/GuestPolicyAcceptance.tsx",
+    "components/LegalDocument.module.css",
+    "components/LegalDocument.tsx",
+    "components/PropertyPolicyDocument.tsx",
+    "lib/notifications/reservation-emails.ts",
+    "lib/policies/booking-policy.ts",
+    "lib/policies/versions.ts",
+    "supabase/migrations/20260919004400_policy_acceptance_foundation.sql"
+  ]
+}

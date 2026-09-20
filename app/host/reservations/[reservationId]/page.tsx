@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import { BookingReceipt } from "@/components/BookingReceipt";
 import { DashboardShell } from "@/components/DashboardShell";
 import { createClient } from "@/lib/supabase/server";
 
@@ -33,7 +34,7 @@ export default async function HostReservationDetailPage({
   const { data: reservation, error } = await supabase
     .from("reservations")
     .select(
-      "id,confirmation_code,property_id,unit_id,status,check_in,check_out,guest_name,guest_email,guest_phone,guest_count,pet_count,currency,guest_total_cents,platform_commission_cents,commission_tier,commission_rate_bps,payment_provider,payment_status,tax_status,created_at,confirmed_at",
+      "id,confirmation_code,property_id,unit_id,status,check_in,check_out,guest_name,guest_email,guest_phone,guest_count,pet_count,currency,pricing_snapshot,pre_tax_total_cents,tax_total_cents,guest_total_cents,platform_commission_cents,commission_tier,commission_rate_bps,payment_provider,payment_status,tax_status,created_at,confirmed_at",
     )
     .eq("id", reservationId)
     .maybeSingle();
@@ -63,7 +64,7 @@ export default async function HostReservationDetailPage({
       supabase
         .from("payments")
         .select(
-          "id,provider,status,provider_payment_id,amount_cents,application_fee_cents,host_proceeds_cents,currency,created_at",
+          "id,provider,status,provider_payment_id,amount_cents,application_fee_cents,platform_tax_retained_cents,processor_fee_actual_cents,processor_fee_host_share_cents,processor_fee_platform_share_cents,host_proceeds_cents,currency,created_at",
         )
         .eq("reservation_id", reservationId)
         .order("created_at", { ascending: false })
@@ -116,9 +117,9 @@ export default async function HostReservationDetailPage({
           <small>{reservation.commission_tier}</small>
         </div>
         <div>
-          <span>Tax</span>
-          <strong>{readable(reservation.tax_status)}</strong>
-          <small>Reservation tax state</small>
+          <span>Taxes collected</span>
+          <strong>{money(reservation.tax_total_cents, reservation.currency)}</strong>
+          <small>{readable(reservation.tax_status)}</small>
         </div>
       </div>
 
@@ -169,33 +170,66 @@ export default async function HostReservationDetailPage({
       </div>
 
       <section className="panel">
+        <p className="eyebrow dark">Guest receipt</p>
+        <h2>Guest price breakdown</h2>
+        <BookingReceipt
+          pricingSnapshot={reservation.pricing_snapshot}
+          preTaxTotalCents={Number(reservation.pre_tax_total_cents)}
+          taxTotalCents={Number(reservation.tax_total_cents)}
+          guestTotalCents={Number(reservation.guest_total_cents)}
+          currency={reservation.currency}
+        />
+      </section>
+
+      <section className="panel">
         <p className="eyebrow dark">Payment</p>
-        <h2>Booking money</h2>
+        <h2>Host settlement</h2>
 
         {payment ? (
-          <div className="dash-grid metrics">
-            <div>
-              <span>Processor</span>
-              <strong>{payment.provider}</strong>
-              <small>{readable(payment.status)}</small>
+          <>
+            <div className="dash-grid metrics">
+              <div>
+                <span>Guest paid</span>
+                <strong>{money(payment.amount_cents, payment.currency)}</strong>
+                <small>{payment.provider} · {readable(payment.status)}</small>
+              </div>
+              <div>
+                <span>Taxes collected</span>
+                <strong>
+                  −{money(payment.platform_tax_retained_cents, payment.currency)}
+                </strong>
+                <small>Held by Find A Place for remittance</small>
+              </div>
+              <div>
+                <span>Find A Place commission</span>
+                <strong>
+                  −{money(reservation.platform_commission_cents, payment.currency)}
+                </strong>
+                <small>{reservation.commission_tier}</small>
+              </div>
+              <div>
+                <span>Payment processing</span>
+                <strong>
+                  −{money(payment.processor_fee_host_share_cents, payment.currency)}
+                </strong>
+                <small>
+                  Stripe actual: {money(payment.processor_fee_actual_cents, payment.currency)}
+                </small>
+              </div>
+              <div>
+                <span>Host proceeds</span>
+                <strong>
+                  {money(payment.host_proceeds_cents, payment.currency)}
+                </strong>
+                <small>Amount routed to the connected host account</small>
+              </div>
             </div>
-            <div>
-              <span>Guest charge</span>
-              <strong>{money(payment.amount_cents, payment.currency)}</strong>
-            </div>
-            <div>
-              <span>Application fee</span>
-              <strong>
-                {money(payment.application_fee_cents, payment.currency)}
-              </strong>
-            </div>
-            <div>
-              <span>Host proceeds</span>
-              <strong>
-                {money(payment.host_proceeds_cents, payment.currency)}
-              </strong>
-            </div>
-          </div>
+            <p className="muted">
+              Find A Place commission, taxes held for remittance and the host
+              processing charge make up Stripe&apos;s combined application fee.
+              They are shown separately here so the settlement is understandable.
+            </p>
+          </>
         ) : (
           <div className="panel-empty">
             <strong>No payment record yet.</strong>

@@ -68,7 +68,7 @@ export default async function AdminReservationDetailPage({
     supabase
       .from("payments")
       .select(
-        "id,provider,status,provider_payment_id,provider_charge_id,amount_cents,application_fee_cents,processor_fee_actual_cents,processor_fee_host_share_cents,processor_fee_platform_share_cents,host_proceeds_cents,currency,failure_code,failure_message,created_at,updated_at",
+        "id,provider,status,provider_payment_id,provider_charge_id,amount_cents,application_fee_cents,platform_tax_retained_cents,processor_fee_actual_cents,processor_fee_host_share_cents,processor_fee_platform_share_cents,host_proceeds_cents,currency,failure_code,failure_message,created_at,updated_at",
       )
       .eq("reservation_id", reservationId)
       .order("created_at", { ascending: false }),
@@ -254,19 +254,47 @@ export default async function AdminReservationDetailPage({
                 <span>
                   <em>{money(payment.amount_cents, payment.currency)}</em>
                   <small>
-                    Application fee:{" "}
-                    {money(payment.application_fee_cents, payment.currency)}
+                    Find A Place commission:{" "}
+                    {money(
+                      reservation.platform_commission_cents,
+                      payment.currency,
+                    )}
+                  </small>
+                  <small>
+                    Tax retained for remittance:{" "}
+                    {money(
+                      payment.platform_tax_retained_cents,
+                      payment.currency,
+                    )}
+                  </small>
+                  <small>
+                    Host processing charge:{" "}
+                    {money(
+                      payment.processor_fee_host_share_cents,
+                      payment.currency,
+                    )}
+                  </small>
+                  <small>
+                    Stripe actual processing fee:{" "}
+                    {money(
+                      payment.processor_fee_actual_cents,
+                      payment.currency,
+                    )}
+                  </small>
+                  <small>
+                    Platform processing share:{" "}
+                    {money(
+                      payment.processor_fee_platform_share_cents,
+                      payment.currency,
+                    )}
                   </small>
                   <small>
                     Host proceeds:{" "}
                     {money(payment.host_proceeds_cents, payment.currency)}
                   </small>
                   <small>
-                    Processor fee:{" "}
-                    {money(
-                      payment.processor_fee_actual_cents,
-                      payment.currency,
-                    )}
+                    Stripe application fee total:{" "}
+                    {money(payment.application_fee_cents, payment.currency)}
                   </small>
                 </span>
               </div>
@@ -311,18 +339,29 @@ export default async function AdminReservationDetailPage({
               <span>Refund type</span>
               <select name="refund_type" defaultValue="partial">
                 <option value="partial">Partial refund</option>
-                <option value="full">Full remaining refund ({money(refundableCents, reservation.currency)})</option>
+                <option value="full">
+                  Full remaining refund ({money(refundableCents, reservation.currency)})
+                </option>
               </select>
             </label>
             <label>
               <span>Partial amount in dollars</span>
-              <input name="amount" type="number" min="0.01" step="0.01" max={(refundableCents / 100).toFixed(2)} placeholder="0.00" />
+              <input
+                name="amount"
+                type="number"
+                min="0.01"
+                step="0.01"
+                max={(refundableCents / 100).toFixed(2)}
+                placeholder="0.00"
+              />
             </label>
             <label>
               <span>Internal reason</span>
               <textarea name="reason" rows={3} required />
             </label>
-            <button className="button button-small" type="submit">Submit refund</button>
+            <button className="button button-small" type="submit">
+              Submit refund
+            </button>
           </form>
         </section>
       ) : null}

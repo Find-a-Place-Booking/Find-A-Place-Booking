@@ -1,8 +1,11 @@
 "use server";
 
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
 import { safeInternalPath } from "@/lib/auth/paths";
+import { HOST_AGREEMENT_VERSION } from "@/lib/policies/versions";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
 function value(formData: FormData, key: string) {
@@ -61,9 +64,19 @@ export async function signUpHost(formData: FormData) {
   const password = value(formData, "password");
   const confirmPassword = value(formData, "confirm_password");
   const next = safeInternalPath(formData.get("next"), "/host/onboarding");
+  const acceptedTerms = formData.get("host_terms_accepted") === "on";
+  const acceptedVersion = value(formData, "host_terms_version");
 
   if (!fullName || !email || !password) {
     authError("/host/sign-up", "Name, email and password are required.", next);
+  }
+
+  if (!acceptedTerms || acceptedVersion !== HOST_AGREEMENT_VERSION) {
+    authError(
+      "/host/sign-up",
+      "Review and accept the current Find A Place Host Agreement and platform terms before creating a host account.",
+      next,
+    );
   }
 
   if (password.length < 8) {
@@ -74,6 +87,9 @@ export async function signUpHost(formData: FormData) {
     authError("/host/sign-up", "The passwords don't match.", next);
   }
 
+  const acceptedAt = new Date().toISOString();
+  const requestHeaders = await headers();
+  const userAgent = requestHeaders.get("user-agent")?.slice(0, 500) || null;
   const supabase = await createClient();
   const { data, error } = await supabase.auth.signUp({
     email,
@@ -84,12 +100,34 @@ export async function signUpHost(formData: FormData) {
         full_name: fullName,
         phone: phone || null,
         signup_source: "host",
+        host_agreement_version: HOST_AGREEMENT_VERSION,
+        host_agreement_accepted_at: acceptedAt,
       },
     },
   });
 
-  if (error) {
+  if (error || !data.user) {
     authError("/host/sign-up", "We couldn't create the account. Check the information and try again.", next);
+  }
+
+  const admin = createAdminClient();
+  const { error: acceptanceError } = await admin
+    .from("host_terms_acceptances")
+    .insert({
+      user_id: data.user.id,
+      agreement_version: HOST_AGREEMENT_VERSION,
+      accepted_at: acceptedAt,
+      user_agent: userAgent,
+    });
+
+  if (acceptanceError) {
+    console.error("[signUpHost] unable to record host terms acceptance", acceptanceError);
+    await admin.auth.admin.deleteUser(data.user.id).catch(() => undefined);
+    authError(
+      "/host/sign-up",
+      "We couldn't save the host agreement acceptance. No host account was kept. Try again.",
+      next,
+    );
   }
 
   if (data.session) {
