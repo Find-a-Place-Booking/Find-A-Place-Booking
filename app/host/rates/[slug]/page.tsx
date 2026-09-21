@@ -75,7 +75,7 @@ export default async function PropertyRatesPage({
 
   return <DashboardShell active="Rates & fees" title={property.form.name || "Property pricing"} eyebrow="Pricing & stay rules">
     <div className="pricing-detail-head">
-      <div><Link href="/host/rates">← All property rates</Link><p>These rules price future stays independently from calendar blocks, reservation holds and payment processors.</p></div>
+      <div><Link href="/host/rates">← All property rates</Link><p>Set your standard rates, seasonal pricing, minimum stays, fees, discounts and optional extras for this property.</p></div>
       <Link className="button button-small button-quiet" href={`/host/properties/${property.form.slug}`}>Property details</Link>
     </div>
 
@@ -90,13 +90,12 @@ export default async function PropertyRatesPage({
         <label><span>Weekend rate</span><div className="money-input"><i>$</i><input type="number" min="1" step="0.01" name="weekend" defaultValue={dollars(pricing.base.weekend_cents)} /></div><small>Friday–Saturday. Blank uses weeknight rate.</small></label>
         <label><span>Default minimum stay</span><input required type="number" min="1" max="365" name="minimumStay" defaultValue={pricing.base.minimum_stay_nights || 1} /><small>Used unless a date-specific minimum-stay rule overrides it.</small></label>
         <label><span>Cleaning fee</span><div className="money-input"><i>$</i><input type="number" min="0" step="0.01" name="cleaning" defaultValue={dollars(fee("CLEANING"))} /></div><small>Flat per stay.</small></label>
-        <label><span>Pet fee amount</span><div className="money-input"><i>$</i><input type="number" min="0" step="0.01" name="pet" defaultValue={dollars(fee("PET"))} /></div><small>Enter the amount used by the pet-fee mode beside it.</small></label>
-        <label><span>Pet fee charge</span><select className={petStyles.modeSelect} name="petCalculation" defaultValue={petMode}><option value="PER_NIGHT">Per pet, per night</option><option value="PER_PET_PER_STAY">Per pet, per stay</option><option value="FLAT_PER_STAY">Flat per stay</option></select><small>Per pet/night multiplies the amount by pets × nights. Existing pet-fee settings are preserved until changed.</small></label>
+        <label><span>Pet fee amount</span><div className="money-input"><i>$</i><input type="number" min="0" step="0.01" name="pet" defaultValue={dollars(fee("PET"))} /></div><small>Enter the amount guests should be charged.</small></label>
+        <label><span>Pet fee charge</span><select className={petStyles.modeSelect} name="petCalculation" defaultValue={petMode}><option value="PER_NIGHT">Per pet, per night</option><option value="PER_PET_PER_STAY">Per pet, per stay</option><option value="FLAT_PER_STAY">Flat per stay</option></select><small>Choose how the pet fee is applied to a reservation.</small></label>
         <label><span>Guests included in nightly rate</span><input type="number" min="1" max={property.form.maxGuests || "100"} name="includedGuests" defaultValue={pricing.base.included_guests ?? ""} placeholder={property.form.maxGuests || "All guests"} /><small>Leave blank if there is no additional-guest fee.</small></label>
         <label><span>Additional guest fee</span><div className="money-input"><i>$</i><input type="number" min="0" step="0.01" name="extraGuest" defaultValue={dollars(fee("EXTRA_GUEST"))} /></div><small>Per additional guest, per night.</small></label>
-        <div className="pricing-form-actions"><div><strong>Commission basis</strong><span>Find A Place commission remains based on nightly lodging subtotal only. Standard fees and optional add-ons stay separate.</span></div><button className="button" type="submit">Save base pricing</button></div>
+        <div className="pricing-form-actions"><div><strong>Commission basis</strong><span>Find A Place commission is based on the nightly lodging subtotal. Standard fees and optional add-ons stay separate.</span></div><button className="button" type="submit">Save base pricing</button></div>
       </form>
-      {petFee ? <div className="inline-note commission-note"><strong>Current pet-fee mode: {petModeLabel(petFee.calculation)}</strong><span>The booking quote calculates the full pet-fee total before tax. Pet fees remain outside the 5% / 7% lodging commission base.</span></div> : null}
     </section>
 
     <div className="pricing-two-column">
@@ -131,7 +130,7 @@ export default async function PropertyRatesPage({
 
     <section className="panel pricing-rule-section pricing-addons-section">
       <div className="panel-head"><div><p className="eyebrow dark">Optional extras</p><h2>Guest add-ons</h2></div><span>{pricing.add_ons.length}</span></div>
-      <p className="muted">Examples: romance package, firewood bundle, breakfast basket, early check-in or another property-specific extra. These are structured separately so checkout, tax and payment-provider integrations can treat them as their own line items.</p>
+      <p className="muted">Offer property-specific extras such as firewood, breakfast baskets, early check-in or special packages. Guests can select available extras during booking.</p>
       <details className="pricing-create" open={!pricing.add_ons.length}>
         <summary>+ Add optional extra</summary>
         <AddOnForm unitId={property.unitId} slug={property.form.slug} />
@@ -145,22 +144,21 @@ export default async function PropertyRatesPage({
 
     <section className="panel pricing-rule-section pricing-promotions-section">
       <div className="panel-head"><div><p className="eyebrow dark">Promo & discount codes</p><h2>Host-controlled lodging discounts</h2></div><span>{pricing.promotion_codes.length}</span></div>
-      <p className="muted">Create a percentage or fixed-dollar code without changing the underlying nightly rate. Codes discount lodging only, so Find A Place commission follows the discounted lodging subtotal. Only one code can apply to a quote, and advertised special rates do not stack with codes unless the host explicitly allows it.</p>
+      <p className="muted">Create a percentage or fixed-dollar discount without changing your normal nightly rate. Promo codes apply to lodging only, and advertised special rates do not stack with a code unless you choose to allow it.</p>
       <details className="pricing-create" open={!pricing.promotion_codes.length}>
         <summary>+ Add promo code</summary>
         <PromotionCodeForm unitId={property.unitId} slug={property.form.slug} />
       </details>
       <div className="pricing-addon-grid">{pricing.promotion_codes.map((promotion) => <details className="pricing-addon-card" key={promotion.id}>
-        <summary><div><strong>{promotion.code}</strong><span>{promotion.label} · {promotion.scope === "ORGANIZATION" ? "All organization properties" : "This property"}</span></div><div><b>{promotionValueLabel(promotion)}</b><em>{promotion.is_active ? "Active" : "Inactive"}</em></div></summary>
+        <summary><div><strong>{promotion.code}</strong><span>{promotion.label} · {promotion.scope === "ORGANIZATION" ? "All host properties" : "This property"}</span></div><div><b>{promotionValueLabel(promotion)}</b><em>{promotion.is_active ? "Active" : "Inactive"}</em></div></summary>
         <PromotionCodeForm unitId={property.unitId} slug={property.form.slug} promotion={promotion} />
-        <form action={deletePromotionCode} className="pricing-delete"><input type="hidden" name="unitId" value={property.unitId} /><input type="hidden" name="slug" value={property.form.slug} /><input type="hidden" name="promotionId" value={promotion.id} /><button type="submit">{promotion.scope === "ORGANIZATION" ? "Remove code from all organization properties" : "Remove promo code"}</button></form>
+        <form action={deletePromotionCode} className="pricing-delete"><input type="hidden" name="unitId" value={property.unitId} /><input type="hidden" name="slug" value={property.form.slug} /><input type="hidden" name="promotionId" value={promotion.id} /><button type="submit">{promotion.scope === "ORGANIZATION" ? "Remove code from all host properties" : "Remove promo code"}</button></form>
       </details>)}</div>
-      <div className="inline-note commission-note"><strong>Redemption boundary</strong><span>Maximum-use settings are stored now, but previewing a quote never consumes a use. The future reservation transaction will atomically reserve/redeem the code and snapshot it with the booking.</span></div>
     </section>
 
     <section className="panel pricing-preview-panel">
-      <div className="panel-head"><div><p className="eyebrow dark">Pricing preview</p><h2>Resolve a stay without booking it</h2></div><span className="status-pill status-muted">No availability check</span></div>
-      <p className="muted">This preview uses the same structured quote boundary reserved for checkout. It applies date rates, the arrival-date minimum stay, an eligible promo code, standard fees and selected add-ons, but it cannot create a hold or reservation.</p>
+      <div className="panel-head"><div><p className="eyebrow dark">Pricing preview</p><h2>Preview a guest total</h2></div><span className="status-pill status-muted">Preview only</span></div>
+      <p className="muted">Enter sample dates and guest details to see how your rates, fees, add-ons and promo codes come together before taxes. This preview does not create a reservation, charge a card or use a promo redemption.</p>
       <form method="get" className="pricing-preview-form">
         <input type="hidden" name="preview" value="1" />
         <label><span>Check-in</span><input required type="date" name="checkIn" defaultValue={query.checkIn || ""} /></label>
@@ -174,15 +172,9 @@ export default async function PropertyRatesPage({
       {preview.error ? <div className="admin-message error pricing-preview-message">{preview.error}</div> : null}
       {preview.quote ? <div className="pricing-quote-result">
         <div className="pricing-quote-summary"><div><span>Nights</span><strong>{preview.quote.nights}</strong></div><div><span>Minimum stay</span><strong>{preview.quote.minimum_stay_nights}</strong></div><div><span>Lodging</span><strong>{money(preview.quote.lodging_subtotal_cents)}</strong>{preview.quote.discount_cents > 0 ? <small>{money(preview.quote.lodging_subtotal_before_discount_cents)} before discount</small> : null}</div><div><span>Pre-tax total</span><strong>{money(preview.quote.pre_tax_total_cents)}</strong></div></div>
-        <div className="pricing-quote-lines"><strong>Nightly resolution</strong>{preview.quote.lodging_lines.map((line) => <div key={line.date}><span>{line.date}{line.special_label ? ` · ${line.special_label}` : ""}</span><b>{money(line.amount_cents)}</b></div>)}{preview.quote.promotion ? <div className="discount-line"><span>Promo {preview.quote.promotion.code} · {preview.quote.promotion.label}</span><b>−{money(preview.quote.discount_cents)}</b></div> : null}{preview.quote.fee_lines.map((line) => <div key={line.id}><span>{line.label}{line.type === "PET" && petFee ? ` · ${petModeLabel(petFee.calculation)}` : ""}</span><b>{money(line.amount_cents)}</b></div>)}{preview.quote.add_on_lines.map((line) => <div key={line.id}><span>{line.name}</span><b>{money(line.amount_cents)}</b></div>)}</div>
-        <div className="pricing-quote-boundary"><span>Commission base: <b>{money(preview.quote.commission_base_cents)}</b></span><span>Availability: <b>not checked</b></span><span>Taxes: <b>not calculated</b></span><span>Payment processor: <b>not contacted</b></span><span>Promo redemption: <b>not consumed</b></span></div>
+        <div className="pricing-quote-lines"><strong>Nightly breakdown</strong>{preview.quote.lodging_lines.map((line) => <div key={line.date}><span>{line.date}{line.special_label ? ` · ${line.special_label}` : ""}</span><b>{money(line.amount_cents)}</b></div>)}{preview.quote.promotion ? <div className="discount-line"><span>Promo {preview.quote.promotion.code} · {preview.quote.promotion.label}</span><b>−{money(preview.quote.discount_cents)}</b></div> : null}{preview.quote.fee_lines.map((line) => <div key={line.id}><span>{line.label}{line.type === "PET" && petFee ? ` · ${petModeLabel(petFee.calculation)}` : ""}</span><b>{money(line.amount_cents)}</b></div>)}{preview.quote.add_on_lines.map((line) => <div key={line.id}><span>{line.name}</span><b>{money(line.amount_cents)}</b></div>)}</div>
+        <div className="pricing-quote-boundary"><span>Commissionable lodging: <b>{money(preview.quote.commission_base_cents)}</b></span><span>Availability: <b>Not checked in preview</b></span><span>Taxes: <b>Added at checkout</b></span><span>Payment: <b>No charge created</b></span><span>Promo use: <b>Not counted</b></span></div>
       </div> : null}
-    </section>
-
-    <section className="pricing-wiring-note">
-      <div><strong>Calendar-safe</strong><span>These rules never mark a date open or blocked. The calendar layer will resolve availability separately, then apply the correct rate/minimum stay.</span></div>
-      <div><strong>Payment-safe</strong><span>Pricing resolves rates, host discounts, fees and add-on line items before any processor sees the transaction. Stripe/Square can be swapped without changing pricing logic.</span></div>
-      <div><strong>Tax-safe</strong><span>Find A Place calculates marketplace lodging tax after pricing resolves. Statewide rules apply by region; local rules only apply after the exact property jurisdiction is finance-verified.</span></div>
     </section>
   </DashboardShell>;
 }
@@ -196,9 +188,9 @@ function RateRuleForm({ unitId, slug, rule }: { unitId: string; slug: string; ru
     <label><span>End</span><input required type="date" name="endDate" defaultValue={rule?.end_date || ""} /></label>
     <label><span>Nightly rate</span><div className="money-input"><i>$</i><input required type="number" min="1" step="0.01" name="nightly" defaultValue={dollars(rule?.nightly_cents)} /></div></label>
     <label><span>Weekend override</span><div className="money-input"><i>$</i><input type="number" min="1" step="0.01" name="weekend" defaultValue={dollars(rule?.weekend_cents)} /></div></label>
-    <label><span>Priority</span><input type="number" min="0" max="1000" name="priority" defaultValue={rule?.priority ?? 100} /><small>Higher wins if ranges overlap.</small></label>
+    <label><span>Priority</span><input type="number" min="0" max="1000" name="priority" defaultValue={rule?.priority ?? 100} /><small>Higher priority is used if date ranges overlap.</small></label>
     <label className="wide"><span>Guest-facing special label</span><input name="specialBadge" maxLength={80} defaultValue={rule?.special_badge || ""} placeholder="Holiday Special" /></label>
-    <label className="checkline wide"><input type="checkbox" name="isPublicSpecial" defaultChecked={rule?.is_public_special ?? false} /><span>Allow this rate to be highlighted as a special when guest date-pricing is wired in.</span></label>
+    <label className="checkline wide"><input type="checkbox" name="isPublicSpecial" defaultChecked={rule?.is_public_special ?? false} /><span>Allow this rate to be highlighted to guests as a special.</span></label>
     <label className="checkline wide"><input type="checkbox" name="isActive" defaultChecked={rule?.is_active ?? true} /><span>Rule active</span></label>
     <div className="pricing-inline-actions"><button className="button button-small" type="submit">{rule ? "Save date rate" : "Add date rate"}</button></div>
   </form>;
@@ -224,15 +216,15 @@ function PromotionCodeForm({ unitId, slug, promotion }: { unitId: string; slug: 
   return <form action={savePromotionCode} className="pricing-inline-form promo-form">
     <input type="hidden" name="unitId" value={unitId} /><input type="hidden" name="slug" value={slug} /><input type="hidden" name="promotionId" value={promotion?.id || ""} />
     <label><span>Promo code</span><input required name="code" maxLength={40} defaultValue={promotion?.code || ""} placeholder="FANCY25" autoCapitalize="characters" /><small>Letters, numbers, dashes and underscores.</small></label>
-    <label className="wide"><span>Internal / guest label</span><input required name="label" maxLength={120} defaultValue={promotion?.label || ""} placeholder="25% direct booking special" /></label>
-    <label><span>Scope</span><select name="scope" defaultValue={promotion?.scope || "PROPERTY"}><option value="PROPERTY">This property</option><option value="ORGANIZATION">All properties in this host organization</option></select></label>
+    <label className="wide"><span>Promo name</span><input required name="label" maxLength={120} defaultValue={promotion?.label || ""} placeholder="25% direct booking special" /></label>
+    <label><span>Applies to</span><select name="scope" defaultValue={promotion?.scope || "PROPERTY"}><option value="PROPERTY">This property</option><option value="ORGANIZATION">All properties on this host account</option></select></label>
     <label><span>Discount type</span><select name="discountType" defaultValue={promotion?.discount_type || "PERCENT"}><option value="PERCENT">Percentage off lodging</option><option value="FIXED">Fixed dollars off lodging</option></select></label>
     <label><span>Discount value</span><input required type="number" min="0.01" step="0.01" name="discountValue" defaultValue={discountValue} placeholder="25" /><small>For percentage codes, 25 means 25%.</small></label>
     <label><span>Eligible check-in starts</span><input type="date" name="eligibleStart" defaultValue={promotion?.eligible_check_in_start || ""} /></label>
     <label><span>Eligible check-in ends</span><input type="date" name="eligibleEnd" defaultValue={promotion?.eligible_check_in_end || ""} /></label>
     <label><span>Minimum nights</span><input type="number" min="1" max="365" name="minimumNights" defaultValue={promotion?.minimum_nights ?? ""} /></label>
     <label><span>Minimum lodging subtotal</span><div className="money-input"><i>$</i><input type="number" min="0" step="0.01" name="minimumLodging" defaultValue={dollars(promotion?.minimum_lodging_cents)} /></div></label>
-    <label><span>Maximum uses</span><input type="number" min="1" name="maxRedemptions" defaultValue={promotion?.max_redemptions ?? ""} /><small>Enforced atomically when reservation creation is wired. Preview does not consume uses.</small></label>
+    <label><span>Maximum uses</span><input type="number" min="1" name="maxRedemptions" defaultValue={promotion?.max_redemptions ?? ""} /><small>Set the total number of times this code can be used. Leave blank for no limit.</small></label>
     <label className="checkline wide"><input type="checkbox" name="allowWithPublicSpecial" defaultChecked={promotion?.allow_with_public_special ?? false} /><span>Allow this code to combine with an advertised special rate.</span></label>
     <label className="checkline wide"><input type="checkbox" name="isActive" defaultChecked={promotion?.is_active ?? true} /><span>Promo code active</span></label>
     <div className="pricing-inline-actions"><button className="button button-small" type="submit">{promotion ? "Save promo code" : "Add promo code"}</button></div>
@@ -246,8 +238,8 @@ function AddOnForm({ unitId, slug, addon }: { unitId: string; slug: string; addo
     <label className="wide"><span>Description</span><textarea name="description" maxLength={1000} defaultValue={addon?.description || ""} placeholder="What the guest receives." /></label>
     <label><span>Price</span><div className="money-input"><i>$</i><input required type="number" min="0" step="0.01" name="amount" defaultValue={dollars(addon?.amount_cents)} /></div></label>
     <label><span>Charge</span><select name="calculation" defaultValue={addon?.calculation || "FLAT_PER_STAY"}><option value="FLAT_PER_STAY">Per stay</option><option value="PER_NIGHT">Per night</option><option value="PER_PERSON">Per person</option><option value="PER_PERSON_PER_NIGHT">Per person / night</option></select></label>
-    <label><span>Sort order</span><input type="number" name="sortOrder" defaultValue={addon?.sort_order ?? 0} /></label>
-    <label className="checkline wide"><input type="checkbox" name="guestVisible" defaultChecked={addon?.guest_visible ?? true} /><span>Show to guests when checkout add-ons are enabled.</span></label>
+    <label><span>Display order</span><input type="number" name="sortOrder" defaultValue={addon?.sort_order ?? 0} /><small>Lower numbers appear first.</small></label>
+    <label className="checkline wide"><input type="checkbox" name="guestVisible" defaultChecked={addon?.guest_visible ?? true} /><span>Show this extra to guests during booking.</span></label>
     <label className="checkline wide"><input type="checkbox" name="isActive" defaultChecked={addon?.is_active ?? true} /><span>Add-on active</span></label>
     <div className="pricing-inline-actions"><button className="button button-small" type="submit">{addon ? "Save add-on" : "Add extra"}</button></div>
   </form>;

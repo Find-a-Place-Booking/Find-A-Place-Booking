@@ -12,7 +12,10 @@ function money(cents: number, currency = "USD") {
 }
 
 function readable(value: string) {
-  return value.replaceAll("_", " ");
+  return value
+    .replaceAll("_", " ")
+    .toLowerCase()
+    .replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
 
 export default async function PaymentsPage() {
@@ -39,7 +42,7 @@ export default async function PaymentsPage() {
     <DashboardShell
       active="Payments & taxes"
       title="Payments & taxes"
-      eyebrow="Money routing"
+      eyebrow="Payouts & payment settings"
     >
       <div
         className={`payment-status ${
@@ -58,8 +61,8 @@ export default async function PaymentsPage() {
           </h2>
           <p>
             {readyAccount
-              ? `This organization can receive its share of Stripe ${workspace.environment === "TEST" ? "test" : "live"} bookings.`
-              : "Connect payouts here without leaving Find A Place. Stripe securely handles bank and identity information inside the embedded component."}
+              ? `This host account can receive payouts from Stripe ${workspace.environment === "TEST" ? "test" : "live"} bookings.`
+              : "Connect payouts here without leaving Find A Place. Stripe securely handles bank and identity information inside the embedded setup."}
           </p>
         </div>
         <strong>{readyAccount ? "Ready" : "Not ready"}</strong>
@@ -75,8 +78,8 @@ export default async function PaymentsPage() {
             <strong>Stripe Connect</strong>
             <span>
               {stripe.configured
-                ? "Stripe onboarding stays inside the Find A Place host dashboard."
-                : `Stripe is waiting on: ${stripe.missingEnvironment.join(", ")}`}
+                ? "Complete Stripe setup here to receive booking payouts."
+                : "Stripe setup is temporarily unavailable. Contact Find A Place if you need help with payouts."}
             </span>
           </div>
 
@@ -98,8 +101,8 @@ export default async function PaymentsPage() {
             <strong>Square</strong>
             <span>
               {square.configured
-                ? "Square seller OAuth is reserved for the later Square integration."
-                : "Square will use the same provider boundary after Stripe testing."}
+                ? "Square support is being prepared as an additional payout option."
+                : "Square connection will be available in a future update."}
             </span>
           </div>
           <button className="button button-small button-quiet" disabled>
@@ -112,20 +115,20 @@ export default async function PaymentsPage() {
         <div>
           <span>Payment accounts</span>
           <strong>{workspace.accounts.length}</strong>
-          <small>Organization/property/unit routing supported</small>
+          <small>Connected payout accounts</small>
         </div>
         <div>
-          <span>Processing policy</span>
+          <span>Processing fees</span>
           <strong>Host pays</strong>
-          <small>HOST_FULL launch default</small>
+          <small>Processing fees are charged to the host</small>
         </div>
         <div>
           <span>Platform commission</span>
           <strong>5% / 7%</strong>
-          <small>Snapshotted per reservation</small>
+          <small>Based on the lodging subtotal</small>
         </div>
         <div>
-          <span>Money mode</span>
+          <span>Payment mode</span>
           <strong>{workspace.environment === "TEST" ? "Test" : "Live"}</strong>
           <small>
             {workspace.environment === "TEST"
@@ -167,14 +170,14 @@ export default async function PaymentsPage() {
                     {money(transaction.amountCents, transaction.currency)}
                     {" · "}Taxes{" "}
                     {money(transaction.taxCents, transaction.currency)}
-                    {" · "}FAP commission{" "}
+                    {" · "}Find A Place commission{" "}
                     {money(transaction.commissionCents, transaction.currency)}
                   </small>
                   <small>
-                    Processing{" "}
+                    Processing fee{" "}
                     {money(transaction.processorFeeCents, transaction.currency)}
                     {transaction.processorFeeActualCents
-                      ? ` · Stripe actual ${money(
+                      ? ` · Final processor fee ${money(
                           transaction.processorFeeActualCents,
                           transaction.currency,
                         )}`
@@ -204,20 +207,19 @@ export default async function PaymentsPage() {
 
       <div className="dash-two">
         <section className="panel">
-          <p className="eyebrow dark">Routing records</p>
-          <h2>Connected processor accounts</h2>
+          <p className="eyebrow dark">Payout accounts</p>
+          <h2>Connected payment accounts</h2>
           {workspace.accounts.length ? (
             <div className="admin-list compact">
               {workspace.accounts.map((account) => (
                 <div className="admin-list-row static" key={account.id}>
                   <span>
                     <strong>
-                      {account.provider} · {account.status.replaceAll("_", " ")}
+                      {readable(account.provider)} · {readable(account.status)}
                     </strong>
                     <small>
-                      {account.connection_mode.replaceAll("_", " ")} ·{" "}
                       {account.currency}
-                      {account.is_default ? " · organization default" : ""}
+                      {account.is_default ? " · Default payout account" : ""}
                     </small>
                   </span>
                   <span>
@@ -232,33 +234,32 @@ export default async function PaymentsPage() {
             </div>
           ) : (
             <div className="panel-empty">
-              <strong>No processor account records yet.</strong>
+              <strong>No payout account connected yet.</strong>
               <span>
-                Use Connect Stripe above. The onboarding form will open directly
-                inside this page.
+                Use Connect Stripe above to complete payout setup inside this page.
               </span>
             </div>
           )}
         </section>
 
         <section className="panel">
-          <p className="eyebrow dark">Stripe boundary</p>
-          <h2>Stripe owns sensitive financial fields.</h2>
+          <p className="eyebrow dark">Security &amp; privacy</p>
+          <h2>Your sensitive financial information stays with Stripe.</h2>
           <div className="tax-rule">
-            <span>Host bank information</span>
-            <strong>Stripe component</strong>
+            <span>Bank information</span>
+            <strong>Handled securely by Stripe</strong>
           </div>
           <div className="tax-rule">
             <span>Identity verification</span>
-            <strong>Stripe component</strong>
+            <strong>Handled securely by Stripe</strong>
           </div>
           <div className="tax-rule">
-            <span>Find A Place stores</span>
-            <strong>acct_ reference only</strong>
+            <span>Find A Place receives</span>
+            <strong>Connection status and account reference</strong>
           </div>
           <p className="muted">
-            The host never has to leave Find A Place, but Find A Place still does
-            not receive raw bank numbers, identity documents or SSNs.
+            You can complete setup without leaving Find A Place, while bank numbers,
+            identity documents and Social Security numbers remain with Stripe.
           </p>
         </section>
       </div>

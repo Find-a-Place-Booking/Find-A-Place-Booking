@@ -1,56 +1,32 @@
-# Find A Place Booking
+# Find A Place contact/social styling hotfix
 
-This branch contains pre-live hardening pass **026** for a controlled first-property pilot. It keeps live charging closed by default while making the TEST path suitable for full end-to-end rehearsal.
+Apply this **after** the `find-a-place-contact-social-ad-pass` package.
 
-## What 026 adds
+This hotfix fixes the styling shown in the contact-page screenshots by:
 
-- explicit TEST/LIVE separation for Stripe accounts, assignments, reservations, payments, refunds, disputes, and processor events;
-- a database-enforced per-property live checkout allowlist;
-- one atomic, idempotent Stripe payment attempt per reservation/environment;
-- destination-charge refunds with host transfer reversal and verified application-fee reconciliation;
-- signed Stripe webhooks with idempotent event processing, refund reconciliation, dispute records, and booking notifications;
-- Turnstile protection for public hold creation;
-- scheduled iCal polling plus a fail-closed feed refresh immediately before each hold;
-- date-aware public search results and canonical availability enforcement;
-- deployment-safe host image upload limits;
-- a health endpoint that verifies the 026 schema marker.
+- moving `/contact` to a route-local CSS module so the card/grid styling cannot be lost because of a missing global CSS import;
+- restoring spacing between buttons and their helper notes;
+- restoring the 3-card desktop layout and responsive mobile/tablet layouts;
+- polishing the original Find A Place network callout and related links;
+- appending the shared Help/footer/host-promotion styles directly to `app/find-a-place-theme.css` so those additions remain styled even if the standalone pass stylesheet was not loaded.
 
-## Apply and verify
+## PowerShell
 
-1. Apply all Supabase migrations through:
+From the extracted hotfix folder:
 
-   `supabase/migrations/20260918002600_pre_live_hardening.sql`
+```powershell
+.\apply-contact-styling-hotfix.ps1 -Target "C:\Users\jlccu\find-a-place-booking-production-step-1"
+cd "C:\Users\jlccu\find-a-place-booking-production-step-1"
+npm run typecheck
+npm run build
+```
 
-2. Copy `.env.example` to your deployment settings and supply real secrets. Keep `BOOKING_CHECKOUT_ENABLED=false` until TEST verification is complete.
+Then restart `npm run dev` if needed and hard-refresh the browser.
 
-3. Run:
+## Files changed
 
-   ```bash
-   npm ci
-   npm run typecheck
-   npm run build
-   ```
+- `app/contact/page.tsx`
+- `app/contact/contact.module.css` (new)
+- `app/find-a-place-theme.css` (shared styles appended once)
 
-4. Confirm `/api/health/supabase` returns:
-
-   ```json
-   {
-     "ok": true,
-     "pre_live_schema": "pre-live-hardening-026-v1",
-     "live_money_enabled": false
-   }
-   ```
-
-5. Follow the release checklist in [`docs/PRE_LIVE_HARDENING_026.md`](docs/PRE_LIVE_HARDENING_026.md).
-
-## Live-money invariant
-
-LIVE checkout requires all of the following at the same time:
-
-- matching Stripe live secret and publishable keys;
-- all required production dependencies from `.env.example`;
-- a LIVE Stripe payout account in READY state for the property;
-- `properties.live_checkout_enabled = true`, changed only by a SUPER_ADMIN or OPERATIONS_ADMIN;
-- a reservation with a real, snapshotted `CALCULATED` lodging-tax result.
-
-The repository does **not** guess an Arkansas lodging tax code or rate. Stripe Tax registration, product tax treatment, local jurisdiction coverage, and refund/reversal behavior must be validated before enabling the first live property.
+No Stripe, Supabase, reservation, tax, payout, calendar, or booking logic is changed.

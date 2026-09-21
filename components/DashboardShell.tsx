@@ -16,6 +16,7 @@ export async function DashboardShell({ active, title, eyebrow, children }: { act
         <header className="dash-topbar">
           <div><small>{eyebrow || "Host dashboard"}</small><h1>{title}</h1></div>
           <div className="dash-actions">
+            <Link className="button button-small button-quiet" href="/contact#host">Get help</Link>
             <Link className="button button-small button-quiet dash-marketplace-link" href="/">View marketplace</Link>
             <Link className="notification" href="/host/messages" aria-label="Reservation messages">•</Link>
             <Link className={`avatar ${profile.avatarUrl ? "has-image" : ""}`} href="/host/settings" aria-label="Host account settings">

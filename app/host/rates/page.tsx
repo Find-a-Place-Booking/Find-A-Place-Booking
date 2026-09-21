@@ -12,7 +12,7 @@ export default async function RatesPage() {
 
   return <DashboardShell active="Rates & fees" title="Rates & fees">
     <div className="dash-toolbar pricing-toolbar">
-      <div><p>Control base pricing, date specials, holiday minimum stays, promo codes, guest fees and optional extras by property.</p><small>Pricing stays separate from calendar availability and payment processing so each integration can be changed without rewriting host rates.</small></div>
+      <div><p>Set nightly rates, seasonal pricing, minimum stays, promo codes, guest fees and optional extras for each property.</p></div>
       <Link className="button button-small button-quiet" href="/host/properties">Properties</Link>
     </div>
 
@@ -28,16 +28,6 @@ export default async function RatesPage() {
         <div className="pricing-property-meta"><span><b>{property.rateRuleCount}</b> date rates</span><span><b>{property.stayRuleCount}</b> stay rules</span><span><b>{property.addOnCount}</b> add-ons</span><span><b>{property.promotionCount}</b> promo codes</span></div>
         <strong className="pricing-open">Manage →</strong>
       </Link>)}
-    </div> : <section className="panel"><div className="panel-empty panel-empty-large"><strong>Add a property before setting rates.</strong><span>Base rates, specials, promo codes, minimum stays, guest fees and optional extras are configured per rentable property.</span><Link className="button button-small" href="/host/properties/new">Add property</Link></div></section>}
-
-    <section className="panel pricing-architecture-note">
-      <p className="eyebrow dark">How pricing is separated</p>
-      <h2>Your rates stay owned by Find A Place.</h2>
-      <div className="pricing-boundaries">
-        <div><strong>Calendar / PMS</strong><span>Controls whether nights are open or blocked. Future connected providers can sync availability without silently replacing platform pricing.</span></div>
-        <div><strong>Checkout</strong><span>Will consume a structured quote containing resolved lodging, host discounts, fees and selected add-ons. Availability must be rechecked before a reservation can be created.</span></div>
-        <div><strong>Payments & taxes</strong><span>Processors will receive final line items later. Processor fees and taxes are deliberately not baked into the rate tables.</span></div>
-      </div>
-    </section>
+    </div> : <section className="panel"><div className="panel-empty panel-empty-large"><strong>Add a property before setting rates.</strong><span>Rates, specials, promo codes, minimum stays, guest fees and optional extras are set for each property.</span><Link className="button button-small" href="/host/properties/new">Add property</Link></div></section>}
   </DashboardShell>;
 }

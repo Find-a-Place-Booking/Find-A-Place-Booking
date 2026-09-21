@@ -1,17 +1,11 @@
 {
-  "name": "Find A Place Booking - Final Regression Pass",
-  "date": "2026-09-20",
-  "migration": "supabase/migrations/20260920004900_final_regression_guards.sql",
-  "files": [
-    "app/api/cron/payouts/route.ts",
-    "app/api/health/supabase/route.ts",
-    "lib/notifications/operational-emails.ts",
-    "supabase/migrations/20260920004900_final_regression_guards.sql",
-    "docs/FINAL_REGRESSION_2026-09-20.md",
-    "README_FINAL_REGRESSION.txt"
+  "name": "Find A Place contact/social styling hotfix",
+  "version": "1.0.0",
+  "purpose": "Fix contact page and shared contact/social/advertising styling after the initial feature pass",
+  "changes": [
+    "app/contact/page.tsx",
+    "app/contact/contact.module.css",
+    "app/find-a-place-theme.css (styles appended by installer)"
   ],
-  "core_payment_math_changed": false,
-  "stripe_destination_charge_changed": false,
-  "commission_math_changed": false,
-  "tax_math_changed": false
+  "logic_changes": false
 }

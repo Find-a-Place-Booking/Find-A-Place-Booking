@@ -11,6 +11,7 @@ const links = [
   ["Messages", "/host/messages"],
   ["Reports", "/host/reports"],
   ["Settings", "/host/settings"],
+  ["Help & contact", "/contact#host"],
 ];
 
 export function HostMobileNav({ active }: { active: string }) {

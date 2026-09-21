@@ -30,9 +30,9 @@ export async function HostSidebar({ active }: { active: string }) {
       <div className="workspace"><span>Workspace</span><strong>Host account</strong><small>{liveLabel}</small></div>
       <nav>{links.map(([label, href]) => <Link className={active === label ? "active" : ""} key={label} href={href}>{label}<span>›</span></Link>)}</nav>
       <div className="side-note">
-        <strong>Host workspace</strong>
-        <p>Reservations, calendar sync, payouts, messages and reporting all stay tied to this account.</p>
-        <Link href="/host/settings">Account settings →</Link>
+        <strong>Need help?</strong>
+        <p>Contact the Find A Place team for help with your listing, bookings, calendars, payouts or account.</p>
+        <Link href="/contact#host">Contact Find A Place →</Link>
       </div>
     </aside>
   );
