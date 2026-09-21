@@ -146,7 +146,7 @@ export async function createOwnerBlock(formData: FormData) {
     unitId,
     month,
     "owner-block-created",
-    "Dates blocked on the canonical calendar.",
+    "Dates blocked on the calendar.",
   );
 }
 

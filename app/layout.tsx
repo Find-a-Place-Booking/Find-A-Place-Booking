@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "mapbox-gl/dist/mapbox-gl.css";
 import "./globals.css";
 import "./find-a-place-theme.css";
+import "./contact-social-pass.css";
 import "./accessibility-fixes.css";
 
 export const metadata: Metadata = {

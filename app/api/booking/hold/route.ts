@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 import {
   createGuestCheckoutToken,
+  guestFacingBookingError,
   requireBookingCheckout,
   requireLiveCheckoutDependencies,
   sameOrigin,
@@ -131,7 +132,12 @@ export async function POST(request: NextRequest) {
     if (error) {
       console.error("[booking hold] RPC failed", error);
       return NextResponse.json(
-        { error: error.message || "Unable to hold those dates." },
+        {
+          error: guestFacingBookingError(
+            error.message,
+            "Those dates or booking options could not be held. Refresh availability and try again.",
+          ),
+        },
         { status: 400 },
       );
     }
@@ -170,9 +176,10 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       {
         error:
-          error instanceof Error
-            ? error.message
-            : "Unable to create booking hold.",
+          guestFacingBookingError(
+            error,
+            "Unable to create the booking hold. Refresh availability and try again.",
+          ),
       },
       { status: 500 },
     );

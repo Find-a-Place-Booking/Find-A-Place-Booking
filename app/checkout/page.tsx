@@ -105,6 +105,7 @@ export default async function CheckoutPage({
             location: property.location,
             image: property.images[0] || null,
             maxGuests: property.sleeps,
+            addOns: property.addOns,
           }}
           checkIn={params.checkIn}
           checkOut={params.checkOut}

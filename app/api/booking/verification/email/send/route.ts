@@ -8,6 +8,7 @@ import {
 } from "@/lib/bookings/guest-verification";
 import {
   guestCheckoutTokenMatches,
+  guestFacingBookingError,
   requireBookingCheckout,
   sameOrigin,
   stripeEnvironment,
@@ -234,9 +235,10 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       {
         error:
-          error instanceof Error
-            ? error.message
-            : "Unable to send the verification code.",
+          guestFacingBookingError(
+            error,
+            "Unable to send the verification code. Try again in a moment.",
+          ),
       },
       { status: 500 },
     );

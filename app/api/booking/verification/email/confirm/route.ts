@@ -7,6 +7,7 @@ import {
 } from "@/lib/bookings/guest-verification";
 import {
   guestCheckoutTokenMatches,
+  guestFacingBookingError,
   requireBookingCheckout,
   sameOrigin,
 } from "@/lib/payments/booking-runtime";
@@ -190,9 +191,10 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       {
         error:
-          error instanceof Error
-            ? error.message
-            : "Unable to verify the email code.",
+          guestFacingBookingError(
+            error,
+            "Unable to verify the email code. Try again.",
+          ),
       },
       { status: 500 },
     );

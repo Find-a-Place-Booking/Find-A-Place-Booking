@@ -22,6 +22,13 @@ type PropertySummary = {
   location: string;
   image?: string | null;
   maxGuests: number;
+  addOns: Array<{
+    id: string;
+    name: string;
+    description: string | null;
+    amountCents: number;
+    calculation: string;
+  }>;
 };
 
 type Props = {
@@ -36,6 +43,30 @@ type Props = {
   initialCheckoutToken?: string | null;
 };
 
+type PricingQuote = {
+  currency?: string;
+  lodging_subtotal_before_discount_cents?: number;
+  lodging_subtotal_cents?: number;
+  discount_cents?: number;
+  promotion?: {
+    code?: string;
+    label?: string;
+  } | null;
+  fee_lines?: Array<{
+    id: string;
+    type: string;
+    label: string;
+    amount_cents: number;
+  }>;
+  add_on_lines?: Array<{
+    id: string;
+    name: string;
+    calculation: string;
+    amount_cents: number;
+  }>;
+  pre_tax_total_cents?: number;
+};
+
 type Hold = {
   reservationId: string;
   checkoutToken: string;
@@ -45,6 +76,7 @@ type Hold = {
   taxTotalCents: number;
   platformCommissionCents: number;
   commissionRateBps: number;
+  quote?: PricingQuote | null;
 };
 
 type BookingStatus = {
@@ -56,13 +88,21 @@ type BookingStatus = {
   guestTotalCents: number;
   taxTotalCents: number;
   platformCommissionCents: number;
+  pricingSnapshot?: PricingQuote | null;
 };
 
-function money(cents: number) {
+function money(cents: number, currency = "USD") {
   return new Intl.NumberFormat("en-US", {
     style: "currency",
-    currency: "USD",
+    currency,
   }).format(cents / 100);
+}
+
+function addOnChargeLabel(calculation: string) {
+  if (calculation === "PER_NIGHT") return "per night";
+  if (calculation === "PER_PERSON") return "per guest";
+  if (calculation === "PER_PERSON_PER_NIGHT") return "per guest / night";
+  return "per stay";
 }
 
 function persistCheckoutInUrl(
@@ -180,6 +220,8 @@ export function GuestCheckout({
   const [guestEmail, setGuestEmail] = useState("");
   const [guestPhone, setGuestPhone] = useState("");
   const [pets, setPets] = useState(0);
+  const [selectedAddOnIds, setSelectedAddOnIds] = useState<string[]>([]);
+  const [promotionCode, setPromotionCode] = useState("");
   const [hold, setHold] = useState<Hold | null>(null);
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [stripePromise, setStripePromise] =
@@ -312,10 +354,15 @@ export function GuestCheckout({
           taxTotalCents: status.taxTotalCents,
           platformCommissionCents: status.platformCommissionCents,
           commissionRateBps: 0,
+          quote: status.pricingSnapshot ?? null,
         };
 
         if (!cancelled) {
           setHold(resumedHold);
+          setSelectedAddOnIds(
+            status.pricingSnapshot?.add_on_lines?.map((line) => line.id) ?? [],
+          );
+          setPromotionCode(status.pricingSnapshot?.promotion?.code ?? "");
           setVerificationComplete(false);
           setPolicyComplete(false);
         }
@@ -363,6 +410,8 @@ export function GuestCheckout({
           checkOut,
           guests,
           pets,
+          addOnIds: selectedAddOnIds,
+          promotionCode: promotionCode.trim() || null,
           guestName,
           guestEmail,
           guestPhone,
@@ -520,6 +569,49 @@ export function GuestCheckout({
               </label>
             </div>
 
+            <div className={styles.extrasSection}>
+              {property.addOns.length ? (
+                <div className={styles.extrasList}>
+                  <strong>Optional extras</strong>
+                  {property.addOns.map((addOn) => (
+                    <label className={styles.addOnOption} key={addOn.id}>
+                      <input
+                        type="checkbox"
+                        checked={selectedAddOnIds.includes(addOn.id)}
+                        onChange={(event) =>
+                          setSelectedAddOnIds((current) =>
+                            event.target.checked
+                              ? current.includes(addOn.id)
+                                ? current
+                                : [...current, addOn.id]
+                              : current.filter((id) => id !== addOn.id),
+                          )
+                        }
+                      />
+                      <span>
+                        <b>{addOn.name}</b>
+                        {addOn.description ? <small>{addOn.description}</small> : null}
+                      </span>
+                      <em>
+                        {money(addOn.amountCents)} {addOnChargeLabel(addOn.calculation)}
+                      </em>
+                    </label>
+                  ))}
+                </div>
+              ) : null}
+
+              <label className={styles.promoField}>
+                <span>Promo code <small>optional</small></span>
+                <input
+                  value={promotionCode}
+                  maxLength={40}
+                  autoCapitalize="characters"
+                  onChange={(event) => setPromotionCode(event.target.value)}
+                  placeholder="Enter code"
+                />
+              </label>
+            </div>
+
             <small>
               Email verification and identity verification are required before
               payment. Your phone number is required for the reservation but is
@@ -601,14 +693,58 @@ export function GuestCheckout({
           <div><span>Nights</span><b>{nights}</b></div>
           <div><span>Guests</span><b>{guests}</b></div>
 
+          {hold?.quote ? (
+            <>
+              <div>
+                <span>Lodging</span>
+                <b>
+                  {money(
+                    hold.quote.lodging_subtotal_before_discount_cents ??
+                      hold.quote.lodging_subtotal_cents ??
+                      0,
+                    hold.quote.currency || "USD",
+                  )}
+                </b>
+              </div>
+
+              {(hold.quote.discount_cents ?? 0) > 0 ? (
+                <div className={styles.discountRow}>
+                  <span>
+                    Promo {hold.quote.promotion?.code || ""}
+                  </span>
+                  <b>
+                    −{money(
+                      hold.quote.discount_cents ?? 0,
+                      hold.quote.currency || "USD",
+                    )}
+                  </b>
+                </div>
+              ) : null}
+
+              {hold.quote.fee_lines?.map((line) => (
+                <div key={line.id}>
+                  <span>{line.label}</span>
+                  <b>{money(line.amount_cents, hold.quote?.currency || "USD")}</b>
+                </div>
+              ))}
+
+              {hold.quote.add_on_lines?.map((line) => (
+                <div key={line.id}>
+                  <span>{line.name}</span>
+                  <b>{money(line.amount_cents, hold.quote?.currency || "USD")}</b>
+                </div>
+              ))}
+            </>
+          ) : null}
+
           {hold?.taxTotalCents ? (
-            <div><span>Taxes</span><b>{money(hold.taxTotalCents)}</b></div>
+            <div><span>Taxes</span><b>{money(hold.taxTotalCents, hold.quote?.currency || "USD")}</b></div>
           ) : null}
 
           {hold ? (
             <div className={styles.total}>
               <span>Total</span>
-              <b>{money(hold.guestTotalCents)}</b>
+              <b>{money(hold.guestTotalCents, hold.quote?.currency || "USD")}</b>
             </div>
           ) : null}
         </div>

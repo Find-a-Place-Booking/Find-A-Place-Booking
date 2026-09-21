@@ -6,6 +6,7 @@ import {
 } from "@/lib/bookings/guest-verification";
 import {
   guestCheckoutTokenMatches,
+  guestFacingBookingError,
   requireBookingCheckout,
   sameOrigin,
 } from "@/lib/payments/booking-runtime";
@@ -169,9 +170,10 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       {
         error:
-          error instanceof Error
-            ? error.message
-            : "Unable to start identity verification.",
+          guestFacingBookingError(
+            error,
+            "Unable to start identity verification. Try again in a moment.",
+          ),
       },
       { status: 500 },
     );

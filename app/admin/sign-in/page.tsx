@@ -34,7 +34,7 @@ export default async function AdminSignInPage({
         <label><span>Password</span><input name="password" type="password" autoComplete="current-password" required /></label>
         <button className="button button-full" type="submit">Open admin workspace</button>
       </form>
-      <p className="auth-help">There is no public admin registration. Internal accounts must exist in Supabase Auth and be explicitly granted an active admin record and role.</p>
+      <p className="auth-help">There is no public admin registration. Internal accounts must be created and explicitly granted an active Find A Place admin role.</p>
       <p className="auth-help"><Link href="/auth/password-reset?portal=admin">Forgot your password?</Link></p>
     </AuthShell>
   );

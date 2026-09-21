@@ -1,12 +1,22 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { createClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
 
+function authorized(request: NextRequest) {
+  if (process.env.NODE_ENV !== "production") return true;
+  const secret = process.env.CRON_SECRET?.trim();
+  if (!secret) return false;
+  return request.headers.get("authorization") === `Bearer ${secret}`;
+}
+
 /** Development/operations smoke check for the current verified Supabase schema. */
-export async function GET() {
+export async function GET(request: NextRequest) {
+  if (!authorized(request)) {
+    return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
+  }
   if (!isSupabaseConfigured()) {
     return NextResponse.json({ ok: false, service: "supabase", configured: false, message: "Supabase environment variables are not configured." }, { status: 503 });
   }

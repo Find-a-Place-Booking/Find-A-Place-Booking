@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 import {
   guestCheckoutTokenMatches,
+  guestFacingBookingError,
   sameOrigin,
   stripeEnvironment,
 } from "@/lib/payments/booking-runtime";
@@ -357,9 +358,10 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       {
         error:
-          error instanceof Error
-            ? error.message
-            : "Cancellation could not be completed.",
+          guestFacingBookingError(
+            error,
+            "Cancellation could not be completed. Refresh the trip and try again.",
+          ),
       },
       { status: 500 },
     );

@@ -2127,3 +2127,19 @@ main > .marketplace-band:first-of-type {
     padding-top: 38px;
   }
 }
+
+/* Pre-pilot optimized stay-type images */
+.stay-type-slice {
+  background-image: none !important;
+  overflow: hidden;
+}
+.stay-type-slice > img {
+  object-fit: cover;
+}
+.stay-type-slice-1 > img {
+  object-position: 42% center;
+}
+.payment-provider-options:has(> .payment-provider-card:only-child) {
+  grid-template-columns: 1fr;
+}
+

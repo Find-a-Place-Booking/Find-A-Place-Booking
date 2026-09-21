@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import { taxLinesFromSnapshot } from "@/lib/bookings/financial-display";
-import { guestCheckoutTokenMatches } from "@/lib/payments/booking-runtime";
+import {
+  guestCheckoutTokenMatches,
+  guestFacingBookingError,
+} from "@/lib/payments/booking-runtime";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export const runtime = "nodejs";
@@ -106,9 +109,10 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(
       {
         error:
-          error instanceof Error
-            ? error.message
-            : "Unable to load booking.",
+          guestFacingBookingError(
+            error,
+            "Unable to load this booking. Refresh and try again.",
+          ),
       },
       { status: 500 },
     );

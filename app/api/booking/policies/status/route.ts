@@ -10,7 +10,11 @@ import {
   GUEST_TERMS_VERSION,
   PRIVACY_NOTICE_VERSION,
 } from "@/lib/policies/versions";
-import { guestCheckoutTokenMatches, sameOrigin } from "@/lib/payments/booking-runtime";
+import {
+  guestCheckoutTokenMatches,
+  guestFacingBookingError,
+  sameOrigin,
+} from "@/lib/payments/booking-runtime";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export const runtime = "nodejs";
@@ -91,9 +95,10 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       {
         error:
-          error instanceof Error
-            ? error.message
-            : "Unable to load booking policies.",
+          guestFacingBookingError(
+            error,
+            "Unable to load booking policies. Refresh and try again.",
+          ),
       },
       { status: 500 },
     );

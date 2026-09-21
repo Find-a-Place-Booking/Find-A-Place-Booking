@@ -39,6 +39,12 @@ function money(cents: number, currency: string) {
   }).format(cents / 100);
 }
 
+function senderLabel(value: string) {
+  if (value === "GUEST") return "You";
+  if (value === "HOST") return "Host";
+  return "Find A Place";
+}
+
 export function GuestTripTools({
   reservationId,
   checkoutToken,
@@ -195,7 +201,7 @@ export function GuestTripTools({
             {messages.map((item) => (
               <div className="admin-list-row static" key={item.id}>
                 <span>
-                  <strong>{item.sender_type}</strong>
+                  <strong>{senderLabel(item.sender_type)}</strong>
                   <small>{item.body}</small>
                 </span>
                 <span>

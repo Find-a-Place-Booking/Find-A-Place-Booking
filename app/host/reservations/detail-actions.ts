@@ -3,6 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
+import { sendReservationMessageNotification } from "@/lib/notifications/message-emails";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
 function field(formData: FormData, key: string, max = 4000) {
@@ -65,15 +67,19 @@ export async function sendHostReservationMessage(formData: FormData) {
     conversation = created;
   }
 
-  const { error } = await supabase.from("reservation_messages").insert({
-    conversation_id: conversation.id,
-    reservation_id: reservationId,
-    sender_type: "HOST",
-    sender_profile_id: profileId,
-    body,
-  });
+  const { data: createdMessage, error } = await supabase
+    .from("reservation_messages")
+    .insert({
+      conversation_id: conversation.id,
+      reservation_id: reservationId,
+      sender_type: "HOST",
+      sender_profile_id: profileId,
+      body,
+    })
+    .select("id")
+    .single();
 
-  if (error) {
+  if (error || !createdMessage) {
     console.error("[sendHostReservationMessage]", error);
     redirect(
       `/host/reservations/${reservationId}?error=${encodeURIComponent(
@@ -86,6 +92,21 @@ export async function sendHostReservationMessage(formData: FormData) {
     .from("reservation_conversations")
     .update({ updated_at: new Date().toISOString() })
     .eq("id", conversation.id);
+
+  try {
+    await sendReservationMessageNotification(createAdminClient(), {
+      reservationId,
+      messageId: createdMessage.id,
+      senderType: "HOST",
+      body,
+    });
+  } catch (notificationError) {
+    console.error(
+      "[host reservation message] email notification failed",
+      createdMessage.id,
+      notificationError,
+    );
+  }
 
   revalidatePath("/host/messages");
   revalidatePath(`/host/reservations/${reservationId}`);

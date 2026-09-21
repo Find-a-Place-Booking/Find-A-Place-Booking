@@ -49,7 +49,7 @@ export default async function AdminCalendarsPage() {
   const context = await getAdminContext();
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("admin_calendar_health_bundle");
-  if (error) throw new Error("Unable to load calendar operations. Apply the current Milestone 9B.1 hardening migration and refresh.");
+  if (error) throw new Error("Unable to load calendar operations. Refresh the page, and contact Find A Place support if the problem continues.");
 
   const bundle = (data ?? { connections: [], owner_blocks: 0, external_blocks: 0 }) as CalendarHealthBundle;
   const connections = bundle.connections ?? [];
@@ -62,7 +62,7 @@ export default async function AdminCalendarsPage() {
       <div className="metrics dash-grid">
         <div><span>Active sources</span><strong>{connections.length}</strong><small>{healthy} healthy</small></div>
         <div><span>Sync errors</span><strong>{errors}</strong><small>{neverSynced} never synced</small></div>
-        <div><span>Imported blocks</span><strong>{bundle.external_blocks ?? 0}</strong><small>Canonical external availability</small></div>
+        <div><span>Imported blocks</span><strong>{bundle.external_blocks ?? 0}</strong><small>Imported external availability</small></div>
         <div><span>Owner blocks</span><strong>{bundle.owner_blocks ?? 0}</strong><small>Manual host blocks</small></div>
       </div>
 

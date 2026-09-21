@@ -6,6 +6,7 @@ import {
 } from "@/lib/bookings/guest-verification";
 import {
   guestCheckoutTokenMatches,
+  guestFacingBookingError,
   requireBookingCheckout,
   sameOrigin,
 } from "@/lib/payments/booking-runtime";
@@ -92,9 +93,10 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       {
         error:
-          error instanceof Error
-            ? error.message
-            : "Unable to load guest verification status.",
+          guestFacingBookingError(
+            error,
+            "Unable to load guest verification status. Refresh and try again.",
+          ),
       },
       { status: 500 },
     );

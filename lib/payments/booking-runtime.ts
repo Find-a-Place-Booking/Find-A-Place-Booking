@@ -118,3 +118,44 @@ export function assertStripeKeyModesMatch() {
 
   return secretMode;
 }
+
+const guestSafeBookingPatterns = [
+  /^Guest checkout is currently disabled\./,
+  /^This booking hold expired\./,
+  /^This stay/i,
+  /^Pet count/i,
+  /^Too many optional add-ons/i,
+  /^One or more selected add-ons/i,
+  /^Checkout must be after check-in/i,
+  /^Stay is too long/i,
+  /^Guest count/i,
+  /^Pricing is incomplete/i,
+  /^This arrival date requires/i,
+  /^Promo code/i,
+  /^This promo code/i,
+  /^Complete the security check/i,
+  /^The security check/i,
+  /^We could not verify the .+ calendar/i,
+];
+
+export function guestFacingBookingError(
+  error: unknown,
+  fallback: string,
+) {
+  const message =
+    typeof error === "string"
+      ? error.trim()
+      : error instanceof Error
+        ? error.message.trim()
+        : "";
+
+  if (
+    message &&
+    guestSafeBookingPatterns.some((pattern) => pattern.test(message))
+  ) {
+    return message;
+  }
+
+  return fallback;
+}
+

@@ -1,0 +1,11 @@
+{
+  "name": "Find A Place contact/social styling hotfix",
+  "version": "1.0.0",
+  "purpose": "Fix contact page and shared contact/social/advertising styling after the initial feature pass",
+  "changes": [
+    "app/contact/page.tsx",
+    "app/contact/contact.module.css",
+    "app/find-a-place-theme.css (styles appended by installer)"
+  ],
+  "logic_changes": false
+}

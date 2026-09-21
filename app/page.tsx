@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 
 import { Footer } from "@/components/Footer";
@@ -265,10 +266,18 @@ export default async function HomePage() {
 
         <section className="stay-types-section">
           <div className="stay-type-backdrop" aria-hidden="true">
-            <div className="stay-type-slice stay-type-slice-1" />
-            <div className="stay-type-slice stay-type-slice-2" />
-            <div className="stay-type-slice stay-type-slice-3" />
-            <div className="stay-type-slice stay-type-slice-4" />
+            <div className="stay-type-slice stay-type-slice-1">
+              <Image src="/stay-types/slice-cabin.png" alt="" fill sizes="(max-width: 700px) 100vw, 25vw" />
+            </div>
+            <div className="stay-type-slice stay-type-slice-2">
+              <Image src="/stay-types/slice-waterfront.png" alt="" fill sizes="(max-width: 700px) 100vw, 25vw" />
+            </div>
+            <div className="stay-type-slice stay-type-slice-3">
+              <Image src="/stay-types/slice-rustic-cabin.png" alt="" fill sizes="(max-width: 700px) 100vw, 25vw" />
+            </div>
+            <div className="stay-type-slice stay-type-slice-4">
+              <Image src="/stay-types/slice-luxe-cabin.png" alt="" fill sizes="(max-width: 700px) 100vw, 25vw" />
+            </div>
           </div>
           <div className="stay-type-overlay" aria-hidden="true" />
 
@@ -320,7 +329,7 @@ export default async function HomePage() {
                     style={{
                       backgroundImage: `url(${
                         destinationImages[destination.name] ??
-                        "/stay-types/slice-cabin.png"
+                        "/brand/find-a-place-pin.jpg"
                       })`,
                     }}
                     aria-hidden="true"

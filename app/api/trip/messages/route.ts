@@ -4,6 +4,7 @@ import {
   guestCheckoutTokenMatches,
   sameOrigin,
 } from "@/lib/payments/booking-runtime";
+import { sendReservationMessageNotification } from "@/lib/notifications/message-emails";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export const runtime = "nodejs";
@@ -109,15 +110,19 @@ export async function POST(request: NextRequest) {
     conversation = created;
   }
 
-  const { error } = await verified.admin.from("reservation_messages").insert({
-    conversation_id: conversation.id,
-    reservation_id: reservationId,
-    sender_type: "GUEST",
-    sender_profile_id: null,
-    body: message,
-  });
+  const { data: createdMessage, error } = await verified.admin
+    .from("reservation_messages")
+    .insert({
+      conversation_id: conversation.id,
+      reservation_id: reservationId,
+      sender_type: "GUEST",
+      sender_profile_id: null,
+      body: message,
+    })
+    .select("id")
+    .single();
 
-  if (error) {
+  if (error || !createdMessage) {
     return NextResponse.json(
       { error: "Unable to send message." },
       { status: 500 },
@@ -128,6 +133,21 @@ export async function POST(request: NextRequest) {
     .from("reservation_conversations")
     .update({ updated_at: new Date().toISOString() })
     .eq("id", conversation.id);
+
+  try {
+    await sendReservationMessageNotification(verified.admin, {
+      reservationId,
+      messageId: createdMessage.id,
+      senderType: "GUEST",
+      body: message,
+    });
+  } catch (notificationError) {
+    console.error(
+      "[guest reservation message] email notification failed",
+      createdMessage.id,
+      notificationError,
+    );
+  }
 
   return NextResponse.json({ ok: true });
 }

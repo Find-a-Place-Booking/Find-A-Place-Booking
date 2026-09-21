@@ -1,11 +1,22 @@
 {
-  "name": "Find A Place contact/social styling hotfix",
-  "version": "1.0.0",
-  "purpose": "Fix contact page and shared contact/social/advertising styling after the initial feature pass",
-  "changes": [
-    "app/contact/page.tsx",
-    "app/contact/contact.module.css",
-    "app/find-a-place-theme.css (styles appended by installer)"
+  "name": "Find A Place Booking - Pre-Pilot Cleanup",
+  "date": "2026-09-21",
+  "baseline_commit": "a4518d7fd709e703fb77e3f34aeecdab724f3105",
+  "migration_floor": "supabase/migrations/20260920005000_restore_live_safety_hardening.sql",
+  "scope": [
+    "guest checkout promo codes and guest-visible add-ons",
+    "pre-payment itemized booking summary",
+    "guest-safe API error handling",
+    "reservation message email notifications",
+    "protected operations health endpoint",
+    "homepage stay-type image optimization",
+    "host/admin copy cleanup",
+    "shared contact/support styles",
+    "production README and manifest restoration"
   ],
-  "logic_changes": false
+  "database_migrations_added": false,
+  "payment_math_changed": false,
+  "stripe_routing_changed": false,
+  "tax_math_changed": false,
+  "payout_policy_changed": false
 }

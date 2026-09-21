@@ -4,6 +4,7 @@ import { reservationVerificationReadiness } from "@/lib/bookings/guest-verificat
 import { reservationPolicyReadiness } from "@/lib/policies/booking-policy";
 import {
   guestCheckoutTokenMatches,
+  guestFacingBookingError,
   requireBookingCheckout,
   requireLiveCheckoutDependencies,
   sameOrigin,
@@ -337,9 +338,10 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       {
         error:
-          error instanceof Error
-            ? error.message
-            : "Unable to start Stripe payment.",
+          guestFacingBookingError(
+            error,
+            "Unable to start secure payment. Refresh the booking and try again.",
+          ),
       },
       { status: 500 },
     );

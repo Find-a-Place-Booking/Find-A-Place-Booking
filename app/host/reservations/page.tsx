@@ -20,6 +20,14 @@ function date(value: string) {
   });
 }
 
+function readable(value: string | null | undefined) {
+  if (!value) return "Not set";
+  return value
+    .replaceAll("_", " ")
+    .toLowerCase()
+    .replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
 function message(result?: string, detail?: string) {
   if (!result) return null;
   return (
@@ -96,7 +104,7 @@ export default async function ReservationsPage({
           <div className="panel-head">
             <div>
               <p className="eyebrow dark">Development test tool</p>
-              <h2>Create a canonical hold without charging money</h2>
+              <h2>Create a local test hold without charging money</h2>
             </div>
             <span className="status-pill status-muted">Local only</span>
           </div>
@@ -169,9 +177,7 @@ export default async function ReservationsPage({
                   <span>
                     <strong>{property?.name ?? "Property"}</strong>
                     <small>
-                      {reservation.commission_tier} ·{" "}
-                      {(reservation.commission_rate_bps / 100).toFixed(0)}%
-                      commission
+                      {(reservation.commission_rate_bps / 100).toFixed(0)}% Find A Place commission
                     </small>
                   </span>
 
@@ -188,15 +194,15 @@ export default async function ReservationsPage({
                       )}
                     </strong>
                     <small>
-                      Tax: {reservation.tax_status.replaceAll("_", " ")}
+                      Tax: {readable(reservation.tax_status)}
                     </small>
                   </span>
 
                   <span>
-                    <strong>{reservation.status.replaceAll("_", " ")}</strong>
+                    <strong>{readable(reservation.status)}</strong>
                     <small>
-                      {reservation.payment_provider ?? "No processor routed"} ·{" "}
-                      {reservation.payment_status.replaceAll("_", " ")}
+                      {reservation.payment_provider ? readable(reservation.payment_provider) : "Payment method pending"} ·{" "}
+                      {readable(reservation.payment_status)}
                     </small>
                   </span>
 

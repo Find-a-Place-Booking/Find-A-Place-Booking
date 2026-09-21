@@ -91,6 +91,14 @@ export type PublishedReview = {
   createdAt: string;
 };
 
+export type PublicGuestAddOn = {
+  id: string;
+  name: string;
+  description: string | null;
+  amountCents: number;
+  calculation: string;
+};
+
 export type PublishedListingDetail = {
   propertyId: string;
   unitId: string;
@@ -114,6 +122,7 @@ export type PublishedListingDetail = {
   hostName: string;
   amenities: string[];
   policies: string[];
+  addOns: PublicGuestAddOn[];
   customAmenities: string | null;
   customPolicies: string | null;
   images: string[];
@@ -394,12 +403,13 @@ export async function getPublishedListingBySlug(
     .filter((value): value is string => Boolean(value));
 
   let reviews: PublishedReview[] = [];
+  let addOns: PublicGuestAddOn[] = [];
   let policyDocument: PublishedListingDetail["policyDocument"] = null;
 
   try {
     const admin = createAdminClient();
 
-    const [reviewsResult, policyResult] = await Promise.all([
+    const [reviewsResult, policyResult, addOnResult] = await Promise.all([
       admin
         .from("reservation_reviews")
         .select(
@@ -415,6 +425,14 @@ export async function getPublishedListingBySlug(
         .eq("property_id", row.property_id)
         .eq("is_current", true)
         .maybeSingle(),
+      admin
+        .from("unit_add_ons")
+        .select("id,name,description,amount_cents,calculation")
+        .eq("unit_id", row.unit_id)
+        .eq("is_active", true)
+        .eq("guest_visible", true)
+        .order("sort_order", { ascending: true })
+        .order("created_at", { ascending: true }),
     ]);
 
     reviews = (reviewsResult.data ?? []).map((review) => ({
@@ -425,6 +443,18 @@ export async function getPublishedListingBySlug(
       hostResponse: review.host_response,
       createdAt: review.created_at,
     }));
+
+    if (addOnResult.error) {
+      console.error("[getPublishedListingBySlug] add-ons unavailable", addOnResult.error);
+    } else {
+      addOns = (addOnResult.data ?? []).map((addOn) => ({
+        id: addOn.id,
+        name: addOn.name,
+        description: addOn.description,
+        amountCents: Number(addOn.amount_cents || 0),
+        calculation: addOn.calculation,
+      }));
+    }
 
     if (policyResult.data) {
       const { data: signed } = await admin.storage
@@ -480,6 +510,7 @@ export async function getPublishedListingBySlug(
     hostName: row.host_name || "Find A Place host",
     amenities: row.amenity_labels ?? [],
     policies: row.policy_labels ?? [],
+    addOns,
     customAmenities: row.custom_amenities,
     customPolicies: row.custom_policies,
     images,

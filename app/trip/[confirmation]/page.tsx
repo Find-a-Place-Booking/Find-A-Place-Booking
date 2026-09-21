@@ -17,6 +17,14 @@ function money(cents: number, currency: string) {
   }).format(cents / 100);
 }
 
+function readableStatus(value: string | null | undefined) {
+  if (!value) return "Not set";
+  return value
+    .replaceAll("_", " ")
+    .toLowerCase()
+    .replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
 export default async function TripPage({
   params,
   searchParams,
@@ -129,7 +137,7 @@ export default async function TripPage({
                     ? "Cancelled"
                     : money(reservation.guest_total_cents, reservation.currency)}
                 </strong>
-                <small>{reservation.payment_status.replaceAll("_", " ")}</small>
+                <small>{readableStatus(reservation.payment_status)}</small>
               </div>
             </div>
           </section>
@@ -148,7 +156,7 @@ export default async function TripPage({
               </div>
               <div className="setting-row">
                 <span>Refund status</span>
-                <strong>{refund?.status?.replaceAll("_", " ") || "No refund record"}</strong>
+                <strong>{refund?.status ? readableStatus(refund.status) : "No refund record"}</strong>
               </div>
               {refund ? (
                 <div className="setting-row">

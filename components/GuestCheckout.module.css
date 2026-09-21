@@ -164,3 +164,100 @@
     gap: 4px;
   }
 }
+
+.extrasSection {
+  display: grid;
+  gap: 16px;
+  margin: 20px 0;
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #faf8f4;
+}
+
+.extrasList {
+  display: grid;
+  gap: 10px;
+}
+
+.extrasList > strong {
+  font-size: .82rem;
+}
+
+.addOnOption {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 10px;
+  padding: 11px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.addOnOption:last-child {
+  border-bottom: 0;
+}
+
+.addOnOption input {
+  margin-top: 4px;
+}
+
+.addOnOption > span {
+  display: grid;
+  gap: 3px;
+}
+
+.addOnOption b {
+  font-size: .8rem;
+}
+
+.addOnOption small {
+  color: #747873;
+  line-height: 1.45;
+}
+
+.addOnOption em {
+  font-style: normal;
+  font-size: .72rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.promoField {
+  display: grid;
+  gap: 6px;
+}
+
+.promoField > span {
+  font-size: .72rem;
+  font-weight: 800;
+  color: #656a66;
+}
+
+.promoField small {
+  font-weight: 500;
+  color: #7a7d78;
+}
+
+.promoField input {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: #fff;
+  padding: 12px 13px;
+  text-transform: uppercase;
+}
+
+.discountRow b {
+  color: #42634c;
+}
+
+@media (max-width: 620px) {
+  .addOnOption {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .addOnOption em {
+    grid-column: 2;
+  }
+}
+

@@ -1,32 +1,29 @@
-# Find A Place contact/social styling hotfix
+# Find A Place Booking
 
-Apply this **after** the `find-a-place-contact-social-ad-pass` package.
+Production booking marketplace for Find A Place.
 
-This hotfix fixes the styling shown in the contact-page screenshots by:
+## Current pilot baseline
 
-- moving `/contact` to a route-local CSS module so the card/grid styling cannot be lost because of a missing global CSS import;
-- restoring spacing between buttons and their helper notes;
-- restoring the 3-card desktop layout and responsive mobile/tablet layouts;
-- polishing the original Find A Place network callout and related links;
-- appending the shared Help/footer/host-promotion styles directly to `app/find-a-place-theme.css` so those additions remain styled even if the standalone pass stylesheet was not loaded.
+The repository includes the guest marketplace, host portal, admin workspace, iCal calendar synchronization, Stripe Connect destination charges, guest verification, policy acceptance, transactional email, scheduled payouts, refunds, marketplace lodging-tax accounting, and operational reporting.
 
-## PowerShell
+Apply Supabase migrations through:
 
-From the extracted hotfix folder:
+`supabase/migrations/20260920005000_restore_live_safety_hardening.sql`
 
-```powershell
-.\apply-contact-styling-hotfix.ps1 -Target "C:\Users\jlccu\find-a-place-booking-production-step-1"
-cd "C:\Users\jlccu\find-a-place-booking-production-step-1"
+## Local verification
+
+```bash
+npm ci
 npm run typecheck
 npm run build
 ```
 
-Then restart `npm run dev` if needed and hard-refresh the browser.
+## Live checkout gates
 
-## Files changed
+Live checkout should only be enabled after the production environment is configured with matching Stripe live keys, signed webhooks, Turnstile, transactional email, CRON_SECRET, the guest token secret, a ready host payout account, verified property tax configuration, and the per-property live checkout switch.
 
-- `app/contact/page.tsx`
-- `app/contact/contact.module.css` (new)
-- `app/find-a-place-theme.css` (shared styles appended once)
+The payment architecture uses Stripe destination charges. Find A Place retains the platform commission, configured host processing-fee recovery, and marketplace-collected lodging tax in the application fee; the remaining booking proceeds are routed to the connected host account. Scheduled bank payouts remain controlled separately by the payout policy.
 
-No Stripe, Supabase, reservation, tax, payout, calendar, or booking logic is changed.
+## Operations
+
+Vercel cron routes handle calendar synchronization, notification retries, and scheduled payouts. The protected Supabase health endpoint verifies the current migration markers for operations use.

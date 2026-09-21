@@ -62,18 +62,16 @@ export default async function AdminPage() {
     >
       <div className="admin-launch-banner">
         <div>
-          <span>Connected workspace</span>
+          <span>Operations overview</span>
           <p>
             <strong>
-              Hosts, listings, calendars, reservations and payment records are
-              connected to the production-shaped Supabase model.
+              Hosts, listings, calendars, reservations and payments are connected.
             </strong>{" "}
-            The admin workspace is the Find A Place support buffer for property,
-            booking and account issues. Live checkout remains controlled
-            separately by the booking launch gates.
+            Use this workspace to review property, booking and account issues.
+            Live checkout remains separately controlled for each published property.
           </p>
         </div>
-        <span className="status-pill status-inverse">Supabase</span>
+        <span className="status-pill status-inverse">Connected</span>
       </div>
 
       <div className="dash-grid metrics admin-metrics admin-real-metrics">

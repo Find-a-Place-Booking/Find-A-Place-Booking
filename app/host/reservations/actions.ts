@@ -70,5 +70,5 @@ export async function cancelTestHold(formData: FormData) {
   if (error) go("error", error.message);
   revalidatePath("/host/reservations");
   revalidatePath("/host/calendar");
-  go("hold-cancelled", "Test hold released and its canonical availability block was cancelled.");
+  go("hold-cancelled", "Test hold released and its availability block was cancelled.");
 }

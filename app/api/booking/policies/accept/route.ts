@@ -5,7 +5,11 @@ import {
   CANCELLATION_POLICY_VERSION,
   GUEST_TERMS_VERSION,
 } from "@/lib/policies/versions";
-import { guestCheckoutTokenMatches, sameOrigin } from "@/lib/payments/booking-runtime";
+import {
+  guestCheckoutTokenMatches,
+  guestFacingBookingError,
+  sameOrigin,
+} from "@/lib/payments/booking-runtime";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export const runtime = "nodejs";
@@ -116,7 +120,10 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       {
         error:
-          error instanceof Error ? error.message : "Unable to accept booking policies.",
+          guestFacingBookingError(
+            error,
+            "Unable to save your policy agreement. Refresh and try again.",
+          ),
       },
       { status: 500 },
     );
