@@ -172,7 +172,7 @@ export default async function AdminReservationDetailPage({
           <small>{reservation.payment_provider ?? "No processor"}</small>
         </div>
         <div>
-          <span>Tax retained</span>
+          <span>Guest tax in host charge</span>
           <strong>{money(reservation.tax_total_cents, reservation.currency)}</strong>
           <small>{readable(reservation.tax_status)}</small>
         </div>
@@ -237,7 +237,7 @@ export default async function AdminReservationDetailPage({
                 <span>
                   <em>{money(payment.amount_cents, payment.currency)}</em>
                   <small>FAP commission: {money(reservation.platform_commission_cents, payment.currency)}</small>
-                  <small>Tax retained for remittance: {money(payment.platform_tax_retained_cents, payment.currency)}</small>
+                  <small>Guest tax in host charge: {money(reservation.tax_total_cents, payment.currency)}</small>
                   <small>Stripe processing charged to host account: {money(payment.processor_fee_actual_cents, payment.currency)}</small>
                   <small>Host net: {money(payment.host_proceeds_cents, payment.currency)}</small>
                   <small>Stripe application fee total: {money(payment.application_fee_cents, payment.currency)}</small>
@@ -252,8 +252,7 @@ export default async function AdminReservationDetailPage({
         <p className="muted">
           Guest charges are created on the host&apos;s connected processor account.
           Stripe charges processing to that account and controls its bank-deposit
-          timing. Find A Place receives only its application-fee amounts, including
-          any tax currently retained for platform remittance.
+          timing. Find A Place receives only its commission as an application fee. Guest tax stays in the host connected charge; the host handles remittance.
         </p>
 
         {refunds.length ? (

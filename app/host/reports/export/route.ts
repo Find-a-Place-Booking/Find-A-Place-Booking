@@ -23,7 +23,7 @@ export async function GET(request: NextRequest) {
       "Reservation status",
       "Payment status",
       "Guest paid",
-      "Tax retained by FAP",
+      "Guest tax charged to host account",
       "FAP commission",
       "Stripe processing",
       "Host net",

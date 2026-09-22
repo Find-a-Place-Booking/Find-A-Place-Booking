@@ -113,9 +113,9 @@ export default async function ReportsPage({
           <small>{report.totals.bookedNights} booked nights</small>
         </div>
         <div>
-          <span>Taxes collected by FAP</span>
+          <span>Guest tax charged</span>
           <strong>{reportMoney(report.totals.taxCents, currency)}</strong>
-          <small>Only taxes currently retained for platform remittance</small>
+          <small>Tax included in your connected charge; host handles remittance</small>
         </div>
         <div>
           <span>FAP commission</span>

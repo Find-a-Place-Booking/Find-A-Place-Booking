@@ -117,9 +117,9 @@ export default async function AdminReportsPage({
           <small>5% / 7% of commissionable lodging</small>
         </div>
         <div className="admin-metric-card admin-metric-card-static">
-          <span>Tax retained</span>
+          <span>Guest tax charged</span>
           <strong>{reportMoney(report.totals.taxCents, currency)}</strong>
-          <small>Current platform-remittance tax amount</small>
+          <small>Tax included in the host connected charge</small>
         </div>
         <div className="admin-metric-card admin-metric-card-static">
           <span>Host net</span>
@@ -200,13 +200,13 @@ export default async function AdminReportsPage({
         <section className="panel">
           <div className="panel-head">
             <div>
-              <p className="eyebrow dark">Tax operations</p>
-              <h2>Collected and remitted</h2>
+              <p className="eyebrow dark">Guest tax</p>
+              <h2>Host-owned guest taxes</h2>
             </div>
-            <Link href="/admin/taxes">Open tax ledger →</Link>
+            <Link href="/admin/taxes">Review property rates →</Link>
           </div>
           <div className="tax-rule">
-            <span>Tax retained in report</span>
+            <span>Guest tax charged in report</span>
             <strong>{reportMoney(report.totals.taxCents, currency)}</strong>
           </div>
           <div className="tax-rule">
@@ -214,8 +214,7 @@ export default async function AdminReportsPage({
             <strong>{reportMoney(report.totals.refundCents, currency)}</strong>
           </div>
           <p className="muted">
-            Use Taxes &amp; remittance for authority-level liability and government
-            payment records.
+            Hosts receive the guest tax in their connected charges and handle tax reporting and remittance. Property rate settings are available on the tax configuration page.
           </p>
         </section>
       </div>

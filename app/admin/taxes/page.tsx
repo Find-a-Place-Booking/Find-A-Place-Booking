@@ -1,8 +1,6 @@
 import {
   createTaxAuthority,
   createTaxRule,
-  markTaxRemittancePaid,
-  recordTaxRemittance,
   savePropertyTaxProfile,
 } from "@/app/admin/taxes/actions";
 import { AdminShell } from "@/components/AdminShell";
@@ -60,32 +58,6 @@ type ProfileRow = {
 };
 
 type AssignmentRow = { property_id: string; tax_rule_id: string };
-type LedgerRow = {
-  authority_id: string;
-  amount_cents: number;
-  currency: string;
-  tax_period_start: string;
-};
-type RemittanceRow = {
-  id: string;
-  authority_id: string;
-  period_start: string;
-  period_end: string;
-  amount_cents: number;
-  currency: string;
-  status: string;
-  confirmation_reference: string | null;
-  filed_at: string | null;
-  paid_at: string | null;
-  created_at: string;
-};
-
-function money(cents: number, currency = "USD") {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency,
-  }).format(cents / 100);
-}
 
 function percent(bps: number) {
   return `${(bps / 100).toFixed(bps % 100 ? 2 : 0)}%`;
@@ -115,8 +87,6 @@ export default async function AdminTaxesPage({
     ruleResult,
     profileResult,
     assignmentResult,
-    ledgerResult,
-    remittanceResult,
   ] = await Promise.all([
     supabase
       .from("properties")
@@ -127,16 +97,6 @@ export default async function AdminTaxesPage({
     supabase.from("tax_rules").select("*").eq("is_active", true).order("label"),
     supabase.from("property_tax_profiles").select("*"),
     supabase.from("property_tax_rule_assignments").select("property_id,tax_rule_id"),
-    supabase
-      .from("tax_ledger_entries")
-      .select("authority_id,amount_cents,currency,tax_period_start")
-      .order("created_at", { ascending: false })
-      .limit(10000),
-    supabase
-      .from("tax_remittances")
-      .select("id,authority_id,period_start,period_end,amount_cents,currency,status,confirmation_reference,filed_at,paid_at,created_at")
-      .order("created_at", { ascending: false })
-      .limit(500),
   ]);
 
   const firstError =
@@ -144,9 +104,7 @@ export default async function AdminTaxesPage({
     authorityResult.error ??
     ruleResult.error ??
     profileResult.error ??
-    assignmentResult.error ??
-    ledgerResult.error ??
-    remittanceResult.error;
+    assignmentResult.error;
 
   if (firstError) {
     throw new Error(
@@ -159,8 +117,6 @@ export default async function AdminTaxesPage({
   const rules = (ruleResult.data ?? []) as RuleRow[];
   const profiles = (profileResult.data ?? []) as ProfileRow[];
   const assignments = (assignmentResult.data ?? []) as AssignmentRow[];
-  const ledger = (ledgerResult.data ?? []) as LedgerRow[];
-  const remittances = (remittanceResult.data ?? []) as RemittanceRow[];
 
   const authorityById = new Map(authorities.map((authority) => [authority.id, authority]));
   const profileByProperty = new Map(profiles.map((profile) => [profile.property_id, profile]));
@@ -176,32 +132,11 @@ export default async function AdminTaxesPage({
   const verifiedCount = profiles.filter((profile) => profile.verification_status === "VERIFIED").length;
   const needsReview = Math.max(properties.length - verifiedCount, 0);
 
-  const liabilityByAuthority = new Map<string, number>();
-  for (const row of ledger) {
-    liabilityByAuthority.set(
-      row.authority_id,
-      (liabilityByAuthority.get(row.authority_id) ?? 0) + Number(row.amount_cents),
-    );
-  }
-
-  const paidByAuthority = new Map<string, number>();
-  for (const row of remittances) {
-    if (row.status !== "PAID") continue;
-    paidByAuthority.set(
-      row.authority_id,
-      (paidByAuthority.get(row.authority_id) ?? 0) + Number(row.amount_cents),
-    );
-  }
-
-  const totalLiability = [...liabilityByAuthority.values()].reduce((sum, value) => sum + value, 0);
-  const totalPaid = [...paidByAuthority.values()].reduce((sum, value) => sum + value, 0);
-  const outstanding = Math.max(totalLiability - totalPaid, 0);
-
   return (
     <AdminShell
       active="taxes"
-      eyebrow="Marketplace tax operations"
-      title="Taxes & remittance"
+      eyebrow="Guest tax configuration"
+      title="Property tax rates"
       context={context}
     >
       {query.saved ? <div className="admin-message success">{query.saved}</div> : null}
@@ -209,22 +144,20 @@ export default async function AdminTaxesPage({
 
       <div className="metrics dash-grid">
         <div><span>Properties verified</span><strong>{verifiedCount}</strong><small>{needsReview} still need locality review</small></div>
-        <div><span>Net tax liability</span><strong>{money(totalLiability)}</strong><small>Collected less refund reversals</small></div>
-        <div><span>Recorded paid</span><strong>{money(totalPaid)}</strong><small>Government remittances marked paid</small></div>
-        <div><span>Outstanding</span><strong>{money(outstanding)}</strong><small>Tracked liability less paid remittances</small></div>
+        <div><span>Payment settlement</span><strong>Host</strong><small>Guest tax goes into the host's connected charge</small></div>
       </div>
 
       <section className="panel">
         <div className="panel-head">
           <div>
             <p className="eyebrow dark">How checkout works</p>
-            <h2>Find A Place collects and holds configured lodging taxes.</h2>
+            <h2>Guest taxes settle with the host.</h2>
           </div>
         </div>
         <p className="muted">
           Commission still uses the existing discounted lodging subtotal. Tax is added to the guest total,
-          retained separately from host proceeds in the Stripe destination charge, and posted to the tax ledger
-          when payment succeeds. Local rules do not turn on until the property jurisdiction is verified here.
+          charged directly on the host's connected Stripe account, and kept by the host for reporting and remittance.
+          Find A Place keeps only its commission. Local rules do not turn on until the property jurisdiction is verified here.
         </p>
       </section>
 
@@ -445,74 +378,6 @@ export default async function AdminTaxesPage({
         </section>
       </div>
 
-      <section className="panel">
-        <div className="panel-head">
-          <div><p className="eyebrow dark">Remittance ledger</p><h2>File and record government payments.</h2></div>
-        </div>
-
-        <div className="admin-list compact">
-          {authorities.map((authority) => {
-            const net = liabilityByAuthority.get(authority.id) ?? 0;
-            const paid = paidByAuthority.get(authority.id) ?? 0;
-            return (
-              <div className="admin-list-row static" key={authority.id}>
-                <span><strong>{authority.remittance_agency}</strong><small>{authority.name}</small></span>
-                <span><em>{money(Math.max(net - paid, 0))} outstanding</em><small>{money(net)} liability · {money(paid)} paid</small></span>
-              </div>
-            );
-          })}
-        </div>
-
-        {canManage ? (
-          <details className="pricing-create" open={!remittances.length}>
-            <summary>+ Record filing / payment</summary>
-            <form action={recordTaxRemittance} className="settings-form">
-              <label><span>Authority</span><select name="authorityId" required>{authorities.map((authority) => <option key={authority.id} value={authority.id}>{authority.remittance_agency} · {authority.name}</option>)}</select></label>
-              <div className="form-row">
-                <label><span>Period start</span><input type="date" name="periodStart" required /></label>
-                <label><span>Period end</span><input type="date" name="periodEnd" required /></label>
-              </div>
-              <div className="form-row">
-                <label><span>Amount</span><input type="number" min="0" step="0.01" name="amount" required /></label>
-                <label><span>Status</span><select name="status" defaultValue="PAID"><option value="FILED">Filed, not yet paid</option><option value="PAID">Paid</option></select></label>
-              </div>
-              <label><span>Confirmation / payment reference</span><input name="confirmationReference" /></label>
-              <label><span>Notes</span><textarea name="notes" /></label>
-              <button className="button button-small" type="submit">Record remittance</button>
-            </form>
-          </details>
-        ) : null}
-
-        {remittances.length ? (
-          <div className="admin-list compact">
-            {remittances.map((row) => {
-              const authority = authorityById.get(row.authority_id);
-              return (
-                <div className="admin-list-row static" key={row.id}>
-                  <span>
-                    <strong>{money(row.amount_cents, row.currency)} · {row.period_start} → {row.period_end}</strong>
-                    <small>{authority?.remittance_agency ?? "Unknown authority"}</small>
-                    <small>{row.confirmation_reference || "No confirmation reference"}</small>
-                  </span>
-                  <span>
-                    <em>{row.status}</em>
-                    <small>{row.status === "PAID" ? `Paid ${when(row.paid_at)}` : `Filed ${when(row.filed_at)}`}</small>
-                    {canManage && row.status !== "PAID" ? (
-                      <form action={markTaxRemittancePaid}>
-                        <input type="hidden" name="remittanceId" value={row.id} />
-                        <input name="confirmationReference" placeholder="Payment reference" />
-                        <button className="button button-small button-quiet" type="submit">Mark paid</button>
-                      </form>
-                    ) : null}
-                  </span>
-                </div>
-              );
-            })}
-          </div>
-        ) : (
-          <div className="panel-empty"><strong>No remittance records yet.</strong></div>
-        )}
-      </section>
     </AdminShell>
   );
 }

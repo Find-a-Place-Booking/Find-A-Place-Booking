@@ -56,6 +56,10 @@ export async function GET(request: NextRequest) {
       { data: liveSafetyVersion, error: liveSafetyVersionError },
       { data: finalRegressionVersion, error: finalRegressionVersionError },
       { data: pilotReadinessVersion, error: pilotReadinessVersionError },
+      { data: directChargeVersion, error: directChargeVersionError },
+      { data: hostTaxVersion, error: hostTaxVersionError },
+      { data: partnerRefundVersion, error: partnerRefundVersionError },
+      { data: commissionGuardVersion, error: commissionGuardVersionError },
     ] = await Promise.all([
       supabase.from("profiles").select("id,avatar_storage_path").limit(1),
       supabase.from("host_onboarding_drafts").select("id").limit(1),
@@ -89,9 +93,13 @@ export async function GET(request: NextRequest) {
       supabase.rpc("live_safety_hardening_version"),
       supabase.rpc("final_regression_version"),
       supabase.rpc("pilot_readiness_cleanup_version"),
+      supabase.rpc("direct_charge_payment_model_version"),
+      supabase.rpc("host_tax_settlement_version"),
+      supabase.rpc("partner_refund_policy_version"),
+      supabase.rpc("nonrefundable_platform_commission_version"),
     ]);
 
-    const error = profileError ?? onboardingError ?? propertyError ?? unitError ?? reviewError ?? publicCatalogError ?? rateRuleError ?? stayRuleError ?? addOnError ?? promotionError ?? connectionError ?? blockError ?? exportTokenError ?? syncRunError ?? calendarVersionError ?? reservationError ?? paymentAccountError ?? paymentError ?? refundError ?? ledgerError ?? processorEventError ?? notificationDeliveryError ?? verificationError ?? policyAcceptanceError ?? payoutError ?? taxProfileError ?? reservationVersionError ?? hardeningVersionError ?? preLiveVersionError ?? liveSafetyVersionError ?? finalRegressionVersionError ?? pilotReadinessVersionError;
+    const error = profileError ?? onboardingError ?? propertyError ?? unitError ?? reviewError ?? publicCatalogError ?? rateRuleError ?? stayRuleError ?? addOnError ?? promotionError ?? connectionError ?? blockError ?? exportTokenError ?? syncRunError ?? calendarVersionError ?? reservationError ?? paymentAccountError ?? paymentError ?? refundError ?? ledgerError ?? processorEventError ?? notificationDeliveryError ?? verificationError ?? policyAcceptanceError ?? payoutError ?? taxProfileError ?? reservationVersionError ?? hardeningVersionError ?? preLiveVersionError ?? liveSafetyVersionError ?? finalRegressionVersionError ?? pilotReadinessVersionError ?? directChargeVersionError ?? hostTaxVersionError ?? partnerRefundVersionError ?? commissionGuardVersionError;
 
     if (error) {
       return NextResponse.json({ ok: false, service: "supabase", configured: true, message: "Supabase is reachable, but the current schema check failed.", code: error.code ?? null }, { status: 503 });
@@ -104,7 +112,11 @@ export async function GET(request: NextRequest) {
       preLiveVersion !== "pre-live-hardening-026-v1" ||
       liveSafetyVersion !== "live-safety-hardening-046-v1" ||
       finalRegressionVersion !== "final-regression-049-v1" ||
-      pilotReadinessVersion !== "pilot-readiness-cleanup-050-v1"
+      pilotReadinessVersion !== "pilot-readiness-cleanup-050-v1" ||
+      directChargeVersion !== "direct-charge-payment-model-051-v1" ||
+      hostTaxVersion !== "host-tax-settlement-060-v1" ||
+      partnerRefundVersion !== "partner-refund-policy-063-v1" ||
+      commissionGuardVersion !== "nonrefundable-platform-commission-064-v1"
     ) {
       return NextResponse.json({ ok: false, service: "supabase", configured: true, message: "Supabase is reachable, but the current hardening migrations are not complete." }, { status: 503 });
     }
@@ -122,6 +134,9 @@ export async function GET(request: NextRequest) {
       pilot_readiness_schema: pilotReadinessVersion,
       reservation_schema: reservationVersion,
       calendar_schema: calendarVersion,
+      direct_charge_schema: directChargeVersion,
+      host_tax_schema: hostTaxVersion,
+      commission_guard_schema: commissionGuardVersion,
       live_money_enabled: checkoutEnabled && liveKeys,
     });
   } catch {

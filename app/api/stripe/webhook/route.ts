@@ -72,6 +72,13 @@ function connectedAccountId(event: Stripe.Event) {
   return typeof account === "string" ? account : null;
 }
 
+function processingErrorMessage(error: unknown) {
+  if (error instanceof Error) return error.message;
+  if (error && typeof error === "object" && "message" in error &&
+      typeof error.message === "string") return error.message;
+  return "Unknown webhook error";
+}
+
 export async function POST(request: NextRequest) {
   const rawBody = await request.text();
   const signature = request.headers.get("stripe-signature");
@@ -486,7 +493,7 @@ export async function POST(request: NextRequest) {
       admin,
       event.id,
       "ERROR",
-      error instanceof Error ? error.message : "Unknown webhook error",
+      processingErrorMessage(error),
     );
 
     return NextResponse.json(

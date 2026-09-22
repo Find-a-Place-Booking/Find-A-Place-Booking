@@ -75,8 +75,21 @@ export async function syncIcalConnection(
       throw new Error("Calendar connection has no feed URL.");
     }
 
+    const { data: unit, error: unitError } = await admin
+      .from("property_units")
+      .select("property_id")
+      .eq("id", connection.unit_id)
+      .single();
+    if (unitError || !unit) throw new Error("Calendar property could not be loaded.");
+    const { data: property, error: propertyError } = await admin
+      .from("properties")
+      .select("time_zone")
+      .eq("id", unit.property_id)
+      .single();
+    if (propertyError || !property) throw new Error("Calendar property timezone could not be loaded.");
+
     const fetched = await fetchIcalFeed(connection.feed_url);
-    const parsed = parseIcalAvailability(fetched.body);
+    const parsed = parseIcalAvailability(fetched.body, property.time_zone);
 
     if (parsed.unsafeSkipped > 0) {
       const recurring = parsed.recurringSkipped

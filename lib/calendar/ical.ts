@@ -33,6 +33,38 @@ function canonicalDate(raw: string | undefined): string | null {
   return `${match[1]}-${match[2]}-${match[3]}`;
 }
 
+function eventDate(raw: RawEvent, field: "DTSTART" | "DTEND", propertyTimeZone?: string | null) {
+  const value = raw[field]?.trim();
+  if (!value) return null;
+  const descriptor = raw[`${field}_DESCRIPTOR`] || "";
+  const date = canonicalDate(value);
+  if (!date) return null;
+  if (/^\d{8}$/.test(value) || /^\d{4}-\d{2}-\d{2}$/.test(value)) return date;
+
+  // A timed event must have an unambiguous property-local date. Calendar
+  // exports often encode local arrival at midnight or UTC on the prior day.
+  const timed = /^(\d{8})T(\d{6})(Z?)$/.exec(value);
+  if (!timed) return null;
+  const tzid = /(?:^|;)TZID=([^;:]+)/i.exec(descriptor)?.[1]?.replace(/^"|"$/g, "");
+  if (tzid) {
+    if (!propertyTimeZone || tzid !== propertyTimeZone || timed[3]) return null;
+    return date; // Explicit local time in this property's timezone.
+  }
+  if (!propertyTimeZone) return null;
+  if (!timed[3]) return date; // Floating time is local to the property.
+  const instant = new Date(`${date}T${timed[2].slice(0, 2)}:${timed[2].slice(2, 4)}:${timed[2].slice(4)}Z`);
+  if (Number.isNaN(instant.getTime())) return null;
+  try {
+    const parts = new Intl.DateTimeFormat("en-US", {
+      timeZone: propertyTimeZone, year: "numeric", month: "2-digit", day: "2-digit",
+    }).formatToParts(instant);
+    const part = (name: string) => parts.find((item) => item.type === name)?.value;
+    return `${part("year")}-${part("month")}-${part("day")}`;
+  } catch {
+    return null;
+  }
+}
+
 function addDays(value: string, days: number) {
   const [year, month, day] = value.split("-").map(Number);
   const date = new Date(Date.UTC(year, month - 1, day));
@@ -76,13 +108,16 @@ function toRawEvents(lines: string[]) {
     if (!current) continue;
     const property = propertyFromLine(line);
     if (!property) continue;
-    if (!(property.name in current)) current[property.name] = property.value;
+    if (!(property.name in current)) {
+      current[property.name] = property.value;
+      current[`${property.name}_DESCRIPTOR`] = line.slice(0, line.indexOf(":"));
+    }
   }
 
   return events;
 }
 
-export function parseIcalAvailability(input: string): ParsedIcalFeed {
+export function parseIcalAvailability(input: string, propertyTimeZone?: string | null): ParsedIcalFeed {
   if (!input.includes("BEGIN:VCALENDAR") || !input.includes("END:VCALENDAR")) {
     throw new Error("The URL did not return a complete iCalendar feed.");
   }
@@ -115,15 +150,16 @@ export function parseIcalAvailability(input: string): ParsedIcalFeed {
     }
 
     const uid = raw.UID?.trim();
-    const start = canonicalDate(raw.DTSTART);
-    if (!uid || !start) {
+    const start = eventDate(raw, "DTSTART", propertyTimeZone);
+    const parsedEnd = eventDate(raw, "DTEND", propertyTimeZone);
+    if (!uid || !start || !parsedEnd) {
       unsafeSkipped += 1;
       skipped += 1;
       continue;
     }
 
-    const parsedEnd = canonicalDate(raw.DTEND);
-    const end = parsedEnd ?? addDays(start, 1);
+    const end = parsedEnd === start && /T\d{6}/.test(raw.DTSTART || "")
+      ? addDays(start, 1) : parsedEnd;
     if (end <= start) {
       unsafeSkipped += 1;
       skipped += 1;

@@ -258,11 +258,11 @@ export default async function HostReservationDetailPage({
                 <small>{payment.provider} · {readable(payment.status)}</small>
               </div>
               <div>
-                <span>Tax retained by Find A Place</span>
+                <span>Guest tax in host charge</span>
                 <strong>
-                  −{money(payment.platform_tax_retained_cents, payment.currency)}
+                  {money(reservation.tax_total_cents, payment.currency)}
                 </strong>
-                <small>Only where Find A Place is configured to remit it</small>
+                <small>The host receives and handles these tax dollars</small>
               </div>
               <div>
                 <span>Find A Place commission</span>

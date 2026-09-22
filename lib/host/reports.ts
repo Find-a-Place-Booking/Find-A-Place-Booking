@@ -208,13 +208,7 @@ export async function getHostReport(filters: Filters = {}) {
       status: reservation.status,
       paymentStatus: reservation.payment_status,
       guestPaidCents: settled ? Number(payment.amount_cents || 0) : 0,
-      taxCents: settled
-        ? Number(
-            payment.platform_tax_retained_cents ??
-              reservation.tax_total_cents ??
-              0,
-          )
-        : 0,
+      taxCents: settled ? Number(reservation.tax_total_cents || 0) : 0,
       commissionCents: settled
         ? Number(reservation.platform_commission_cents || 0)
         : 0,
