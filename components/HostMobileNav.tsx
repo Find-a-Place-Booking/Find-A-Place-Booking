@@ -1,5 +1,7 @@
 import Link from "next/link";
 
+import { signOutHost } from "@/app/auth/actions";
+
 const links = [
   ["Overview", "/host"],
   ["Properties", "/host/properties"],
@@ -19,8 +21,9 @@ export function HostMobileNav({ active }: { active: string }) {
       <summary>
         <span>Host menu</span>
         <strong>{active}</strong>
-        <b>⌄</b>
+        <b aria-hidden="true">⌄</b>
       </summary>
+
       <nav>
         {links.map(([label, href]) => (
           <Link
@@ -28,9 +31,22 @@ export function HostMobileNav({ active }: { active: string }) {
             href={href}
             key={label}
           >
-            {label}<span>›</span>
+            {label}
+            <span>›</span>
           </Link>
         ))}
+
+        <Link href="/">
+          Booking marketplace
+          <span>↗</span>
+        </Link>
+
+        <form action={signOutHost}>
+          <button className="internal-mobile-signout" type="submit">
+            Sign out
+            <span>›</span>
+          </button>
+        </form>
       </nav>
     </details>
   );

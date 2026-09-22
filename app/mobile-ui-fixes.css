@@ -1,0 +1,572 @@
+/*
+ * Find A Place mobile navigation + responsive UI hardening.
+ * Loaded after the normal theme layers so these rules intentionally win.
+ */
+
+/* ---------- Public navigation ---------- */
+
+.public-mobile-menu-open {
+  overflow: hidden;
+}
+
+.mobile-menu-toggle {
+  position: relative;
+  flex: 0 0 auto;
+}
+
+.mobile-menu-toggle span {
+  transform-origin: center;
+  transition:
+    transform .18s ease,
+    opacity .18s ease;
+}
+
+.mobile-menu-toggle.is-open span:nth-child(1) {
+  transform: translateY(5.5px) rotate(45deg);
+}
+
+.mobile-menu-toggle.is-open span:nth-child(2) {
+  opacity: 0;
+}
+
+.mobile-menu-toggle.is-open span:nth-child(3) {
+  transform: translateY(-5.5px) rotate(-45deg);
+}
+
+.mobile-menu-shell {
+  display: none;
+}
+
+@media (max-width: 1000px) {
+  /*
+   * Header.tsx portals the open menu to <body>. Using a fixed viewport layer
+   * prevents the hero's overflow:hidden from clipping the menu.
+   */
+  .mobile-menu-shell[data-open="true"] {
+    position: fixed;
+    inset: 86px 0 0;
+    z-index: 1000;
+    display: block;
+  }
+
+  .mobile-menu-backdrop {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    border: 0;
+    padding: 0;
+    background: rgba(12, 18, 15, .48);
+    backdrop-filter: blur(2px);
+  }
+
+  .mobile-menu {
+    position: relative;
+    z-index: 1;
+    width: min(460px, 100%);
+    max-height: 100%;
+    margin-left: auto;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    background: #fffdfa;
+    color: var(--ink);
+    border-left: 1px solid #ddd4c6;
+    box-shadow: -24px 28px 60px rgba(16, 23, 19, .22);
+    padding: 18px 20px 24px;
+  }
+
+  .mobile-menu-heading {
+    min-height: 42px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .mobile-menu-heading > span {
+    text-transform: uppercase;
+    letter-spacing: .1em;
+    color: #70746f;
+    font-size: .66rem;
+    font-weight: 900;
+  }
+
+  .mobile-menu-close {
+    width: 40px;
+    height: 40px;
+    display: grid;
+    place-items: center;
+    border: 1px solid #d9d4cb;
+    border-radius: 50%;
+    background: #fff;
+    color: var(--ink);
+    font-size: 1.65rem;
+    line-height: 1;
+  }
+
+  .mobile-menu-primary {
+    display: grid;
+  }
+
+  .mobile-menu-primary > a {
+    min-height: 56px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 18px;
+    border-bottom: 1px solid #e7e1d8;
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: 1.18rem;
+    font-weight: 600;
+  }
+
+  .mobile-menu-primary > a span {
+    color: #7f4e3b;
+    font-family: Inter, ui-sans-serif, sans-serif;
+    font-size: .95rem;
+  }
+
+  .mobile-menu-secondary {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin: 18px 0;
+  }
+
+  .mobile-menu-secondary a {
+    min-height: 46px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid #d8d2c8;
+    border-radius: 10px;
+    background: #fff;
+    text-align: center;
+    font-size: .8rem;
+    font-weight: 850;
+  }
+
+  .mobile-menu .button-full {
+    min-height: 48px;
+    border-radius: 10px;
+  }
+
+  /* Once the hamburger appears, all secondary desktop header actions move
+     into the menu. This removes the crowded 700-1000px tablet state. */
+  .header-actions > .text-link,
+  .header-actions > .header-list-property {
+    display: none;
+  }
+
+  .header-inner {
+    min-width: 0;
+  }
+
+  .header-inner .brand {
+    min-width: 0;
+  }
+
+  .header-inner .brand-copy {
+    min-width: 0;
+  }
+}
+
+@media (max-width: 700px) {
+  .mobile-menu-shell[data-open="true"] {
+    inset: 74px 0 0;
+    padding: 8px;
+  }
+
+  .mobile-menu {
+    width: 100%;
+    max-height: calc(100dvh - 90px);
+    margin: 0;
+    border: 1px solid #ddd4c6;
+    border-radius: 16px;
+    box-shadow: 0 22px 56px rgba(16, 23, 19, .24);
+    padding: 16px 16px 20px;
+  }
+
+  .mobile-menu-secondary {
+    grid-template-columns: 1fr;
+  }
+
+  .header-inner {
+    height: 74px;
+  }
+
+  .header-inner .brand-copy strong {
+    white-space: nowrap;
+    font-size: .86rem;
+  }
+
+  .mobile-menu-toggle {
+    width: 42px;
+    height: 42px;
+  }
+}
+
+/* ---------- Host/admin mobile navigation ---------- */
+
+@media (max-width: 1000px) {
+  .internal-mobile-nav {
+    display: block;
+    position: relative;
+    z-index: 35;
+    margin: 0 0 18px;
+    overflow: hidden;
+    border: 1px solid #d9d2c7;
+    border-radius: 12px;
+    background: #fffdfa;
+    box-shadow: 0 8px 22px rgba(30, 36, 32, .06);
+  }
+
+  .internal-mobile-nav[open] {
+    box-shadow: 0 14px 34px rgba(30, 36, 32, .12);
+  }
+
+  .internal-mobile-nav summary {
+    min-height: 54px;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    padding: 11px 14px;
+  }
+
+  .internal-mobile-nav summary span {
+    color: #6a6e68;
+  }
+
+  .internal-mobile-nav summary strong {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    text-align: right;
+    font-size: .86rem;
+  }
+
+  .internal-mobile-nav summary b {
+    display: inline-grid;
+    place-items: center;
+    width: 26px;
+    height: 26px;
+    transition: transform .18s ease;
+  }
+
+  .internal-mobile-nav[open] summary b {
+    transform: rotate(180deg);
+  }
+
+  .internal-mobile-nav nav {
+    max-height: min(62dvh, 520px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding: 8px;
+    border-top: 1px solid #e4ded5;
+    background: #fff;
+  }
+
+  .internal-mobile-nav nav a,
+  .internal-mobile-signout {
+    width: 100%;
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    padding: 10px 11px;
+    border: 0;
+    border-radius: 8px;
+    background: transparent;
+    color: var(--ink);
+    text-align: left;
+    font: inherit;
+    font-size: .8rem;
+    font-weight: 800;
+  }
+
+  .internal-mobile-nav nav a + a,
+  .internal-mobile-nav nav form {
+    margin-top: 2px;
+  }
+
+  .internal-mobile-nav nav a.active {
+    background: #eaf1ec;
+    color: #214638;
+  }
+
+  .internal-mobile-nav nav a:hover,
+  .internal-mobile-signout:hover {
+    background: #f4f1eb;
+  }
+
+  .internal-mobile-nav nav a span,
+  .internal-mobile-signout span {
+    flex: 0 0 auto;
+    color: #7d817c;
+  }
+
+  .internal-mobile-nav nav form {
+    border-top: 1px solid #ece7de;
+    padding-top: 6px;
+  }
+
+  .internal-mobile-signout {
+    color: #7c4c3b;
+  }
+}
+
+/* ---------- Dashboard/admin top bars ---------- */
+
+@media (max-width: 700px) {
+  .dash-topbar,
+  .admin-main > header {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: start;
+    gap: 10px;
+  }
+
+  .dash-topbar > div:first-child,
+  .admin-main > header > div:first-child {
+    min-width: 0;
+  }
+
+  .dash-topbar h1,
+  .admin-main > header h1 {
+    overflow-wrap: anywhere;
+  }
+
+  .dash-actions,
+  .admin-head-actions {
+    align-self: start;
+    gap: 6px;
+  }
+
+  /* These actions are now available in the mobile menu. */
+  .dash-actions > .button,
+  .dash-actions > form,
+  .admin-head-actions > .admin-marketplace-link,
+  .admin-head-actions > form {
+    display: none;
+  }
+
+  .notification,
+  .avatar {
+    width: 40px;
+    height: 40px;
+    flex: 0 0 40px;
+  }
+
+  .dash-main,
+  .admin-main {
+    min-width: 0;
+    padding: 12px 12px 64px;
+  }
+
+  .panel {
+    min-width: 0;
+  }
+
+  .panel-head {
+    flex-wrap: wrap;
+  }
+
+  .panel-head > * {
+    min-width: 0;
+  }
+
+  .panel-head h2,
+  .panel > h2 {
+    overflow-wrap: anywhere;
+  }
+}
+
+/* ---------- Host reservation history on phones ---------- */
+
+@media (max-width: 700px) {
+  .reservation-history-table {
+    display: grid;
+    gap: 10px;
+  }
+
+  .reservation-history-table .big-row.head {
+    display: none;
+  }
+
+  .reservation-history-table .big-row:not(.head) {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 13px 16px;
+    margin: 0;
+    padding: 15px;
+    border: 1px solid #ded8cf;
+    border-radius: 12px;
+    background: #fff;
+    box-shadow: 0 5px 14px rgba(30, 36, 32, .035);
+  }
+
+  .reservation-history-table .big-row:not(.head) > * {
+    min-width: 0;
+  }
+
+  /* Undo the legacy mobile table rule that hid Dates and Status. */
+  .reservation-history-table .big-row:not(.head) > span:nth-child(1),
+  .reservation-history-table .big-row:not(.head) > span:nth-child(2),
+  .reservation-history-table .big-row:not(.head) > span:nth-child(3),
+  .reservation-history-table .big-row:not(.head) > span:nth-child(4),
+  .reservation-history-table .big-row:not(.head) > span:nth-child(5) {
+    display: grid !important;
+    align-content: start;
+  }
+
+  .reservation-history-table .big-row:not(.head) > span::before {
+    margin-bottom: 3px;
+    color: #7b7e78;
+    text-transform: uppercase;
+    letter-spacing: .07em;
+    font-size: .56rem;
+    font-weight: 900;
+  }
+
+  .reservation-history-table .big-row:not(.head) > span:nth-child(1)::before {
+    content: "Guest / confirmation";
+  }
+
+  .reservation-history-table .big-row:not(.head) > span:nth-child(2)::before {
+    content: "Property";
+  }
+
+  .reservation-history-table .big-row:not(.head) > span:nth-child(3)::before {
+    content: "Dates";
+  }
+
+  .reservation-history-table .big-row:not(.head) > span:nth-child(4)::before {
+    content: "Total";
+  }
+
+  .reservation-history-table .big-row:not(.head) > span:nth-child(5)::before {
+    content: "Status";
+  }
+
+  .reservation-history-table .big-row:not(.head) > span:last-child {
+    grid-column: 1 / -1;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .reservation-history-table .big-row:not(.head) > span:last-child .button {
+    width: 100%;
+    min-height: 44px;
+  }
+
+  .reservation-history-table .reservation-cancelled-row {
+    border-color: #dccfc5;
+    background: #fbf6f2;
+  }
+
+  .reservation-history-table .reservation-cancelled-row > span:nth-child(5) > strong {
+    color: #8a513d;
+  }
+}
+
+@media (max-width: 520px) {
+  .reservation-history-table .big-row:not(.head) {
+    grid-template-columns: 1fr;
+  }
+
+  .reservation-history-table .big-row:not(.head) > span:last-child {
+    grid-column: auto;
+  }
+}
+
+/* ---------- Calendar ---------- */
+
+@media (max-width: 700px) {
+  .calendar-board {
+    overflow-x: auto;
+    overflow-y: hidden;
+    overscroll-behavior-inline: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .calendar-board .cal-week,
+  .calendar-board .cal-grid {
+    min-width: 560px;
+  }
+
+  .calendar-board .cal-grid > div {
+    height: auto;
+    min-height: 78px;
+    padding: 6px;
+  }
+
+  .calendar-board .cal-grid span {
+    margin-top: 7px;
+    white-space: normal;
+    line-height: 1.2;
+    overflow-wrap: anywhere;
+  }
+
+  .calendar-source-row {
+    overflow-x: auto;
+    overscroll-behavior-inline: contain;
+    padding-inline: 14px;
+  }
+}
+
+/* ---------- General small-screen hardening ---------- */
+
+@media (max-width: 700px) {
+  input,
+  select,
+  textarea {
+    max-width: 100%;
+    font-size: 16px;
+  }
+
+  .button,
+  button,
+  summary {
+    touch-action: manipulation;
+  }
+
+  .button {
+    min-height: 44px;
+  }
+
+  .settings-form .form-row {
+    grid-template-columns: 1fr;
+  }
+
+  .setting-row,
+  .rate-row,
+  .source-row {
+    min-width: 0;
+  }
+
+  .setting-row > *,
+  .rate-row > *,
+  .source-row > * {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+}
+
+@media (max-width: 480px) {
+  .metrics {
+    grid-template-columns: 1fr;
+  }
+
+  .dash-topbar,
+  .admin-main > header {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .dash-topbar h1,
+  .admin-main > header h1 {
+    font-size: 1.55rem;
+  }
+}

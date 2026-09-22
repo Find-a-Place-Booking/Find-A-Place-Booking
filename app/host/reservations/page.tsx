@@ -157,7 +157,7 @@ export default async function ReservationsPage({
         </div>
 
         {workspace.reservations.length ? (
-          <div className="big-table">
+          <div className="big-table reservation-history-table">
             <div className="big-row head">
               <span>Guest / confirmation</span>
               <span>Property</span>
