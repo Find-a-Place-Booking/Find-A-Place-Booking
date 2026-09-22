@@ -4,6 +4,7 @@ import "./globals.css";
 import "./find-a-place-theme.css";
 import "./contact-social-pass.css";
 import "./accessibility-fixes.css";
+import "./hero-video.css";
 
 export const metadata: Metadata = {
   title: "Find A Place Booking | Arkansas, Missouri & Beyond",

@@ -108,6 +108,23 @@ export default async function HomePage() {
   return (
     <>
       <div className="home-hero">
+        <video
+          className="home-hero-video"
+          autoPlay
+          muted
+          loop
+          playsInline
+          preload="auto"
+          poster="/media/find-a-place-hero-poster.jpg"
+          aria-hidden="true"
+        >
+          <source
+            src="/media/find-a-place-hero-loop.mp4"
+            type="video/mp4"
+          />
+        </video>
+        <div className="home-hero-video-shade" aria-hidden="true" />
+
         <Header light />
 
         <div className="shell hero-layout">
@@ -254,9 +271,14 @@ export default async function HomePage() {
               <div>
                 <p className="eyebrow dark">Explore the map</p>
                 <h2>See where the stays are.</h2>
-                <p>Every pin is a published Find A Place stay. Private-address listings show the general area instead of the exact driveway.</p>
+                <p>
+                  Every pin is a published Find A Place stay. Private-address
+                  listings show the general area instead of the exact driveway.
+                </p>
               </div>
-              <Link className="under-link" href="/stays">Browse all stays →</Link>
+              <Link className="under-link" href="/stays">
+                Browse all stays →
+              </Link>
             </div>
             <div className="shell-wide home-map-frame">
               <StayMap stays={mapStays} className="home-stay-map" />
@@ -267,16 +289,36 @@ export default async function HomePage() {
         <section className="stay-types-section">
           <div className="stay-type-backdrop" aria-hidden="true">
             <div className="stay-type-slice stay-type-slice-1">
-              <Image src="/stay-types/slice-cabin.png" alt="" fill sizes="(max-width: 700px) 100vw, 25vw" />
+              <Image
+                src="/stay-types/slice-cabin.png"
+                alt=""
+                fill
+                sizes="(max-width: 700px) 100vw, 25vw"
+              />
             </div>
             <div className="stay-type-slice stay-type-slice-2">
-              <Image src="/stay-types/slice-waterfront.png" alt="" fill sizes="(max-width: 700px) 100vw, 25vw" />
+              <Image
+                src="/stay-types/slice-waterfront.png"
+                alt=""
+                fill
+                sizes="(max-width: 700px) 100vw, 25vw"
+              />
             </div>
             <div className="stay-type-slice stay-type-slice-3">
-              <Image src="/stay-types/slice-rustic-cabin.png" alt="" fill sizes="(max-width: 700px) 100vw, 25vw" />
+              <Image
+                src="/stay-types/slice-rustic-cabin.png"
+                alt=""
+                fill
+                sizes="(max-width: 700px) 100vw, 25vw"
+              />
             </div>
             <div className="stay-type-slice stay-type-slice-4">
-              <Image src="/stay-types/slice-luxe-cabin.png" alt="" fill sizes="(max-width: 700px) 100vw, 25vw" />
+              <Image
+                src="/stay-types/slice-luxe-cabin.png"
+                alt=""
+                fill
+                sizes="(max-width: 700px) 100vw, 25vw"
+              />
             </div>
           </div>
           <div className="stay-type-overlay" aria-hidden="true" />
@@ -402,10 +444,7 @@ export default async function HomePage() {
               </div>
             </div>
 
-            <Link
-              className="button"
-              href={story.cta_href || "/about"}
-            >
+            <Link className="button" href={story.cta_href || "/about"}>
               {story.cta_label || "More about Find A Place"} →
             </Link>
           </div>

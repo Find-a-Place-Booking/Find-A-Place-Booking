@@ -32,6 +32,15 @@ function messageReturnPath(path: string) {
   return `${withoutHash}${separator}sent=1#messages`;
 }
 
+function refreshReservationViews(reservationId: string) {
+  revalidatePath("/host/messages");
+  revalidatePath(`/host/reservations/${reservationId}`);
+  revalidatePath("/host/reservations");
+  revalidatePath("/host/calendar");
+  revalidatePath("/host");
+  revalidatePath("/admin/reservations");
+}
+
 async function requireHost() {
   const supabase = await createClient();
   const { data } = await supabase.auth.getClaims();
@@ -58,6 +67,7 @@ async function appendHostMessage(
       .insert({ reservation_id: reservationId })
       .select("id")
       .single();
+
     if (error || !created) return null;
     conversation = created;
   }
@@ -141,7 +151,6 @@ export async function sendHostReservationMessage(formData: FormData) {
 
   revalidatePath("/host/messages");
   revalidatePath(`/host/reservations/${reservationId}`);
-
   redirect(messageReturnPath(returnTo));
 }
 
@@ -162,18 +171,21 @@ export async function declineCancellationRequest(formData: FormData) {
   }
 
   const { supabase, profileId } = await requireHost();
-  const { data: reservation } = await supabase
-    .from("reservations")
-    .select("id,status")
-    .eq("id", reservationId)
-    .maybeSingle();
 
-  const { data: cancellationRequest } = await supabase
-    .from("reservation_cancellation_requests")
-    .select("id,status")
-    .eq("id", requestId)
-    .eq("reservation_id", reservationId)
-    .maybeSingle();
+  const [{ data: reservation }, { data: cancellationRequest }] =
+    await Promise.all([
+      supabase
+        .from("reservations")
+        .select("id,status")
+        .eq("id", reservationId)
+        .maybeSingle(),
+      supabase
+        .from("reservation_cancellation_requests")
+        .select("id,status")
+        .eq("id", requestId)
+        .eq("reservation_id", reservationId)
+        .maybeSingle(),
+    ]);
 
   if (!reservation || !cancellationRequest) {
     redirect(
@@ -193,6 +205,7 @@ export async function declineCancellationRequest(formData: FormData) {
 
   const now = new Date().toISOString();
   const admin = createAdminClient();
+
   const { error } = await admin
     .from("reservation_cancellation_requests")
     .update({
@@ -216,9 +229,11 @@ export async function declineCancellationRequest(formData: FormData) {
     reservation_id: reservationId,
     event_type: "HOST_CANCELLATION_DECLINED",
     actor_profile_id: profileId,
-    metadata: { cancellation_request_id: requestId, host_response: response },
+    metadata: {
+      cancellation_request_id: requestId,
+      host_response: response,
+    },
   });
-
 
   try {
     await sendCancellationDecisionNotification(admin, {
@@ -228,11 +243,14 @@ export async function declineCancellationRequest(formData: FormData) {
       hostResponse: response,
     });
   } catch (notificationError) {
-    console.error("[decline cancellation] guest notification failed", notificationError);
+    console.error(
+      "[decline cancellation] guest notification failed",
+      notificationError,
+    );
   }
 
-  revalidatePath("/host/messages");
-  revalidatePath(`/host/reservations/${reservationId}`);
+  refreshReservationViews(reservationId);
+
   redirect(
     `/host/reservations/${reservationId}?saved=${encodeURIComponent(
       "Cancellation request declined and the guest was notified.",
@@ -246,22 +264,27 @@ export async function approveCancellationWithoutRefund(formData: FormData) {
   const response = field(formData, "host_response", 1200);
 
   if (!reservationId || !requestId) {
-    redirect("/host/reservations?result=error&detail=Cancellation+request+missing.");
+    redirect(
+      "/host/reservations?result=error&detail=Cancellation+request+missing.",
+    );
   }
 
   const { supabase, profileId } = await requireHost();
-  const { data: reservation } = await supabase
-    .from("reservations")
-    .select("id,status")
-    .eq("id", reservationId)
-    .maybeSingle();
 
-  const { data: cancellationRequest } = await supabase
-    .from("reservation_cancellation_requests")
-    .select("id,status")
-    .eq("id", requestId)
-    .eq("reservation_id", reservationId)
-    .maybeSingle();
+  const [{ data: reservation }, { data: cancellationRequest }] =
+    await Promise.all([
+      supabase
+        .from("reservations")
+        .select("id,status")
+        .eq("id", reservationId)
+        .maybeSingle(),
+      supabase
+        .from("reservation_cancellation_requests")
+        .select("id,status")
+        .eq("id", requestId)
+        .eq("reservation_id", reservationId)
+        .maybeSingle(),
+    ]);
 
   if (!reservation || !cancellationRequest) {
     redirect(
@@ -271,7 +294,10 @@ export async function approveCancellationWithoutRefund(formData: FormData) {
     );
   }
 
-  if (reservation.status !== "CONFIRMED" || cancellationRequest.status !== "REQUESTED") {
+  if (
+    reservation.status !== "CONFIRMED" ||
+    cancellationRequest.status !== "REQUESTED"
+  ) {
     redirect(
       `/host/reservations/${reservationId}?error=${encodeURIComponent(
         "This cancellation request is no longer awaiting a host decision.",
@@ -326,7 +352,10 @@ export async function approveCancellationWithoutRefund(formData: FormData) {
 
   await admin
     .from("availability_blocks")
-    .update({ state: "CANCELLED", updated_at: now })
+    .update({
+      state: "CANCELLED",
+      updated_at: now,
+    })
     .eq("reservation_id", reservationId)
     .eq("state", "ACTIVE")
     .in("block_type", ["INTERNAL_HOLD", "INTERNAL_RESERVATION"]);
@@ -342,7 +371,6 @@ export async function approveCancellationWithoutRefund(formData: FormData) {
     },
   });
 
-
   try {
     await sendCancellationDecisionNotification(admin, {
       requestId,
@@ -357,9 +385,7 @@ export async function approveCancellationWithoutRefund(formData: FormData) {
     );
   }
 
-  revalidatePath("/host/messages");
-  revalidatePath(`/host/reservations/${reservationId}`);
-  revalidatePath("/host/reservations");
+  refreshReservationViews(reservationId);
 
   redirect(
     `/host/reservations/${reservationId}?saved=${encodeURIComponent(
@@ -374,24 +400,29 @@ export async function approveCancellationRequest(formData: FormData) {
   const response = field(formData, "host_response", 1200);
 
   if (!reservationId || !requestId) {
-    redirect("/host/reservations?result=error&detail=Cancellation+request+missing.");
+    redirect(
+      "/host/reservations?result=error&detail=Cancellation+request+missing.",
+    );
   }
 
   const { supabase, profileId } = await requireHost();
-  const { data: reservation } = await supabase
-    .from("reservations")
-    .select(
-      "id,status,payment_status,payment_environment,provider_account_ref,confirmation_code,currency",
-    )
-    .eq("id", reservationId)
-    .maybeSingle();
 
-  const { data: cancellationRequest } = await supabase
-    .from("reservation_cancellation_requests")
-    .select("id,status")
-    .eq("id", requestId)
-    .eq("reservation_id", reservationId)
-    .maybeSingle();
+  const [{ data: reservation }, { data: cancellationRequest }] =
+    await Promise.all([
+      supabase
+        .from("reservations")
+        .select(
+          "id,status,payment_status,payment_environment,provider_account_ref,confirmation_code,currency,check_in,platform_commission_cents",
+        )
+        .eq("id", reservationId)
+        .maybeSingle(),
+      supabase
+        .from("reservation_cancellation_requests")
+        .select("id,status")
+        .eq("id", requestId)
+        .eq("reservation_id", reservationId)
+        .maybeSingle(),
+    ]);
 
   if (!reservation || !cancellationRequest) {
     redirect(
@@ -455,8 +486,13 @@ export async function approveCancellationRequest(formData: FormData) {
     refund_id: string;
     payment_id: string;
     provider_payment_id: string | null;
+    provider_charge_id: string | null;
     amount_cents: number;
     platform_fee_refund_cents: number;
+    platform_tax_refund_cents: number;
+    platform_commission_refund_cents: number;
+    commission_refund_eligible: boolean;
+    days_before_check_in: number;
     payment_environment: "TEST" | "LIVE";
   };
 
@@ -469,22 +505,48 @@ export async function approveCancellationRequest(formData: FormData) {
   }
 
   const now = new Date().toISOString();
-  let recordedStatus: "PENDING" | "SUCCEEDED" | "FAILED" | "CANCELLED" = "PENDING";
+  let recordedStatus:
+    | "PENDING"
+    | "SUCCEEDED"
+    | "FAILED"
+    | "CANCELLED" = "PENDING";
   let providerRefundId: string | null = null;
 
+  let applicationFeeRefundStatus:
+    | "NOT_REQUIRED"
+    | "PENDING"
+    | "SUCCEEDED"
+    | "FAILED" =
+    Number(refundRequest.platform_fee_refund_cents) > 0
+      ? "PENDING"
+      : "NOT_REQUIRED";
+  let applicationFeeRefundId: string | null = null;
+  let applicationFeeRefundError: string | null = null;
+
   try {
-    const { refund } = await createConnectedRefund({
+    const result = await createConnectedRefund({
       connectedAccountId: reservation.provider_account_ref,
       paymentIntentId: refundRequest.provider_payment_id,
+      chargeId: refundRequest.provider_charge_id,
       refundId: refundRequest.refund_id,
       reservationId,
       amountCents: Number(refundRequest.amount_cents),
       fullRefund: true,
-      platformFeeRefundCents: Number(refundRequest.platform_fee_refund_cents),
-      reason: "Host approved guest cancellation request",
+      platformFeeRefundCents: Number(
+        refundRequest.platform_fee_refund_cents,
+      ),
+      reason: refundRequest.commission_refund_eligible
+        ? "Host approved cancellation at least 14 days before check-in"
+        : "Host approved cancellation inside 14-day platform commission cutoff",
     });
 
+    const { refund } = result;
+
     providerRefundId = refund.id;
+    applicationFeeRefundStatus = result.applicationFeeRefundStatus;
+    applicationFeeRefundId = result.applicationFeeRefundId;
+    applicationFeeRefundError = result.applicationFeeRefundError;
+
     recordedStatus =
       refund.status === "succeeded"
         ? "SUCCEEDED"
@@ -494,12 +556,16 @@ export async function approveCancellationRequest(formData: FormData) {
             ? "CANCELLED"
             : "PENDING";
 
-    const { error: recordError } = await admin.rpc("record_refund_result", {
-      target_refund_id: refundRequest.refund_id,
-      target_provider_refund_id: refund.id,
-      target_status: recordedStatus,
-      target_failure_message: refund.failure_reason || null,
-    });
+    const { error: recordError } = await admin.rpc(
+      "record_refund_result",
+      {
+        target_refund_id: refundRequest.refund_id,
+        target_provider_refund_id: refund.id,
+        target_status: recordedStatus,
+        target_failure_message: refund.failure_reason || null,
+      },
+    );
+
     if (recordError) throw new Error(recordError.message);
   } catch (refundError) {
     await admin.rpc("record_refund_result", {
@@ -511,7 +577,22 @@ export async function approveCancellationRequest(formData: FormData) {
           ? refundError.message
           : "Host-approved refund is pending processor reconciliation.",
     });
+
     recordedStatus = "PENDING";
+  }
+
+  try {
+    await admin.rpc("record_application_fee_refund_result", {
+      target_refund_id: refundRequest.refund_id,
+      target_status: applicationFeeRefundStatus,
+      target_application_fee_refund_id: applicationFeeRefundId,
+      target_error: applicationFeeRefundError,
+    });
+  } catch (feeRecordError) {
+    console.error(
+      "[approve cancellation] application-fee reconciliation status could not be recorded",
+      feeRecordError,
+    );
   }
 
   await admin
@@ -526,6 +607,16 @@ export async function approveCancellationRequest(formData: FormData) {
         refund_id: refundRequest.refund_id,
         provider_refund_id: providerRefundId,
         refund_status: recordedStatus,
+        commission_refund_eligible:
+          refundRequest.commission_refund_eligible,
+        days_before_check_in: refundRequest.days_before_check_in,
+        platform_commission_refund_cents:
+          refundRequest.platform_commission_refund_cents,
+        platform_tax_refund_cents:
+          refundRequest.platform_tax_refund_cents,
+        application_fee_refund_status: applicationFeeRefundStatus,
+        application_fee_refund_id: applicationFeeRefundId,
+        application_fee_refund_error: applicationFeeRefundError,
         source: "host_reservation",
       },
     })
@@ -539,10 +630,17 @@ export async function approveCancellationRequest(formData: FormData) {
       cancellation_request_id: requestId,
       refund_id: refundRequest.refund_id,
       refund_status: recordedStatus,
+      commission_refund_eligible:
+        refundRequest.commission_refund_eligible,
+      days_before_check_in: refundRequest.days_before_check_in,
+      platform_commission_refund_cents:
+        refundRequest.platform_commission_refund_cents,
+      platform_tax_refund_cents:
+        refundRequest.platform_tax_refund_cents,
+      application_fee_refund_status: applicationFeeRefundStatus,
       host_response: response || null,
     },
   });
-
 
   try {
     await sendCancellationDecisionNotification(admin, {
@@ -553,36 +651,40 @@ export async function approveCancellationRequest(formData: FormData) {
       refundStatus: recordedStatus,
     });
   } catch (notificationError) {
-    console.error("[approve cancellation] guest decision email failed", notificationError);
+    console.error(
+      "[approve cancellation] guest decision email failed",
+      notificationError,
+    );
   }
 
   try {
     await sendRefundNotifications(admin, refundRequest.refund_id);
   } catch (notificationError) {
-    console.error("[approve cancellation] refund email failed", notificationError);
+    console.error(
+      "[approve cancellation] refund email failed",
+      notificationError,
+    );
   }
 
-  revalidatePath("/host/messages");
-  revalidatePath(`/host/reservations/${reservationId}`);
-  revalidatePath("/host/reservations");
+  refreshReservationViews(reservationId);
+
+  const feeCopy = refundRequest.commission_refund_eligible
+    ? "The refundable Find A Place commission was returned to the host."
+    : "The guest refund was submitted, but the Find A Place commission remains non-refundable inside 14 days.";
 
   redirect(
     `/host/reservations/${reservationId}?saved=${encodeURIComponent(
       recordedStatus === "SUCCEEDED"
-        ? "Cancellation approved. The full refund was submitted and the guest was notified."
-        : "Cancellation approved. The refund is processing and the guest was notified.",
+        ? `Cancellation completed. Full guest refund submitted. ${feeCopy}`
+        : `Cancellation approved. The guest refund is processing. ${feeCopy}`,
     )}`,
   );
 }
-
 
 export async function approveChangeRequest(formData: FormData) {
   const reservationId = field(formData, "reservation_id", 100);
   const requestId = field(formData, "request_id", 100);
   const enteredResponse = field(formData, "host_response", 1200);
-  const response =
-    enteredResponse ||
-    "The host approved this change request. Confirm the updated reservation details before relying on any date, guest-count or price change.";
 
   if (!reservationId || !requestId) {
     redirect(
@@ -592,20 +694,22 @@ export async function approveChangeRequest(formData: FormData) {
     );
   }
 
-  const { supabase, profileId } = await requireHost();
-  const [{ data: reservation }, { data: changeRequest }] = await Promise.all([
-    supabase
-      .from("reservations")
-      .select("id,status")
-      .eq("id", reservationId)
-      .maybeSingle(),
-    supabase
-      .from("reservation_change_requests")
-      .select("id,status")
-      .eq("id", requestId)
-      .eq("reservation_id", reservationId)
-      .maybeSingle(),
-  ]);
+  const { supabase } = await requireHost();
+
+  const [{ data: reservation }, { data: changeRequest }] =
+    await Promise.all([
+      supabase
+        .from("reservations")
+        .select("id,status")
+        .eq("id", reservationId)
+        .maybeSingle(),
+      supabase
+        .from("reservation_change_requests")
+        .select("id,status")
+        .eq("id", requestId)
+        .eq("reservation_id", reservationId)
+        .maybeSingle(),
+    ]);
 
   if (!reservation || !changeRequest) {
     redirect(
@@ -615,7 +719,10 @@ export async function approveChangeRequest(formData: FormData) {
     );
   }
 
-  if (reservation.status !== "CONFIRMED" || changeRequest.status !== "REQUESTED") {
+  if (
+    reservation.status !== "CONFIRMED" ||
+    changeRequest.status !== "REQUESTED"
+  ) {
     redirect(
       `/host/reservations/${reservationId}?error=${encodeURIComponent(
         "This change request is no longer waiting for a response.",
@@ -623,38 +730,113 @@ export async function approveChangeRequest(formData: FormData) {
     );
   }
 
-  const now = new Date().toISOString();
-  const admin = createAdminClient();
-  const { error } = await admin
-    .from("reservation_change_requests")
-    .update({
-      status: "APPROVED",
-      host_response: response,
-      responded_by: profileId,
-      responded_at: now,
-      metadata: {
-        resolution: "HOST_APPROVED_REQUEST",
-        automatic_reservation_mutation: false,
-        source: "host_reservation",
-      },
-    })
-    .eq("id", requestId)
-    .eq("status", "REQUESTED");
+  const params = new URLSearchParams();
+  if (enteredResponse) params.set("note", enteredResponse);
 
-  if (error) {
+  redirect(
+    `/host/reservations/${encodeURIComponent(
+      reservationId,
+    )}/change/${encodeURIComponent(requestId)}${
+      params.size ? `?${params.toString()}` : ""
+    }`,
+  );
+}
+
+export async function applyChangeRequest(formData: FormData) {
+  const reservationId = field(formData, "reservation_id", 100);
+  const requestId = field(formData, "request_id", 100);
+  const checkIn = field(formData, "check_in", 20);
+  const checkOut = field(formData, "check_out", 20);
+  const guestCountRaw = field(formData, "guest_count", 10);
+  const petCountRaw = field(formData, "pet_count", 10);
+  const enteredResponse = field(formData, "host_response", 1200);
+
+  const guestCount = Number.parseInt(guestCountRaw, 10);
+  const petCount = Number.parseInt(petCountRaw, 10);
+
+  if (!reservationId || !requestId || !checkIn || !checkOut) {
     redirect(
       `/host/reservations/${reservationId}?error=${encodeURIComponent(
-        "The change response could not be saved.",
+        "The change request and updated dates are required.",
       )}`,
     );
   }
 
-  await admin.from("reservation_events").insert({
-    reservation_id: reservationId,
-    event_type: "HOST_CHANGE_REQUEST_APPROVED",
-    actor_profile_id: profileId,
-    metadata: { change_request_id: requestId, host_response: response },
-  });
+  const { supabase, profileId } = await requireHost();
+
+  const [{ data: reservation }, { data: changeRequest }] =
+    await Promise.all([
+      supabase
+        .from("reservations")
+        .select("id,status,guest_count,pet_count")
+        .eq("id", reservationId)
+        .maybeSingle(),
+      supabase
+        .from("reservation_change_requests")
+        .select("id,status")
+        .eq("id", requestId)
+        .eq("reservation_id", reservationId)
+        .maybeSingle(),
+    ]);
+
+  if (!reservation || !changeRequest) {
+    redirect(
+      `/host/reservations/${reservationId}?error=${encodeURIComponent(
+        "The change request could not be found.",
+      )}`,
+    );
+  }
+
+  if (
+    reservation.status !== "CONFIRMED" ||
+    changeRequest.status !== "REQUESTED"
+  ) {
+    redirect(
+      `/host/reservations/${reservationId}?error=${encodeURIComponent(
+        "This change request is no longer waiting for a response.",
+      )}`,
+    );
+  }
+
+  const finalGuestCount = Number.isFinite(guestCount)
+    ? guestCount
+    : reservation.guest_count;
+  const finalPetCount = Number.isFinite(petCount)
+    ? petCount
+    : reservation.pet_count;
+
+  const summary =
+    `Updated stay: ${checkIn} → ${checkOut}. ` +
+    `Guests: ${finalGuestCount}. Pets: ${finalPetCount}.`;
+
+  const response = enteredResponse
+    ? `${enteredResponse} ${summary}`
+    : `The host approved and applied this change. ${summary}`;
+
+  const admin = createAdminClient();
+
+  const { data, error } = await admin.rpc(
+    "apply_host_reservation_change",
+    {
+      target_reservation_id: reservationId,
+      target_change_request_id: requestId,
+      target_check_in: checkIn,
+      target_check_out: checkOut,
+      target_guest_count: finalGuestCount,
+      target_pet_count: finalPetCount,
+      target_host_response: response,
+      target_responded_by: profileId,
+    },
+  );
+
+  if (error || !data) {
+    redirect(
+      `/host/reservations/${reservationId}/change/${requestId}?error=${encodeURIComponent(
+        error?.message ||
+          "The reservation change could not be applied.",
+      )}`,
+    );
+  }
 
   try {
     await sendChangeDecisionNotification(admin, {
@@ -664,14 +846,17 @@ export async function approveChangeRequest(formData: FormData) {
       hostResponse: response,
     });
   } catch (notificationError) {
-    console.error("[approve change request] guest notification failed", notificationError);
+    console.error(
+      "[apply change request] guest notification failed",
+      notificationError,
+    );
   }
 
-  revalidatePath("/host/messages");
-  revalidatePath(`/host/reservations/${reservationId}`);
+  refreshReservationViews(reservationId);
+
   redirect(
     `/host/reservations/${reservationId}?saved=${encodeURIComponent(
-      "Change request approved and the guest was notified.",
+      "Change applied. The reservation and calendar are synchronized. The existing payment amount was not changed.",
     )}`,
   );
 }
@@ -693,6 +878,7 @@ export async function declineChangeRequest(formData: FormData) {
   }
 
   const { supabase, profileId } = await requireHost();
+
   const { data: changeRequest } = await supabase
     .from("reservation_change_requests")
     .select("id,status")
@@ -718,6 +904,7 @@ export async function declineChangeRequest(formData: FormData) {
 
   const now = new Date().toISOString();
   const admin = createAdminClient();
+
   const { error } = await admin
     .from("reservation_change_requests")
     .update({
@@ -745,7 +932,10 @@ export async function declineChangeRequest(formData: FormData) {
     reservation_id: reservationId,
     event_type: "HOST_CHANGE_REQUEST_DECLINED",
     actor_profile_id: profileId,
-    metadata: { change_request_id: requestId, host_response: response },
+    metadata: {
+      change_request_id: requestId,
+      host_response: response,
+    },
   });
 
   try {
@@ -756,11 +946,14 @@ export async function declineChangeRequest(formData: FormData) {
       hostResponse: response,
     });
   } catch (notificationError) {
-    console.error("[decline change request] guest notification failed", notificationError);
+    console.error(
+      "[decline change request] guest notification failed",
+      notificationError,
+    );
   }
 
-  revalidatePath("/host/messages");
-  revalidatePath(`/host/reservations/${reservationId}`);
+  refreshReservationViews(reservationId);
+
   redirect(
     `/host/reservations/${reservationId}?saved=${encodeURIComponent(
       "Change request declined and the guest was notified.",
@@ -782,6 +975,7 @@ export async function respondToReservationReview(formData: FormData) {
   }
 
   const { supabase, profileId } = await requireHost();
+
   const { error } = await supabase
     .from("reservation_reviews")
     .update({
@@ -793,6 +987,7 @@ export async function respondToReservationReview(formData: FormData) {
 
   if (error) {
     console.error("[respondToReservationReview]", error);
+
     redirect(
       `/host/reservations/${reservationId}?error=${encodeURIComponent(
         "The review response could not be saved.",

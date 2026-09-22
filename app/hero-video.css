@@ -1,0 +1,116 @@
+/* Homepage hero video background */
+.home-hero {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  background:
+    #101310
+    url("/media/find-a-place-hero-poster.jpg")
+    center center / cover no-repeat;
+}
+
+/* Replace the old decorative green/topographic background with the footage. */
+.home-hero:before {
+  display: none;
+}
+
+.home-hero-video {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center center;
+  pointer-events: none;
+}
+
+/*
+ * Keep the white copy readable without hiding the landscape.
+ * It is intentionally heavier behind the copy and lighter behind
+ * the featured-stay card.
+ */
+.home-hero-video-shade {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background:
+    linear-gradient(
+      90deg,
+      rgba(7, 11, 8, .82) 0%,
+      rgba(8, 13, 10, .70) 31%,
+      rgba(8, 13, 10, .50) 58%,
+      rgba(8, 13, 10, .30) 100%
+    ),
+    linear-gradient(
+      180deg,
+      rgba(6, 9, 7, .28) 0%,
+      rgba(6, 9, 7, .05) 50%,
+      rgba(6, 9, 7, .38) 100%
+    );
+}
+
+.home-hero > .site-header,
+.home-hero > .hero-layout {
+  position: relative;
+  z-index: 2;
+}
+
+.home-hero .hero-lead {
+  color: rgba(255, 255, 255, .88);
+  text-shadow: 0 2px 20px rgba(0, 0, 0, .28);
+}
+
+.home-hero .hero-copy h1 {
+  text-shadow: 0 3px 28px rgba(0, 0, 0, .30);
+}
+
+.home-hero .hero-proof {
+  border-top-color: rgba(255, 255, 255, .32);
+}
+
+/* Keep the card grounded over motion without making it opaque and heavy. */
+.home-hero .hero-featured-panel {
+  box-shadow:
+    18px 18px 0 rgba(246, 240, 229, .10),
+    0 30px 80px rgba(0, 0, 0, .24);
+}
+
+@media (max-width: 1000px) {
+  .home-hero-video {
+    object-position: 58% center;
+  }
+
+  .home-hero-video-shade {
+    background:
+      linear-gradient(
+        180deg,
+        rgba(7, 11, 8, .70) 0%,
+        rgba(7, 11, 8, .48) 44%,
+        rgba(7, 11, 8, .64) 100%
+      ),
+      linear-gradient(
+        90deg,
+        rgba(7, 11, 8, .58) 0%,
+        rgba(7, 11, 8, .26) 100%
+      );
+  }
+}
+
+@media (max-width: 700px) {
+  .home-hero-video {
+    object-position: 62% center;
+  }
+
+  .home-hero-video-shade {
+    background: rgba(7, 11, 8, .60);
+  }
+}
+
+/* Respect reduced-motion settings and use the matching poster instead. */
+@media (prefers-reduced-motion: reduce) {
+  .home-hero-video {
+    display: none;
+  }
+}
