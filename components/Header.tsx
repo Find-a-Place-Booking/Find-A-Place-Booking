@@ -86,7 +86,11 @@ export function Header({ light = false }: { light?: boolean }) {
                 <Link href="/trip" onClick={closeMenu}>
                   My trip
                 </Link>
-                <Link href="/host/sign-in" onClick={closeMenu}>
+                <Link
+                  href="/host/sign-in"
+                  prefetch={false}
+                  onClick={closeMenu}
+                >
                   Host sign in
                 </Link>
               </div>
@@ -94,6 +98,7 @@ export function Header({ light = false }: { light?: boolean }) {
               <Link
                 className="button button-full"
                 href="/host/sign-up?next=%2Fhost%2Fonboarding"
+                prefetch={false}
                 onClick={closeMenu}
               >
                 List your property
@@ -122,12 +127,19 @@ export function Header({ light = false }: { light?: boolean }) {
             <Link className="text-link" href="/trip">
               My trip
             </Link>
-            <Link className="text-link" href="/host/sign-in">
+
+            <Link
+              className="text-link"
+              href="/host/sign-in"
+              prefetch={false}
+            >
               Host sign in
             </Link>
+
             <Link
               className="button button-small button-outline header-list-property"
               href="/host/sign-up?next=%2Fhost%2Fonboarding"
+              prefetch={false}
             >
               List your property
             </Link>
@@ -138,7 +150,9 @@ export function Header({ light = false }: { light?: boolean }) {
               aria-label={menuOpen ? "Close menu" : "Open menu"}
               aria-expanded={menuOpen}
               aria-controls={menuId}
-              onClick={() => setMenuOpen((value) => !value)}
+              onClick={() =>
+                setMenuOpen((value) => !value)
+              }
             >
               <span />
               <span />

@@ -101,7 +101,7 @@ export default async function PaymentsPage() {
             <strong>Stripe Connect</strong>
             <span>
               {stripe.configured
-                ? "Connect or finish Stripe setup to accept booking payments directly on your host account."
+                ? "Already use Stripe? Sign in and Stripe can reuse eligible verified business details. New to Stripe? Create and complete your account here."
                 : "Stripe setup is temporarily unavailable. Contact Find A Place for help."}
             </span>
           </div>

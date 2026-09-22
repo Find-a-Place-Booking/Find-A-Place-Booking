@@ -9,11 +9,16 @@ import { createAdminClient } from "@/lib/supabase/admin";
 
 export const runtime = "nodejs";
 
+const NON_REFUNDABLE_COMMISSION_NOTICE =
+  "Find A Place's host-paid platform commission is earned when a paid booking connects the guest and host and is not reversed by a later cancellation, refund, shortened stay or booking change. Any guest refund approved by the host is funded from the host's connected payment charge.";
+
 async function loadReservation(
   reservationId: string,
   checkoutToken: string | null | undefined,
 ) {
-  if (!guestCheckoutTokenMatches(reservationId, checkoutToken)) return null;
+  if (!guestCheckoutTokenMatches(reservationId, checkoutToken)) {
+    return null;
+  }
 
   const admin = createAdminClient();
   const { data: reservation, error } = await admin
@@ -41,6 +46,7 @@ async function latestRequest(
     .order("requested_at", { ascending: false })
     .limit(1)
     .maybeSingle();
+
   return data ?? null;
 }
 
@@ -51,10 +57,17 @@ export async function GET(request: NextRequest) {
     request.nextUrl.searchParams.get("checkoutToken")?.trim() || "";
 
   if (!reservationId) {
-    return NextResponse.json({ error: "Reservation is required." }, { status: 400 });
+    return NextResponse.json(
+      { error: "Reservation is required." },
+      { status: 400 },
+    );
   }
 
-  const loaded = await loadReservation(reservationId, checkoutToken);
+  const loaded = await loadReservation(
+    reservationId,
+    checkoutToken,
+  );
+
   if (!loaded) {
     return NextResponse.json(
       { error: "Booking access could not be verified." },
@@ -65,8 +78,29 @@ export async function GET(request: NextRequest) {
   const { admin, reservation } = loaded;
   const requestRow = await latestRequest(admin, reservationId);
   const activeRequest =
-    requestRow && ["REQUESTED", "APPROVED"].includes(requestRow.status);
-  const canRequest = reservation.status === "CONFIRMED" && !activeRequest;
+    requestRow &&
+    ["REQUESTED", "APPROVED"].includes(requestRow.status);
+
+  const canRequest =
+    reservation.status === "CONFIRMED" && !activeRequest;
+
+  let policy: string;
+
+  if (reservation.status === "CANCELLED") {
+    policy =
+      `This reservation is cancelled. Any guest refund is tracked separately with the payment processor. ${NON_REFUNDABLE_COMMISSION_NOTICE}`;
+  } else if (activeRequest) {
+    policy =
+      requestRow?.status === "APPROVED"
+        ? `Your host approved the request. Any guest refund they approved is being processed against the host's connected payment charge. ${NON_REFUNDABLE_COMMISSION_NOTICE}`
+        : `Your cancellation request was sent to the host. The reservation remains confirmed until the host approves it and the cancellation is completed. ${NON_REFUNDABLE_COMMISSION_NOTICE}`;
+  } else if (requestRow?.status === "DECLINED") {
+    policy =
+      `Your host declined the last cancellation request. The reservation remains confirmed. You can message the host or submit another request if circumstances change. ${NON_REFUNDABLE_COMMISSION_NOTICE}`;
+  } else {
+    policy =
+      `Cancellation requests go directly to the host. Sending a request does not cancel the booking or guarantee a refund; the host applies the property policy accepted at booking, subject to applicable law. ${NON_REFUNDABLE_COMMISSION_NOTICE}`;
+  }
 
   return NextResponse.json({
     reservationId,
@@ -87,36 +121,43 @@ export async function GET(request: NextRequest) {
           completedAt: requestRow.completed_at,
         }
       : null,
-    policy:
-      reservation.status === "CANCELLED"
-        ? "This reservation is cancelled. Your host remains your first contact for booking-specific questions."
-        : activeRequest
-          ? requestRow?.status === "APPROVED"
-            ? "Your host approved the request. Any approved refund is being processed through the payment provider."
-            : "Your cancellation request was sent to the host. The reservation remains confirmed until the host approves it and the cancellation is completed."
-          : requestRow?.status === "DECLINED"
-            ? "Your host declined the last cancellation request. The reservation remains confirmed. You can message the host or submit another request if circumstances change."
-            : "Cancellation requests go directly to the host. Sending a request does not cancel the booking or guarantee a refund; the host applies the property policy accepted at booking, subject to applicable law.",
+    policy,
   });
 }
 
 export async function POST(request: NextRequest) {
   if (!sameOrigin(request)) {
-    return NextResponse.json({ error: "Invalid request origin." }, { status: 403 });
+    return NextResponse.json(
+      { error: "Invalid request origin." },
+      { status: 403 },
+    );
   }
 
   const body = (await request.json().catch(() => null)) as
-    | { reservationId?: string; checkoutToken?: string; reason?: string }
+    | {
+        reservationId?: string;
+        checkoutToken?: string;
+        reason?: string;
+      }
     | null;
+
   const reservationId = body?.reservationId?.trim() || "";
   const checkoutToken = body?.checkoutToken?.trim() || "";
-  const reason = body?.reason?.trim().slice(0, 1200) || null;
+  const reason =
+    body?.reason?.trim().slice(0, 1200) || null;
 
   if (!reservationId) {
-    return NextResponse.json({ error: "Reservation is required." }, { status: 400 });
+    return NextResponse.json(
+      { error: "Reservation is required." },
+      { status: 400 },
+    );
   }
 
-  const loaded = await loadReservation(reservationId, checkoutToken);
+  const loaded = await loadReservation(
+    reservationId,
+    checkoutToken,
+  );
+
   if (!loaded) {
     return NextResponse.json(
       { error: "Booking access could not be verified." },
@@ -125,9 +166,13 @@ export async function POST(request: NextRequest) {
   }
 
   const { admin, reservation } = loaded;
+
   if (reservation.status !== "CONFIRMED") {
     return NextResponse.json(
-      { error: "Only confirmed reservations can send a cancellation request." },
+      {
+        error:
+          "Only confirmed reservations can send a cancellation request.",
+      },
       { status: 409 },
     );
   }
@@ -152,21 +197,29 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const { data: requestRow, error: requestError } = await admin
-    .from("reservation_cancellation_requests")
-    .insert({
-      reservation_id: reservationId,
-      requested_by: "GUEST",
-      status: "REQUESTED",
-      reason,
-      metadata: { source: "guest_trip" },
-    })
-    .select("id,status,requested_at")
-    .single();
+  const { data: requestRow, error: requestError } =
+    await admin
+      .from("reservation_cancellation_requests")
+      .insert({
+        reservation_id: reservationId,
+        requested_by: "GUEST",
+        status: "REQUESTED",
+        reason,
+        metadata: {
+          source: "guest_trip",
+          platform_commission_policy:
+            "NON_REFUNDABLE",
+        },
+      })
+      .select("id,status,requested_at")
+      .single();
 
   if (requestError || !requestRow) {
     return NextResponse.json(
-      { error: "The cancellation request could not be sent." },
+      {
+        error:
+          "The cancellation request could not be sent.",
+      },
       { status: 500 },
     );
   }
@@ -178,6 +231,7 @@ export async function POST(request: NextRequest) {
       cancellation_request_id: requestRow.id,
       reason,
       source: "guest_trip",
+      platform_commission_policy: "NON_REFUNDABLE",
     },
   });
 

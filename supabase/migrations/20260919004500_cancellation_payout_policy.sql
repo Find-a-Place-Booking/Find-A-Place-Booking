@@ -263,63 +263,6 @@ create trigger refunds_sync_reservation_payout
 after insert or update of status on public.refunds
 for each row execute function public.sync_reservation_payout_from_refund();
 
--- Backfill already-confirmed successful payments so test/early bookings show
--- the same payout policy without touching the booking/payment calculation.
-insert into public.reservation_payouts (
-  reservation_id,
-  payment_id,
-  organization_id,
-  property_id,
-  confirmation_code,
-  connected_account_id,
-  amount_cents,
-  currency,
-  cancellation_cutoff_date,
-  payout_eligible_date,
-  status,
-  metadata
-)
-select
-  reservations.id,
-  payments.id,
-  reservations.organization_id,
-  reservations.property_id,
-  reservations.confirmation_code,
-  reservations.provider_account_ref,
-  greatest(
-    0,
-    payments.host_proceeds_cents - coalesce((
-      select sum(refunds.amount_cents)
-      from public.refunds refunds
-      where refunds.reservation_id = reservations.id
-        and refunds.status::text = 'SUCCEEDED'
-    ), 0)
-  ),
-  upper(coalesce(payments.currency, 'USD')),
-  reservations.check_in - 14,
-  reservations.check_in - 13,
-  case
-    when greatest(
-      0,
-      payments.host_proceeds_cents - coalesce((
-        select sum(refunds.amount_cents)
-        from public.refunds refunds
-        where refunds.reservation_id = reservations.id
-          and refunds.status::text = 'SUCCEEDED'
-      ), 0)
-    ) = 0 then 'CANCELLED'
-    else 'SCHEDULED'
-  end,
-  jsonb_build_object('source', 'migration_backfill')
-from public.reservations reservations
-join public.payments payments
-  on payments.reservation_id = reservations.id
-where reservations.status::text = 'CONFIRMED'
-  and payments.status::text = 'SUCCEEDED'
-  and payments.host_proceeds_cents is not null
-  and payments.host_proceeds_cents >= 0
-  and nullif(trim(coalesce(reservations.provider_account_ref, '')), '') is not null
-on conflict (reservation_id) do nothing;
 
 comment on table public.reservation_payouts is
   'Tracks Find A Place host bank-payout timing separately from the destination charge. Normal eligibility is 13 calendar days before check-in; ordinary guest cancellation closes at 14 calendar days before check-in.';

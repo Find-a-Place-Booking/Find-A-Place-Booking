@@ -9,31 +9,83 @@ const hostPublicPaths = new Set([
   "/host/sign-up/check-email",
 ]);
 
-function copyCookies(source: NextResponse, target: NextResponse) {
-  source.cookies.getAll().forEach((cookie) => target.cookies.set(cookie));
-  ["cache-control", "expires", "pragma"].forEach((header) => {
-    const value = source.headers.get(header);
-    if (value) target.headers.set(header, value);
-  });
+function isSupabaseAuthCookie(name: string) {
+  return (
+    name.startsWith("sb-") &&
+    (name.includes("-auth-token") ||
+      name.includes("-code-verifier"))
+  );
+}
+
+function clearSupabaseAuthCookies(
+  request: NextRequest,
+  response: NextResponse,
+) {
+  for (const cookie of request.cookies.getAll()) {
+    if (!isSupabaseAuthCookie(cookie.name)) continue;
+
+    request.cookies.delete(cookie.name);
+    response.cookies.set(cookie.name, "", {
+      path: "/",
+      expires: new Date(0),
+      maxAge: 0,
+      sameSite: "lax",
+      secure: request.nextUrl.protocol === "https:",
+    });
+  }
+
+  return response;
+}
+
+function copyResponseCookies(
+  source: NextResponse,
+  target: NextResponse,
+) {
+  source.cookies
+    .getAll()
+    .forEach((cookie) => target.cookies.set(cookie));
+
   return target;
 }
 
-function loginRedirect(request: NextRequest, response: NextResponse, destination: string, next?: string, error?: string) {
+function loginRedirect(
+  request: NextRequest,
+  response: NextResponse,
+  destination: string,
+  next?: string,
+  error?: string,
+) {
   const url = request.nextUrl.clone();
   url.pathname = destination;
   url.search = "";
+
   if (next) url.searchParams.set("next", next);
   if (error) url.searchParams.set("error", error);
-  return copyCookies(response, NextResponse.redirect(url));
+
+  return copyResponseCookies(
+    response,
+    NextResponse.redirect(url),
+  );
 }
 
 export async function updateSession(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
 
-  // Public auth screens must never run the protected-route auth checks. This
-  // also prevents an authenticated/authorization disagreement from bouncing
-  // between /admin and /admin/sign-in.
-  if (hostPublicPaths.has(pathname) || pathname === "/admin/sign-in") {
+  const isPublicAuthRoute =
+    hostPublicPaths.has(pathname) ||
+    pathname === "/admin/sign-in";
+
+  /*
+   * Public sign-in/sign-up routes must be passive.
+   *
+   * Do NOT call Supabase auth here and, critically, do NOT clear cookies here.
+   * Next.js may prefetch these links in the background. Mutating cookies in a
+   * prefetched auth response can destroy a perfectly valid host/admin session.
+   *
+   * Stale-cookie cleanup is handled by the explicit sign-in action and by
+   * protected-route auth failure below.
+   */
+  if (isPublicAuthRoute) {
     return NextResponse.next({ request });
   }
 
@@ -45,39 +97,92 @@ export async function updateSession(request: NextRequest) {
       getAll() {
         return request.cookies.getAll();
       },
-      setAll(cookiesToSet, headersToSet) {
-        cookiesToSet.forEach(({ name, value, options }) => request.cookies.set(name, value));
+      setAll(cookiesToSet) {
+        cookiesToSet.forEach(({ name, value }) => {
+          request.cookies.set(name, value);
+        });
+
         response = NextResponse.next({ request });
-        cookiesToSet.forEach(({ name, value, options }) => response.cookies.set(name, value, options));
-        Object.entries(headersToSet ?? {}).forEach(([name, value]) => response.headers.set(name, value));
+
+        cookiesToSet.forEach(
+          ({ name, value, options }) => {
+            response.cookies.set(name, value, options);
+          },
+        );
       },
     },
   });
 
-  const { data: authData, error: authError } = await supabase.auth.getUser();
-  const user = authError ? null : authData.user;
+  let user = null;
 
-  const isHostRoute = pathname === "/host" || pathname.startsWith("/host/");
-  if (isHostRoute && !user) {
-    return loginRedirect(request, response, "/host/sign-in", `${pathname}${request.nextUrl.search}`);
+  try {
+    const {
+      data,
+      error,
+    } = await supabase.auth.getUser();
+
+    if (error) {
+      response = clearSupabaseAuthCookies(
+        request,
+        response,
+      );
+    } else {
+      user = data.user;
+    }
+  } catch {
+    response = clearSupabaseAuthCookies(
+      request,
+      response,
+    );
+    user = null;
   }
 
-  const isAdminRoute = pathname === "/admin" || pathname.startsWith("/admin/");
+  const isHostRoute =
+    pathname === "/host" ||
+    pathname.startsWith("/host/");
+
+  if (isHostRoute && !user) {
+    return loginRedirect(
+      request,
+      response,
+      "/host/sign-in",
+      `${pathname}${request.nextUrl.search}`,
+      "Your session expired. Sign in again.",
+    );
+  }
+
+  const isAdminRoute =
+    pathname === "/admin" ||
+    pathname.startsWith("/admin/");
+
   if (isAdminRoute) {
     if (!user) {
-      return loginRedirect(request, response, "/admin/sign-in");
+      return loginRedirect(
+        request,
+        response,
+        "/admin/sign-in",
+        undefined,
+        "Your session expired. Sign in again.",
+      );
     }
 
-    // Use the single database authorization helper everywhere. This keeps the
-    // proxy, sign-in action and sign-in page from making subtly different
-    // decisions about the same administrator.
-    const { data: isAdmin, error: adminError } = await supabase.rpc("is_active_admin");
+    const {
+      data: isAdmin,
+      error: adminError,
+    } = await supabase.rpc("is_active_admin");
 
     if (adminError || isAdmin !== true) {
-      // Clear the authenticated session before returning to the admin sign-in
-      // page. Without this, a transient authorization mismatch can create a
-      // /admin <-> /admin/sign-in redirect loop and eventually an HTTP 431.
-      await supabase.auth.signOut();
+      try {
+        await supabase.auth.signOut();
+      } catch {
+        // Local cookie cleanup below is the authoritative fallback.
+      }
+
+      response = clearSupabaseAuthCookies(
+        request,
+        response,
+      );
+
       return loginRedirect(
         request,
         response,

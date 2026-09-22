@@ -14,13 +14,17 @@ type Props = {
   publishableKey: string;
 };
 
+type EntryMode = "existing" | "new";
+
 type AccountSessionResponse = {
   clientSecret?: string;
   paymentAccountId?: string;
   error?: string;
 };
 
-async function readJsonResponse(response: Response): Promise<AccountSessionResponse> {
+async function readJsonResponse(
+  response: Response,
+): Promise<AccountSessionResponse> {
   const raw = await response.text();
 
   if (!raw) {
@@ -43,6 +47,7 @@ export function EmbeddedStripeOnboarding({
   publishableKey,
 }: Props) {
   const [showOnboarding, setShowOnboarding] = useState(false);
+  const [entryMode, setEntryMode] = useState<EntryMode | null>(null);
   const [stripeConnectInstance, setStripeConnectInstance] = useState<
     ReturnType<typeof loadConnectAndInitialize> | null
   >(null);
@@ -67,13 +72,15 @@ export function EmbeddedStripeOnboarding({
 
     if (!response.ok) {
       throw new Error(
-        payload.error || `Unable to start Stripe onboarding (HTTP ${response.status}).`,
+        payload.error ||
+          `Unable to start Stripe onboarding (HTTP ${response.status}).`,
       );
     }
 
     if (!payload.clientSecret) {
       throw new Error(
-        payload.error || "Stripe onboarding did not return a client secret.",
+        payload.error ||
+          "Stripe onboarding did not return a client secret.",
       );
     }
 
@@ -81,7 +88,11 @@ export function EmbeddedStripeOnboarding({
   }
 
   async function refreshStripeStatus() {
-    const endpoint = new URL("/api/stripe/connect/sync", window.location.origin);
+    const endpoint = new URL(
+      "/api/stripe/connect/sync",
+      window.location.origin,
+    );
+
     const response = await fetch(endpoint.toString(), {
       method: "POST",
       credentials: "same-origin",
@@ -93,33 +104,59 @@ export function EmbeddedStripeOnboarding({
     });
 
     const payload = await response.json().catch(() => null);
+
     if (!response.ok) {
-      throw new Error(payload?.error || "Unable to refresh Stripe account status.");
+      throw new Error(
+        payload?.error ||
+          "Unable to refresh Stripe account status.",
+      );
     }
+
     return payload;
   }
 
-  function openStripeOnboarding() {
+  function openStripeOnboarding(mode: EntryMode) {
+    setEntryMode(mode);
+
     if (!stripeConnectInstance) {
       const instance = loadConnectAndInitialize({
         publishableKey,
         fetchClientSecret,
         appearance: { overlays: "dialog" },
       });
+
       setStripeConnectInstance(instance);
     }
+
     setShowOnboarding(true);
   }
 
   if (!showOnboarding) {
     return (
-      <button
-        className="button button-small"
-        type="button"
-        onClick={openStripeOnboarding}
-      >
-        Connect Stripe
-      </button>
+      <div className={styles.entryChoices}>
+        <button
+          className="button button-small"
+          type="button"
+          onClick={() => openStripeOnboarding("existing")}
+        >
+          I already use Stripe
+        </button>
+
+        <button
+          className="button button-small button-quiet"
+          type="button"
+          onClick={() => openStripeOnboarding("new")}
+        >
+          I&apos;m new to Stripe
+        </button>
+
+        <small className={styles.entryHelp}>
+          Existing Stripe users can sign in and use Stripe&apos;s networked
+          onboarding to reuse eligible verified business information. New
+          users can create and complete their Stripe account in the same secure
+          flow.
+        </small>
+      </div>
     );
   }
 
@@ -128,33 +165,53 @@ export function EmbeddedStripeOnboarding({
       <div className={styles.heading}>
         <div>
           <span className={styles.kicker}>Stripe Connect</span>
-          <strong>Set up your payment account</strong>
+
+          <strong>
+            {entryMode === "existing"
+              ? "Sign in with Stripe"
+              : "Create your Stripe payment account"}
+          </strong>
+
           <p>
-            Complete Stripe&apos;s secure setup below. Guest booking charges will
-            be created directly on your connected Stripe account. Find A Place
-            never stores your raw bank or identity information.
+            {entryMode === "existing"
+              ? "Sign in with the Stripe login you already use. Stripe can reuse eligible business and verification details it already has, so you do not have to re-enter the same information. If Stripe has an outstanding requirement, it may still ask you to confirm or update it."
+              : "Create your Stripe account and complete Stripe's secure onboarding below. Guest booking charges will be created directly on your connected Stripe account."}
+          </p>
+
+          <p>
+            Find A Place never stores your raw bank-account details,
+            identity documents or Stripe password.
           </p>
         </div>
 
         <button
           className={styles.close}
           type="button"
-          onClick={() => setShowOnboarding(false)}
+          onClick={() => {
+            setShowOnboarding(false);
+            setEntryMode(null);
+          }}
         >
-          Close setup
+          Back
         </button>
       </div>
 
       <div className={styles.componentFrame}>
         {stripeConnectInstance ? (
-          <ConnectComponentsProvider connectInstance={stripeConnectInstance}>
+          <ConnectComponentsProvider
+            connectInstance={stripeConnectInstance}
+          >
             <ConnectAccountOnboarding
               onExit={async () => {
                 try {
                   await refreshStripeStatus();
                 } catch (error) {
-                  console.error("[stripe connect] status refresh failed", error);
+                  console.error(
+                    "[stripe connect] status refresh failed",
+                    error,
+                  );
                 }
+
                 window.location.reload();
               }}
             />

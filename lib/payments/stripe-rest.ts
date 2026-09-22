@@ -188,6 +188,14 @@ export async function createAccountSession(accountId: string) {
   body.set("components[notification_banner][enabled]", "true");
   body.set("components[account_management][enabled]", "true");
 
+  // Keep Stripe authentication enabled. This allows Stripe's networked
+  // onboarding to recognize an existing Stripe user/business and reuse
+  // previously verified information instead of asking them to start over.
+  body.set(
+    "components[account_onboarding][features][disable_stripe_user_authentication]",
+    "false",
+  );
+
   // Stripe owns the merchant balance and normal bank payout timing. Find A
   // Place no longer forces a manual payout schedule on connected accounts.
   return stripeV1FormRequest<{ client_secret: string; expires_at: number }>(

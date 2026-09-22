@@ -20,7 +20,8 @@ export default function HelpPage() {
             Find A Place provides the booking platform, payment-routing and
             communication tools. The host operates the property and handles
             stay-specific questions, requested booking changes and ordinary
-            cancellation decisions under the property terms accepted at booking.
+            cancellation decisions under the property terms accepted at
+            booking.
           </p>
 
           <div className="help-contact-panel">
@@ -31,14 +32,18 @@ export default function HelpPage() {
                 Guests, hosts and property owners can reach us at{" "}
                 <a href={`mailto:${FIND_A_PLACE_SUPPORT_EMAIL}`}>
                   {FIND_A_PLACE_SUPPORT_EMAIL}
-                </a>.
+                </a>
+                .
               </p>
             </div>
             <div className="help-contact-actions">
               <Link className="button button-small" href="/contact#guest">
                 Guest support
               </Link>
-              <Link className="button button-small button-quiet" href="/contact#host">
+              <Link
+                className="button button-small button-quiet"
+                href="/contact#host"
+              >
                 Host support
               </Link>
             </div>
@@ -59,19 +64,25 @@ export default function HelpPage() {
 
           <h2>Questions about the property or check-in?</h2>
           <p>
-            Use the host email, phone or reservation message thread shown on your
-            secure trip page. The host is responsible for the property, arrival
-            information and other stay-specific details.
+            Use the host email, phone or reservation message thread shown on
+            your secure trip page. The host is responsible for the property,
+            arrival information and other stay-specific details.
           </p>
 
           <h2>Cancellation request or refund question?</h2>
           <p>
-            The host&apos;s cancellation and refund terms are shown before payment
-            and saved with the reservation. A request sent from My Trip goes to
-            the host; it does not automatically cancel the booking or create a
-            refund. If the host approves a refund through Find A Place, the
-            platform transmits that host-authorized refund to the connected
-            payment processor and keeps the reservation record synchronized.
+            The host&apos;s cancellation and refund terms are shown before
+            payment and saved with the reservation. A request sent from My Trip
+            goes to the host; it does not automatically cancel the booking or
+            create a refund. If the host approves a refund, Find A Place sends
+            that host-authorized refund against the host&apos;s connected
+            payment charge and keeps the reservation record synchronized.
+          </p>
+          <p>
+            Find A Place&apos;s host-paid platform commission remains earned
+            and non-refundable when a booking is cancelled, refunded,
+            shortened or changed. The host is responsible for any guest refund
+            it approves.
           </p>
           <p>
             <Link href="/cancellation-policy">
@@ -94,7 +105,11 @@ export default function HelpPage() {
             Stripe controls your connected balance and bank-deposit timing.
           </p>
           <p className="help-inline-actions">
-            <Link className="button button-small button-quiet" href="/host/sign-in">
+            <Link
+              className="button button-small button-quiet"
+              href="/host/sign-in"
+              prefetch={false}
+            >
               Host sign in
             </Link>
             <Link href="/contact#host">Contact host support →</Link>
@@ -102,15 +117,19 @@ export default function HelpPage() {
 
           <h2>Want help promoting your property?</h2>
           <p>
-            Find A Place can also put together a customized advertising and social
-            media promotion plan for hosts. Promotion is optional and separate
-            from the booking platform commission.
+            Find A Place can also put together a customized advertising and
+            social media promotion plan for hosts. Promotion is optional and
+            separate from the booking platform commission.
           </p>
           <p className="help-inline-actions">
             <Link className="button button-small" href="/contact#advertising">
               Ask about advertising
             </Link>
-            <a href={FIND_A_PLACE_NETWORK_URL} target="_blank" rel="noreferrer">
+            <a
+              href={FIND_A_PLACE_NETWORK_URL}
+              target="_blank"
+              rel="noreferrer"
+            >
               See the Find A Place network ↗
             </a>
           </p>
@@ -121,7 +140,11 @@ export default function HelpPage() {
             <Link href="/property-policies">Property policies</Link>
             <Link href="/stays">Browse stays</Link>
             <Link href="/about">About Find A Place</Link>
-            <a href={FIND_A_PLACE_NETWORK_URL} target="_blank" rel="noreferrer">
+            <a
+              href={FIND_A_PLACE_NETWORK_URL}
+              target="_blank"
+              rel="noreferrer"
+            >
               FindAPlaceAR.com ↗
             </a>
           </div>
