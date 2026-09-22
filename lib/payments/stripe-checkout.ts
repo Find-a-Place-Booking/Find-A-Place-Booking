@@ -123,9 +123,9 @@ export async function createConnectedRefund(input: {
   let applicationFeeRefundId: string | null = null;
   let applicationFeeRefundError: string | null = null;
 
-  // Application-fee refunds concern only Find A Place commission.
   // Taxes are part of the host-owned connected-account charge and never enter
-  // the Find A Place application fee.
+  // the Find A Place application fee. Find A Place commission is intentionally
+  // non-refundable under the platform cancellation/refund policy.
   if (input.platformFeeRefundCents > 0 && refund.status === "succeeded") {
     try {
       const feeRefund = await reconcileApplicationFeeRefund({

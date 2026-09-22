@@ -14,7 +14,11 @@ export default async function HostDashboard() {
     partner_status: string;
     commission_tier: string;
   } | null = null;
-  let draft: { current_step: number; status: string; updated_at: string } | null = null;
+  let draft: {
+    current_step: number;
+    status: string;
+    updated_at: string;
+  } | null = null;
   let propertyCount = 0;
   let publishedCount = 0;
   let pendingReviewCount = 0;
@@ -102,13 +106,15 @@ export default async function HostDashboard() {
 
       upcomingStayCount = upcoming?.length ?? 0;
       bookedRevenueCents = (upcoming ?? []).reduce(
-        (sum, reservation) => sum + Number(reservation.guest_total_cents ?? 0),
+        (sum, reservation) =>
+          sum + Number(reservation.guest_total_cents ?? 0),
         0,
       );
 
       const propertyIds = (organizationProperties ?? []).map(
         (property) => property.id,
       );
+
       if (propertyIds.length) {
         const { data: units } = await supabase
           .from("property_units")
@@ -129,12 +135,29 @@ export default async function HostDashboard() {
   }
 
   const progress = draft
-    ? Math.round(((Number(draft.current_step ?? 0) + 1) / 11) * 100)
+    ? Math.round(((Number(draft.current_step ?? 0) + 1) / 10) * 100)
     : 0;
   const ready = draft?.status === "READY_FOR_PROPERTY";
+  const isPartner =
+    organization?.partner_status === "VERIFIED" &&
+    organization?.commission_tier === "PARTNER_5";
+  const commissionRate = isPartner ? "5%" : "7%";
 
   return (
     <DashboardShell active="Overview" title="Host dashboard">
+      {isPartner ? (
+        <div className="host-alert">
+          <div>
+            <span>✓</span>
+            <p>
+              <strong>Find A Place Partner</strong>
+              {" "}Your account has the partner commission rate.
+            </p>
+          </div>
+          <strong>{commissionRate}</strong>
+        </div>
+      ) : null}
+
       <div className="host-alert">
         <div>
           <span>
@@ -149,7 +172,11 @@ export default async function HostDashboard() {
           <p>
             <strong>
               {propertyCount
-                ? `${propertyCount} property ${propertyCount === 1 ? "listing is" : "listings are"} connected.`
+                ? `${propertyCount} property ${
+                    propertyCount === 1
+                      ? "listing is"
+                      : "listings are"
+                  } connected.`
                 : ready
                   ? "Host setup is complete."
                   : organization
@@ -167,7 +194,9 @@ export default async function HostDashboard() {
         </div>
         <Link
           href={
-            propertyCount || ready ? "/host/properties" : "/host/onboarding"
+            propertyCount || ready
+              ? "/host/properties"
+              : "/host/onboarding"
           }
         >
           {propertyCount
@@ -192,13 +221,17 @@ export default async function HostDashboard() {
           </strong>
           <small>Confirmed future stays</small>
         </div>
+
         <div>
           <span>Upcoming stays</span>
           <strong>{upcomingStayCount}</strong>
           <small>
-            {upcomingStayCount ? "Confirmed reservations" : "No upcoming reservations"}
+            {upcomingStayCount
+              ? "Confirmed reservations"
+              : "No upcoming reservations"}
           </small>
         </div>
+
         <div>
           <span>Properties</span>
           <strong>{propertyCount}</strong>
@@ -214,17 +247,14 @@ export default async function HostDashboard() {
                     : "Complete host setup first"}
           </small>
         </div>
+
         <div>
-          <span>Commission tier</span>
-          <strong>
-            {organization?.commission_tier === "PARTNER_5" ? "5%" : "7%"}
-          </strong>
+          <span>Find A Place fee</span>
+          <strong>{commissionRate}</strong>
           <small>
-            {organization?.partner_status === "VERIFIED"
-              ? "Verified partner"
-              : organization?.partner_status === "PARTNER_PENDING"
-                ? "Partner review pending"
-                : "Standard host"}
+            {isPartner
+              ? "Partner rate"
+              : "Standard commission"}
           </small>
         </div>
       </div>
@@ -241,7 +271,9 @@ export default async function HostDashboard() {
           <div className="panel-empty">
             <strong>
               {upcomingStayCount
-                ? `${upcomingStayCount} confirmed upcoming ${upcomingStayCount === 1 ? "stay" : "stays"}.`
+                ? `${upcomingStayCount} confirmed upcoming ${
+                    upcomingStayCount === 1 ? "stay" : "stays"
+                  }.`
                 : "No upcoming reservations."}
             </strong>
             <span>
@@ -263,7 +295,11 @@ export default async function HostDashboard() {
           <div className="panel-empty">
             <strong>
               {calendarConnectionCount
-                ? `${calendarConnectionCount} external ${calendarConnectionCount === 1 ? "calendar is" : "calendars are"} connected.`
+                ? `${calendarConnectionCount} external ${
+                    calendarConnectionCount === 1
+                      ? "calendar is"
+                      : "calendars are"
+                  } connected.`
                 : "No external calendar connected."}
             </strong>
             <span>
@@ -282,10 +318,19 @@ export default async function HostDashboard() {
               <p className="eyebrow dark">Account checklist</p>
               <h2>Get ready for bookings</h2>
             </div>
-            <span className={`status-pill ${ready ? "" : "status-muted"}`}>
-              {ready ? "Host setup saved" : organization ? "In progress" : "Not started"}
+            <span
+              className={`status-pill ${
+                ready ? "" : "status-muted"
+              }`}
+            >
+              {ready
+                ? "Host setup saved"
+                : organization
+                  ? "In progress"
+                  : "Not started"}
             </span>
           </div>
+
           <div className="setup-list">
             <div>
               <b>{organization ? "✓" : "1"}</b>
@@ -298,6 +343,7 @@ export default async function HostDashboard() {
                 </small>
               </span>
             </div>
+
             <div>
               <b>{ready ? "✓" : "2"}</b>
               <span>
@@ -305,28 +351,35 @@ export default async function HostDashboard() {
                 <small>
                   {ready
                     ? "Saved and ready for property creation"
-                    : "Add amenities, rates, policies and partner information"}
+                    : "Add amenities, rates, policies and booking details"}
                 </small>
               </span>
             </div>
+
             <div>
               <b>{propertyCount ? "✓" : "3"}</b>
               <span>
                 <strong>Property listing</strong>
                 <small>
                   {propertyCount
-                    ? `${propertyCount} property listing${propertyCount === 1 ? "" : "s"} saved`
+                    ? `${propertyCount} property listing${
+                        propertyCount === 1 ? "" : "s"
+                      } saved`
                     : "Create your listing from the setup details"}
                 </small>
               </span>
             </div>
+
             <div>
               <b>{calendarConnectionCount ? "✓" : "4"}</b>
               <span>
                 <strong>Calendar connection</strong>
-                <small>Connect external calendars used by the property</small>
+                <small>
+                  Connect external calendars used by the property
+                </small>
               </span>
             </div>
+
             <div>
               <b>{paymentReady ? "✓" : "5"}</b>
               <span>
@@ -345,14 +398,20 @@ export default async function HostDashboard() {
           <p className="eyebrow dark">Promotion &amp; reach</p>
           <h2>Want help getting in front of more travelers?</h2>
           <div className="panel-empty">
-            <strong>Ask about a custom Find A Place advertising plan.</strong>
+            <strong>
+              Ask about a custom Find A Place advertising plan.
+            </strong>
             <span>
-              Optional social media and travel-community promotion can be built
-              around your property, location, season or campaign goals. This is
-              separate from the booking platform commission.
+              Optional social media and travel-community promotion can
+              be built around your property, location, season or
+              campaign goals. This is separate from the booking
+              platform commission.
             </span>
             <div className="host-promotion-actions">
-              <Link className="button button-small" href="/contact#advertising">
+              <Link
+                className="button button-small"
+                href="/contact#advertising"
+              >
                 Ask about advertising
               </Link>
               <a

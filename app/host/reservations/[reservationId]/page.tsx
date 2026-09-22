@@ -258,11 +258,11 @@ export default async function HostReservationDetailPage({
                 <small>{payment.provider} · {readable(payment.status)}</small>
               </div>
               <div>
-                <span>Guest taxes</span>
+                <span>Tax retained by Find A Place</span>
                 <strong>
-                  {money(reservation.tax_total_cents, payment.currency)}
+                  −{money(payment.platform_tax_retained_cents, payment.currency)}
                 </strong>
-                <small>Included in your connected-account charge; not retained by Find A Place</small>
+                <small>Only where Find A Place is configured to remit it</small>
               </div>
               <div>
                 <span>Find A Place commission</span>
@@ -364,9 +364,7 @@ export default async function HostReservationDetailPage({
                     />
                     <div className={chatStyles.requestDecisionButtons}>
                       <button formAction={approveCancellationRequest} type="submit">Approve + full refund</button>
-                      {reservation.check_in < new Date(Date.now() + 14 * 86400000).toISOString().slice(0, 10) ? (
-                        <button formAction={approveCancellationWithoutRefund} type="submit">Cancel without refund</button>
-                      ) : null}
+                      <button formAction={approveCancellationWithoutRefund} type="submit">Cancel without refund</button>
                       <button formAction={declineCancellationRequest} type="submit">Keep reservation active</button>
                     </div>
                   </form>

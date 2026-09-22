@@ -30,7 +30,7 @@ const links: MobileLink[] = [
     ["SUPER_ADMIN", "OPERATIONS_ADMIN"],
   ],
   [
-    "Partner verification",
+    "Partner rates",
     "/admin/partners",
     "partners",
     ["SUPER_ADMIN", "PARTNER_ADMIN"],
@@ -52,7 +52,8 @@ export function AdminMobileNav({
   );
 
   const activeLabel =
-    visibleLinks.find(([, , key]) => key === active)?.[0] ?? "Admin";
+    visibleLinks.find(([, , key]) => key === active)?.[0] ??
+    "Admin";
 
   return (
     <details className="internal-mobile-nav admin-mobile-nav">

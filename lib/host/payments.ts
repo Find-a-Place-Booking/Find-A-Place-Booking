@@ -76,7 +76,9 @@ export async function getHostPaymentWorkspace() {
   const organizations = await getManagedOrganizations();
   const readiness = getPaymentProviderReadiness();
   const environment: "TEST" | "LIVE" =
-    process.env.STRIPE_SECRET_KEY?.startsWith("sk_live_") ? "LIVE" : "TEST";
+    process.env.STRIPE_SECRET_KEY?.startsWith("sk_live_")
+      ? "LIVE"
+      : "TEST";
 
   if (!organizations.length) {
     return {
@@ -89,7 +91,9 @@ export async function getHostPaymentWorkspace() {
   }
 
   const supabase = await createClient();
-  const organizationIds = organizations.map((organization) => organization.id);
+  const organizationIds = organizations.map(
+    (organization) => organization.id,
+  );
 
   const [accountsResult, reservationsResult] = await Promise.all([
     supabase
@@ -120,10 +124,15 @@ export async function getHostPaymentWorkspace() {
     throw new Error("Unable to load host payment transactions.");
   }
 
-  const reservations = (reservationsResult.data ?? []) as HostReservationRow[];
-  const reservationIds = reservations.map((reservation) => reservation.id);
+  const reservations =
+    (reservationsResult.data ?? []) as HostReservationRow[];
+  const reservationIds = reservations.map(
+    (reservation) => reservation.id,
+  );
   const propertyIds = [
-    ...new Set(reservations.map((reservation) => reservation.property_id)),
+    ...new Set(
+      reservations.map((reservation) => reservation.property_id),
+    ),
   ];
 
   const [paymentsResult, propertiesResult] = await Promise.all([
@@ -136,32 +145,55 @@ export async function getHostPaymentWorkspace() {
           .in("reservation_id", reservationIds)
           .eq("payment_environment", environment)
           .order("created_at", { ascending: false })
-      : Promise.resolve({ data: [] as HostPaymentRow[], error: null }),
+      : Promise.resolve({
+          data: [] as HostPaymentRow[],
+          error: null,
+        }),
     propertyIds.length
-      ? supabase.from("properties").select("id,name").in("id", propertyIds)
-      : Promise.resolve({ data: [] as PropertyNameRow[], error: null }),
+      ? supabase
+          .from("properties")
+          .select("id,name")
+          .in("id", propertyIds)
+      : Promise.resolve({
+          data: [] as PropertyNameRow[],
+          error: null,
+        }),
   ]);
 
   if (paymentsResult.error || propertiesResult.error) {
-    throw new Error("Unable to resolve host payment transactions.");
+    throw new Error(
+      "Unable to resolve host payment transactions.",
+    );
   }
 
-  const payments = (paymentsResult.data ?? []) as HostPaymentRow[];
-  const properties = (propertiesResult.data ?? []) as PropertyNameRow[];
+  const payments =
+    (paymentsResult.data ?? []) as HostPaymentRow[];
+  const properties =
+    (propertiesResult.data ?? []) as PropertyNameRow[];
 
-  const paymentByReservation = new Map<string, HostPaymentRow>();
+  const paymentByReservation = new Map<
+    string,
+    HostPaymentRow
+  >();
+
   for (const payment of payments) {
     if (!paymentByReservation.has(payment.reservation_id)) {
-      paymentByReservation.set(payment.reservation_id, payment);
+      paymentByReservation.set(
+        payment.reservation_id,
+        payment,
+      );
     }
   }
 
   const propertyById = new Map(
-    properties.map((property) => [property.id, property.name]),
+    properties.map((property) => [
+      property.id,
+      property.name,
+    ]),
   );
 
-  const transactions: HostPaymentTransaction[] = reservations.flatMap(
-    (reservation) => {
+  const transactions: HostPaymentTransaction[] =
+    reservations.flatMap((reservation) => {
       const payment = paymentByReservation.get(reservation.id);
       if (!payment) return [];
 
@@ -171,30 +203,45 @@ export async function getHostPaymentWorkspace() {
           reservationId: reservation.id,
           confirmationCode: reservation.confirmation_code,
           propertyName:
-            propertyById.get(reservation.property_id) ?? "Find A Place stay",
+            propertyById.get(reservation.property_id) ??
+            "Find A Place stay",
           guestName: reservation.guest_name,
           status: payment.status,
           paymentStatus: reservation.payment_status,
           checkIn: reservation.check_in,
           checkOut: reservation.check_out,
           amountCents: Number(payment.amount_cents),
+          // Taxes are charged to the guest but settle to the host
+          // connected account. platform_tax_retained_cents is zero by
+          // design, so the reservation tax snapshot is the display source.
           taxCents: Number(
-            payment.platform_tax_retained_cents ?? reservation.tax_total_cents ?? 0,
+            reservation.tax_total_cents ?? 0,
           ),
-          commissionCents: Number(reservation.platform_commission_cents ?? 0),
-          processorFeeCents: Number(payment.processor_fee_host_share_cents ?? 0),
-          processorFeeActualCents: Number(payment.processor_fee_actual_cents ?? 0),
-          hostProceedsCents: Number(payment.host_proceeds_cents ?? 0),
-          currency: payment.currency || reservation.currency || "USD",
+          commissionCents: Number(
+            reservation.platform_commission_cents ?? 0,
+          ),
+          processorFeeCents: Number(
+            payment.processor_fee_host_share_cents ?? 0,
+          ),
+          processorFeeActualCents: Number(
+            payment.processor_fee_actual_cents ?? 0,
+          ),
+          hostProceedsCents: Number(
+            payment.host_proceeds_cents ?? 0,
+          ),
+          currency:
+            payment.currency ||
+            reservation.currency ||
+            "USD",
           createdAt: payment.created_at,
         },
       ];
-    },
-  );
+    });
 
   return {
     organizations,
-    accounts: (accountsResult.data ?? []) as HostPaymentAccount[],
+    accounts:
+      (accountsResult.data ?? []) as HostPaymentAccount[],
     readiness,
     environment,
     transactions,

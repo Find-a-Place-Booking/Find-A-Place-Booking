@@ -528,9 +528,8 @@ export async function approveCancellationRequest(formData: FormData) {
       platformFeeRefundCents: Number(
         refundRequest.platform_fee_refund_cents,
       ),
-      reason: refundRequest.commission_refund_eligible
-        ? "Host approved cancellation at least 14 days before check-in"
-        : "Host approved cancellation inside 14-day platform commission cutoff",
+      reason:
+        "Host approved guest refund; Find A Place platform commission remains non-refundable.",
     });
 
     const { refund } = result;
@@ -673,13 +672,7 @@ export async function approveCancellationRequest(formData: FormData) {
   refreshReservationViews(reservationId);
 
   const feeCopy =
-    applicationFeeRefundStatus === "SUCCEEDED"
-      ? refundRequest.commission_refund_eligible
-        ? "The refundable Find A Place commission was returned to the host."
-        : "Find A Place commission remains retained inside 14 days."
-      : applicationFeeRefundStatus === "NOT_REQUIRED"
-        ? "No application-fee refund was required."
-        : "The Find A Place fee refund still needs Stripe reconciliation.";
+    "Find A Place commission remains earned and non-refundable; no application-fee refund is created.";
 
   const refundCopy =
     recordedStatus === "SUCCEEDED"
