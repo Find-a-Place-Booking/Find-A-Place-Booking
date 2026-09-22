@@ -99,8 +99,9 @@ export async function getHostPaymentWorkspace() {
       )
       .in("organization_id", organizationIds)
       .eq("environment", environment)
+      .neq("status", "DISABLED")
       .order("is_default", { ascending: false })
-      .order("created_at", { ascending: true }),
+      .order("created_at", { ascending: false }),
     supabase
       .from("reservations")
       .select(
@@ -112,17 +113,14 @@ export async function getHostPaymentWorkspace() {
   ]);
 
   if (accountsResult.error) {
-    throw new Error(
-      "Unable to load payment accounts. Apply Milestone 10A migration 016 and refresh.",
-    );
+    throw new Error("Unable to load connected payment accounts.");
   }
 
   if (reservationsResult.error) {
     throw new Error("Unable to load host payment transactions.");
   }
 
-  const reservations =
-    (reservationsResult.data ?? []) as HostReservationRow[];
+  const reservations = (reservationsResult.data ?? []) as HostReservationRow[];
   const reservationIds = reservations.map((reservation) => reservation.id);
   const propertyIds = [
     ...new Set(reservations.map((reservation) => reservation.property_id)),
@@ -181,19 +179,11 @@ export async function getHostPaymentWorkspace() {
           checkOut: reservation.check_out,
           amountCents: Number(payment.amount_cents),
           taxCents: Number(
-            payment.platform_tax_retained_cents ??
-              reservation.tax_total_cents ??
-              0,
+            payment.platform_tax_retained_cents ?? reservation.tax_total_cents ?? 0,
           ),
-          commissionCents: Number(
-            reservation.platform_commission_cents ?? 0,
-          ),
-          processorFeeCents: Number(
-            payment.processor_fee_host_share_cents ?? 0,
-          ),
-          processorFeeActualCents: Number(
-            payment.processor_fee_actual_cents ?? 0,
-          ),
+          commissionCents: Number(reservation.platform_commission_cents ?? 0),
+          processorFeeCents: Number(payment.processor_fee_host_share_cents ?? 0),
+          processorFeeActualCents: Number(payment.processor_fee_actual_cents ?? 0),
           hostProceedsCents: Number(payment.host_proceeds_cents ?? 0),
           currency: payment.currency || reservation.currency || "USD",
           createdAt: payment.created_at,

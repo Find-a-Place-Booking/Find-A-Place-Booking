@@ -42,6 +42,18 @@ export async function issueReservationRefund(formData: FormData) {
   if (!reason) fail("Enter an internal refund reason.");
 
   const admin = createAdminClient();
+  const { data: reservation, error: reservationError } = await admin
+    .from("reservations")
+    .select("id,provider_account_ref,payment_environment")
+    .eq("id", reservationId)
+    .maybeSingle();
+
+  const connectedAccountId = reservation?.provider_account_ref ?? null;
+
+  if (reservationError || !connectedAccountId) {
+    fail("The reservation's connected Stripe account could not be resolved.");
+  }
+
   const { data, error } = await admin.rpc("create_refund_request", {
     target_reservation_id: reservationId,
     requested_amount_cents: amountCents,
@@ -85,6 +97,7 @@ export async function issueReservationRefund(formData: FormData) {
 
   try {
     const { refund, feeReconciliationPending } = await createConnectedRefund({
+      connectedAccountId,
       paymentIntentId: request.provider_payment_id as string,
       refundId: request.refund_id,
       reservationId,
@@ -97,12 +110,12 @@ export async function issueReservationRefund(formData: FormData) {
     recordedStatus = feeReconciliationPending
       ? "PENDING"
       : refund.status === "succeeded"
-      ? "SUCCEEDED"
-      : refund.status === "failed"
-        ? "FAILED"
-        : refund.status === "canceled"
-          ? "CANCELLED"
-          : "PENDING";
+        ? "SUCCEEDED"
+        : refund.status === "failed"
+          ? "FAILED"
+          : refund.status === "canceled"
+            ? "CANCELLED"
+            : "PENDING";
 
     const { error: recordError } = await admin.rpc("record_refund_result", {
       target_refund_id: request.refund_id,
@@ -112,14 +125,10 @@ export async function issueReservationRefund(formData: FormData) {
     });
 
     if (recordError) throw new Error(recordError.message);
-
   } catch (refundError) {
     await admin.rpc("record_refund_result", {
       target_refund_id: request.refund_id,
       target_provider_refund_id: null,
-      // Network/API errors can be ambiguous after Stripe accepted an
-      // idempotent request. Keep the request pending so a webhook can safely
-      // reconcile it and a second refund cannot be created accidentally.
       target_status: "PENDING",
       target_failure_message:
         refundError instanceof Error ? refundError.message : "Stripe refund failed.",

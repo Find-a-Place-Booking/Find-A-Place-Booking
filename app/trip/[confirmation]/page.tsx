@@ -6,7 +6,9 @@ import { Footer } from "@/components/Footer";
 import { GuestTripTools } from "@/components/GuestTripTools";
 import { Header } from "@/components/Header";
 import { PrintReceiptButton } from "@/components/PrintReceiptButton";
+import chatStyles from "@/components/ReservationChat.module.css";
 import { taxLinesFromSnapshot } from "@/lib/bookings/financial-display";
+import { getPublicHostProfileForOrganization } from "@/lib/hosts/public-profile";
 import { guestCheckoutTokenMatches } from "@/lib/payments/booking-runtime";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -23,6 +25,13 @@ function readableStatus(value: string | null | undefined) {
     .replaceAll("_", " ")
     .toLowerCase()
     .replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
+function initials(name: string) {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (!parts.length) return "H";
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
 }
 
 export default async function TripPage({
@@ -51,13 +60,13 @@ export default async function TripPage({
         <main className="guest-state-wrap">
           <section className="shell standalone-empty guest-state-card">
             <p className="eyebrow dark">Your trip</p>
-            <h1>Open your secure trip link.</h1>
+            <h1>Open your reservation from My Trip.</h1>
             <p>
-              Use the reservation link from your Find A Place confirmation to
-              view booking details and message your host.
+              Enter your reservation number and booking email on My Trip, or use
+              the secure link from your confirmation email.
             </p>
-            <Link href="/stays" className="button">
-              Find a stay
+            <Link href="/trip" className="button">
+              Open My Trip
             </Link>
           </section>
         </main>
@@ -70,7 +79,7 @@ export default async function TripPage({
   const { data: reservation } = await admin
     .from("reservations")
     .select(
-      "id,confirmation_code,property_id,status,check_in,check_out,guest_name,guest_count,pet_count,pricing_snapshot,pre_tax_total_cents,tax_total_cents,tax_snapshot,guest_total_cents,currency,payment_status,cancelled_at",
+      "id,confirmation_code,property_id,organization_id,status,check_in,check_out,guest_name,guest_count,pet_count,pricing_snapshot,pre_tax_total_cents,tax_total_cents,tax_snapshot,guest_total_cents,currency,payment_status,cancelled_at",
     )
     .eq("id", reservationId)
     .maybeSingle();
@@ -83,12 +92,13 @@ export default async function TripPage({
     notFound();
   }
 
-  const [{ data: property }, { data: refund }] = await Promise.all([
+  const [{ data: property }, host, { data: refund }] = await Promise.all([
     admin
       .from("properties")
       .select("name,public_area,city,region_code")
       .eq("id", reservation.property_id)
       .maybeSingle(),
+    getPublicHostProfileForOrganization(reservation.organization_id),
     reservation.status === "CANCELLED"
       ? admin
           .from("refunds")
@@ -103,6 +113,10 @@ export default async function TripPage({
   const today = new Date().toISOString().slice(0, 10);
   const canReview =
     reservation.status === "CONFIRMED" && reservation.check_out <= today;
+  const hostName = host?.name || property?.name || "Property host";
+  const hostDescription =
+    host?.publicBio ||
+    `${hostName} independently manages this stay. Use My Trip to keep booking questions, change requests and cancellation discussions connected to the reservation.`;
 
   return (
     <>
@@ -142,6 +156,57 @@ export default async function TripPage({
             </div>
           </section>
 
+          <section className="panel">
+            <p className="eyebrow dark">Your host</p>
+            <div className={chatStyles.hostSummary}>
+              <div className={chatStyles.hostAvatar}>
+                {host?.avatarUrl ? (
+                  <img src={host.avatarUrl} alt={`${hostName} host profile`} />
+                ) : (
+                  initials(hostName)
+                )}
+              </div>
+              <div>
+                <small>Hosted by</small>
+                <h2>{hostName}</h2>
+                <p>
+                  Independent host on Find A Place
+                  {host?.businessLocation ? ` · ${host.businessLocation}` : ""}
+                </p>
+              </div>
+            </div>
+            <p className="muted">{hostDescription}</p>
+            {(host?.contactEmail || host?.contactPhone) ? (
+              <div className={chatStyles.contactLinks}>
+                {host.contactEmail ? (
+                  <a
+                    className={chatStyles.actionLink}
+                    href={`mailto:${host.contactEmail}?subject=${encodeURIComponent(
+                      `Find A Place booking ${reservation.confirmation_code}`,
+                    )}`}
+                  >
+                    Email host
+                  </a>
+                ) : null}
+                {host.contactPhone ? (
+                  <a className={chatStyles.actionLink} href={`tel:${host.contactPhone}`}>
+                    Call host
+                  </a>
+                ) : null}
+                {host.contactPhone ? (
+                  <a className={chatStyles.actionLink} href={`sms:${host.contactPhone}`}>
+                    Text host
+                  </a>
+                ) : null}
+                <a className={chatStyles.actionLink} href="#messages">
+                  Booking messages
+                </a>
+              </div>
+            ) : (
+              <p className="muted">Use the booking conversation below to reach the host.</p>
+            )}
+          </section>
+
           {reservation.status === "CANCELLED" ? (
             <section className="panel">
               <p className="eyebrow dark">Cancellation record</p>
@@ -156,23 +221,32 @@ export default async function TripPage({
               </div>
               <div className="setting-row">
                 <span>Refund status</span>
-                <strong>{refund?.status ? readableStatus(refund.status) : "No refund record"}</strong>
+                <strong>
+                  {refund?.status ? readableStatus(refund.status) : "No refund record"}
+                </strong>
               </div>
               {refund ? (
                 <div className="setting-row">
                   <span>Refund amount</span>
-                  <strong>{money(Number(refund.amount_cents || 0), reservation.currency)}</strong>
+                  <strong>
+                    {money(Number(refund.amount_cents || 0), reservation.currency)}
+                  </strong>
                 </div>
               ) : null}
               <p className="muted">
-                This secure page remains available as the booking and payment record.
+                This page remains available as the booking, payment and host-message
+                record.
               </p>
             </section>
           ) : null}
 
-          <section className="panel">
+          <section className={`panel ${chatStyles.tripSectionPanel}`}>
             <p className="eyebrow dark">Receipt</p>
-            <h2>{reservation.status === "CANCELLED" ? "Original booking total" : "What you paid"}</h2>
+            <h2>
+              {reservation.status === "CANCELLED"
+                ? "Original booking total"
+                : "What you paid"}
+            </h2>
             <BookingReceipt
               pricingSnapshot={reservation.pricing_snapshot}
               preTaxTotalCents={Number(reservation.pre_tax_total_cents)}
@@ -184,13 +258,16 @@ export default async function TripPage({
             <PrintReceiptButton />
           </section>
 
-          {reservation.status === "CONFIRMED" ? (
-            <GuestTripTools
-              reservationId={reservation.id}
-              checkoutToken={checkoutToken}
-              canReview={canReview}
-            />
-          ) : null}
+          <GuestTripTools
+            reservationId={reservation.id}
+            checkoutToken={checkoutToken}
+            confirmationCode={reservation.confirmation_code}
+            hostName={hostName}
+            hostEmail={host?.contactEmail ?? null}
+            hostPhone={host?.contactPhone ?? null}
+            guestName={reservation.guest_name || "Guest"}
+            canReview={canReview}
+          />
         </div>
       </main>
       <Footer />

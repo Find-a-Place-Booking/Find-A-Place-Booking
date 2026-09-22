@@ -11,8 +11,7 @@ import {
   stripeEnvironment,
 } from "@/lib/payments/booking-runtime";
 import {
-  createDestinationPaymentIntent,
-  estimatedHostProcessingRecoveryCents,
+  createDirectPaymentIntent,
   retrievePaymentIntent,
 } from "@/lib/payments/stripe-checkout";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -55,7 +54,7 @@ export async function POST(request: NextRequest) {
     const { data: reservation, error: reservationError } = await admin
       .from("reservations")
       .select(
-        "id,confirmation_code,status,hold_expires_at,payment_status,guest_phone,guest_email_verified_at,stripe_identity_verification_session_id,identity_verification_status,identity_verified_at,guest_total_cents,platform_commission_cents,commission_rate_bps,currency,tax_status,payment_environment,payment_account_id,payment_provider,provider_account_ref",
+        "id,confirmation_code,status,hold_expires_at,payment_status,guest_phone,guest_email_verified_at,stripe_identity_verification_session_id,identity_verification_status,identity_verified_at,guest_total_cents,platform_commission_cents,platform_tax_retained_cents,commission_rate_bps,currency,tax_status,payment_environment,payment_account_id,payment_provider,provider_account_ref",
       )
       .eq("id", reservationId)
       .single();
@@ -99,10 +98,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Payment creation is server-gated. The browser cannot skip required guest
-    // verification and call Stripe directly: phone presence, email verification
-    // and the Stripe Identity result are checked again here before any PaymentIntent
-    // can be created or recovered.
     const verification = await reservationVerificationReadiness(
       admin,
       reservation,
@@ -142,9 +137,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // TEST and LIVE use the same marketplace tax calculation path.
-    // LIVE remains stricter: the property jurisdiction must be finance-verified
-    // before the hold can be created and paid.
     if (environment === "LIVE" && reservation.tax_status !== "CALCULATED") {
       return NextResponse.json(
         {
@@ -161,44 +153,54 @@ export async function POST(request: NextRequest) {
       !reservation.provider_account_ref
     ) {
       return NextResponse.json(
-        { error: "This stay does not have a ready Stripe payout route." },
+        { error: "This stay does not have a ready Stripe payment account." },
         { status: 409 },
       );
     }
 
     const { data: account, error: accountError } = await admin
       .from("payment_accounts")
-      .select("id,status,environment,payouts_enabled,provider_account_id")
+      .select("id,status,environment,charges_enabled,provider_account_id,metadata")
       .eq("id", reservation.payment_account_id)
       .single();
+
+    const accountMetadata =
+      account?.metadata && typeof account.metadata === "object"
+        ? (account.metadata as Record<string, unknown>)
+        : {};
 
     if (
       accountError ||
       !account ||
       account.status !== "READY" ||
       account.environment !== environment ||
-      !account.payouts_enabled ||
+      !account.charges_enabled ||
+      accountMetadata.account_configuration !== "merchant" ||
+      accountMetadata.charge_model !== "DIRECT" ||
       !account.provider_account_id ||
       account.provider_account_id !== reservation.provider_account_ref ||
       reservation.payment_environment !== environment
     ) {
       return NextResponse.json(
-        { error: "The host payout account is not ready." },
+        { error: "The host Stripe payment account is not ready." },
         { status: 409 },
       );
     }
 
     const amountCents = Number(reservation.guest_total_cents);
     const commissionCents = Number(reservation.platform_commission_cents);
-    const processorFeeRecoveryCents =
-      estimatedHostProcessingRecoveryCents(amountCents);
+    const platformTaxRetainedCents = Number(
+      reservation.platform_tax_retained_cents || 0,
+    );
 
     const { data: claimedPayment, error: claimError } = await admin.rpc(
       "claim_stripe_payment_attempt",
       {
         target_reservation_id: reservationId,
         expected_environment: environment,
-        processor_fee_recovery_cents: processorFeeRecoveryCents,
+        // Direct charges make the connected merchant responsible for Stripe's
+        // processing fee. Find A Place no longer recovers that fee.
+        processor_fee_recovery_cents: 0,
       },
     );
 
@@ -219,11 +221,14 @@ export async function POST(request: NextRequest) {
     };
 
     if (payment.connected_account_id !== reservation.provider_account_ref) {
-      throw new Error("The Stripe payout destination changed during checkout.");
+      throw new Error("The Stripe merchant account changed during checkout.");
     }
 
-    if (payment?.provider_payment_id) {
-      const intent = await retrievePaymentIntent(payment.provider_payment_id);
+    if (payment.provider_payment_id) {
+      const intent = await retrievePaymentIntent(
+        payment.provider_payment_id,
+        payment.connected_account_id,
+      );
 
       if (intent.status !== "canceled") {
         return NextResponse.json({
@@ -233,11 +238,11 @@ export async function POST(request: NextRequest) {
           paymentIntentId: intent.id,
           paymentIntentStatus: intent.status,
           clientSecret: intent.client_secret,
+          connectedAccountId: payment.connected_account_id,
+          chargeModel: "DIRECT",
           amountCents: Number(payment.amount_cents),
           applicationFeeCents: Number(payment.application_fee_cents),
-          processorFeeRecoveryCents: Number(
-            payment.processor_fee_host_share_cents || 0,
-          ),
+          processorFeeRecoveryCents: 0,
         });
       }
 
@@ -260,7 +265,7 @@ export async function POST(request: NextRequest) {
 
     const applicationFeeCents = Number(payment.application_fee_cents);
 
-    const intent = await createDestinationPaymentIntent({
+    const intent = await createDirectPaymentIntent({
       amountCents,
       currency: reservation.currency,
       connectedAccountId: payment.connected_account_id,
@@ -269,7 +274,7 @@ export async function POST(request: NextRequest) {
       paymentId: payment.id,
       confirmationCode: reservation.confirmation_code,
       platformCommissionCents: commissionCents,
-      processorFeeRecoveryCents,
+      platformTaxRetainedCents,
       commissionRateBps: Number(reservation.commission_rate_bps),
       paymentEnvironment: environment,
     });
@@ -279,7 +284,6 @@ export async function POST(request: NextRequest) {
     }
 
     const extendedHold = new Date(Date.now() + 30 * 60 * 1000).toISOString();
-
     const now = new Date().toISOString();
 
     const { error: paymentUpdateError } = await admin
@@ -326,22 +330,27 @@ export async function POST(request: NextRequest) {
       paymentIntentId: intent.id,
       paymentIntentStatus: intent.status,
       clientSecret: intent.client_secret,
+      connectedAccountId: payment.connected_account_id,
+      chargeModel: "DIRECT",
       amountCents,
       applicationFeeCents,
       platformCommissionCents: commissionCents,
-      processorFeeRecoveryCents,
-      hostProceedsCents: Math.max(0, amountCents - applicationFeeCents),
+      platformTaxRetainedCents,
+      processorFeeRecoveryCents: 0,
+      hostProceedsBeforeStripeFeeCents: Math.max(
+        0,
+        amountCents - applicationFeeCents,
+      ),
     });
   } catch (error) {
     console.error("[booking payment-intent]", error);
 
     return NextResponse.json(
       {
-        error:
-          guestFacingBookingError(
-            error,
-            "Unable to start secure payment. Refresh the booking and try again.",
-          ),
+        error: guestFacingBookingError(
+          error,
+          "Unable to start secure payment. Refresh the booking and try again.",
+        ),
       },
       { status: 500 },
     );

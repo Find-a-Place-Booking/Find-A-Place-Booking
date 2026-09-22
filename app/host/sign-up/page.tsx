@@ -23,7 +23,7 @@ export default async function HostSignUpPage({
     <AuthShell
       eyebrow="List a stay"
       title="Create your host account."
-      intro="Start with the person who manages the property. The actual business, property and partner-verification details come next in the guided host setup."
+      intro="Start with the person who manages the property. Business, property, payment and partner-verification details come next in the guided host setup."
       footer={<p>Already have an account? <Link href={`/host/sign-in?next=${encodeURIComponent(next)}`}>Sign in</Link>.</p>}
     >
       {params.error ? <div className="auth-message auth-error" role="alert">{params.error}</div> : null}
@@ -45,7 +45,7 @@ export default async function HostSignUpPage({
           <span>
             I have read and agree to the <Link href="/host-agreement" target="_blank">Host Agreement</Link>,{" "}
             <Link href="/terms" target="_blank">Terms of Service</Link>,{" "}
-            <Link href="/cancellation-policy" target="_blank">cancellation and payout rules</Link>, and{" "}
+            <Link href="/cancellation-policy" target="_blank">cancellation and refund policy</Link>, and{" "}
             <Link href="/privacy" target="_blank">Privacy Notice</Link>.
           </span>
         </label>

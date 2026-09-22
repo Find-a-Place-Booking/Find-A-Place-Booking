@@ -3,7 +3,8 @@ import { createHash } from "node:crypto";
 const STRIPE_V1_API = "https://api.stripe.com/v1";
 const STRIPE_V2_API = "https://api.stripe.com/v2";
 
-const STRIPE_V2_VERSION = "2026-07-29.dahlia";
+// Accounts v2 merchant configuration is currently served from the preview API.
+const STRIPE_V2_VERSION = "2026-08-26.preview";
 
 function stripeSecretKey() {
   const key = process.env.STRIPE_SECRET_KEY;
@@ -89,23 +90,14 @@ export type StripeAccountV2 = {
     } | null;
   } | null;
   configuration?: {
-    recipient?: {
+    merchant?: {
       capabilities?: {
-        stripe_balance?: {
-          stripe_transfers?: {
-            status?: string | null;
-            status_details?: Array<{
-              code?: string | null;
-              resolution?: string | null;
-            }> | null;
-          } | null;
-          payouts?: {
-            status?: string | null;
-            status_details?: Array<{
-              code?: string | null;
-              resolution?: string | null;
-            }> | null;
-          } | null;
+        card_payments?: {
+          status?: string | null;
+          status_details?: Array<{
+            code?: string | null;
+            resolution?: string | null;
+          }> | null;
         } | null;
       } | null;
     } | null;
@@ -130,7 +122,7 @@ function accountCreationIdempotencyKey(scope: string, body: unknown) {
   return `fap-connect-account-${fingerprint}`;
 }
 
-export async function createEmbeddedRecipientAccount(input: {
+export async function createEmbeddedMerchantAccount(input: {
   email: string;
   displayName: string;
   country?: string;
@@ -141,17 +133,15 @@ export async function createEmbeddedRecipientAccount(input: {
   const body = {
     contact_email: input.email,
     display_name: input.displayName,
-    dashboard: "express",
+    dashboard: "full",
     identity: {
       country,
     },
     configuration: {
-      recipient: {
+      merchant: {
         capabilities: {
-          stripe_balance: {
-            stripe_transfers: {
-              requested: true,
-            },
+          card_payments: {
+            requested: true,
           },
         },
       },
@@ -159,13 +149,13 @@ export async function createEmbeddedRecipientAccount(input: {
     defaults: {
       currency: "usd",
       responsibilities: {
-        fees_collector: "application",
-        losses_collector: "application",
+        fees_collector: "stripe",
+        losses_collector: "stripe",
       },
       locales: ["en-US"],
     },
     include: [
-      "configuration.recipient",
+      "configuration.merchant",
       "defaults",
       "identity",
       "requirements",
@@ -179,9 +169,9 @@ export async function createEmbeddedRecipientAccount(input: {
   });
 }
 
-export async function retrieveEmbeddedRecipientAccount(accountId: string) {
+export async function retrieveEmbeddedMerchantAccount(accountId: string) {
   const query = new URLSearchParams();
-  query.append("include[0]", "configuration.recipient");
+  query.append("include[0]", "configuration.merchant");
   query.append("include[1]", "defaults");
   query.append("include[2]", "identity");
   query.append("include[3]", "requirements");
@@ -198,9 +188,8 @@ export async function createAccountSession(accountId: string) {
   body.set("components[notification_banner][enabled]", "true");
   body.set("components[account_management][enabled]", "true");
 
-  // Do not expose Stripe's payouts component inside the host portal. Find A
-  // Place owns the manual payout schedule and releases reservation proceeds
-  // according to the platform's check-in-minus-13-days policy.
+  // Stripe owns the merchant balance and normal bank payout timing. Find A
+  // Place no longer forces a manual payout schedule on connected accounts.
   return stripeV1FormRequest<{ client_secret: string; expires_at: number }>(
     "/account_sessions",
     body,

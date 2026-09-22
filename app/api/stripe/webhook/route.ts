@@ -5,15 +5,13 @@ import { NextRequest, NextResponse } from "next/server";
 
 import {
   chargeProcessorFee,
-  ensureFullRefundApplicationFee,
   getStripeClient,
   retrieveChargeWithBalanceTransaction,
 } from "@/lib/payments/stripe-checkout";
 import { sendBookingNotifications } from "@/lib/notifications/reservation-emails";
+import { sendDirectChargePaymentConfirmedNotification } from "@/lib/notifications/direct-charge-emails";
 import {
   sendDisputeNotifications,
-  sendPaymentConfirmedNotification,
-  sendPayoutNotifications,
   sendRefundNotifications,
 } from "@/lib/notifications/operational-emails";
 import { stripeEnvironment } from "@/lib/payments/booking-runtime";
@@ -68,18 +66,9 @@ function constructStripeEvent(rawBody: string, signature: string) {
     : new Error("Invalid Stripe webhook signature.");
 }
 
-function payoutStatus(status: string) {
-  if (status === "paid") return "PAID";
-  if (status === "failed") return "FAILED";
-  if (status === "canceled") return "CANCELLED";
-  if (status === "in_transit") return "IN_TRANSIT";
-  return "PENDING";
-}
-
-function arrivalIso(unixSeconds?: number | null) {
-  if (!unixSeconds) return null;
-  const value = new Date(unixSeconds * 1000);
-  return Number.isNaN(value.getTime()) ? null : value.toISOString();
+function connectedAccountId(event: Stripe.Event) {
+  const account = (event as Stripe.Event & { account?: string | null }).account;
+  return typeof account === "string" ? account : null;
 }
 
 export async function POST(request: NextRequest) {
@@ -116,6 +105,7 @@ export async function POST(request: NextRequest) {
   const admin = createAdminClient();
   const payloadSha256 = createHash("sha256").update(rawBody).digest("hex");
   const object = event.data.object as { id?: string };
+  const eventAccount = connectedAccountId(event);
 
   const { data: existing } = await admin
     .from("processor_events")
@@ -141,10 +131,8 @@ export async function POST(request: NextRequest) {
         payload_sha256: payloadSha256,
         processing_status: "RECEIVED",
         metadata: {
-          connected_account_id:
-            typeof (event as Stripe.Event & { account?: string | null }).account === "string"
-              ? (event as Stripe.Event & { account?: string | null }).account
-              : null,
+          connected_account_id: eventAccount,
+          charge_model: eventAccount ? "DIRECT" : "PLATFORM",
         },
       });
 
@@ -163,28 +151,41 @@ export async function POST(request: NextRequest) {
       const reservationId = intent.metadata?.reservation_id;
       const paymentId = intent.metadata?.payment_id;
 
-      if (!reservationId || !paymentId) {
+      if (!reservationId || !paymentId || !eventAccount) {
         await markProcessorEvent(admin, event.id, "IGNORED");
         return NextResponse.json({ received: true, ignored: true });
       }
 
-      const { data: payment, error: paymentLookupError } = await admin
-        .from("payments")
-        .select("id,reservation_id,provider_payment_id,payment_environment")
-        .eq("id", paymentId)
-        .eq("reservation_id", reservationId)
-        .eq("provider", "STRIPE")
-        .eq("payment_environment", environment)
-        .single();
+      const [{ data: payment, error: paymentLookupError }, reservationResult] =
+        await Promise.all([
+          admin
+            .from("payments")
+            .select("id,reservation_id,provider_payment_id,payment_environment")
+            .eq("id", paymentId)
+            .eq("reservation_id", reservationId)
+            .eq("provider", "STRIPE")
+            .eq("payment_environment", environment)
+            .single(),
+          admin
+            .from("reservations")
+            .select("provider_account_ref,payment_environment")
+            .eq("id", reservationId)
+            .single(),
+        ]);
 
+      const reservation = reservationResult.data;
       if (
         paymentLookupError ||
+        reservationResult.error ||
         !payment ||
+        !reservation ||
         payment.payment_environment !== environment ||
+        reservation.payment_environment !== environment ||
+        reservation.provider_account_ref !== eventAccount ||
         (payment.provider_payment_id && payment.provider_payment_id !== intent.id)
       ) {
         throw new Error(
-          "Stripe event metadata does not match the local payment record.",
+          "Stripe direct-charge event does not match the local payment route.",
         );
       }
 
@@ -196,7 +197,10 @@ export async function POST(request: NextRequest) {
       let processorFeeActualCents = 0;
 
       if (chargeId) {
-        const charge = await retrieveChargeWithBalanceTransaction(chargeId);
+        const charge = await retrieveChargeWithBalanceTransaction(
+          chargeId,
+          eventAccount,
+        );
         processorFeeActualCents = chargeProcessorFee(charge);
       }
 
@@ -210,9 +214,6 @@ export async function POST(request: NextRequest) {
 
       if (error) throw error;
 
-      // Booking confirmation is the money-critical operation. Email delivery is
-      // retried separately so a temporary Resend outage never makes Stripe
-      // retry an already-confirmed payment webhook.
       try {
         await sendBookingNotifications(admin, reservationId);
       } catch (notificationError) {
@@ -224,10 +225,14 @@ export async function POST(request: NextRequest) {
       }
 
       try {
-        await sendPaymentConfirmedNotification(admin, reservationId, paymentId);
+        await sendDirectChargePaymentConfirmedNotification(
+          admin,
+          reservationId,
+          paymentId,
+        );
       } catch (notificationError) {
         console.error(
-          "[stripe webhook] payment confirmed but payment notification delivery failed",
+          "[stripe webhook] direct-charge payment confirmed but host payment notification failed",
           reservationId,
           notificationError,
         );
@@ -295,40 +300,6 @@ export async function POST(request: NextRequest) {
               ? "CANCELLED"
               : "PENDING";
 
-      if (
-        status === "SUCCEEDED" &&
-        refund.metadata?.refund_policy === "FULL_GUEST_100_PERCENT"
-      ) {
-        const { data: localRefund, error: localRefundError } = await admin
-          .from("refunds")
-          .select("id,payment_id,reservation_id,platform_fee_refund_cents")
-          .eq("id", refundId)
-          .eq("payment_environment", environment)
-          .single();
-        if (localRefundError || !localRefund) {
-          throw new Error("The local full-refund record could not be loaded.");
-        }
-
-        const { data: localPayment, error: localPaymentError } = await admin
-          .from("payments")
-          .select("provider_payment_id")
-          .eq("id", localRefund.payment_id)
-          .eq("payment_environment", environment)
-          .single();
-        if (localPaymentError || !localPayment?.provider_payment_id) {
-          throw new Error(
-            "The local Stripe payment for the full refund could not be loaded.",
-          );
-        }
-
-        await ensureFullRefundApplicationFee({
-          paymentIntentId: localPayment.provider_payment_id,
-          refundId: localRefund.id,
-          reservationId: localRefund.reservation_id,
-          platformFeeRefundCents: Number(localRefund.platform_fee_refund_cents),
-        });
-      }
-
       const { error } = await admin.rpc("record_refund_result", {
         target_refund_id: refundId,
         target_provider_refund_id: refund.id,
@@ -336,6 +307,26 @@ export async function POST(request: NextRequest) {
         target_failure_message: refund.failure_reason || null,
       });
       if (error) throw error;
+
+      if (status === "SUCCEEDED") {
+        const { data: localRefund } = await admin
+          .from("refunds")
+          .select("reservation_id")
+          .eq("id", refundId)
+          .maybeSingle();
+
+        if (localRefund?.reservation_id) {
+          await admin
+            .from("reservation_cancellation_requests")
+            .update({
+              status: "COMPLETED",
+              completed_at: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+            })
+            .eq("reservation_id", localRefund.reservation_id)
+            .eq("status", "APPROVED");
+        }
+      }
 
       try {
         await sendRefundNotifications(admin, refundId);
@@ -398,97 +389,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ received: true });
     }
 
-    const eventType = event.type as string;
-    if (
-      [
-        "payout.created",
-        "payout.updated",
-        "payout.paid",
-        "payout.failed",
-        "payout.canceled",
-      ].includes(eventType)
-    ) {
-      const eventAccount = (event as Stripe.Event & { account?: string | null }).account;
-      const connectedAccountId = typeof eventAccount === "string" ? eventAccount : null;
-      const payout = event.data.object as Stripe.Payout & {
-        status: string;
-        arrival_date?: number | null;
-        failure_code?: string | null;
-        failure_message?: string | null;
-      };
-
-      if (!connectedAccountId || !payout.id) {
-        await markProcessorEvent(admin, event.id, "IGNORED");
-        return NextResponse.json({ received: true, ignored: true });
-      }
-
-      let { data: localPayout, error: payoutLookupError } = await admin
-        .from("reservation_payouts")
-        .select("id,status,provider_payout_id")
-        .eq("provider_payout_id", payout.id)
-        .eq("connected_account_id", connectedAccountId)
-        .eq("payment_environment", environment)
-        .maybeSingle();
-
-      if (payoutLookupError) throw payoutLookupError;
-
-      // payout.created can reach us before the HTTP request that created the
-      // payout has written provider_payout_id locally. Recover that race from
-      // the stable payout_record_id metadata sent with the Stripe request.
-      if (!localPayout && payout.metadata?.payout_record_id) {
-        const fallback = await admin
-          .from("reservation_payouts")
-          .select("id,status,provider_payout_id")
-          .eq("id", payout.metadata.payout_record_id)
-          .eq("connected_account_id", connectedAccountId)
-          .eq("payment_environment", environment)
-          .maybeSingle();
-        if (fallback.error) throw fallback.error;
-        localPayout = fallback.data;
-      }
-
-      if (!localPayout) {
-        await markProcessorEvent(admin, event.id, "IGNORED");
-        return NextResponse.json({ received: true, ignored: true });
-      }
-
-      const status = payoutStatus(payout.status);
-      const now = new Date().toISOString();
-      const patch: Record<string, unknown> = {
-        status,
-        provider_payout_id: payout.id,
-        estimated_arrival_at: arrivalIso(payout.arrival_date),
-        last_error:
-          status === "FAILED"
-            ? payout.failure_message || payout.failure_code || "Stripe payout failed."
-            : null,
-      };
-
-      if (status === "PAID") patch.paid_at = now;
-      if (status === "FAILED") patch.failed_at = now;
-
-      const { error: updateError } = await admin
-        .from("reservation_payouts")
-        .update(patch)
-        .eq("id", localPayout.id)
-        .eq("payment_environment", environment);
-
-      if (updateError) throw updateError;
-
-      try {
-        await sendPayoutNotifications(admin, localPayout.id);
-      } catch (notificationError) {
-        console.error(
-          "[stripe webhook] payout recorded but notification delivery failed",
-          localPayout.id,
-          notificationError,
-        );
-      }
-
-      await markProcessorEvent(admin, event.id, "PROCESSED");
-      return NextResponse.json({ received: true });
-    }
-
+    // Payout events now belong to the host's normal Stripe account lifecycle.
+    // Find A Place does not create or reconcile host bank payouts anymore.
     await markProcessorEvent(admin, event.id, "IGNORED");
     return NextResponse.json({ received: true, ignored: true });
   } catch (error) {

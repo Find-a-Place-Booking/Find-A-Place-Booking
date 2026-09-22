@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
+import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
 const MAX_SERVER_ACTION_IMAGE_BYTES = 3 * 1024 * 1024;
@@ -30,6 +31,47 @@ async function requireProfile() {
 function refreshHostLayout() {
   revalidatePath("/host", "layout");
   revalidatePath("/host/settings");
+  revalidatePath("/stays", "layout");
+}
+
+export async function saveHostPublicProfile(formData: FormData) {
+  const publicHostName = String(formData.get("public_host_name") ?? "")
+    .trim()
+    .slice(0, 120);
+  const publicHostBio = String(formData.get("public_host_bio") ?? "")
+    .trim()
+    .slice(0, 800);
+  const { supabase, profileId } = await requireProfile();
+
+  const { data: membership } = await supabase
+    .from("organization_members")
+    .select("organization_id")
+    .eq("profile_id", profileId)
+    .eq("status", "ACTIVE")
+    .in("role", ["OWNER", "MANAGER"])
+    .limit(1)
+    .maybeSingle();
+
+  if (!membership?.organization_id) {
+    redirect("/host/settings?profileError=Host+organization+not+found");
+  }
+
+  const admin = createAdminClient();
+  const { error } = await admin
+    .from("organizations")
+    .update({
+      public_host_name: publicHostName || null,
+      public_host_bio: publicHostBio || null,
+    })
+    .eq("id", membership.organization_id);
+
+  if (error) {
+    console.error("[saveHostPublicProfile]", error);
+    redirect("/host/settings?profileError=Public+host+profile+could+not+be+saved");
+  }
+
+  refreshHostLayout();
+  redirect("/host/settings?profileSaved=1");
 }
 
 export async function uploadHostAvatar(formData: FormData) {
@@ -58,9 +100,7 @@ export async function uploadHostAvatar(formData: FormData) {
     .maybeSingle();
 
   const oldPath = (current?.avatar_storage_path ?? null) as string | null;
-  const storagePath = `${profileId}/${crypto.randomUUID()}.${extensionFor(
-    file,
-  )}`;
+  const storagePath = `${profileId}/${crypto.randomUUID()}.${extensionFor(file)}`;
 
   const { error: uploadError } = await supabase.storage
     .from("host-avatars")
@@ -167,16 +207,14 @@ export async function uploadHostGallery(formData: FormData) {
 
     if (uploadError) continue;
 
-    const { error: rowError } = await supabase
-      .from("host_profile_images")
-      .insert({
-        profile_id: profileId,
-        storage_path: storagePath,
-        original_name: file.name.slice(0, 255),
-        content_type: file.type,
-        size_bytes: file.size,
-        sort_order: sortOrder++,
-      });
+    const { error: rowError } = await supabase.from("host_profile_images").insert({
+      profile_id: profileId,
+      storage_path: storagePath,
+      original_name: file.name.slice(0, 255),
+      content_type: file.type,
+      size_bytes: file.size,
+      sort_order: sortOrder++,
+    });
 
     if (rowError) {
       await supabase.storage.from("host-avatars").remove([storagePath]);

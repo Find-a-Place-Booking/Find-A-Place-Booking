@@ -5,6 +5,7 @@ import { getHostAccountProfile, initialsForHost } from "@/lib/host/profile";
 import {
   removeHostAvatar,
   removeHostGalleryImage,
+  saveHostPublicProfile,
   uploadHostAvatar,
   uploadHostGallery,
 } from "./actions";
@@ -19,6 +20,8 @@ export default async function SettingsPage({
     gallerySaved?: string;
     galleryRemoved?: string;
     galleryError?: string;
+    profileSaved?: string;
+    profileError?: string;
   }>;
 }) {
   const [profile, params] = await Promise.all([
@@ -51,6 +54,14 @@ export default async function SettingsPage({
           {decodeURIComponent(params.galleryError)}
         </div>
       ) : null}
+      {params.profileSaved ? (
+        <div className="admin-message success">Public host profile updated.</div>
+      ) : null}
+      {params.profileError ? (
+        <div className="admin-message error">
+          {decodeURIComponent(params.profileError)}
+        </div>
+      ) : null}
 
       <div className="dash-two settings-primary-grid">
         <section className="panel">
@@ -59,9 +70,7 @@ export default async function SettingsPage({
 
           <div className="host-profile-photo-row">
             <div
-              className={`host-profile-photo ${
-                profile.avatarUrl ? "has-image" : ""
-              }`}
+              className={`host-profile-photo ${profile.avatarUrl ? "has-image" : ""}`}
             >
               {profile.avatarUrl ? (
                 <img src={profile.avatarUrl} alt="Current host profile" />
@@ -75,8 +84,8 @@ export default async function SettingsPage({
                 {profile.fullName || profile.primaryContactName || "Host account"}
               </strong>
               <span>
-                This remains the primary host/account image. Additional host
-                photos can be added below.
+                This photo now appears with your host profile on public listings
+                and confirmed guest trip pages.
               </span>
             </div>
           </div>
@@ -104,9 +113,7 @@ export default async function SettingsPage({
             </form>
           ) : null}
 
-          <small className="settings-helper">
-            JPG, PNG or WebP · maximum 3MB.
-          </small>
+          <small className="settings-helper">JPG, PNG or WebP · maximum 3MB.</small>
         </section>
 
         <section className="panel">
@@ -115,9 +122,7 @@ export default async function SettingsPage({
 
           <div className="setting-row">
             <span>Primary contact</span>
-            <strong>
-              {profile.primaryContactName || profile.fullName || "Not set"}
-            </strong>
+            <strong>{profile.primaryContactName || profile.fullName || "Not set"}</strong>
           </div>
 
           <div className="setting-row">
@@ -130,10 +135,7 @@ export default async function SettingsPage({
             <strong>{profile.supportEmail || profile.email || "Not set"}</strong>
           </div>
 
-          <Link
-            className="button button-small button-quiet"
-            href="/host/onboarding"
-          >
+          <Link className="button button-small button-quiet" href="/host/onboarding">
             Review profile
           </Link>
         </section>
@@ -142,12 +144,48 @@ export default async function SettingsPage({
       <section className="panel">
         <div className="panel-head">
           <div>
+            <p className="eyebrow dark">Public host profile</p>
+            <h2>Tell guests a little about who is hosting.</h2>
+          </div>
+        </div>
+        <p className="muted">
+          This short description appears in the Hosted by section of your listing
+          and on confirmed guest trip pages. Do not put private information here.
+        </p>
+        <form className="settings-form" action={saveHostPublicProfile}>
+          <label>
+            <span>Public host / business name</span>
+            <input
+              name="public_host_name"
+              maxLength={120}
+              defaultValue={profile.publicHostName || profile.organizationName || ""}
+              placeholder="Example: Pine Hollow Stays"
+            />
+            <small>This is the name guests see. It can be different from the internal organization name.</small>
+          </label>
+          <label>
+            <span>Host description</span>
+            <textarea
+              name="public_host_bio"
+              rows={5}
+              maxLength={800}
+              defaultValue={profile.publicHostBio || ""}
+              placeholder="Example: Pine Hollow Stays is a locally owned cabin business focused on simple, comfortable stays near the Ouachitas. We manage our properties directly and are easy to reach before and during your trip."
+            />
+          </label>
+          <button className="button button-small" type="submit">
+            Save public host profile
+          </button>
+        </form>
+      </section>
+
+      <section className="panel">
+        <div className="panel-head">
+          <div>
             <p className="eyebrow dark">Host photos</p>
             <h2>Add more than one host/profile image.</h2>
           </div>
-          <span className="status-pill status-muted">
-            {profile.gallery.length}/6
-          </span>
+          <span className="status-pill status-muted">{profile.gallery.length}/6</span>
         </div>
 
         {profile.gallery.length ? (
@@ -155,10 +193,7 @@ export default async function SettingsPage({
             {profile.gallery.map((image) => (
               <div className="panel" key={image.id}>
                 {image.signedUrl ? (
-                  <img
-                    src={image.signedUrl}
-                    alt={image.originalName || "Host photo"}
-                  />
+                  <img src={image.signedUrl} alt={image.originalName || "Host photo"} />
                 ) : null}
                 <form action={removeHostGalleryImage}>
                   <input type="hidden" name="image_id" value={image.id} />
@@ -199,13 +234,11 @@ export default async function SettingsPage({
           <p className="eyebrow dark">Commission tier</p>
           <h2>Assigned when the host is approved</h2>
           <strong className="plan-price">5–7%</strong>
-          <p>
-            Existing Find A Place partner properties use 5%. Other hosts use 7%.
-          </p>
+          <p>Existing Find A Place partner properties use 5%. Other hosts use 7%.</p>
           <small>
             The commission base is nightly lodging after host discounts and
-            excludes legitimate cleaning/pet fees, taxes, refundable deposits
-            and optional add-ons.
+            excludes legitimate cleaning/pet fees, taxes, refundable deposits and
+            optional add-ons.
           </small>
         </section>
 

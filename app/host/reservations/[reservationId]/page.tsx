@@ -3,9 +3,14 @@ import { notFound } from "next/navigation";
 
 import { BookingReceipt } from "@/components/BookingReceipt";
 import { DashboardShell } from "@/components/DashboardShell";
+import chatStyles from "@/components/ReservationChat.module.css";
 import { createClient } from "@/lib/supabase/server";
 
 import {
+  approveCancellationRequest,
+  approveChangeRequest,
+  declineCancellationRequest,
+  declineChangeRequest,
   respondToReservationReview,
   sendHostReservationMessage,
 } from "../detail-actions";
@@ -18,7 +23,22 @@ function money(cents: number | null | undefined, currency = "USD") {
 }
 
 function readable(value: string | null | undefined) {
-  return (value || "—").replaceAll("_", " ");
+  return (value || "—")
+    .replaceAll("_", " ")
+    .toLowerCase()
+    .replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
+
+function isLegacyRequestMessage(body: string) {
+  const value = body.trim();
+  return (
+    /^\[change request\]/i.test(value) ||
+    /^change request:/i.test(value) ||
+    /^i would like to request cancellation of this reservation/i.test(value) ||
+    /^cancellation request (approved|declined)/i.test(value) ||
+    /^cancellation approved without refund/i.test(value)
+  );
 }
 
 export default async function HostReservationDetailPage({
@@ -34,7 +54,7 @@ export default async function HostReservationDetailPage({
   const { data: reservation, error } = await supabase
     .from("reservations")
     .select(
-      "id,confirmation_code,property_id,unit_id,status,check_in,check_out,guest_name,guest_email,guest_phone,guest_count,pet_count,currency,pricing_snapshot,pre_tax_total_cents,tax_total_cents,guest_total_cents,platform_commission_cents,commission_tier,commission_rate_bps,payment_provider,payment_status,tax_status,created_at,confirmed_at",
+      "id,confirmation_code,property_id,unit_id,status,check_in,check_out,guest_name,guest_email,guest_phone,guest_count,pet_count,currency,pricing_snapshot,pre_tax_total_cents,tax_total_cents,guest_total_cents,platform_commission_cents,commission_tier,commission_rate_bps,payment_provider,payment_status,tax_status,created_at,confirmed_at,cancelled_at",
     )
     .eq("id", reservationId)
     .maybeSingle();
@@ -42,40 +62,68 @@ export default async function HostReservationDetailPage({
   if (error) throw new Error("Unable to load booking.");
   if (!reservation) notFound();
 
-  const [propertyResult, messagesResult, reviewResult, paymentResult] =
-    await Promise.all([
-      supabase
-        .from("properties")
-        .select("id,name")
-        .eq("id", reservation.property_id)
-        .maybeSingle(),
-      supabase
-        .from("reservation_messages")
-        .select("id,sender_type,body,created_at")
-        .eq("reservation_id", reservationId)
-        .order("created_at", { ascending: true }),
-      supabase
-        .from("reservation_reviews")
-        .select(
-          "id,rating,body,status,host_response,created_at,host_responded_at",
-        )
-        .eq("reservation_id", reservationId)
-        .maybeSingle(),
-      supabase
-        .from("payments")
-        .select(
-          "id,provider,status,provider_payment_id,amount_cents,application_fee_cents,platform_tax_retained_cents,processor_fee_actual_cents,processor_fee_host_share_cents,processor_fee_platform_share_cents,host_proceeds_cents,currency,created_at",
-        )
-        .eq("reservation_id", reservationId)
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle(),
-    ]);
+  const [
+    propertyResult,
+    messagesResult,
+    reviewResult,
+    paymentResult,
+    cancellationResult,
+    changeResult,
+  ] = await Promise.all([
+    supabase
+      .from("properties")
+      .select("id,name")
+      .eq("id", reservation.property_id)
+      .maybeSingle(),
+    supabase
+      .from("reservation_messages")
+      .select("id,sender_type,body,created_at")
+      .eq("reservation_id", reservationId)
+      .order("created_at", { ascending: true }),
+    supabase
+      .from("reservation_reviews")
+      .select(
+        "id,rating,body,status,host_response,created_at,host_responded_at",
+      )
+      .eq("reservation_id", reservationId)
+      .maybeSingle(),
+    supabase
+      .from("payments")
+      .select(
+        "id,provider,status,provider_payment_id,amount_cents,application_fee_cents,platform_tax_retained_cents,processor_fee_actual_cents,processor_fee_host_share_cents,processor_fee_platform_share_cents,host_proceeds_cents,currency,created_at",
+      )
+      .eq("reservation_id", reservationId)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+    supabase
+      .from("reservation_cancellation_requests")
+      .select(
+        "id,status,reason,host_response,requested_at,responded_at,completed_at,metadata",
+      )
+      .eq("reservation_id", reservationId)
+      .order("requested_at", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+    supabase
+      .from("reservation_change_requests")
+      .select(
+        "id,status,request_text,host_response,requested_at,responded_at,completed_at,metadata",
+      )
+      .eq("reservation_id", reservationId)
+      .order("requested_at", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+  ]);
 
   const property = propertyResult.data;
-  const messages = messagesResult.data ?? [];
+  const messages = (messagesResult.data ?? []).filter(
+    (message) => !isLegacyRequestMessage(message.body),
+  );
   const review = reviewResult.data;
   const payment = paymentResult.data;
+  const cancellationRequest = cancellationResult.data;
+  const changeRequest = changeResult.data;
 
   return (
     <DashboardShell
@@ -107,12 +155,9 @@ export default async function HostReservationDetailPage({
           <small>{reservation.payment_provider || "No processor"}</small>
         </div>
         <div>
-          <span>Commission</span>
+          <span>Find A Place fee</span>
           <strong>
-            {money(
-              reservation.platform_commission_cents,
-              reservation.currency,
-            )}
+            {money(reservation.platform_commission_cents, reservation.currency)}
           </strong>
           <small>{reservation.commission_tier}</small>
         </div>
@@ -129,12 +174,30 @@ export default async function HostReservationDetailPage({
           <h2>{reservation.guest_name || "Guest"}</h2>
           <div className="setting-row">
             <span>Email</span>
-            <strong>{reservation.guest_email || "Not provided"}</strong>
+            <strong>
+              {reservation.guest_email ? (
+                <a href={`mailto:${reservation.guest_email}`}>{reservation.guest_email}</a>
+              ) : (
+                "Not provided"
+              )}
+            </strong>
           </div>
           <div className="setting-row">
             <span>Phone</span>
-            <strong>{reservation.guest_phone || "Not provided"}</strong>
+            <strong>
+              {reservation.guest_phone ? (
+                <a href={`tel:${reservation.guest_phone}`}>{reservation.guest_phone}</a>
+              ) : (
+                "Not provided"
+              )}
+            </strong>
           </div>
+          {reservation.guest_phone ? (
+            <p className={chatStyles.contactLinks}>
+              <a className={chatStyles.actionLink} href={`tel:${reservation.guest_phone}`}>Call guest</a>
+              <a className={chatStyles.actionLink} href={`sms:${reservation.guest_phone}`}>Text guest</a>
+            </p>
+          ) : null}
           <div className="setting-row">
             <span>Guests / pets</span>
             <strong>
@@ -183,7 +246,7 @@ export default async function HostReservationDetailPage({
 
       <section className="panel">
         <p className="eyebrow dark">Payment</p>
-        <h2>Host settlement</h2>
+        <h2>Host payment</h2>
 
         {payment ? (
           <>
@@ -194,11 +257,11 @@ export default async function HostReservationDetailPage({
                 <small>{payment.provider} · {readable(payment.status)}</small>
               </div>
               <div>
-                <span>Taxes collected</span>
+                <span>Tax retained by Find A Place</span>
                 <strong>
                   −{money(payment.platform_tax_retained_cents, payment.currency)}
                 </strong>
-                <small>Held by Find A Place for remittance</small>
+                <small>Only where Find A Place is configured to remit it</small>
               </div>
               <div>
                 <span>Find A Place commission</span>
@@ -208,26 +271,22 @@ export default async function HostReservationDetailPage({
                 <small>{reservation.commission_tier}</small>
               </div>
               <div>
-                <span>Payment processing</span>
+                <span>Stripe processing</span>
                 <strong>
-                  −{money(payment.processor_fee_host_share_cents, payment.currency)}
+                  −{money(payment.processor_fee_actual_cents, payment.currency)}
                 </strong>
-                <small>
-                  Stripe actual: {money(payment.processor_fee_actual_cents, payment.currency)}
-                </small>
+                <small>Charged by Stripe to your connected account</small>
               </div>
               <div>
-                <span>Host proceeds</span>
-                <strong>
-                  {money(payment.host_proceeds_cents, payment.currency)}
-                </strong>
-                <small>Amount routed to the connected host account</small>
+                <span>Net host proceeds</span>
+                <strong>{money(payment.host_proceeds_cents, payment.currency)}</strong>
+                <small>Stripe controls balance availability and bank-deposit timing</small>
               </div>
             </div>
             <p className="muted">
-              Find A Place commission, taxes held for remittance and the host
-              processing charge make up Stripe&apos;s combined application fee.
-              They are shown separately here so the settlement is understandable.
+              The booking charge belongs to your connected Stripe account. Find A
+              Place receives its application fee automatically; Find A Place does
+              not hold or schedule your bank deposits.
             </p>
           </>
         ) : (
@@ -237,55 +296,151 @@ export default async function HostReservationDetailPage({
         )}
       </section>
 
-      <section className="panel">
-        <div className="panel-head">
+      {(cancellationRequest || changeRequest) ? (
+        <section className="panel" id="guest-requests">
+          <div className="panel-head">
+            <div>
+              <p className="eyebrow dark">Guest requests</p>
+              <h2>Review booking requests separately from chat.</h2>
+            </div>
+          </div>
+          <p className="muted">
+            These are structured requests tied to the reservation. Your response is emailed to the guest and saved with the booking record.
+          </p>
+
+          <div className={chatStyles.requestGrid}>
+            {changeRequest ? (
+              <article className={chatStyles.requestPanel}>
+                <div className={chatStyles.requestMeta}>
+                  <strong>Change request</strong>
+                  <span className={chatStyles.statusPill}>{readable(changeRequest.status)}</span>
+                </div>
+                <p>{changeRequest.request_text}</p>
+                <small>Requested {new Date(changeRequest.requested_at).toLocaleString("en-US")}</small>
+                {changeRequest.host_response ? (
+                  <p><strong>Your response:</strong> {changeRequest.host_response}</p>
+                ) : null}
+
+                {changeRequest.status === "REQUESTED" && reservation.status === "CONFIRMED" ? (
+                  <form className={chatStyles.requestDecisionForm}>
+                    <input type="hidden" name="reservation_id" value={reservation.id} />
+                    <input type="hidden" name="request_id" value={changeRequest.id} />
+                    <textarea
+                      name="host_response"
+                      placeholder="Reply to the guest with what you can approve or what needs to be different…"
+                    />
+                    <div className={chatStyles.requestDecisionButtons}>
+                      <button formAction={approveChangeRequest} type="submit">Approve request</button>
+                      <button formAction={declineChangeRequest} type="submit">Decline request</button>
+                    </div>
+                    <small className="muted">
+                      Approval records your response. Date, guest-count or price changes are not rewritten automatically yet.
+                    </small>
+                  </form>
+                ) : null}
+              </article>
+            ) : null}
+
+            {cancellationRequest ? (
+              <article className={chatStyles.requestPanel}>
+                <div className={chatStyles.requestMeta}>
+                  <strong>Cancellation request</strong>
+                  <span className={chatStyles.statusPill}>{readable(cancellationRequest.status)}</span>
+                </div>
+                <p>{cancellationRequest.reason || "The guest did not add a reason."}</p>
+                <small>Requested {new Date(cancellationRequest.requested_at).toLocaleString("en-US")}</small>
+                {cancellationRequest.host_response ? (
+                  <p><strong>Your response:</strong> {cancellationRequest.host_response}</p>
+                ) : null}
+
+                {cancellationRequest.status === "REQUESTED" && reservation.status === "CONFIRMED" ? (
+                  <form className={chatStyles.requestDecisionForm}>
+                    <input type="hidden" name="reservation_id" value={reservation.id} />
+                    <input type="hidden" name="request_id" value={cancellationRequest.id} />
+                    <textarea
+                      name="host_response"
+                      placeholder="Add a short response to the guest about your decision…"
+                    />
+                    <div className={chatStyles.requestDecisionButtons}>
+                      <button formAction={approveCancellationRequest} type="submit">Approve + full refund</button>
+                      <button formAction={declineCancellationRequest} type="submit">Keep reservation active</button>
+                    </div>
+                  </form>
+                ) : null}
+              </article>
+            ) : null}
+          </div>
+        </section>
+      ) : null}
+
+      <section className={chatStyles.shell} id="messages">
+        <div className={chatStyles.chatHeader}>
           <div>
             <p className="eyebrow dark">Booking messages</p>
-            <h2>Guest conversation</h2>
+            <h2>Chat with {reservation.guest_name || "your guest"}.</h2>
+            <p className="muted">
+              Keep normal questions, arrival details and stay communication here. Change and cancellation requests are handled in the request section above.
+            </p>
+          </div>
+          <div className={chatStyles.contactLinks}>
+            {reservation.guest_email ? (
+              <a className={chatStyles.actionLink} href={`mailto:${reservation.guest_email}`}>Email guest</a>
+            ) : null}
+            {reservation.guest_phone ? (
+              <a className={chatStyles.actionLink} href={`tel:${reservation.guest_phone}`}>Call guest</a>
+            ) : null}
+            {reservation.guest_phone ? (
+              <a className={chatStyles.actionLink} href={`sms:${reservation.guest_phone}`}>Text guest</a>
+            ) : null}
+            <Link className={chatStyles.actionLink} href={`/host/messages?reservation=${reservation.id}`}>Open inbox</Link>
           </div>
         </div>
 
-        {messages.length ? (
-          <div className="admin-list compact">
-            {messages.map((message) => (
-              <div className="admin-list-row static" key={message.id}>
-                <span>
-                  <strong>{message.sender_type}</strong>
-                  <small>{message.body}</small>
-                </span>
-                <span>
-                  <small>
-                    {new Date(message.created_at).toLocaleString("en-US")}
-                  </small>
-                </span>
+        <div className={chatStyles.thread}>
+          {messages.length ? (
+            messages.map((message) => {
+              const host = message.sender_type === "HOST";
+              return (
+                <div
+                  className={`${chatStyles.messageRow} ${host ? chatStyles.messageRowGuest : chatStyles.messageRowHost}`}
+                  key={message.id}
+                >
+                  <div className={`${chatStyles.bubble} ${host ? chatStyles.bubbleGuest : chatStyles.bubbleHost}`}>
+                    <div className={chatStyles.bubbleMeta}>
+                      <strong>{host ? "You" : reservation.guest_name || "Guest"}</strong>
+                      <span>{new Date(message.created_at).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}</span>
+                    </div>
+                    <div className={chatStyles.bubbleBody}>{message.body}</div>
+                  </div>
+                </div>
+              );
+            })
+          ) : (
+            <div className={chatStyles.emptyThread}>
+              <div>
+                <strong>No messages yet.</strong>
+                <p>The guest can start this conversation from My Trip, or you can message them below.</p>
               </div>
-            ))}
-          </div>
-        ) : (
-          <div className="panel-empty">
-            <strong>No messages yet.</strong>
-            <span>The guest can message from their trip page.</span>
-          </div>
-        )}
+            </div>
+          )}
+        </div>
 
-        <form className="settings-form" action={sendHostReservationMessage}>
+        <form className={chatStyles.composer} action={sendHostReservationMessage}>
           <input type="hidden" name="reservation_id" value={reservation.id} />
-          <label>
-            <span>Message guest</span>
-            <textarea
-              name="body"
-              rows={4}
-              placeholder="Send an update about check-in, the stay or their booking…"
-              required
-            />
-          </label>
-          <button className="button button-small" type="submit">
-            Send message
-          </button>
+          <input type="hidden" name="return_to" value={`/host/reservations/${reservation.id}`} />
+          <textarea
+            name="body"
+            placeholder="Write a message about check-in, arrival details, the property or this reservation…"
+            required
+          />
+          <div className={chatStyles.composerFooter}>
+            <span className={chatStyles.composerNote}>The guest sees this in My Trip and receives an email notification.</span>
+            <button className={chatStyles.sendButton} type="submit">Send message</button>
+          </div>
         </form>
       </section>
 
-      <section className="panel">
+      <section className={`panel ${chatStyles.reviewPanel}`}>
         <p className="eyebrow dark">Verified guest review</p>
         <h2>{review ? `${review.rating}/5` : "No review yet"}</h2>
 
@@ -302,15 +457,8 @@ export default async function HostReservationDetailPage({
                 <span>{review.host_response}</span>
               </div>
             ) : (
-              <form
-                className="settings-form"
-                action={respondToReservationReview}
-              >
-                <input
-                  type="hidden"
-                  name="reservation_id"
-                  value={reservation.id}
-                />
+              <form className="settings-form" action={respondToReservationReview}>
+                <input type="hidden" name="reservation_id" value={reservation.id} />
                 <input type="hidden" name="review_id" value={review.id} />
                 <label>
                   <span>Public host response</span>
@@ -324,8 +472,7 @@ export default async function HostReservationDetailPage({
           </>
         ) : (
           <p className="muted">
-            Reviews are only accepted from guests tied to a completed
-            reservation.
+            Reviews are only accepted from guests tied to a completed reservation.
           </p>
         )}
       </section>

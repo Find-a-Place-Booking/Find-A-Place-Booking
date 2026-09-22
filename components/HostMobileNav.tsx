@@ -7,7 +7,6 @@ const links = [
   ["Reservations", "/host/reservations"],
   ["Rates & fees", "/host/rates"],
   ["Payments & taxes", "/host/payments"],
-  ["Payouts", "/host/payouts"],
   ["Messages", "/host/messages"],
   ["Reports", "/host/reports"],
   ["Settings", "/host/settings"],
@@ -29,8 +28,7 @@ export function HostMobileNav({ active }: { active: string }) {
             href={href}
             key={label}
           >
-            {label}
-            <span>›</span>
+            {label}<span>›</span>
           </Link>
         ))}
       </nav>

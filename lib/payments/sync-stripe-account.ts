@@ -1,19 +1,12 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import {
-  retrieveEmbeddedRecipientAccount,
+  retrieveEmbeddedMerchantAccount,
   type StripeAccountV2,
 } from "@/lib/payments/stripe-rest";
-import { ensureManualPayoutSchedule } from "@/lib/payments/stripe-payouts";
 
-function capabilityStatus(
-  account: StripeAccountV2,
-  capability: "stripe_transfers" | "payouts",
-) {
-  return (
-    account.configuration?.recipient?.capabilities?.stripe_balance?.[capability]
-      ?.status ?? null
-  );
+function cardPaymentsCapability(account: StripeAccountV2) {
+  return account.configuration?.merchant?.capabilities?.card_payments ?? null;
 }
 
 export async function syncStripePaymentAccount(
@@ -31,7 +24,7 @@ export async function syncStripePaymentAccount(
 
   if (storedAccountError || !storedAccount) {
     throw new Error(
-      "Unable to load the Stripe payout account before synchronization.",
+      "Unable to load the Stripe payment account before synchronization.",
     );
   }
 
@@ -40,61 +33,45 @@ export async function syncStripePaymentAccount(
       ? (storedAccount.metadata as Record<string, unknown>)
       : {};
 
-  const account = await retrieveEmbeddedRecipientAccount(providerAccountId);
-
-  const transfersStatus = capabilityStatus(account, "stripe_transfers");
-  const payoutsStatus = capabilityStatus(account, "payouts");
-  const transfersEnabled = transfersStatus === "active";
-  const payoutsEnabled = payoutsStatus === "active";
-
-  let payoutScheduleStatus: "MANUAL" | "NOT_READY" | "ERROR" =
-    payoutsEnabled ? "ERROR" : "NOT_READY";
-  let payoutScheduleError: string | null = null;
-
-  if (payoutsEnabled) {
-    try {
-      await ensureManualPayoutSchedule(providerAccountId);
-      payoutScheduleStatus = "MANUAL";
-    } catch (error) {
-      payoutScheduleError =
-        error instanceof Error
-          ? error.message.slice(0, 1000)
-          : "Stripe payout schedule could not be set to manual.";
-    }
-  }
-
+  const account = await retrieveEmbeddedMerchantAccount(providerAccountId);
+  const cardCapability = cardPaymentsCapability(account);
+  const cardStatus = cardCapability?.status ?? null;
+  const cardStatusDetails = cardCapability?.status_details ?? [];
+  const chargesEnabled = cardStatus === "active";
   const pastDue =
     account.requirements?.summary?.minimum_deadline?.status === "past_due";
 
-  const status =
-    transfersEnabled && payoutsEnabled && payoutScheduleStatus === "MANUAL"
-      ? ("READY" as const)
-      : pastDue
-        ? ("RESTRICTED" as const)
-        : ("PENDING" as const);
+  const status = chargesEnabled
+    ? ("READY" as const)
+    : cardStatus === "restricted" || pastDue
+      ? ("RESTRICTED" as const)
+      : ("PENDING" as const);
 
   const { error } = await admin
     .from("payment_accounts")
     .update({
       status,
-      charges_enabled: false,
-      payouts_enabled: payoutsEnabled,
+      charges_enabled: chargesEnabled,
+      // Kept true with READY for compatibility with existing host UI. Bank
+      // payout timing itself is now controlled by Stripe/the host, not FAP.
+      payouts_enabled: chargesEnabled,
       currency: (account.defaults?.currency || "usd").toUpperCase(),
       metadata: {
         ...storedMetadata,
         source: "stripe_connect_embedded",
         api_namespace: "accounts_v2",
-        account_configuration: "recipient",
+        account_configuration: "merchant",
+        charge_model: "DIRECT",
         dashboard: account.dashboard ?? null,
         fees_collector:
           account.defaults?.responsibilities?.fees_collector ?? null,
         losses_collector:
           account.defaults?.responsibilities?.losses_collector ?? null,
-        transfers_status: transfersStatus,
-        payouts_status: payoutsStatus,
-        payout_schedule: payoutScheduleStatus,
-        payout_schedule_policy: "CHECKIN_MINUS_13_DAYS",
-        payout_schedule_error: payoutScheduleError,
+        card_payments_status: cardStatus,
+        card_payments_status_details: cardStatusDetails,
+        payout_schedule: "STRIPE_MANAGED",
+        payout_schedule_policy: null,
+        payout_schedule_error: null,
         outstanding_requirement_count:
           account.requirements?.entries?.length ?? 0,
       },
@@ -105,16 +82,20 @@ export async function syncStripePaymentAccount(
 
   if (error) {
     throw new Error(
-      `Unable to synchronize Stripe payout account: ${error.message}`,
+      `Unable to synchronize Stripe payment account: ${error.message}`,
     );
   }
 
   return {
     account,
     status,
-    transfersEnabled,
-    payoutsEnabled,
-    payoutScheduleStatus,
-    payoutScheduleError,
+    chargesEnabled,
+    cardStatus,
+    cardStatusDetails,
+    // Compatibility fields consumed by the current sync endpoint/UI.
+    transfersEnabled: false,
+    payoutsEnabled: chargesEnabled,
+    payoutScheduleStatus: "STRIPE_MANAGED" as const,
+    payoutScheduleError: null,
   };
 }

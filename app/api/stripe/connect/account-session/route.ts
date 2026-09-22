@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 
 import {
   createAccountSession,
-  createEmbeddedRecipientAccount,
+  createEmbeddedMerchantAccount,
 } from "@/lib/payments/stripe-rest";
 import { stripeEnvironment } from "@/lib/payments/booking-runtime";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -11,7 +11,7 @@ import { createClient } from "@/lib/supabase/server";
 export const runtime = "nodejs";
 
 const STRIPE_ACCOUNT_SCHEMA =
-  "accounts_v2_recipient_express_application_responsibility_v3";
+  "accounts_v2_merchant_full_stripe_responsibility_direct_charge_v1";
 
 function jsonError(error: unknown, status = 500) {
   const message =
@@ -107,15 +107,25 @@ export async function POST(request: Request) {
       );
     }
 
-    let paymentAccountId = existing?.id ?? null;
-    let providerAccountId = existing?.provider_account_id ?? null;
+    const existingMetadata =
+      existing?.metadata && typeof existing.metadata === "object"
+        ? (existing.metadata as Record<string, unknown>)
+        : {};
+    const isDirectMerchant =
+      existingMetadata.account_configuration === "merchant" &&
+      existingMetadata.charge_model === "DIRECT";
+
+    let paymentAccountId = isDirectMerchant ? existing?.id ?? null : null;
+    let providerAccountId = isDirectMerchant
+      ? existing?.provider_account_id ?? null
+      : null;
 
     if (!providerAccountId) {
-      const stripeAccount = await createEmbeddedRecipientAccount({
+      const stripeAccount = await createEmbeddedMerchantAccount({
         email,
         displayName,
         country: "US",
-        requestScope: organizationId,
+        requestScope: `${organizationId}:${environment}:direct-charge-v1`,
       });
 
       providerAccountId = stripeAccount.id;
@@ -124,88 +134,88 @@ export async function POST(request: Request) {
         source: "stripe_connect_embedded",
         integration_schema: STRIPE_ACCOUNT_SCHEMA,
         api_namespace: "accounts_v2",
-        account_configuration: "recipient",
-        dashboard: "express",
-        fees_collector: "application",
-        losses_collector: "application",
+        account_configuration: "merchant",
+        charge_model: "DIRECT",
+        dashboard: "full",
+        fees_collector: "stripe",
+        losses_collector: "stripe",
         payment_environment: environment,
+        payout_schedule: "STRIPE_MANAGED",
       };
 
-      if (paymentAccountId) {
-        const { error } = await admin
+      const replacedPaymentAccountId = existing?.id ?? null;
+      const shouldBeDefault = existing?.is_default ?? true;
+
+      if (replacedPaymentAccountId) {
+        const { error: disableError } = await admin
           .from("payment_accounts")
           .update({
-            provider_account_id: providerAccountId,
-            environment,
-            connection_mode: "STRIPE_CONNECT",
-            status: "PENDING",
-            charges_enabled: false,
-            payouts_enabled: false,
-            metadata,
+            status: "DISABLED",
+            is_default: false,
+            metadata: {
+              ...existingMetadata,
+              replaced_by_direct_charge_model: true,
+              replaced_at: new Date().toISOString(),
+            },
           })
-          .eq("id", paymentAccountId);
+          .eq("id", replacedPaymentAccountId);
 
-        if (error) {
+        if (disableError) {
           throw new Error(
-            `Unable to save the new Stripe account: ${error.message}`,
+            `Unable to retire the legacy Stripe payout account: ${disableError.message}`,
           );
         }
-      } else {
-        const { data: defaultAccount, error: defaultError } = await admin
-          .from("payment_accounts")
-          .select("id")
-          .eq("organization_id", organizationId)
-          .eq("environment", environment)
-          .eq("is_default", true)
-          .neq("status", "DISABLED")
-          .limit(1)
-          .maybeSingle();
+      }
 
-        if (defaultError) {
+      const { data: inserted, error: insertError } = await admin
+        .from("payment_accounts")
+        .insert({
+          organization_id: organizationId,
+          provider: "STRIPE",
+          connection_mode: "STRIPE_CONNECT",
+          provider_account_id: providerAccountId,
+          environment,
+          status: "PENDING",
+          is_default: shouldBeDefault,
+          country_code: "US",
+          currency: "USD",
+          charges_enabled: false,
+          payouts_enabled: false,
+          metadata,
+          created_by: user.id,
+        })
+        .select("id")
+        .single();
+
+      if (insertError || !inserted) {
+        throw new Error(
+          `Unable to save Stripe payment account: ${
+            insertError?.message ?? "Unknown database error"
+          }`,
+        );
+      }
+
+      paymentAccountId = inserted.id;
+
+      if (replacedPaymentAccountId) {
+        const { error: assignmentError } = await admin
+          .from("payment_account_assignments")
+          .update({ payment_account_id: paymentAccountId })
+          .eq("payment_account_id", replacedPaymentAccountId)
+          .eq("environment", environment);
+
+        if (assignmentError) {
           throw new Error(
-            `Unable to inspect default payment account: ${defaultError.message}`,
+            `Unable to move property payment routing to the direct-charge account: ${assignmentError.message}`,
           );
         }
-
-        const { data: inserted, error } = await admin
-          .from("payment_accounts")
-          .insert({
-            organization_id: organizationId,
-            provider: "STRIPE",
-            connection_mode: "STRIPE_CONNECT",
-            provider_account_id: providerAccountId,
-            environment,
-            status: "PENDING",
-            is_default: !defaultAccount,
-            country_code: "US",
-            currency: "USD",
-            charges_enabled: false,
-            payouts_enabled: false,
-            metadata,
-            created_by: user.id,
-          })
-          .select("id")
-          .single();
-
-        if (error || !inserted) {
-          throw new Error(
-            `Unable to save Stripe payment account: ${
-              error?.message ?? "Unknown database error"
-            }`,
-          );
-        }
-
-        paymentAccountId = inserted.id;
       }
     }
 
     if (!paymentAccountId || !providerAccountId) {
-      throw new Error("Stripe payout setup could not be initialized.");
+      throw new Error("Stripe payment setup could not be initialized.");
     }
 
-    // The embedded onboarding session intentionally does not expose Stripe's
-    // payouts component. Find A Place owns the payout schedule and releases
-    // bank payouts according to the reservation policy.
     const session = await createAccountSession(providerAccountId);
 
     if (!session.client_secret) {
@@ -216,6 +226,7 @@ export async function POST(request: Request) {
       clientSecret: session.client_secret,
       paymentAccountId,
       environment,
+      chargeModel: "DIRECT",
     });
   } catch (error) {
     return jsonError(error);

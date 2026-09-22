@@ -3,17 +3,23 @@ import { PRIVACY_NOTICE_VERSION } from "@/lib/policies/versions";
 
 export default function PrivacyPage() {
   return (
-    <LegalDocument eyebrow="Privacy" title="Privacy & Identity Verification Notice" version={PRIVACY_NOTICE_VERSION}>
+    <LegalDocument
+      eyebrow="Privacy"
+      title="Privacy & Identity Verification Notice"
+      version={PRIVACY_NOTICE_VERSION}
+    >
       <p>
         Find A Place uses the information necessary to operate listings, bookings,
-        payments, guest-host communication, fraud prevention and support.
+        payments, guest-host communication, cancellation requests, fraud prevention
+        and support.
       </p>
 
       <h2>Booking information</h2>
       <p>
         Booking records may include the guest&apos;s name, email address, phone number,
-        stay dates, party size, selected options, reservation messages, payment
-        status and the policy versions accepted for the reservation.
+        stay dates, party size, selected options, reservation messages, cancellation
+        requests and responses, payment status and the policy versions accepted for
+        the reservation.
       </p>
 
       <h2>Email verification</h2>
@@ -27,16 +33,26 @@ export default function PrivacyPage() {
         Stripe Identity processes government identification and selfie verification
         when required for a booking. Find A Place stores the Stripe verification
         session reference, verification status and timestamp needed to operate the
-        reservation. Find A Place does not intentionally store copies of the guest&apos;s
-        identity-document images or selfie in its own application database.
+        reservation. Find A Place does not intentionally store copies of the
+        guest&apos;s identity-document images or selfie in its own application database.
       </p>
 
-      <h2>Information shared with hosts</h2>
+      <h2>Information shared between guests and hosts</h2>
       <p>
         Hosts receive reservation information needed to operate the stay, including
         the guest&apos;s name, booking email, phone number, party details and verification
-        status. Find A Place does not provide the host with the guest&apos;s identity
-        document images or selfie through the booking confirmation.
+        status. Guests may receive the host organization&apos;s booking contact email and
+        phone number. Messages and cancellation requests sent through Find A Place
+        are stored with the reservation so the parties and authorized support staff
+        can review the booking record.
+      </p>
+
+      <h2>Payment providers</h2>
+      <p>
+        Guest charges are processed by supported payment providers on the host&apos;s
+        connected account. Find A Place stores processor references and payment
+        status needed to operate the reservation but does not store raw card or bank
+        credentials.
       </p>
 
       <h2>Service providers</h2>
@@ -49,8 +65,8 @@ export default function PrivacyPage() {
 
       <h2>Retention and legal requests</h2>
       <p>
-        Reservation and financial records may be retained as reasonably necessary
-        for accounting, disputes, fraud prevention, tax, support and legal
+        Reservation, message and financial records may be retained as reasonably
+        necessary for accounting, disputes, fraud prevention, tax, support and legal
         obligations. Find A Place may disclose information when legally required or
         reasonably necessary to protect users, properties or the platform.
       </p>

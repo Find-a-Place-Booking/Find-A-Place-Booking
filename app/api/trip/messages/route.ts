@@ -24,7 +24,7 @@ async function verifiedReservation(
     .eq("id", reservationId)
     .maybeSingle();
 
-  if (!data || data.status !== "CONFIRMED") return null;
+  if (!data || !["CONFIRMED", "CANCELLED"].includes(data.status)) return null;
   return { admin, reservation: data };
 }
 

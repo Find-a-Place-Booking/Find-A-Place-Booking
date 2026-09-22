@@ -46,14 +46,10 @@ export function BookingConfirmation({
 
     async function load() {
       attempts += 1;
-
       const response = await fetch(
-        `/api/booking/status?reservationId=${encodeURIComponent(
-          reservationId,
-        )}&checkoutToken=${encodeURIComponent(checkoutToken)}`,
+        `/api/booking/status?reservationId=${encodeURIComponent(reservationId)}&checkoutToken=${encodeURIComponent(checkoutToken)}`,
         { cache: "no-store" },
       );
-
       if (!response.ok) {
         if (!cancelled) {
           const payload = await response.json().catch(() => null);
@@ -61,72 +57,45 @@ export function BookingConfirmation({
         }
         return;
       }
-
       const payload = (await response.json()) as BookingStatus;
-
       if (cancelled) return;
-
       setBooking(payload);
-
-      if (
-        payload.confirmationCode === confirmationCode &&
-        payload.status !== "CONFIRMED" &&
-        attempts < 30
-      ) {
+      if (payload.confirmationCode === confirmationCode && payload.status !== "CONFIRMED" && attempts < 30) {
         timer = window.setTimeout(load, 1000);
       }
     }
 
     load();
-
     return () => {
       cancelled = true;
       if (timer) window.clearTimeout(timer);
     };
   }, [confirmationCode, reservationId, checkoutToken]);
 
-  if (error) {
-    return (
-      <>
-        <p className="eyebrow dark">Booking status</p>
-        <h1>We couldn’t load this reservation.</h1>
-        <p>{error}</p>
-      </>
-    );
-  }
-
-  if (!booking) {
-    return <p>Confirming your payment and reservation…</p>;
-  }
-
-  if (booking.confirmationCode !== confirmationCode) {
-    return <p>This confirmation does not match the reservation.</p>;
-  }
+  if (error) return <><p className="eyebrow dark">Booking status</p><h1>We couldn’t load this reservation.</h1><p>{error}</p></>;
+  if (!booking) return <p>Confirming your payment and reservation…</p>;
+  if (booking.confirmationCode !== confirmationCode) return <p>This confirmation does not match the reservation.</p>;
 
   if (booking.status !== "CONFIRMED") {
-    return (
-      <>
-        <p className="eyebrow dark">Payment received</p>
-        <h1>We’re finishing your reservation.</h1>
-        <p>
-          Payment status: {booking.paymentStatus}. This page checks the
-          reservation automatically while Stripe’s webhook finishes.
-        </p>
-      </>
-    );
+    return <><p className="eyebrow dark">Payment received</p><h1>We’re finishing your reservation.</h1><p>Payment status: {booking.paymentStatus}. This page checks the reservation automatically while Stripe’s webhook finishes.</p></>;
   }
 
   return (
     <>
       <p className="eyebrow dark">Booking confirmed</p>
       <h1>{booking.propertyName || "Your stay"} is confirmed.</h1>
-
+      <p>Confirmation <strong>{booking.confirmationCode}</strong></p>
+      <p>{booking.checkIn} → {booking.checkOut}</p>
       <p>
-        Confirmation <strong>{booking.confirmationCode}</strong>
+        My Trip is the place to contact the host, request a booking change, review booking details and send any cancellation request directly to the host. You can reopen it later with your confirmation number and booking email.
       </p>
-
       <p>
-        {booking.checkIn} → {booking.checkOut}
+        <a
+          className="button button-small"
+          href={`/trip/${encodeURIComponent(booking.confirmationCode)}?reservationId=${encodeURIComponent(reservationId)}&checkoutToken=${encodeURIComponent(checkoutToken)}`}
+        >
+          Open My Trip
+        </a>
       </p>
 
       <div className="panel">
@@ -146,7 +115,7 @@ export function BookingConfirmation({
       {testMode ? (
         <p>This was a Stripe test-mode transaction. No live money moved.</p>
       ) : (
-        <p>Your payment has been received and your dates are reserved.</p>
+        <p>Your payment was processed on the host&apos;s connected payment account and your dates are reserved.</p>
       )}
     </>
   );

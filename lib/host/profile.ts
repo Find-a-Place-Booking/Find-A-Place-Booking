@@ -17,10 +17,13 @@ export type HostAccountProfile = {
   avatarStoragePath: string | null;
   avatarUrl: string | null;
   gallery: HostGalleryImage[];
+  organizationId: string | null;
   organizationName: string | null;
+  publicHostName: string | null;
   primaryContactName: string | null;
   businessLocation: string | null;
   supportEmail: string | null;
+  publicHostBio: string | null;
 };
 
 export async function getHostAccountProfile(): Promise<HostAccountProfile> {
@@ -53,15 +56,15 @@ export async function getHostAccountProfile(): Promise<HostAccountProfile> {
       .order("created_at", { ascending: true }),
   ]);
 
-  const organizationId = memberships?.[0]?.organization_id as
-    | string
-    | undefined;
+  const organizationId = memberships?.[0]?.organization_id as string | undefined;
 
   type OrganizationProfile = {
     name: string;
     primary_contact_name: string | null;
     business_location: string | null;
     contact_email: string | null;
+    public_host_bio: string | null;
+    public_host_name: string | null;
   };
 
   let organization: OrganizationProfile | null = null;
@@ -69,7 +72,9 @@ export async function getHostAccountProfile(): Promise<HostAccountProfile> {
   if (organizationId) {
     const { data: organizationData } = await supabase
       .from("organizations")
-      .select("name,primary_contact_name,business_location,contact_email")
+      .select(
+        "name,primary_contact_name,business_location,contact_email,public_host_bio,public_host_name",
+      )
       .eq("id", organizationId)
       .maybeSingle();
 
@@ -77,9 +82,7 @@ export async function getHostAccountProfile(): Promise<HostAccountProfile> {
   }
 
   let avatarUrl: string | null = null;
-  const avatarStoragePath = (profile.avatar_storage_path ?? null) as
-    | string
-    | null;
+  const avatarStoragePath = (profile.avatar_storage_path ?? null) as string | null;
 
   if (avatarStoragePath) {
     const { data: signed } = await supabase.storage
@@ -111,18 +114,20 @@ export async function getHostAccountProfile(): Promise<HostAccountProfile> {
     avatarStoragePath,
     avatarUrl,
     gallery,
+    organizationId: organizationId ?? null,
     organizationName: organization?.name ?? null,
+    publicHostName: organization?.public_host_name ?? null,
     primaryContactName: organization?.primary_contact_name ?? null,
     businessLocation: organization?.business_location ?? null,
     supportEmail: organization?.contact_email ?? null,
+    publicHostBio: organization?.public_host_bio ?? null,
   };
 }
 
 export function initialsForHost(
   profile: Pick<HostAccountProfile, "fullName" | "organizationName" | "email">,
 ) {
-  const source =
-    profile.fullName || profile.organizationName || profile.email || "Host";
+  const source = profile.fullName || profile.organizationName || profile.email || "Host";
   const parts = source.trim().split(/\s+/).filter(Boolean);
 
   if (!parts.length) return "H";

@@ -174,9 +174,6 @@ function StripePaymentForm({
       return;
     }
 
-    // The webhook, not the browser, owns the CONFIRMED transition. For card
-    // payments that don't redirect, move to the confirmation screen and let it
-    // poll the canonical reservation state while the webhook finishes.
     window.location.assign(returnUrl);
   }
 
@@ -224,7 +221,9 @@ export function GuestCheckout({
   const [promotionCode, setPromotionCode] = useState("");
   const [hold, setHold] = useState<Hold | null>(null);
   const [clientSecret, setClientSecret] = useState<string | null>(null);
-  const [stripePromise, setStripePromise] =
+  const [identityStripePromise, setIdentityStripePromise] =
+    useState<PromiseLike<Stripe | null> | null>(null);
+  const [paymentStripePromise, setPaymentStripePromise] =
     useState<PromiseLike<Stripe | null> | null>(null);
   const [busy, setBusy] = useState(
     Boolean(initialReservationId && initialCheckoutToken),
@@ -239,7 +238,9 @@ export function GuestCheckout({
   }, []);
 
   useEffect(() => {
-    setStripePromise(loadStripe(publishableKey));
+    // Identity is a Find A Place platform service. The actual booking payment
+    // gets its own Stripe.js instance after the host account is known.
+    setIdentityStripePromise(loadStripe(publishableKey));
   }, [publishableKey]);
 
   const startPayment = useCallback(async (targetHold: Hold) => {
@@ -289,10 +290,17 @@ export function GuestCheckout({
         return;
       }
 
-      if (!paymentPayload.clientSecret) {
+      if (!paymentPayload.clientSecret || !paymentPayload.connectedAccountId) {
         throw new Error("Stripe payment session is unavailable.");
       }
 
+      // Direct-charge PaymentIntents live on the host's connected Stripe
+      // account, so Stripe.js must be initialized in that account context.
+      setPaymentStripePromise(
+        loadStripe(publishableKey, {
+          stripeAccount: paymentPayload.connectedAccountId,
+        }),
+      );
       setClientSecret(paymentPayload.clientSecret);
     } catch (paymentError) {
       setError(
@@ -303,7 +311,7 @@ export function GuestCheckout({
     } finally {
       setBusy(false);
     }
-  }, []);
+  }, [publishableKey]);
 
   useEffect(() => {
     if (!initialReservationId || !initialCheckoutToken) return;
@@ -435,6 +443,7 @@ export function GuestCheckout({
       setVerificationComplete(false);
       setPolicyComplete(false);
       setClientSecret(null);
+      setPaymentStripePromise(null);
       setHold(nextHold);
     } catch (requestError) {
       setTurnstileToken("");
@@ -486,12 +495,12 @@ export function GuestCheckout({
               <span>Reservation {hold.confirmationCode}</span>
             </div>
 
-            {!verificationComplete && stripePromise ? (
+            {!verificationComplete && identityStripePromise ? (
               <GuestVerification
                 reservationId={hold.reservationId}
                 checkoutToken={hold.checkoutToken}
                 guestEmail={guestEmail}
-                stripePromise={stripePromise}
+                stripePromise={identityStripePromise}
                 testMode={testMode}
                 onVerified={handleVerificationComplete}
               />
@@ -647,7 +656,7 @@ export function GuestCheckout({
               {busy ? "Checking dates…" : "Continue to verification"}
             </button>
           </>
-        ) : stripePromise && hold ? (
+        ) : paymentStripePromise && hold ? (
           <>
             <div className={styles.holdNotice}>
               <strong>Guest verification and policy agreement complete</strong>
@@ -655,7 +664,7 @@ export function GuestCheckout({
             </div>
 
             <Elements
-              stripe={stripePromise}
+              stripe={paymentStripePromise}
               options={{
                 clientSecret,
                 appearance: {
@@ -755,7 +764,7 @@ export function GuestCheckout({
           </small>
         ) : (
           <small>
-            Your payment is processed securely by Stripe.
+            Your payment is processed securely by Stripe for the host.
           </small>
         )}
       </aside>

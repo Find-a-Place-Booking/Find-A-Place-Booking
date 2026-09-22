@@ -65,7 +65,7 @@ export async function POST(request: Request) {
       .eq("provider", "STRIPE")
       .eq("environment", environment)
       .neq("status", "DISABLED")
-      .order("created_at", { ascending: true })
+      .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle();
 
@@ -77,7 +77,7 @@ export async function POST(request: Request) {
 
     if (!paymentAccount?.provider_account_id) {
       return NextResponse.json(
-        { error: "No Stripe payout account is connected yet." },
+        { error: "No Stripe payment account is connected yet." },
         { status: 404 },
       );
     }
@@ -90,8 +90,9 @@ export async function POST(request: Request) {
 
     return NextResponse.json({
       status: result.status,
-      transfersEnabled: result.transfersEnabled,
-      payoutsEnabled: result.payoutsEnabled,
+      chargesEnabled: result.chargesEnabled,
+      cardPaymentsStatus: result.cardStatus,
+      cardPaymentsStatusDetails: result.cardStatusDetails,
       environment,
     });
   } catch (error) {

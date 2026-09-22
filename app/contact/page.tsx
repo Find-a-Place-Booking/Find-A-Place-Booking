@@ -13,7 +13,7 @@ import styles from "./contact.module.css";
 export default function ContactPage() {
   const guestMail = findAPlaceMailto(
     "Guest support - Find A Place Booking",
-    "Name:\nBooking confirmation (if applicable):\nProperty:\nHow can we help?\n",
+    "Name:\nBooking confirmation (if applicable):\nProperty:\nHave you contacted the host through My Trip?\nHow can we help?\n",
   );
   const hostMail = findAPlaceMailto(
     "Host support - Find A Place Booking",
@@ -32,15 +32,11 @@ export default function ContactPage() {
           <p className="eyebrow dark">Contact Find A Place</p>
           <h1>Tell us what you need help with.</h1>
           <p className={styles.heroLead}>
-            Booking question, host support or a custom promotion plan — choose
-            the section that fits and your message will go to the Find A Place
-            team.
+            For property details, check-in or an ordinary cancellation request, contact the host from My Trip first. For platform, account, payment-routing or technical support, the Find A Place team is here.
           </p>
           <div className={styles.directEmail}>
             <span>Direct email</span>
-            <a href={`mailto:${FIND_A_PLACE_SUPPORT_EMAIL}`}>
-              {FIND_A_PLACE_SUPPORT_EMAIL}
-            </a>
+            <a href={`mailto:${FIND_A_PLACE_SUPPORT_EMAIL}`}>{FIND_A_PLACE_SUPPORT_EMAIL}</a>
           </div>
         </section>
 
@@ -50,14 +46,11 @@ export default function ContactPage() {
               <span className={styles.kicker}>For travelers</span>
               <h2>Guest support</h2>
               <p>
-                Questions about a reservation, confirmation, trip details, a host
-                message, cancellation status or an issue with a booked stay.
+                Use My Trip for direct host contact, reservation messages and cancellation requests. Contact Find A Place for account access, technical issues, payment-record questions, fraud or other platform support.
               </p>
             </div>
             <div className={styles.cardFooter}>
-              <a className="button button-small" href={guestMail}>
-                Email guest support
-              </a>
+              <a className="button button-small" href={guestMail}>Email guest support</a>
               <small>Include your booking confirmation when you have one.</small>
             </div>
           </article>
@@ -67,14 +60,11 @@ export default function ContactPage() {
               <span className={styles.kicker}>For property owners</span>
               <h2>Host support</h2>
               <p>
-                Help with your host account, listing, calendars, payments,
-                payouts, policies, reservations or the onboarding process.
+                Help with your host account, listing, calendars, connected Stripe account, policies, reservations, guest communication or onboarding.
               </p>
             </div>
             <div className={styles.cardFooter}>
-              <a className="button button-small" href={hostMail}>
-                Email host support
-              </a>
+              <a className="button button-small" href={hostMail}>Email host support</a>
               <small>Include the email used for your host account.</small>
             </div>
           </article>
@@ -84,15 +74,11 @@ export default function ContactPage() {
               <span className={styles.featuredKicker}>Optional promotion</span>
               <h2>Customized advertising plan</h2>
               <p>
-                Want more reach beyond the booking marketplace? Ask about a plan
-                built around Find A Place&apos;s social media and travel community,
-                your property, location and the guests you want to reach.
+                Want more reach beyond the booking marketplace? Ask about a plan built around Find A Place&apos;s social media and travel community, your property, location and the guests you want to reach.
               </p>
             </div>
             <div className={styles.cardFooter}>
-              <a className={`button button-small ${styles.featuredButton}`} href={advertisingMail}>
-                Request an advertising plan
-              </a>
+              <a className={`button button-small ${styles.featuredButton}`} href={advertisingMail}>Request an advertising plan</a>
               <small>Advertising is optional and separate from booking commission.</small>
             </div>
           </article>
@@ -102,19 +88,9 @@ export default function ContactPage() {
           <div>
             <p className="eyebrow dark">The original Find A Place network</p>
             <h2>See the travel and social side of Find A Place.</h2>
-            <p>
-              Browse the existing network, partner properties and travel content
-              at Find A Place Arkansas &amp; Beyond.
-            </p>
+            <p>Browse the existing network, partner properties and travel content at Find A Place Arkansas &amp; Beyond.</p>
           </div>
-          <a
-            className="button button-quiet"
-            href={FIND_A_PLACE_NETWORK_URL}
-            target="_blank"
-            rel="noreferrer"
-          >
-            Visit FindAPlaceAR.com ↗
-          </a>
+          <a className="button button-quiet" href={FIND_A_PLACE_NETWORK_URL} target="_blank" rel="noreferrer">Visit FindAPlaceAR.com ↗</a>
         </section>
 
         <nav className={`shell ${styles.backLinks}`} aria-label="Related links">

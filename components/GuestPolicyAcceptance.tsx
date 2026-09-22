@@ -116,7 +116,6 @@ export function GuestPolicyAcceptance({
       else if (target) window.open(target, "_blank", "noopener,noreferrer");
     } catch {
       popup?.close();
-      // Error already rendered.
     }
   }
 
@@ -130,7 +129,6 @@ export function GuestPolicyAcceptance({
       else window.open("/terms", "_blank", "noopener,noreferrer");
     } catch {
       popup?.close();
-      // Error already rendered.
     }
   }
 
@@ -168,22 +166,23 @@ export function GuestPolicyAcceptance({
     <div className={styles.card}>
       <div className={styles.heading}>
         <div>
-          <p className="eyebrow dark">Policies & agreements</p>
+          <p className="eyebrow dark">Policies &amp; agreements</p>
           <h2>Review before payment</h2>
         </div>
         <span className={styles.status}>Required</span>
       </div>
 
       <p className={styles.intro}>
-        The property rules saved with this reservation and the current Find A
-        Place booking terms must be opened and accepted before payment.
+        Review the host&apos;s property rules and cancellation terms plus the Find A
+        Place platform terms before paying. Your reservation is with the host;
+        Find A Place provides the booking, payment-routing and communication tools.
       </p>
 
       <div className={styles.reviewGrid}>
         <div className={`${styles.reviewCard} ${status.propertyOpened ? styles.reviewed : ""}`}>
-          <strong>Property policies</strong>
+          <strong>Host property policies</strong>
           <p>
-            Review the host&apos;s house rules, cancellation notes and any policy PDF
+            Review the host&apos;s house rules, cancellation terms and any policy PDF
             attached to this reservation.
           </p>
           <button
@@ -200,7 +199,8 @@ export function GuestPolicyAcceptance({
         <div className={`${styles.reviewCard} ${status.platformOpened ? styles.reviewed : ""}`}>
           <strong>Find A Place terms</strong>
           <p>
-            Review the booking terms and the platform cancellation/refund rules.
+            Review Find A Place&apos;s marketplace role, payment-routing terms and
+            cancellation-request process.
           </p>
           <button
             className="button button-small button-quiet"
@@ -226,7 +226,7 @@ export function GuestPolicyAcceptance({
           <p>{status.propertyPolicies.customPolicies}</p>
         ) : null}
         {status.propertyPolicies.cancellationPolicy ? (
-          <p><strong>Host cancellation notes:</strong> {status.propertyPolicies.cancellationPolicy}</p>
+          <p><strong>Host cancellation terms:</strong> {status.propertyPolicies.cancellationPolicy}</p>
         ) : null}
         {status.propertyPolicies.checkIn || status.propertyPolicies.checkout ? (
           <p>
@@ -240,7 +240,7 @@ export function GuestPolicyAcceptance({
       <div className={styles.links}>
         <a href={status.platform.termsUrl} target="_blank" rel="noreferrer">Booking terms</a>
         <a href={status.platform.cancellationUrl} target="_blank" rel="noreferrer">Cancellation policy</a>
-        <a href={status.platform.privacyUrl} target="_blank" rel="noreferrer">Privacy & identity notice</a>
+        <a href={status.platform.privacyUrl} target="_blank" rel="noreferrer">Privacy &amp; identity notice</a>
       </div>
 
       <label className={styles.agreement}>
@@ -251,8 +251,8 @@ export function GuestPolicyAcceptance({
           onChange={(event) => setAgreed(event.target.checked)}
         />
         <span>
-          I have opened and reviewed the property policies and Find A Place
-          terms, and I agree to them for this reservation.
+          I have opened and reviewed the host&apos;s property policies and Find A
+          Place terms, and I agree to them for this reservation.
         </span>
       </label>
 

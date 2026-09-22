@@ -12,9 +12,49 @@ export async function GET(request: NextRequest) {
     to: request.nextUrl.searchParams.get("to"),
     propertyId: request.nextUrl.searchParams.get("property"),
   });
+
   const lines = [
-    csvLine(["Confirmation", "Property", "Guest", "Check in", "Check out", "Reservation status", "Payment status", "Guest paid", "Tax held", "FAP commission", "Host processing", "Host proceeds", "Refunded", "Payout paid", "Payout status", "Currency"]),
-    ...report.rows.map((row) => csvLine([row.confirmationCode, row.propertyName, row.guestName, row.checkIn, row.checkOut, row.status, row.paymentStatus, (row.guestPaidCents / 100).toFixed(2), (row.taxCents / 100).toFixed(2), (row.commissionCents / 100).toFixed(2), (row.processingCents / 100).toFixed(2), (row.hostProceedsCents / 100).toFixed(2), (row.refundCents / 100).toFixed(2), (row.payoutCents / 100).toFixed(2), row.payoutStatus, row.currency])),
+    csvLine([
+      "Confirmation",
+      "Property",
+      "Guest",
+      "Check in",
+      "Check out",
+      "Reservation status",
+      "Payment status",
+      "Guest paid",
+      "Tax retained by FAP",
+      "FAP commission",
+      "Stripe processing",
+      "Host net",
+      "Refunded",
+      "Currency",
+    ]),
+    ...report.rows.map((row) =>
+      csvLine([
+        row.confirmationCode,
+        row.propertyName,
+        row.guestName,
+        row.checkIn,
+        row.checkOut,
+        row.status,
+        row.paymentStatus,
+        (row.guestPaidCents / 100).toFixed(2),
+        (row.taxCents / 100).toFixed(2),
+        (row.commissionCents / 100).toFixed(2),
+        (row.processingCents / 100).toFixed(2),
+        (row.hostProceedsCents / 100).toFixed(2),
+        (row.refundCents / 100).toFixed(2),
+        row.currency,
+      ]),
+    ),
   ];
-  return new Response(lines.join("\r\n"), { headers: { "Content-Type": "text/csv; charset=utf-8", "Content-Disposition": `attachment; filename="find-a-place-host-report-${report.range.from}-to-${report.range.to}.csv"`, "Cache-Control": "no-store" } });
+
+  return new Response(lines.join("\r\n"), {
+    headers: {
+      "Content-Type": "text/csv; charset=utf-8",
+      "Content-Disposition": `attachment; filename="find-a-place-host-report-${report.range.from}-to-${report.range.to}.csv"`,
+      "Cache-Control": "no-store",
+    },
+  });
 }

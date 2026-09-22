@@ -4,6 +4,7 @@ import { BookingCard } from "@/components/BookingCard";
 import { Footer } from "@/components/Footer";
 import { Header } from "@/components/Header";
 import { PropertyActions } from "@/components/PropertyActions";
+import { PublicHostCard } from "@/components/PublicHostCard";
 import { getPublishedListingBySlug } from "@/lib/public/listings";
 
 export default async function PropertyPage({
@@ -20,11 +21,10 @@ export default async function PropertyPage({
   const secondImage = images[1] ?? mainImage;
   const thirdImage = images[2] ?? mainImage;
 
-  const checkoutEnabled =
-    process.env.BOOKING_CHECKOUT_ENABLED === "true";
-  const testMode = (
-    process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || ""
-  ).startsWith("pk_test_");
+  const checkoutEnabled = process.env.BOOKING_CHECKOUT_ENABLED === "true";
+  const testMode = (process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || "").startsWith(
+    "pk_test_",
+  );
 
   return (
     <>
@@ -58,9 +58,7 @@ export default async function PropertyPage({
               alt={`${property.name} exterior`}
             />
           ) : (
-            <div className="gallery-main gallery-placeholder">
-              Property photo
-            </div>
+            <div className="gallery-main gallery-placeholder">Property photo</div>
           )}
 
           {secondImage ? (
@@ -124,9 +122,7 @@ export default async function PropertyPage({
             </div>
 
             {property.customAmenities ? (
-              <p className="listing-custom-copy">
-                {property.customAmenities}
-              </p>
+              <p className="listing-custom-copy">{property.customAmenities}</p>
             ) : null}
 
             <hr />
@@ -139,9 +135,7 @@ export default async function PropertyPage({
             </div>
 
             {property.customPolicies ? (
-              <p className="listing-custom-copy">
-                {property.customPolicies}
-              </p>
+              <p className="listing-custom-copy">{property.customPolicies}</p>
             ) : null}
 
             {property.policyDocument ? (
@@ -174,28 +168,16 @@ export default async function PropertyPage({
 
             {property.cancellationPolicy ? (
               <p>
-                <strong>Cancellation:</strong>{" "}
-                {property.cancellationPolicy}
+                <strong>Cancellation:</strong> {property.cancellationPolicy}
               </p>
             ) : null}
 
             <hr />
 
-            <div className="host-block">
-              <div className="host-avatar">
-                {property.hostName
-                  .split(" ")
-                  .slice(0, 2)
-                  .map((word) => word[0])
-                  .join("")}
-              </div>
-
-              <div>
-                <small>Hosted by</small>
-                <h3>{property.hostName}</h3>
-                <p>Independent host · Listed on Find A Place</p>
-              </div>
-            </div>
+            <PublicHostCard
+              propertyId={property.propertyId}
+              fallbackHostName={property.hostName}
+            />
 
             <hr />
             <h3>
@@ -219,8 +201,7 @@ export default async function PropertyPage({
                       </small>
                       {review.hostResponse ? (
                         <small>
-                          <strong>Host response:</strong>{" "}
-                          {review.hostResponse}
+                          <strong>Host response:</strong> {review.hostResponse}
                         </small>
                       ) : null}
                     </span>
@@ -233,9 +214,7 @@ export default async function PropertyPage({
                 ))}
               </div>
             ) : (
-              <p className="muted">
-                No verified guest reviews yet.
-              </p>
+              <p className="muted">No verified guest reviews yet.</p>
             )}
           </article>
 
