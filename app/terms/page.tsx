@@ -29,18 +29,14 @@ export default function TermsPage() {
         Find A Place provides a reservation message thread and may share the
         contact information needed for the host and guest to communicate about
         the stay. Guests should use the secure trip page for arrival questions,
-        booking changes and cancellation requests. Hosts are responsible for
-        responding to booking-specific requests and providing the stay they
-        offered.
+        booking changes and cancellation requests.
       </p>
 
       <h2>Guest information and verification</h2>
       <p>
         The booking guest must provide accurate contact information, including a
         working email address and phone number. Find A Place may require email
-        and identity verification before payment. Verification is a
-        fraud-reduction tool and is not a guarantee of a guest&apos;s conduct,
-        creditworthiness or future behavior.
+        and identity verification before payment.
       </p>
 
       <h2>Property rules</h2>
@@ -48,54 +44,48 @@ export default function TermsPage() {
         The guest must review the property policies saved with the reservation,
         including house rules, occupancy limits, pet rules, check-in and
         checkout requirements, cancellation terms and any uploaded policy
-        document. The booking guest is responsible for ensuring everyone in the
-        party follows those rules.
+        document.
       </p>
 
-      <h2>Charges and payment processing</h2>
+      <h2>Charges, taxes and payment processing</h2>
       <p>
         The checkout total may include lodging, host fees, add-ons and
-        applicable taxes. Supported payment processors, including Stripe,
-        process the guest payment on the host&apos;s connected merchant account.
-        Find A Place may collect its disclosed 5% or 7% platform fee as an
-        application fee and may retain tax amounts that Find A Place is legally
-        or operationally configured to remit. The host&apos;s payment processor
-        charges its own processing fees and controls settlement and bank-deposit
-        timing for the host account.
+        applicable taxes calculated for the reservation. The guest payment is
+        processed on the host&apos;s connected merchant account. Find A Place
+        receives only its disclosed 5% or 7% platform commission through the
+        processor&apos;s application-fee mechanism. Tax amounts charged to the
+        guest remain in the host&apos;s connected-account payment proceeds and
+        are not retained by Find A Place. The host&apos;s payment processor
+        separately charges its processing fees to the host account.
       </p>
 
-      <h2>Cancellations, refunds and the Find A Place commission</h2>
+      <h2>Cancellations and refunds</h2>
       <p>
         Cancellation requests are sent to the host through the booking tools.
-        The host applies the property-specific cancellation terms accepted at
-        booking, subject to applicable law. When a host approves a full guest
-        refund at least 14 calendar days before check-in, Find A Place returns
-        its refundable platform commission to the host. If a cancellation or
-        voluntary refund is completed fewer than 14 calendar days before
+        When a host approves a full guest refund at least 14 calendar days before
+        check-in, Find A Place returns its refundable platform commission to the
+        host. If the refund is completed fewer than 14 calendar days before
         check-in, the host may still refund the guest, but the Find A Place
-        platform commission remains non-refundable to the host. Taxes retained
-        by Find A Place for remittance are adjusted or reversed as appropriate
-        when the underlying guest charge is fully refunded. Payment-processor
-        fees are controlled by the processor and may remain non-refundable.
+        commission remains non-refundable to the host. Because guest taxes are
+        part of the host-owned charge, a full guest refund returns the refundable
+        tax portion through that host charge rather than through Find A Place&apos;s
+        application fee. Processor fees are controlled by the processor.
       </p>
 
       <h2>Reservation changes</h2>
       <p>
-        A guest may request changes to dates, occupancy or other booking details.
-        A request does not change the reservation until the host approves and
-        applies it. Date changes are subject to current availability. An approved
-        change does not by itself authorize a new charge to the guest&apos;s
-        payment method. Any additional amount must be handled through a separate
-        authorized payment adjustment.
+        A guest may request changes to dates, occupancy or other booking
+        details. A request does not change the reservation until the host
+        approves and applies it. An approved change does not by itself authorize
+        a new charge to the guest&apos;s payment method.
       </p>
 
       <h2>Damage and guest responsibility</h2>
       <p>
         Guests are responsible for damage, missing property, excessive cleaning,
         unauthorized guests or pets, rule violations and other costs caused by
-        the guest or the guest&apos;s party, subject to evidence, applicable law
-        and any dispute process offered by the host or payment provider. Find A
-        Place is not an insurer or property-damage guarantee program.
+        the guest or the guest&apos;s party, subject to evidence and applicable
+        law. Find A Place is not an insurer or property-damage guarantee program.
       </p>
 
       <h2>Platform limitations</h2>
@@ -104,8 +94,7 @@ export default function TermsPage() {
         for the physical condition of independently operated properties, host or
         guest conduct, a host&apos;s cancellation decision, personal property
         loss, third-party acts, travel interruptions or indirect or
-        consequential losses. Nothing in these terms excludes rights or
-        liabilities that cannot legally be excluded.
+        consequential losses.
       </p>
 
       <h2>Fraud, safety and enforcement</h2>
@@ -113,8 +102,8 @@ export default function TermsPage() {
         Find A Place may pause platform access or transactions, request
         additional verification, preserve records, restrict listings, cooperate
         with payment providers and authorities, or take other reasonable action
-        to address suspected fraud, chargebacks, safety concerns, prohibited
-        conduct or legal obligations.
+        to address suspected fraud, chargebacks, safety concerns or legal
+        obligations.
       </p>
     </LegalDocument>
   );

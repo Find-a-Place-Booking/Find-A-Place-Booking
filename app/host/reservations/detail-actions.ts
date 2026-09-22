@@ -305,71 +305,25 @@ export async function approveCancellationWithoutRefund(formData: FormData) {
     );
   }
 
-  const now = new Date().toISOString();
   const admin = createAdminClient();
 
-  const { error: requestUpdateError } = await admin
-    .from("reservation_cancellation_requests")
-    .update({
-      status: "COMPLETED",
-      host_response: response || null,
-      responded_by: profileId,
-      responded_at: now,
-      completed_at: now,
-      metadata: {
-        resolution: "NO_REFUND",
-        source: "host_reservation",
-      },
-    })
-    .eq("id", requestId)
-    .eq("status", "REQUESTED");
-
-  if (requestUpdateError) {
-    redirect(
-      `/host/reservations/${reservationId}?error=${encodeURIComponent(
-        "The cancellation decision could not be saved.",
-      )}`,
-    );
-  }
-
-  const { error: reservationUpdateError } = await admin
-    .from("reservations")
-    .update({
-      status: "CANCELLED",
-      cancelled_at: now,
-      updated_at: now,
-    })
-    .eq("id", reservationId)
-    .eq("status", "CONFIRMED");
-
-  if (reservationUpdateError) {
-    redirect(
-      `/host/reservations/${reservationId}?error=${encodeURIComponent(
-        "The reservation could not be cancelled.",
-      )}`,
-    );
-  }
-
-  await admin
-    .from("availability_blocks")
-    .update({
-      state: "CANCELLED",
-      updated_at: now,
-    })
-    .eq("reservation_id", reservationId)
-    .eq("state", "ACTIVE")
-    .in("block_type", ["INTERNAL_HOLD", "INTERNAL_RESERVATION"]);
-
-  await admin.from("reservation_events").insert({
-    reservation_id: reservationId,
-    event_type: "HOST_CANCELLATION_APPROVED_NO_REFUND",
-    actor_profile_id: profileId,
-    metadata: {
-      cancellation_request_id: requestId,
-      resolution: "NO_REFUND",
-      host_response: response || null,
+  const { error: cancellationError } = await admin.rpc(
+    "complete_host_cancellation_without_refund",
+    {
+      target_reservation_id: reservationId,
+      target_request_id: requestId,
+      target_host_response: response,
+      target_responded_by: profileId,
     },
-  });
+  );
+
+  if (cancellationError) {
+    redirect(
+      `/host/reservations/${reservationId}?error=${encodeURIComponent(
+        "The cancellation could not be completed. Check that migration 057 is applied.",
+      )}`,
+    );
+  }
 
   try {
     await sendCancellationDecisionNotification(admin, {
@@ -467,6 +421,7 @@ export async function approveCancellationRequest(formData: FormData) {
     );
   }
 
+  // Prepare the refund record first. This does not call Stripe yet.
   const { data, error } = await admin.rpc("create_refund_request", {
     target_reservation_id: reservationId,
     requested_amount_cents: 0,
@@ -497,9 +452,47 @@ export async function approveCancellationRequest(formData: FormData) {
   };
 
   if (!refundRequest.provider_payment_id) {
+    await admin.rpc("record_refund_result", {
+      target_refund_id: refundRequest.refund_id,
+      target_provider_refund_id: null,
+      target_status: "CANCELLED",
+      target_failure_message: "The Stripe payment reference is missing.",
+    });
+
     redirect(
       `/host/reservations/${reservationId}?error=${encodeURIComponent(
         "The Stripe payment reference is missing.",
+      )}`,
+    );
+  }
+
+  // Cancellation itself is now independent of processor timing. As soon as the
+  // host approves it, the reservation becomes CANCELLED and its internal
+  // calendar block is released atomically. The Stripe refund can then succeed,
+  // remain pending or require reconciliation without keeping the dates blocked.
+  const { data: cancellationResult, error: cancellationError } =
+    await admin.rpc("approve_host_cancellation_with_refund", {
+      target_reservation_id: reservationId,
+      target_request_id: requestId,
+      target_refund_id: refundRequest.refund_id,
+      target_host_response: response,
+      target_responded_by: profileId,
+    });
+
+  if (cancellationError || !cancellationResult) {
+    await admin.rpc("record_refund_result", {
+      target_refund_id: refundRequest.refund_id,
+      target_provider_refund_id: null,
+      target_status: "CANCELLED",
+      target_failure_message:
+        cancellationError?.message ||
+        "The reservation cancellation transaction could not be completed.",
+    });
+
+    redirect(
+      `/host/reservations/${reservationId}?error=${encodeURIComponent(
+        cancellationError?.message ||
+          "The cancellation could not be completed. Check that migration 061 is applied.",
       )}`,
     );
   }
@@ -581,18 +574,23 @@ export async function approveCancellationRequest(formData: FormData) {
     recordedStatus = "PENDING";
   }
 
-  try {
-    await admin.rpc("record_application_fee_refund_result", {
-      target_refund_id: refundRequest.refund_id,
-      target_status: applicationFeeRefundStatus,
-      target_application_fee_refund_id: applicationFeeRefundId,
-      target_error: applicationFeeRefundError,
-    });
-  } catch (feeRecordError) {
-    console.error(
-      "[approve cancellation] application-fee reconciliation status could not be recorded",
-      feeRecordError,
+  if (applicationFeeRefundStatus !== "PENDING") {
+    const { error: feeRecordError } = await admin.rpc(
+      "record_application_fee_refund_result",
+      {
+        target_refund_id: refundRequest.refund_id,
+        target_status: applicationFeeRefundStatus,
+        target_application_fee_refund_id: applicationFeeRefundId,
+        target_error: applicationFeeRefundError,
+      },
     );
+
+    if (feeRecordError) {
+      console.error(
+        "[approve cancellation] application-fee status needs reconciliation",
+        feeRecordError,
+      );
+    }
   }
 
   await admin
@@ -604,6 +602,12 @@ export async function approveCancellationRequest(formData: FormData) {
       responded_at: now,
       completed_at: recordedStatus === "SUCCEEDED" ? now : null,
       metadata: {
+        resolution:
+          recordedStatus === "SUCCEEDED"
+            ? "CANCELLED_REFUND_SUCCEEDED"
+            : "CANCELLED_REFUND_PENDING",
+        reservation_cancelled: true,
+        calendar_released: true,
         refund_id: refundRequest.refund_id,
         provider_refund_id: providerRefundId,
         refund_status: recordedStatus,
@@ -624,19 +628,19 @@ export async function approveCancellationRequest(formData: FormData) {
 
   await admin.from("reservation_events").insert({
     reservation_id: reservationId,
-    event_type: "HOST_CANCELLATION_APPROVED",
+    event_type: "HOST_CANCELLATION_REFUND_STATUS",
     actor_profile_id: profileId,
     metadata: {
       cancellation_request_id: requestId,
       refund_id: refundRequest.refund_id,
       refund_status: recordedStatus,
+      reservation_cancelled: true,
+      calendar_released: true,
       commission_refund_eligible:
         refundRequest.commission_refund_eligible,
       days_before_check_in: refundRequest.days_before_check_in,
       platform_commission_refund_cents:
         refundRequest.platform_commission_refund_cents,
-      platform_tax_refund_cents:
-        refundRequest.platform_tax_refund_cents,
       application_fee_refund_status: applicationFeeRefundStatus,
       host_response: response || null,
     },
@@ -668,18 +672,29 @@ export async function approveCancellationRequest(formData: FormData) {
 
   refreshReservationViews(reservationId);
 
-  const feeCopy = refundRequest.commission_refund_eligible
-    ? "The refundable Find A Place commission was returned to the host."
-    : "The guest refund was submitted, but the Find A Place commission remains non-refundable inside 14 days.";
+  const feeCopy =
+    applicationFeeRefundStatus === "SUCCEEDED"
+      ? refundRequest.commission_refund_eligible
+        ? "The refundable Find A Place commission was returned to the host."
+        : "Find A Place commission remains retained inside 14 days."
+      : applicationFeeRefundStatus === "NOT_REQUIRED"
+        ? "No application-fee refund was required."
+        : "The Find A Place fee refund still needs Stripe reconciliation.";
+
+  const refundCopy =
+    recordedStatus === "SUCCEEDED"
+      ? "The guest refund completed."
+      : recordedStatus === "FAILED" || recordedStatus === "CANCELLED"
+        ? "The reservation is cancelled, but the guest refund needs attention."
+        : "The reservation is cancelled and the guest refund is still processing.";
 
   redirect(
     `/host/reservations/${reservationId}?saved=${encodeURIComponent(
-      recordedStatus === "SUCCEEDED"
-        ? `Cancellation completed. Full guest refund submitted. ${feeCopy}`
-        : `Cancellation approved. The guest refund is processing. ${feeCopy}`,
+      `Cancellation completed and the dates were released. ${refundCopy} ${feeCopy}`,
     )}`,
   );
 }
+
 
 export async function approveChangeRequest(formData: FormData) {
   const reservationId = field(formData, "reservation_id", 100);

@@ -26,6 +26,7 @@ export type HostReservationRow = {
   payment_status: string;
   tax_status: string;
   created_at: string;
+  cancelled_at: string | null;
 };
 
 async function requireHost() {
@@ -36,34 +37,59 @@ async function requireHost() {
 }
 
 export async function getHostReservationWorkspace() {
-  const [properties, supabase] = await Promise.all([getHostProperties(), requireHost()]);
+  const [properties, supabase] = await Promise.all([
+    getHostProperties(),
+    requireHost(),
+  ]);
   const unitIds = properties.map((property) => property.unitId);
+
   if (!unitIds.length) {
-    return { properties, reservations: [] as HostReservationRow[], testToolsEnabled: false };
+    return {
+      properties,
+      reservations: [] as HostReservationRow[],
+      testToolsEnabled: false,
+    };
   }
 
   const [expireResult, testToolsResult] = await Promise.all([
     supabase.rpc("expire_reservation_holds", { target_unit_id: null }),
     supabase.rpc("test_reservation_tools_enabled"),
   ]);
+
   if (expireResult.error) {
-    console.error("[expire_reservation_holds]", { code: expireResult.error.code, message: expireResult.error.message });
-  }
-  if (testToolsResult.error) {
-    console.error("[test_reservation_tools_enabled]", { code: testToolsResult.error.code, message: testToolsResult.error.message });
+    console.error("[expire_reservation_holds]", {
+      code: expireResult.error.code,
+      message: expireResult.error.message,
+    });
   }
 
+  if (testToolsResult.error) {
+    console.error("[test_reservation_tools_enabled]", {
+      code: testToolsResult.error.code,
+      message: testToolsResult.error.message,
+    });
+  }
+
+  // Cancellation is reservation history, not deletion. Deliberately do not
+  // filter by status here: CANCELLED rows must remain visible to the host.
   const { data, error } = await supabase
     .from("reservations")
-    .select("id,confirmation_code,organization_id,property_id,unit_id,status,check_in,check_out,hold_expires_at,guest_name,guest_email,guest_count,pet_count,currency,guest_total_cents,platform_commission_cents,commission_tier,commission_rate_bps,payment_provider,payment_status,tax_status,created_at")
+    .select(
+      "id,confirmation_code,organization_id,property_id,unit_id,status,check_in,check_out,hold_expires_at,guest_name,guest_email,guest_count,pet_count,currency,guest_total_cents,platform_commission_cents,commission_tier,commission_rate_bps,payment_provider,payment_status,tax_status,created_at,cancelled_at",
+    )
     .in("unit_id", unitIds)
     .order("created_at", { ascending: false })
-    .limit(100);
-  if (error) throw new Error("Unable to load reservations. Apply Milestone 10A.1 migration 017 and refresh.");
+    .limit(150);
+
+  if (error) {
+    throw new Error("Unable to load host reservation history.");
+  }
 
   return {
     properties,
     reservations: (data ?? []) as HostReservationRow[],
-    testToolsEnabled: testToolsResult.error ? false : testToolsResult.data === true,
+    testToolsEnabled: testToolsResult.error
+      ? false
+      : testToolsResult.data === true,
   };
 }

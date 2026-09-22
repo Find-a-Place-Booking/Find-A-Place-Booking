@@ -8,6 +8,7 @@ import { createClient } from "@/lib/supabase/server";
 
 import {
   approveCancellationRequest,
+  approveCancellationWithoutRefund,
   approveChangeRequest,
   declineCancellationRequest,
   declineChangeRequest,
@@ -257,11 +258,11 @@ export default async function HostReservationDetailPage({
                 <small>{payment.provider} · {readable(payment.status)}</small>
               </div>
               <div>
-                <span>Tax retained by Find A Place</span>
+                <span>Guest taxes</span>
                 <strong>
-                  −{money(payment.platform_tax_retained_cents, payment.currency)}
+                  {money(reservation.tax_total_cents, payment.currency)}
                 </strong>
-                <small>Only where Find A Place is configured to remit it</small>
+                <small>Included in your connected-account charge; not retained by Find A Place</small>
               </div>
               <div>
                 <span>Find A Place commission</span>
@@ -334,7 +335,7 @@ export default async function HostReservationDetailPage({
                       <button formAction={declineChangeRequest} type="submit">Decline request</button>
                     </div>
                     <small className="muted">
-                      Approval records your response. Date, guest-count or price changes are not rewritten automatically yet.
+                      Approve opens a confirmation screen for the exact new dates and guest/pet counts. The reservation and calendar update together; the existing payment amount is not changed automatically.
                     </small>
                   </form>
                 ) : null}
@@ -363,6 +364,9 @@ export default async function HostReservationDetailPage({
                     />
                     <div className={chatStyles.requestDecisionButtons}>
                       <button formAction={approveCancellationRequest} type="submit">Approve + full refund</button>
+                      {reservation.check_in < new Date(Date.now() + 14 * 86400000).toISOString().slice(0, 10) ? (
+                        <button formAction={approveCancellationWithoutRefund} type="submit">Cancel without refund</button>
+                      ) : null}
                       <button formAction={declineCancellationRequest} type="submit">Keep reservation active</button>
                     </div>
                   </form>

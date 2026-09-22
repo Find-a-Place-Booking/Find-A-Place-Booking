@@ -144,9 +144,9 @@ export default async function AdminHostDetailPage({ params }: { params: Promise<
             <div><span>Organizations</span><strong>{memberships.length}</strong></div>
             <div><span>Onboarding</span><strong>{onboardingDrafts.some((draft) => draft.status === "READY_FOR_PROPERTY") ? "Ready for property" : onboardingDrafts.length ? "In progress" : "Not started"}</strong></div>
             <div><span>Properties</span><strong>{properties.length}</strong></div>
-            <div><span>Bookings / payments</span><strong>Not connected</strong></div>
+            <div><span>Bookings / payments</span><strong><Link href="/admin/reservations">Open reservations</Link></strong></div>
           </div>
-          <p className="muted">Real property records and review/publication state are now available. Reservation, payment, notification and issue history are not enabled yet.</p>
+          <p className="muted">Open reservations for booking and payment details. Property review and publication history appears below.</p>
         </section>
       </div>
 

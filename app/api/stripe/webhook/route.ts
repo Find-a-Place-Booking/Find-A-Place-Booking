@@ -6,6 +6,7 @@ import { NextRequest, NextResponse } from "next/server";
 import {
   chargeProcessorFee,
   getStripeClient,
+  reconcileApplicationFeeRefund,
   retrieveChargeWithBalanceTransaction,
 } from "@/lib/payments/stripe-checkout";
 import { sendBookingNotifications } from "@/lib/notifications/reservation-emails";
@@ -160,7 +161,7 @@ export async function POST(request: NextRequest) {
         await Promise.all([
           admin
             .from("payments")
-            .select("id,reservation_id,provider_payment_id,payment_environment")
+            .select("id,reservation_id,provider_payment_id,payment_environment,amount_cents,application_fee_cents,currency")
             .eq("id", paymentId)
             .eq("reservation_id", reservationId)
             .eq("provider", "STRIPE")
@@ -182,6 +183,11 @@ export async function POST(request: NextRequest) {
         payment.payment_environment !== environment ||
         reservation.payment_environment !== environment ||
         reservation.provider_account_ref !== eventAccount ||
+        Number(payment.amount_cents) !== intent.amount ||
+        Number(payment.application_fee_cents) !== Number(intent.application_fee_amount || 0) ||
+        payment.currency.toLowerCase() !== intent.currency.toLowerCase() ||
+        intent.metadata?.payment_environment !== environment ||
+        intent.metadata?.charge_model !== "DIRECT" ||
         (payment.provider_payment_id && payment.provider_payment_id !== intent.id)
       ) {
         throw new Error(
@@ -247,9 +253,33 @@ export async function POST(request: NextRequest) {
       const reservationId = intent.metadata?.reservation_id;
       const paymentId = intent.metadata?.payment_id;
 
-      if (!reservationId || !paymentId) {
+      if (!reservationId || !paymentId || !eventAccount) {
         await markProcessorEvent(admin, event.id, "IGNORED");
         return NextResponse.json({ received: true, ignored: true });
+      }
+
+      const [{ data: failedPayment }, { data: failedReservation }] =
+        await Promise.all([
+          admin.from("payments")
+            .select("id,provider_payment_id")
+            .eq("id", paymentId)
+            .eq("reservation_id", reservationId)
+            .eq("provider", "STRIPE")
+            .eq("payment_environment", environment)
+            .maybeSingle(),
+          admin.from("reservations")
+            .select("provider_account_ref,payment_environment")
+            .eq("id", reservationId)
+            .maybeSingle(),
+        ]);
+
+      if (
+        !failedPayment || !failedReservation ||
+        failedPayment.provider_payment_id !== intent.id ||
+        failedReservation.provider_account_ref !== eventAccount ||
+        failedReservation.payment_environment !== environment
+      ) {
+        throw new Error("Failed payment event does not match the connected merchant and payment.");
       }
 
       const { error } = await admin.rpc("mark_reservation_payment_failed", {
@@ -291,6 +321,28 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ received: true, ignored: true });
       }
 
+      const { data: localRefund, error: refundLookupError } = await admin
+        .from("refunds")
+        .select("id,provider_refund_id,payment_environment,reservation_id,payment_id,platform_fee_refund_cents,application_fee_refund_status")
+        .eq("id", refundId)
+        .maybeSingle();
+      if (refundLookupError || !localRefund) {
+        throw new Error("Refund event has no matching local refund.");
+      }
+      const { data: refundReservation } = await admin
+        .from("reservations")
+        .select("provider_account_ref")
+        .eq("id", localRefund.reservation_id)
+        .maybeSingle();
+      if (
+        !eventAccount || !refundReservation ||
+        refundReservation.provider_account_ref !== eventAccount ||
+        localRefund.payment_environment !== environment ||
+        (localRefund.provider_refund_id && localRefund.provider_refund_id !== refund.id)
+      ) {
+        throw new Error("Refund event does not match the connected merchant and refund.");
+      }
+
       const status =
         refund.status === "succeeded"
           ? "SUCCEEDED"
@@ -309,13 +361,47 @@ export async function POST(request: NextRequest) {
       if (error) throw error;
 
       if (status === "SUCCEEDED") {
-        const { data: localRefund } = await admin
-          .from("refunds")
-          .select("reservation_id")
-          .eq("id", refundId)
-          .maybeSingle();
+        if (
+          Number(localRefund.platform_fee_refund_cents) > 0 &&
+          localRefund.application_fee_refund_status !== "SUCCEEDED"
+        ) {
+          const { data: refundPayment, error: paymentError } = await admin
+            .from("payments")
+            .select("provider_payment_id,provider_charge_id")
+            .eq("id", localRefund.payment_id)
+            .single();
+          if (paymentError || !refundPayment?.provider_payment_id) {
+            throw new Error("Application-fee refund needs a Stripe payment reference.");
+          }
+          try {
+            const feeRefund = await reconcileApplicationFeeRefund({
+              connectedAccountId: eventAccount,
+              paymentIntentId: refundPayment.provider_payment_id,
+              chargeId: refundPayment.provider_charge_id,
+              refundId,
+              reservationId: localRefund.reservation_id,
+              amountCents: Number(localRefund.platform_fee_refund_cents),
+            });
+            const { error: feeRecordError } = await admin.rpc(
+              "record_application_fee_refund_result",
+              {
+                target_refund_id: refundId,
+                target_status: "SUCCEEDED",
+                target_application_fee_refund_id: feeRefund.id,
+              },
+            );
+            if (feeRecordError) throw feeRecordError;
+          } catch (feeError) {
+            await admin.rpc("record_application_fee_refund_result", {
+              target_refund_id: refundId,
+              target_status: "FAILED",
+              target_error: feeError instanceof Error ? feeError.message : "Fee refund needs reconciliation.",
+            });
+            throw feeError;
+          }
+        }
 
-        if (localRefund?.reservation_id) {
+        if (localRefund.reservation_id) {
           await admin
             .from("reservation_cancellation_requests")
             .update({

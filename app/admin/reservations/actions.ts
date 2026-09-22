@@ -96,7 +96,12 @@ export async function issueReservationRefund(formData: FormData) {
   let recordedStatus = "PENDING";
 
   try {
-    const { refund, feeReconciliationPending } = await createConnectedRefund({
+    const {
+      refund,
+      applicationFeeRefundStatus,
+      applicationFeeRefundId,
+      applicationFeeRefundError,
+    } = await createConnectedRefund({
       connectedAccountId,
       paymentIntentId: request.provider_payment_id as string,
       refundId: request.refund_id,
@@ -107,15 +112,13 @@ export async function issueReservationRefund(formData: FormData) {
       reason,
     });
 
-    recordedStatus = feeReconciliationPending
-      ? "PENDING"
-      : refund.status === "succeeded"
-        ? "SUCCEEDED"
-        : refund.status === "failed"
-          ? "FAILED"
-          : refund.status === "canceled"
-            ? "CANCELLED"
-            : "PENDING";
+    recordedStatus = refund.status === "succeeded"
+      ? "SUCCEEDED"
+      : refund.status === "failed"
+        ? "FAILED"
+        : refund.status === "canceled"
+          ? "CANCELLED"
+          : "PENDING";
 
     const { error: recordError } = await admin.rpc("record_refund_result", {
       target_refund_id: request.refund_id,
@@ -125,6 +128,21 @@ export async function issueReservationRefund(formData: FormData) {
     });
 
     if (recordError) throw new Error(recordError.message);
+
+    if (applicationFeeRefundStatus !== "PENDING") {
+      const { error: feeRecordError } = await admin.rpc(
+        "record_application_fee_refund_result",
+        {
+          target_refund_id: request.refund_id,
+          target_status: applicationFeeRefundStatus,
+          target_application_fee_refund_id: applicationFeeRefundId,
+          target_error: applicationFeeRefundError,
+        },
+      );
+      if (feeRecordError) {
+        console.error("[admin refund] application-fee result needs reconciliation", feeRecordError);
+      }
+    }
   } catch (refundError) {
     await admin.rpc("record_refund_result", {
       target_refund_id: request.refund_id,

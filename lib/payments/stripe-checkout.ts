@@ -30,7 +30,7 @@ export async function createDirectPaymentIntent(input: {
   paymentId: string;
   confirmationCode: string;
   platformCommissionCents: number;
-  platformTaxRetainedCents: number;
+  guestTaxCents: number;
   commissionRateBps: number;
   paymentEnvironment: "TEST" | "LIVE";
 }) {
@@ -48,7 +48,8 @@ export async function createDirectPaymentIntent(input: {
         payment_id: input.paymentId,
         confirmation_code: input.confirmationCode,
         platform_commission_cents: String(input.platformCommissionCents),
-        platform_tax_retained_cents: String(input.platformTaxRetainedCents),
+        guest_tax_cents: String(input.guestTaxCents),
+        tax_settlement: "HOST_CONNECTED_ACCOUNT",
         commission_rate_bps: String(input.commissionRateBps),
         charge_model: "DIRECT",
         processing_fee_policy: "CONNECTED_ACCOUNT",
@@ -85,9 +86,9 @@ export async function createConnectedRefund(input: {
   }
 
   // For direct charges the guest refund belongs to the connected account.
-  // Do NOT use refund_application_fee here because that would refund the entire
-  // application fee. Find A Place sometimes needs to return only the tax
-  // portion while keeping the platform commission inside the 14-day window.
+  // Find A Place's application fee contains commission only. Guest taxes stay
+  // in the host's connected account, so application-fee refunds concern only
+  // the platform commission under the 14-day rule.
   const refund = await stripe.refunds.create(
     {
       payment_intent: input.paymentIntentId,
@@ -122,63 +123,19 @@ export async function createConnectedRefund(input: {
   let applicationFeeRefundId: string | null = null;
   let applicationFeeRefundError: string | null = null;
 
-  // A partial Application Fee Refund lets us return exactly the amount that
-  // should go back to the host: tax only inside 14 days, or tax + commission
-  // when the cancellation is 14+ calendar days before check-in.
+  // Application-fee refunds concern only Find A Place commission.
+  // Taxes are part of the host-owned connected-account charge and never enter
+  // the Find A Place application fee.
   if (input.platformFeeRefundCents > 0 && refund.status === "succeeded") {
     try {
-      let chargeId = input.chargeId || null;
-
-      if (!chargeId) {
-        const intent = await stripe.paymentIntents.retrieve(
-          input.paymentIntentId,
-          { expand: ["latest_charge"] },
-          { stripeAccount: input.connectedAccountId },
-        );
-
-        chargeId =
-          typeof intent.latest_charge === "string"
-            ? intent.latest_charge
-            : intent.latest_charge?.id || null;
-      }
-
-      if (!chargeId) {
-        throw new Error(
-          "Stripe charge reference is missing for application-fee refund.",
-        );
-      }
-
-      const charge = await stripe.charges.retrieve(
-        chargeId,
-        { expand: ["application_fee"] },
-        { stripeAccount: input.connectedAccountId },
-      );
-
-      const applicationFeeId =
-        typeof charge.application_fee === "string"
-          ? charge.application_fee
-          : charge.application_fee?.id || null;
-
-      if (!applicationFeeId) {
-        throw new Error(
-          "Stripe application fee could not be resolved for this charge.",
-        );
-      }
-
-      const feeRefund = await stripe.applicationFees.createRefund(
-        applicationFeeId,
-        {
-          amount: input.platformFeeRefundCents,
-          metadata: {
-            refund_id: input.refundId,
-            reservation_id: input.reservationId,
-            policy: "FAP_14_DAY_COMMISSION_POLICY",
-          },
-        },
-        {
-          idempotencyKey: `fap-application-fee-refund-${input.refundId}`,
-        },
-      );
+      const feeRefund = await reconcileApplicationFeeRefund({
+        connectedAccountId: input.connectedAccountId,
+        paymentIntentId: input.paymentIntentId,
+        chargeId: input.chargeId,
+        refundId: input.refundId,
+        reservationId: input.reservationId,
+        amountCents: input.platformFeeRefundCents,
+      });
 
       applicationFeeRefundStatus = "SUCCEEDED";
       applicationFeeRefundId = feeRefund.id;
@@ -221,6 +178,49 @@ export async function retrievePaymentIntent(
     paymentIntentId,
     {},
     { stripeAccount: connectedAccountId },
+  );
+}
+
+// Pending guest refunds can succeed asynchronously. The refund webhook uses
+// this same idempotency key to return the tax/eligible commission to the host.
+export async function reconcileApplicationFeeRefund(input: {
+  connectedAccountId: string;
+  paymentIntentId: string;
+  chargeId?: string | null;
+  refundId: string;
+  reservationId: string;
+  amountCents: number;
+}) {
+  const stripe = getStripeClient();
+  let chargeId = input.chargeId;
+  if (!chargeId) {
+    const intent = await stripe.paymentIntents.retrieve(
+      input.paymentIntentId,
+      { expand: ["latest_charge"] },
+      { stripeAccount: input.connectedAccountId },
+    );
+    chargeId = typeof intent.latest_charge === "string"
+      ? intent.latest_charge : intent.latest_charge?.id;
+  }
+  if (!chargeId) throw new Error("Stripe charge missing for application-fee refund.");
+  const charge = await stripe.charges.retrieve(
+    chargeId, { expand: ["application_fee"] },
+    { stripeAccount: input.connectedAccountId },
+  );
+  const applicationFeeId = typeof charge.application_fee === "string"
+    ? charge.application_fee : charge.application_fee?.id;
+  if (!applicationFeeId) throw new Error("Stripe application fee missing for refund.");
+  return stripe.applicationFees.createRefund(
+    applicationFeeId,
+    {
+      amount: input.amountCents,
+      metadata: {
+        refund_id: input.refundId,
+        reservation_id: input.reservationId,
+        policy: "FAP_14_DAY_COMMISSION_POLICY",
+      },
+    },
+    { idempotencyKey: `fap-application-fee-refund-${input.refundId}` },
   );
 }
 

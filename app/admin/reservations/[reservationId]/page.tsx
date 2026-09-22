@@ -75,7 +75,7 @@ export default async function AdminReservationDetailPage({
     supabase
       .from("refunds")
       .select(
-        "id,status,provider_refund_id,amount_cents,platform_fee_refund_cents,currency,reason,created_at",
+        "id,status,provider_refund_id,amount_cents,platform_fee_refund_cents,application_fee_refund_status,application_fee_refund_error,currency,reason,created_at",
       )
       .eq("reservation_id", reservationId)
       .order("created_at", { ascending: false }),
@@ -267,6 +267,12 @@ export default async function AdminReservationDetailPage({
                 <span>
                   <em>{money(refund.amount_cents, refund.currency)}</em>
                   <small>{refund.provider_refund_id || "Pending provider ID"}</small>
+                  {Number(refund.platform_fee_refund_cents) > 0 ? (
+                    <small>
+                      Application-fee return {money(refund.platform_fee_refund_cents, refund.currency)} · {readable(refund.application_fee_refund_status)}
+                      {refund.application_fee_refund_status === "FAILED" ? " · Needs reconciliation" : ""}
+                    </small>
+                  ) : null}
                 </span>
               </div>
             ))}
