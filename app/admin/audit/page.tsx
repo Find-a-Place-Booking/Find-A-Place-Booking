@@ -9,6 +9,7 @@ import {
 } from "@/lib/admin/activity";
 import { getAdminContext } from "@/lib/admin/context";
 import { formatAdminDate } from "@/lib/admin/format";
+import { stripeEnvironment } from "@/lib/payments/booking-runtime";
 import { createClient } from "@/lib/supabase/server";
 
 type AuditRow = {
@@ -47,6 +48,7 @@ type Reservation = {
   currency: string;
   status: string;
   payment_status: string;
+  payment_environment: "TEST" | "LIVE";
 };
 
 type Property = {
@@ -210,6 +212,7 @@ export default async function AdminAuditPage({
     ? category
     : "ALL";
 
+  const environment = stripeEnvironment();
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("audit_logs")
@@ -292,9 +295,10 @@ export default async function AdminAuditPage({
       ? supabase
           .from("reservations")
           .select(
-            "id,confirmation_code,property_id,organization_id,guest_name,guest_email,check_in,check_out,guest_count,pet_count,guest_total_cents,platform_commission_cents,currency,status,payment_status",
+            "id,confirmation_code,property_id,organization_id,guest_name,guest_email,check_in,check_out,guest_count,pet_count,guest_total_cents,platform_commission_cents,currency,status,payment_status,payment_environment",
           )
           .in("id", reservationIds)
+          .eq("payment_environment", environment)
       : Promise.resolve({ data: [] }),
     propertyEntityIds.length
       ? supabase
@@ -323,6 +327,7 @@ export default async function AdminAuditPage({
             "id,organization_id,provider,status,charges_enabled,provider_account_id,environment",
           )
           .in("id", paymentAccountIds)
+          .eq("environment", environment)
       : Promise.resolve({ data: [] }),
   ]);
 
@@ -455,6 +460,24 @@ export default async function AdminAuditPage({
       ? actorMap.get(event.actor_profile_id)
       : undefined;
 
+    const explicitEnvironment =
+      event.metadata?.payment_environment === "LIVE" ||
+      event.metadata?.payment_environment === "TEST"
+        ? String(event.metadata.payment_environment)
+        : event.metadata?.environment === "LIVE" ||
+            event.metadata?.environment === "TEST"
+          ? String(event.metadata.environment)
+          : null;
+
+    const environmentVisible =
+      explicitEnvironment
+        ? explicitEnvironment === environment
+        : event.entity_type === "reservation"
+          ? Boolean(reservation)
+          : event.entity_type === "payment_account"
+            ? Boolean(paymentAccount)
+            : true;
+
     const title = activityTitle(event.action);
     const subject =
       reservation
@@ -507,10 +530,13 @@ export default async function AdminAuditPage({
       title,
       subject,
       searchable,
+      environmentVisible,
     };
   });
 
   const filtered = enriched.filter((item) => {
+    if (!item.environmentVisible) return false;
+
     if (
       selectedCategory !== "ALL" &&
       item.category !== selectedCategory
@@ -559,11 +585,11 @@ export default async function AdminAuditPage({
         </form>
 
         <p className="muted">
-          This is the readable operations history. Booking events,
-          cancellations, payments, new profiles, property changes, Stripe
-          account status and admin actions are brought into one timeline.
-          Technical event codes are kept underneath for support/debugging, but
-          they are no longer the main display.
+          This is the readable operations history. Booking, cancellation,
+          payment and Stripe-account events are isolated to the active
+          {environment} environment. Profiles, hosts, properties, content and
+          other non-transaction admin activity remain visible across the platform.
+          Technical event codes stay underneath for support/debugging.
         </p>
       </section>
 
@@ -578,7 +604,7 @@ export default async function AdminAuditPage({
             </h2>
           </div>
           <span className="status-pill status-muted">
-            {filtered.length} shown
+            {environment} · {filtered.length} shown
           </span>
         </div>
 

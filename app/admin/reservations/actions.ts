@@ -36,12 +36,18 @@ export async function issueReservationRefund(formData: FormData) {
     fail("Your admin role cannot issue refunds.");
   }
 
-  if (!reservationId || (!fullRefund && (!Number.isFinite(amountCents) || amountCents <= 0))) {
+  if (
+    !reservationId ||
+    (!fullRefund && (!Number.isFinite(amountCents) || amountCents <= 0))
+  ) {
     fail("Enter a valid partial refund amount.");
   }
+
   if (!reason) fail("Enter an internal refund reason.");
 
+  const environment = stripeEnvironment();
   const admin = createAdminClient();
+
   const { data: reservation, error: reservationError } = await admin
     .from("reservations")
     .select("id,provider_account_ref,payment_environment")
@@ -50,8 +56,14 @@ export async function issueReservationRefund(formData: FormData) {
 
   const connectedAccountId = reservation?.provider_account_ref ?? null;
 
-  if (reservationError || !connectedAccountId) {
+  if (reservationError || !connectedAccountId || !reservation) {
     fail("The reservation's connected Stripe account could not be resolved.");
+  }
+
+  if (reservation.payment_environment !== environment) {
+    fail(
+      `This reservation belongs to the ${reservation.payment_environment} Stripe environment, but this admin session is ${environment}.`,
+    );
   }
 
   const { data, error } = await admin.rpc("create_refund_request", {
@@ -61,7 +73,9 @@ export async function issueReservationRefund(formData: FormData) {
     requested_reason: reason || null,
   });
 
-  if (error || !data) fail(error?.message || "The refund could not be prepared.");
+  if (error || !data) {
+    fail(error?.message || "The refund could not be prepared.");
+  }
 
   const request = data as {
     refund_id: string;
@@ -73,13 +87,15 @@ export async function issueReservationRefund(formData: FormData) {
     payment_environment: "TEST" | "LIVE";
   };
 
-  if (request.payment_environment !== stripeEnvironment()) {
+  if (request.payment_environment !== environment) {
     await admin.rpc("record_refund_result", {
       target_refund_id: request.refund_id,
       target_provider_refund_id: null,
       target_status: "FAILED",
-      target_failure_message: "Refund environment did not match the active Stripe keys.",
+      target_failure_message:
+        "Refund environment did not match the active Stripe keys.",
     });
+
     fail("The refund belongs to a different Stripe environment.");
   }
 
@@ -90,6 +106,7 @@ export async function issueReservationRefund(formData: FormData) {
       target_status: "FAILED",
       target_failure_message: "The Stripe payment reference is missing.",
     });
+
     fail("The Stripe payment reference is missing.");
   }
 
@@ -112,13 +129,14 @@ export async function issueReservationRefund(formData: FormData) {
       reason,
     });
 
-    recordedStatus = refund.status === "succeeded"
-      ? "SUCCEEDED"
-      : refund.status === "failed"
-        ? "FAILED"
-        : refund.status === "canceled"
-          ? "CANCELLED"
-          : "PENDING";
+    recordedStatus =
+      refund.status === "succeeded"
+        ? "SUCCEEDED"
+        : refund.status === "failed"
+          ? "FAILED"
+          : refund.status === "canceled"
+            ? "CANCELLED"
+            : "PENDING";
 
     const { error: recordError } = await admin.rpc("record_refund_result", {
       target_refund_id: request.refund_id,
@@ -139,8 +157,12 @@ export async function issueReservationRefund(formData: FormData) {
           target_error: applicationFeeRefundError,
         },
       );
+
       if (feeRecordError) {
-        console.error("[admin refund] application-fee result needs reconciliation", feeRecordError);
+        console.error(
+          "[admin refund] application-fee result needs reconciliation",
+          feeRecordError,
+        );
       }
     }
   } catch (refundError) {
@@ -149,7 +171,9 @@ export async function issueReservationRefund(formData: FormData) {
       target_provider_refund_id: null,
       target_status: "PENDING",
       target_failure_message:
-        refundError instanceof Error ? refundError.message : "Stripe refund failed.",
+        refundError instanceof Error
+          ? refundError.message
+          : "Stripe refund failed.",
     });
 
     fail(
@@ -158,6 +182,7 @@ export async function issueReservationRefund(formData: FormData) {
   }
 
   revalidatePath(`/admin/reservations/${reservationId}`);
+
   redirect(
     `/admin/reservations/${encodeURIComponent(
       reservationId,
@@ -182,23 +207,49 @@ export async function addReservationSupportNote(formData: FormData) {
     );
   }
 
+  const environment = stripeEnvironment();
   const supabase = await createClient();
-  const { error } = await supabase.from("reservation_support_notes").insert({
-    reservation_id: reservationId,
-    admin_profile_id: context.profileId,
-    note,
-  });
+
+  const { data: reservation, error: reservationError } = await supabase
+    .from("reservations")
+    .select("id,payment_environment")
+    .eq("id", reservationId)
+    .maybeSingle();
+
+  if (
+    reservationError ||
+    !reservation ||
+    reservation.payment_environment !== environment
+  ) {
+    redirect(
+      `/admin/reservations?error=${encodeURIComponent(
+        `That reservation is not part of the active ${environment} payment environment.`,
+      )}`,
+    );
+  }
+
+  const { error } = await supabase
+    .from("reservation_support_notes")
+    .insert({
+      reservation_id: reservationId,
+      admin_profile_id: context.profileId,
+      note,
+    });
 
   if (error) {
     console.error("[addReservationSupportNote]", error);
+
     redirect(
       `/admin/reservations/${encodeURIComponent(
         reservationId,
-      )}?error=${encodeURIComponent("The support note could not be saved.")}`,
+      )}?error=${encodeURIComponent(
+        "The support note could not be saved.",
+      )}`,
     );
   }
 
   revalidatePath(`/admin/reservations/${reservationId}`);
+
   redirect(
     `/admin/reservations/${encodeURIComponent(
       reservationId,

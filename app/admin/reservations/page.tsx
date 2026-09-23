@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import { AdminShell } from "@/components/AdminShell";
 import { getAdminContext } from "@/lib/admin/context";
+import { stripeEnvironment } from "@/lib/payments/booking-runtime";
 import { createClient } from "@/lib/supabase/server";
 
 type ReservationRow = {
@@ -21,6 +22,7 @@ type ReservationRow = {
   commission_tier: string;
   payment_provider: string | null;
   payment_status: string;
+  payment_environment: "TEST" | "LIVE";
   tax_status: string;
   created_at: string;
 };
@@ -72,12 +74,15 @@ export default async function AdminReservationsPage({
     searchParams,
   ]);
 
+  const environment = stripeEnvironment();
   const supabase = await createClient();
+
   const { data, error } = await supabase
     .from("reservations")
     .select(
-      "id,confirmation_code,organization_id,property_id,status,check_in,check_out,guest_name,guest_email,guest_phone,guest_total_cents,platform_commission_cents,currency,commission_tier,payment_provider,payment_status,tax_status,created_at",
+      "id,confirmation_code,organization_id,property_id,status,check_in,check_out,guest_name,guest_email,guest_phone,guest_total_cents,platform_commission_cents,currency,commission_tier,payment_provider,payment_status,payment_environment,tax_status,created_at",
     )
+    .eq("payment_environment", environment)
     .order("created_at", { ascending: false })
     .limit(500);
 
@@ -139,18 +144,9 @@ export default async function AdminReservationsPage({
   });
 
   filtered.sort((a, b) => {
-    if (sort === "checkin") {
-      return a.check_in.localeCompare(b.check_in);
-    }
-
-    if (sort === "total-high") {
-      return b.guest_total_cents - a.guest_total_cents;
-    }
-
-    if (sort === "total-low") {
-      return a.guest_total_cents - b.guest_total_cents;
-    }
-
+    if (sort === "checkin") return a.check_in.localeCompare(b.check_in);
+    if (sort === "total-high") return b.guest_total_cents - a.guest_total_cents;
+    if (sort === "total-low") return a.guest_total_cents - b.guest_total_cents;
     return b.created_at.localeCompare(a.created_at);
   });
 
@@ -167,13 +163,29 @@ export default async function AdminReservationsPage({
   return (
     <AdminShell
       active="reservations"
-      eyebrow="Booking operations"
+      eyebrow={`${environment} booking operations`}
       title="Reservations"
       context={context}
     >
+      <div className="admin-launch-banner">
+        <div>
+          <span>{environment} environment</span>
+          <p>
+            <strong>
+              Only {environment} reservations and transaction records are shown
+              here.
+            </strong>{" "}
+            {environment === "LIVE"
+              ? "Sandbox/test bookings remain in the database for history but are hidden from production operations."
+              : "Local development shows sandbox/test bookings and hides live production transactions."}
+          </p>
+        </div>
+        <span className="status-pill status-inverse">{environment}</span>
+      </div>
+
       <div className="metrics dash-grid">
         <div>
-          <span>Reservation records</span>
+          <span>{environment} reservation records</span>
           <strong>{reservations.length}</strong>
           <small>Latest 500 loaded</small>
         </div>
@@ -185,12 +197,12 @@ export default async function AdminReservationsPage({
         <div>
           <span>Confirmed</span>
           <strong>{confirmed}</strong>
-          <small>Canonical confirmed reservations</small>
+          <small>{environment} confirmed reservations</small>
         </div>
         <div>
           <span>Payment issues</span>
           <strong>{paymentIssues}</strong>
-          <small>Failed or disputed</small>
+          <small>Failed or disputed in {environment}</small>
         </div>
       </div>
 
@@ -198,7 +210,7 @@ export default async function AdminReservationsPage({
         <div className="panel-head">
           <div>
             <p className="eyebrow dark">Support lookup</p>
-            <h2>Find any booking.</h2>
+            <h2>Find any {environment} booking.</h2>
           </div>
           <span className="status-pill status-muted">
             {filtered.length} shown
@@ -263,7 +275,7 @@ export default async function AdminReservationsPage({
       <section className="panel">
         <div className="panel-head">
           <div>
-            <p className="eyebrow dark">Reservation support console</p>
+            <p className="eyebrow dark">{environment} reservation support console</p>
             <h2>Booking records</h2>
           </div>
         </div>
@@ -279,27 +291,17 @@ export default async function AdminReservationsPage({
                 <span>
                   <strong>
                     {reservation.confirmation_code} ·{" "}
-                    {reservation.guest_name || "Guest pending"}
+                    {propertyById.get(reservation.property_id) || "Property"}
                   </strong>
                   <small>
-                    {organizationById.get(reservation.organization_id) ??
-                      "Unknown organization"}{" "}
-                    ·{" "}
-                    {propertyById.get(reservation.property_id) ??
-                      "Unknown property"}
+                    {organizationById.get(reservation.organization_id) ||
+                      "Host organization"}{" "}
+                    · {reservation.guest_name || "Guest"}
                   </small>
                   <small>
                     {reservation.check_in} → {reservation.check_out} ·{" "}
-                    {money(
-                      reservation.guest_total_cents,
-                      reservation.currency,
-                    )}{" "}
-                    guest total ·{" "}
-                    {money(
-                      reservation.platform_commission_cents,
-                      reservation.currency,
-                    )}{" "}
-                    commission
+                    {money(reservation.guest_total_cents, reservation.currency)} ·{" "}
+                    {reservation.commission_tier.replaceAll("_", " ")} commission
                   </small>
                   {reservation.guest_email ? (
                     <small>{reservation.guest_email}</small>
@@ -313,6 +315,7 @@ export default async function AdminReservationsPage({
                     {reservation.payment_status.replaceAll("_", " ")}
                   </small>
                   <small>Tax: {reservation.tax_status.replaceAll("_", " ")}</small>
+                  <small>{reservation.payment_environment}</small>
                   <b>Open support view →</b>
                 </span>
               </Link>
@@ -320,8 +323,12 @@ export default async function AdminReservationsPage({
           </div>
         ) : (
           <div className="panel-empty">
-            <strong>No reservations match those filters.</strong>
-            <span>Clear a filter or search for another booking.</span>
+            <strong>No {environment} reservations match those filters.</strong>
+            <span>
+              {environment === "LIVE"
+                ? "Test/sandbox reservations are intentionally hidden on production."
+                : "Live production reservations are intentionally hidden locally."}
+            </span>
           </div>
         )}
       </section>
