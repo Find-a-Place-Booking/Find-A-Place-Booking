@@ -54,14 +54,22 @@ export async function issueReservationRefund(formData: FormData) {
     .eq("id", reservationId)
     .maybeSingle();
 
-  const connectedAccountId = reservation?.provider_account_ref ?? null;
+  if (reservationError || !reservation) {
+    return fail(
+      "The reservation's connected Stripe account could not be resolved.",
+    );
+  }
 
-  if (reservationError || !connectedAccountId || !reservation) {
-    fail("The reservation's connected Stripe account could not be resolved.");
+  const connectedAccountId = reservation.provider_account_ref;
+
+  if (!connectedAccountId) {
+    return fail(
+      "The reservation's connected Stripe account could not be resolved.",
+    );
   }
 
   if (reservation.payment_environment !== environment) {
-    fail(
+    return fail(
       `This reservation belongs to the ${reservation.payment_environment} Stripe environment, but this admin session is ${environment}.`,
     );
   }

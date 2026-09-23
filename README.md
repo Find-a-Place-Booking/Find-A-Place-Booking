@@ -1,29 +1,17 @@
-# Find A Place Booking
+# Admin environment null-narrowing build fix
 
-Production booking marketplace for Find A Place.
+Fixes Vercel TypeScript errors in `app/admin/reservations/actions.ts`:
 
-## Current pilot baseline
+- TS18047 reservation is possibly null
 
-The repository includes the guest marketplace, host portal, admin workspace, iCal calendar synchronization, Stripe Connect destination charges, guest verification, policy acceptance, transactional email, scheduled payouts, refunds, marketplace lodging-tax accounting, and operational reporting.
+The environment guard is unchanged. The code now exits the failure branches
+before reading `reservation.payment_environment`.
 
-Apply Supabase migrations through:
+No Stripe/webhook/payment calculation behavior is changed.
 
-`supabase/migrations/20260920005000_restore_live_safety_hardening.sql`
+Run:
 
-## Local verification
-
-```bash
-npm ci
+```powershell
 npm run typecheck
 npm run build
 ```
-
-## Live checkout gates
-
-Live checkout should only be enabled after the production environment is configured with matching Stripe live keys, signed webhooks, Turnstile, transactional email, CRON_SECRET, the guest token secret, a ready host payout account, verified property tax configuration, and the per-property live checkout switch.
-
-The payment architecture uses Stripe destination charges. Find A Place retains the platform commission, configured host processing-fee recovery, and marketplace-collected lodging tax in the application fee; the remaining booking proceeds are routed to the connected host account. Scheduled bank payouts remain controlled separately by the payout policy.
-
-## Operations
-
-Vercel cron routes handle calendar synchronization, notification retries, and scheduled payouts. The protected Supabase health endpoint verifies the current migration markers for operations use.
