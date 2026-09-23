@@ -5,9 +5,10 @@ import { cache } from "react";
 import { BookingCard } from "@/components/BookingCard";
 import { Footer } from "@/components/Footer";
 import { Header } from "@/components/Header";
-import { PropertyActions } from "@/components/PropertyActions";
-import { PublicHostCard } from "@/components/PublicHostCard";
 import { JsonLd } from "@/components/JsonLd";
+import { PropertyActions } from "@/components/PropertyActions";
+import { PropertyReviews } from "@/components/PropertyReviews";
+import { PublicHostCard } from "@/components/PublicHostCard";
 import { getPublishedListingBySlug } from "@/lib/public/listings";
 import { absoluteUrl, seoDescription } from "@/lib/seo";
 
@@ -45,7 +46,12 @@ export async function generateMetadata({
       url: canonical,
       images: property.images[0]
         ? [{ url: property.images[0], alt: property.name }]
-        : [{ url: "/brand/find-a-place-seal.png", alt: "Find A Place Booking" }],
+        : [
+            {
+              url: "/brand/find-a-place-seal.png",
+              alt: "Find A Place Booking",
+            },
+          ],
     },
     twitter: {
       card: "summary_large_image",
@@ -79,12 +85,15 @@ export default async function PropertyPage({
       addressRegion: property.state || undefined,
       addressCountry: "US",
     },
-    priceRange: property.price > 0 ? `$${property.price}+` : undefined,
-    amenityFeature: property.amenities.slice(0, 20).map((amenity) => ({
-      "@type": "LocationFeatureSpecification",
-      name: amenity,
-      value: true,
-    })),
+    priceRange:
+      property.price > 0 ? `$${property.price}+` : undefined,
+    amenityFeature: property.amenities
+      .slice(0, 20)
+      .map((amenity) => ({
+        "@type": "LocationFeatureSpecification",
+        name: amenity,
+        value: true,
+      })),
     ...(property.reviewCount > 0
       ? {
           aggregateRating: {
@@ -103,10 +112,11 @@ export default async function PropertyPage({
   const secondImage = images[1] ?? mainImage;
   const thirdImage = images[2] ?? mainImage;
 
-  const checkoutEnabled = process.env.BOOKING_CHECKOUT_ENABLED === "true";
-  const testMode = (process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || "").startsWith(
-    "pk_test_",
-  );
+  const checkoutEnabled =
+    process.env.BOOKING_CHECKOUT_ENABLED === "true";
+  const testMode = (
+    process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || ""
+  ).startsWith("pk_test_");
 
   return (
     <>
@@ -123,7 +133,9 @@ export default async function PropertyPage({
             <p>
               {property.location}
               {property.reviewCount
-                ? ` · ${property.rating}/5 from ${property.reviewCount} verified review${
+                ? ` · ${property.rating.toFixed(1)}/5 from ${
+                    property.reviewCount
+                  } verified review${
                     property.reviewCount === 1 ? "" : "s"
                   }`
                 : " · New to Find A Place"}
@@ -227,7 +239,9 @@ export default async function PropertyPage({
             </div>
 
             {property.customAmenities ? (
-              <p className="listing-custom-copy">{property.customAmenities}</p>
+              <p className="listing-custom-copy">
+                {property.customAmenities}
+              </p>
             ) : null}
 
             <hr />
@@ -240,7 +254,9 @@ export default async function PropertyPage({
             </div>
 
             {property.customPolicies ? (
-              <p className="listing-custom-copy">{property.customPolicies}</p>
+              <p className="listing-custom-copy">
+                {property.customPolicies}
+              </p>
             ) : null}
 
             {property.policyDocument ? (
@@ -263,17 +279,22 @@ export default async function PropertyPage({
               </span>
 
               {property.checkIn ? (
-                <span>Check-in: {property.checkIn.slice(0, 5)}</span>
+                <span>
+                  Check-in: {property.checkIn.slice(0, 5)}
+                </span>
               ) : null}
 
               {property.checkout ? (
-                <span>Checkout: {property.checkout.slice(0, 5)}</span>
+                <span>
+                  Checkout: {property.checkout.slice(0, 5)}
+                </span>
               ) : null}
             </div>
 
             {property.cancellationPolicy ? (
               <p>
-                <strong>Cancellation:</strong> {property.cancellationPolicy}
+                <strong>Cancellation:</strong>{" "}
+                {property.cancellationPolicy}
               </p>
             ) : null}
 
@@ -285,42 +306,12 @@ export default async function PropertyPage({
             />
 
             <hr />
-            <h3>
-              {property.reviewCount
-                ? `${property.rating}/5 from ${property.reviewCount} verified review${
-                    property.reviewCount === 1 ? "" : "s"
-                  }`
-                : "Guest reviews"}
-            </h3>
 
-            {property.reviews.length ? (
-              <div className="admin-list compact">
-                {property.reviews.map((review) => (
-                  <div className="admin-list-row static" key={review.id}>
-                    <span>
-                      <strong>
-                        {review.rating}/5 · {review.guestName}
-                      </strong>
-                      <small>
-                        {review.body || "Rating submitted without written copy."}
-                      </small>
-                      {review.hostResponse ? (
-                        <small>
-                          <strong>Host response:</strong> {review.hostResponse}
-                        </small>
-                      ) : null}
-                    </span>
-                    <span>
-                      <small>
-                        {new Date(review.createdAt).toLocaleDateString("en-US")}
-                      </small>
-                    </span>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p className="muted">No verified guest reviews yet.</p>
-            )}
+            <PropertyReviews
+              rating={property.rating}
+              reviewCount={property.reviewCount}
+              reviews={property.reviews}
+            />
           </article>
 
           <BookingCard

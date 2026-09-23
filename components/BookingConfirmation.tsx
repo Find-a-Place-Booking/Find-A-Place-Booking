@@ -127,8 +127,8 @@ export function BookingConfirmation({
         <p className="eyebrow dark">Payment processing</p>
         <h1>We&apos;re finishing your reservation.</h1>
         <p>
-          We are waiting for payment confirmation. This page will update
-          automatically when the reservation is ready.
+          Payment status: {booking.paymentStatus}. This page checks
+          automatically while the signed Stripe webhook completes the booking.
         </p>
       </div>
     );

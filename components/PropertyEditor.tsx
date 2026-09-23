@@ -1,30 +1,65 @@
 "use client";
 
-import { useMemo, useState } from "react";
 import Link from "next/link";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { savePropertyListing } from "@/app/host/properties/actions";
-import { amenityGroups, calendarPreferences, policyGroups, propertyTypes } from "@/lib/property/catalog";
+import type {
+  PropertyEditorRecord,
+  PropertyImageRecord,
+} from "@/lib/host/properties";
+import {
+  amenityGroups,
+  calendarPreferences,
+  policyGroups,
+  propertyTypes,
+} from "@/lib/property/catalog";
 import { createClient } from "@/lib/supabase/client";
-import type { PropertyEditorRecord, PropertyImageRecord } from "@/lib/host/properties";
 
 type SaveTone = "saved" | "dirty" | "saving" | "error";
 
-export function PropertyEditor({ initial }: { initial: PropertyEditorRecord }) {
+export function PropertyEditor({
+  initial,
+}: {
+  initial: PropertyEditorRecord;
+}) {
   const router = useRouter();
-  const [form, setForm] = useState<Record<string, string>>({ ...initial.form });
+  const [form, setForm] = useState<Record<string, string>>({
+    ...initial.form,
+  });
   const [amenities, setAmenities] = useState(initial.amenities);
   const [policies, setPolicies] = useState(initial.policies);
-  const [images, setImages] = useState<PropertyImageRecord[]>(initial.images);
+  const [images, setImages] = useState<PropertyImageRecord[]>(
+    initial.images,
+  );
   const [saveTone, setSaveTone] = useState<SaveTone>("saved");
   const [message, setMessage] = useState("Property details loaded.");
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
-  const editable = ["DRAFT", "CHANGES_REQUESTED", "REJECTED", "PUBLISHED", "PAUSED"].includes(initial.status);
-  const liveEditable = ["PUBLISHED", "PAUSED"].includes(initial.status);
 
-  const selectedCalendar = useMemo(() => calendarPreferences.find((option) => option.value === (form.calendarPreference || "UNSET")), [form.calendarPreference]);
+  const editable = [
+    "DRAFT",
+    "CHANGES_REQUESTED",
+    "REJECTED",
+    "PUBLISHED",
+    "PAUSED",
+  ].includes(initial.status);
+  const liveEditable = ["PUBLISHED", "PAUSED"].includes(initial.status);
+  const setupPricingEditable = [
+    "DRAFT",
+    "CHANGES_REQUESTED",
+    "REJECTED",
+  ].includes(initial.status);
+
+  const selectedCalendar = useMemo(
+    () =>
+      calendarPreferences.find(
+        (option) =>
+          option.value === (form.calendarPreference || "UNSET"),
+      ),
+    [form.calendarPreference],
+  );
 
   function update(key: string, value: string) {
     setForm((current) => ({ ...current, [key]: value }));
@@ -32,35 +67,59 @@ export function PropertyEditor({ initial }: { initial: PropertyEditorRecord }) {
     setMessage("Unsaved property changes.");
   }
 
-  function toggle(item: string, values: string[], setter: (next: string[]) => void) {
-    setter(values.includes(item) ? values.filter((value) => value !== item) : [...values, item]);
+  function toggle(
+    item: string,
+    values: string[],
+    setter: (next: string[]) => void,
+  ) {
+    setter(
+      values.includes(item)
+        ? values.filter((value) => value !== item)
+        : [...values, item],
+    );
     setSaveTone("dirty");
     setMessage("Unsaved property changes.");
   }
 
   async function save() {
     if (saving || !editable) return;
+
     setSaving(true);
     setSaveTone("saving");
     setMessage("Saving property…");
-    const result = await savePropertyListing({ propertyId: initial.propertyId, form, amenities, policies });
+
+    const result = await savePropertyListing({
+      propertyId: initial.propertyId,
+      form,
+      amenities,
+      policies,
+    });
+
     setSaving(false);
+
     if (!result.ok) {
       setSaveTone("error");
       setMessage(result.message);
       return;
     }
+
     setSaveTone("saved");
     setMessage(result.message || "Property saved.");
+
     if (result.slug && result.slug !== form.slug) {
-      setForm((current) => ({ ...current, slug: result.slug! }));
+      setForm((current) => ({
+        ...current,
+        slug: result.slug!,
+      }));
       router.replace(`/host/properties/${result.slug}`);
     }
+
     router.refresh();
   }
 
   async function uploadFiles(files: FileList | null) {
     if (!files?.length || uploading || !editable) return;
+
     const remaining = Math.max(0, 12 - images.length);
     if (!remaining) {
       setSaveTone("error");
@@ -71,26 +130,49 @@ export function PropertyEditor({ initial }: { initial: PropertyEditorRecord }) {
     const selected = Array.from(files).slice(0, remaining);
     setUploading(true);
     setMessage("Uploading property photos…");
+
     const supabase = createClient();
     const { data: userData } = await supabase.auth.getUser();
     const userId = userData.user?.id;
+
     if (!userId) {
       setUploading(false);
       setSaveTone("error");
-      setMessage("Your session expired. Sign in again before uploading photos.");
+      setMessage(
+        "Your session expired. Sign in again before uploading photos.",
+      );
       return;
     }
 
     const nextImages = [...images];
+
     for (const file of selected) {
-      if (!(["image/jpeg", "image/png", "image/webp"].includes(file.type)) || file.size > 10 * 1024 * 1024) {
+      if (
+        !["image/jpeg", "image/png", "image/webp"].includes(file.type) ||
+        file.size > 10 * 1024 * 1024
+      ) {
         setSaveTone("error");
-        setMessage(`${file.name} was skipped. Use JPG, PNG or WebP files under 10 MB.`);
+        setMessage(
+          `${file.name} was skipped. Use JPG, PNG or WebP files under 10 MB.`,
+        );
         continue;
       }
-      const extension = file.type === "image/png" ? "png" : file.type === "image/webp" ? "webp" : "jpg";
+
+      const extension =
+        file.type === "image/png"
+          ? "png"
+          : file.type === "image/webp"
+            ? "webp"
+            : "jpg";
       const path = `${initial.organizationId}/${initial.propertyId}/${crypto.randomUUID()}.${extension}`;
-      const { error: uploadError } = await supabase.storage.from("property-images").upload(path, file, { contentType: file.type, upsert: false });
+
+      const { error: uploadError } = await supabase.storage
+        .from("property-images")
+        .upload(path, file, {
+          contentType: file.type,
+          upsert: false,
+        });
+
       if (uploadError) {
         console.error("[property image upload]", uploadError);
         setSaveTone("error");
@@ -107,10 +189,14 @@ export function PropertyEditor({ initial }: { initial: PropertyEditorRecord }) {
           content_type: file.type,
           size_bytes: file.size,
           sort_order: nextImages.length,
-          alt_text: form.name ? `${form.name} property photo` : "Property photo",
+          alt_text: form.name
+            ? `${form.name} property photo`
+            : "Property photo",
           created_by: userId,
         })
-        .select("id,storage_path,original_name,content_type,size_bytes,sort_order,alt_text")
+        .select(
+          "id,storage_path,original_name,content_type,size_bytes,sort_order,alt_text",
+        )
         .single();
 
       if (insertError || !row) {
@@ -121,7 +207,10 @@ export function PropertyEditor({ initial }: { initial: PropertyEditorRecord }) {
         continue;
       }
 
-      const { data: signed } = await supabase.storage.from("property-images").createSignedUrl(path, 3600);
+      const { data: signed } = await supabase.storage
+        .from("property-images")
+        .createSignedUrl(path, 3600);
+
       nextImages.push({
         id: row.id,
         storagePath: row.storage_path,
@@ -136,6 +225,7 @@ export function PropertyEditor({ initial }: { initial: PropertyEditorRecord }) {
 
     setImages(nextImages);
     setUploading(false);
+
     if (nextImages.length > images.length) {
       setSaveTone("saved");
       setMessage("Photo upload saved immediately.");
@@ -145,13 +235,15 @@ export function PropertyEditor({ initial }: { initial: PropertyEditorRecord }) {
 
   async function removeImage(image: PropertyImageRecord) {
     if (uploading || !editable) return;
+
     setUploading(true);
     const supabase = createClient();
 
-    // Remove the database row first. Published listings have a database guard
-    // that prevents removing their final photo, so we must not delete the
-    // storage object before that guard has a chance to run.
-    const { error } = await supabase.from("property_images").delete().eq("id", image.id);
+    const { error } = await supabase
+      .from("property_images")
+      .delete()
+      .eq("id", image.id);
+
     if (error) {
       setUploading(false);
       setSaveTone("error");
@@ -168,12 +260,16 @@ export function PropertyEditor({ initial }: { initial: PropertyEditorRecord }) {
       .remove([image.storagePath]);
 
     setUploading(false);
-    setImages((current) => current.filter((item) => item.id !== image.id));
+    setImages((current) =>
+      current.filter((item) => item.id !== image.id),
+    );
 
     if (storageError) {
       console.error("[property image storage cleanup]", storageError);
       setSaveTone("error");
-      setMessage("Photo removed from the listing, but its old stored file needs cleanup.");
+      setMessage(
+        "Photo removed from the listing, but its old stored file needs cleanup.",
+      );
     } else {
       setSaveTone("saved");
       setMessage("Photo removed.");
@@ -186,101 +282,903 @@ export function PropertyEditor({ initial }: { initial: PropertyEditorRecord }) {
     <div className="property-editor-layout">
       <section className="property-editor-main">
         <div className={`property-save-bar ${saveTone}`}>
-          <div><strong>{saveTone === "error" ? "Needs attention" : saveTone === "dirty" ? "Unsaved changes" : saveTone === "saving" ? "Saving" : "Property record connected"}</strong><span>{message}</span></div>
-          <button type="button" className="button button-small" disabled={saving || !editable} onClick={save}>{saving ? "Saving…" : liveEditable ? "Save live changes" : editable ? "Save property" : "Editing locked"}</button>
+          <div>
+            <strong>
+              {saveTone === "error"
+                ? "Needs attention"
+                : saveTone === "dirty"
+                  ? "Unsaved changes"
+                  : saveTone === "saving"
+                    ? "Saving"
+                    : "Property record connected"}
+            </strong>
+            <span>{message}</span>
+          </div>
+          <button
+            type="button"
+            className="button button-small"
+            disabled={saving || !editable}
+            onClick={save}
+          >
+            {saving
+              ? "Saving…"
+              : liveEditable
+                ? "Save live changes"
+                : editable
+                  ? "Save property"
+                  : "Editing locked"}
+          </button>
         </div>
 
-        {liveEditable ? <div className="property-review-lock"><strong>{initial.status === "PUBLISHED" ? "Live listing editing is enabled." : "Paused listing editing is enabled."}</strong><span>{initial.status === "PUBLISHED" ? "Saved listing details, amenities, stay rules and photos update the guest-facing listing immediately. Rates, availability, taxes and payment settings remain managed in their dedicated dashboard sections. Existing reservations keep the snapshots captured when they booked." : "You can update this property while publication is paused. The admin publication state is unchanged by saving property details."}</span></div> : !editable ? <div className="property-review-lock"><strong>Listing editing is temporarily locked.</strong><span>{initial.status === "PENDING_REVIEW" ? "The Find A Place team is reviewing this submission." : initial.status === "APPROVED" ? "This listing is approved and waiting for publication." : "This listing state is protected from host-side edits."}</span></div> : null}
-        {initial.reviewNote ? <div className="property-review-note"><strong>Review note</strong><span>{initial.reviewNote}</span></div> : null}
-
-        <fieldset className="property-editor-fieldset" disabled={!editable}>
-        <details className="property-edit-section" open>
-          <summary><span><b>1</b><strong>Listing identity</strong></span><small>{initial.status}</small></summary>
-          <div className="property-edit-body field-grid onboarding-fields">
-            <label className="full"><span>Property / listing name</span><input value={form.name || ""} onChange={(e) => update("name", e.target.value)} /></label>
-            <label><span>Property type</span><select value={form.propertyType || ""} onChange={(e) => update("propertyType", e.target.value)}><option value="">Select type</option>{propertyTypes.map((type) => <option key={type}>{type}</option>)}</select></label>
-            <label><span>Public area</span><input value={form.publicArea || ""} onChange={(e) => update("publicArea", e.target.value)} placeholder="Hot Springs, Lake Ouachita…" /></label>
-            <label className="full"><span>Description</span><textarea value={form.description || ""} onChange={(e) => update("description", e.target.value)} placeholder="Describe the stay for guests." /></label>
-            <label className="full"><span>Shareable booking URL</span><div className="slug-input"><span>/stays/</span><input value={form.slug || ""} onChange={(e) => update("slug", e.target.value)} spellCheck={false} /></div><small>This URL is reserved now and becomes guest-facing after approval/publication. Old slugs remain redirects when the URL changes.</small></label>
+        {liveEditable ? (
+          <div className="property-review-lock">
+            <strong>
+              {initial.status === "PUBLISHED"
+                ? "Live listing editing is enabled."
+                : "Paused listing editing is enabled."}
+            </strong>
+            <span>
+              {initial.status === "PUBLISHED"
+                ? "Saved listing details, amenities, stay rules and photos update the guest-facing listing immediately. Operational rates, availability, taxes and payment settings remain managed in their dedicated dashboard sections. Existing reservations keep the snapshots captured when they booked."
+                : "You can update this property while publication is paused. Advanced rates, availability, taxes and payment settings remain in their dedicated dashboard sections."}
+            </span>
           </div>
-        </details>
-
-        <details className="property-edit-section" open>
-          <summary><span><b>2</b><strong>Location & capacity</strong></span><small>{[form.city, form.state].filter(Boolean).join(", ") || "Not complete"}</small></summary>
-          <div className="property-edit-body field-grid onboarding-fields">
-            <label className="full"><span>Street address</span><input value={form.street || ""} onChange={(e) => update("street", e.target.value)} /></label>
-            <label><span>City</span><input value={form.city || ""} onChange={(e) => update("city", e.target.value)} /></label>
-            <label><span>State</span><input value={form.state || ""} onChange={(e) => update("state", e.target.value)} /></label>
-            <label><span>ZIP</span><input value={form.postal || ""} onChange={(e) => update("postal", e.target.value)} /></label>
-            <label><span>Maximum guests</span><input type="number" min="1" value={form.maxGuests || ""} onChange={(e) => update("maxGuests", e.target.value)} /></label>
-            <label><span>Bedrooms</span><input type="number" min="0" value={form.bedrooms || ""} onChange={(e) => update("bedrooms", e.target.value)} /></label>
-            <label><span>Beds</span><input type="number" min="0" value={form.beds || ""} onChange={(e) => update("beds", e.target.value)} /></label>
-            <label><span>Bathrooms</span><input type="number" min="0" step="0.5" value={form.bathrooms || ""} onChange={(e) => update("bathrooms", e.target.value)} /></label>
-            <label className="checkline full"><input type="checkbox" checked={form.exactAddressPublic === "true"} onChange={(e) => update("exactAddressPublic", e.target.checked ? "true" : "false")} /><span>Allow the exact street address to be shown publicly. Leave unchecked to keep search/listing views at the general-area level.</span></label>
+        ) : !editable ? (
+          <div className="property-review-lock">
+            <strong>Listing editing is temporarily locked.</strong>
+            <span>This listing state is protected from host-side edits.</span>
           </div>
-        </details>
+        ) : null}
 
-        <details className="property-edit-section">
-          <summary><span><b>3</b><strong>Amenities</strong></span><small>{amenities.length} selected</small></summary>
-          <div className="property-edit-body">
-            <div className="selection-groups">{amenityGroups.map((group) => <details key={group.title} open={group.title === "Popular"}><summary><strong>{group.title}</strong><span>{group.items.filter((item) => amenities.includes(item)).length} selected</span></summary><div className="amenity-picker">{group.items.map((item) => <label className={amenities.includes(item) ? "selected" : ""} key={item}><input type="checkbox" checked={amenities.includes(item)} onChange={() => toggle(item, amenities, setAmenities)} /><span>{item}</span></label>)}</div></details>)}</div>
-            <label className="custom-option"><span>Custom amenities</span><textarea value={form.customAmenities || ""} onChange={(e) => update("customAmenities", e.target.value)} placeholder="One per line or a short list for uncommon features." /></label>
+        {initial.reviewNote ? (
+          <div className="property-review-note">
+            <strong>Previous admin note</strong>
+            <span>{initial.reviewNote}</span>
           </div>
-        </details>
+        ) : null}
 
-        <details className="property-edit-section">
-          <summary><span><b>4</b><strong>Rates & fees</strong></span><small>{form.weeknight ? `$${form.weeknight}/night` : "Not priced"}</small></summary>
-          <div className="property-edit-body">
-            <div className="property-pricing-summary">
-              <div><span>Weeknight</span><strong>{form.weeknight ? `$${form.weeknight}` : "Not set"}</strong></div>
-              <div><span>Weekend</span><strong>{form.weekend ? `$${form.weekend}` : "Uses weeknight"}</strong></div>
-              <div><span>Default minimum</span><strong>{form.minStay || "1"} night{(form.minStay || "1") === "1" ? "" : "s"}</strong></div>
+        <fieldset
+          className="property-editor-fieldset"
+          disabled={!editable}
+        >
+          <details className="property-edit-section" open>
+            <summary>
+              <span>
+                <b>1</b>
+                <strong>Listing identity</strong>
+              </span>
+              <small>{initial.status}</small>
+            </summary>
+            <div className="property-edit-body field-grid onboarding-fields">
+              <label className="full">
+                <span>Property / listing name</span>
+                <input
+                  value={form.name || ""}
+                  onChange={(event) =>
+                    update("name", event.target.value)
+                  }
+                />
+              </label>
+              <label>
+                <span>Property type</span>
+                <select
+                  value={form.propertyType || ""}
+                  onChange={(event) =>
+                    update("propertyType", event.target.value)
+                  }
+                >
+                  <option value="">Select type</option>
+                  {propertyTypes.map((type) => (
+                    <option key={type}>{type}</option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                <span>Public area</span>
+                <input
+                  value={form.publicArea || ""}
+                  onChange={(event) =>
+                    update("publicArea", event.target.value)
+                  }
+                  placeholder="Hot Springs, Lake Ouachita…"
+                />
+              </label>
+              <label className="full">
+                <span>Description</span>
+                <textarea
+                  value={form.description || ""}
+                  onChange={(event) =>
+                    update("description", event.target.value)
+                  }
+                  placeholder="Describe the stay for guests."
+                />
+              </label>
+              <label className="full">
+                <span>Shareable booking URL</span>
+                <div className="slug-input">
+                  <span>/stays/</span>
+                  <input
+                    value={form.slug || ""}
+                    onChange={(event) =>
+                      update("slug", event.target.value)
+                    }
+                    spellCheck={false}
+                  />
+                </div>
+                <small>
+                  This becomes the public listing URL when the property
+                  is published. Old slugs remain redirects when the URL
+                  changes.
+                </small>
+              </label>
             </div>
-            <div className="inline-note commission-note"><strong>Pricing has one owner.</strong><span>Base rates, standard fees, additional-guest thresholds, date specials, holiday minimum stays, promo codes and guest add-ons are managed in Rates & fees so a stale property-details screen cannot overwrite operational pricing.</span><Link className="inline-note-link" href={`/host/rates/${form.slug || initial.form.slug}`}>Open Rates & fees →</Link></div>
-          </div>
-        </details>
+          </details>
 
-        <details className="property-edit-section">
-          <summary><span><b>5</b><strong>Policies & stay rules</strong></span><small>{policies.length} selected</small></summary>
-          <div className="property-edit-body">
-            <div className="selection-groups policy-picker">{policyGroups.map((group) => <details key={group.title} open={group.title === "House rules"}><summary><strong>{group.title}</strong><span>{group.items.filter((item) => policies.includes(item)).length} selected</span></summary><div className="amenity-picker">{group.items.map((item) => <label className={policies.includes(item) ? "selected" : ""} key={item}><input type="checkbox" checked={policies.includes(item)} onChange={() => toggle(item, policies, setPolicies)} /><span>{item}</span></label>)}</div></details>)}</div>
-            <div className="field-grid onboarding-fields conditional-fields">
-              {policies.includes("Quiet hours apply") && <><label><span>Quiet hours start</span><input type="time" value={form.quietStart || "22:00"} onChange={(e) => update("quietStart", e.target.value)} /></label><label><span>Quiet hours end</span><input type="time" value={form.quietEnd || "07:00"} onChange={(e) => update("quietEnd", e.target.value)} /></label></>}
-              {policies.includes("Pets allowed") && <label><span>Maximum pets</span><input type="number" min="1" value={form.maxPets || ""} onChange={(e) => update("maxPets", e.target.value)} /></label>}
-              {policies.includes("Minimum booking age applies") && <label><span>Minimum booking age</span><input type="number" min="18" value={form.minimumAge || ""} onChange={(e) => update("minimumAge", e.target.value)} /></label>}
-              <label><span>Check-in</span><input type="time" value={form.checkIn || ""} onChange={(e) => update("checkIn", e.target.value)} /></label>
-              <label><span>Checkout</span><input type="time" value={form.checkout || ""} onChange={(e) => update("checkout", e.target.value)} /></label>
-              <label className="full"><span>Cancellation policy / notes</span><textarea value={form.cancellation || ""} onChange={(e) => update("cancellation", e.target.value)} /></label>
-              <label className="full"><span>Custom policies</span><textarea value={form.customPolicies || ""} onChange={(e) => update("customPolicies", e.target.value)} placeholder="Uncommon property-specific rules." /></label>
+          <details className="property-edit-section" open>
+            <summary>
+              <span>
+                <b>2</b>
+                <strong>Location &amp; capacity</strong>
+              </span>
+              <small>
+                {[form.city, form.state].filter(Boolean).join(", ") ||
+                  "Not complete"}
+              </small>
+            </summary>
+            <div className="property-edit-body field-grid onboarding-fields">
+              <label className="full">
+                <span>Street address</span>
+                <input
+                  value={form.street || ""}
+                  onChange={(event) =>
+                    update("street", event.target.value)
+                  }
+                />
+              </label>
+              <label>
+                <span>City</span>
+                <input
+                  value={form.city || ""}
+                  onChange={(event) =>
+                    update("city", event.target.value)
+                  }
+                />
+              </label>
+              <label>
+                <span>State</span>
+                <input
+                  value={form.state || ""}
+                  onChange={(event) =>
+                    update("state", event.target.value)
+                  }
+                />
+              </label>
+              <label>
+                <span>ZIP</span>
+                <input
+                  value={form.postal || ""}
+                  onChange={(event) =>
+                    update("postal", event.target.value)
+                  }
+                />
+              </label>
+              <label>
+                <span>Maximum guests</span>
+                <input
+                  type="number"
+                  min="1"
+                  value={form.maxGuests || ""}
+                  onChange={(event) =>
+                    update("maxGuests", event.target.value)
+                  }
+                />
+              </label>
+              <label>
+                <span>Bedrooms</span>
+                <input
+                  type="number"
+                  min="0"
+                  value={form.bedrooms || ""}
+                  onChange={(event) =>
+                    update("bedrooms", event.target.value)
+                  }
+                />
+              </label>
+              <label>
+                <span>Beds</span>
+                <input
+                  type="number"
+                  min="0"
+                  value={form.beds || ""}
+                  onChange={(event) =>
+                    update("beds", event.target.value)
+                  }
+                />
+              </label>
+              <label>
+                <span>Bathrooms</span>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.5"
+                  value={form.bathrooms || ""}
+                  onChange={(event) =>
+                    update("bathrooms", event.target.value)
+                  }
+                />
+              </label>
+              <label className="checkline full">
+                <input
+                  type="checkbox"
+                  checked={form.exactAddressPublic === "true"}
+                  onChange={(event) =>
+                    update(
+                      "exactAddressPublic",
+                      event.target.checked ? "true" : "false",
+                    )
+                  }
+                />
+                <span>
+                  Allow the exact street address to be shown publicly.
+                  Leave unchecked to show only the general area.
+                </span>
+              </label>
             </div>
-          </div>
-        </details>
+          </details>
 
-        <details className="property-edit-section" open>
-          <summary><span><b>6</b><strong>Photos</strong></span><small>{images.length}/12 uploaded</small></summary>
-          <div className="property-edit-body">
-            <label className={`property-upload ${uploading ? "busy" : ""}`}><input type="file" accept="image/jpeg,image/png,image/webp" multiple disabled={uploading || images.length >= 12} onChange={(e) => { void uploadFiles(e.target.files); e.currentTarget.value = ""; }} /><strong>{uploading ? "Uploading…" : "Add property photos"}</strong><span>JPG, PNG or WebP · up to 10 MB each · private until this property is published</span></label>
-            {images.length ? <div className="property-image-grid">{images.map((image, index) => <figure key={image.id}>{image.signedUrl ? <img src={image.signedUrl} alt={image.altText || form.name || "Property"} /> : <div className="property-image-missing">Preview unavailable</div>}<figcaption><span>{index === 0 ? "Primary photo" : image.originalName || `Photo ${index + 1}`}</span><button type="button" disabled={uploading} onClick={() => void removeImage(image)}>Remove</button></figcaption></figure>)}</div> : <div className="panel-empty"><strong>No photos uploaded yet.</strong><span>Add at least one property photo before submitting the listing for review.</span></div>}
-          </div>
-        </details>
+          <details className="property-edit-section">
+            <summary>
+              <span>
+                <b>3</b>
+                <strong>Amenities</strong>
+              </span>
+              <small>{amenities.length} selected</small>
+            </summary>
+            <div className="property-edit-body">
+              <div className="selection-groups">
+                {amenityGroups.map((group) => (
+                  <details
+                    key={group.title}
+                    open={group.title === "Popular"}
+                  >
+                    <summary>
+                      <strong>{group.title}</strong>
+                      <span>
+                        {
+                          group.items.filter((item) =>
+                            amenities.includes(item),
+                          ).length
+                        }{" "}
+                        selected
+                      </span>
+                    </summary>
+                    <div className="amenity-picker">
+                      {group.items.map((item) => (
+                        <label
+                          className={
+                            amenities.includes(item) ? "selected" : ""
+                          }
+                          key={item}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={amenities.includes(item)}
+                            onChange={() =>
+                              toggle(item, amenities, setAmenities)
+                            }
+                          />
+                          <span>{item}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </details>
+                ))}
+              </div>
+              <label className="custom-option">
+                <span>Custom amenities</span>
+                <textarea
+                  value={form.customAmenities || ""}
+                  onChange={(event) =>
+                    update("customAmenities", event.target.value)
+                  }
+                  placeholder="One per line or a short list for uncommon features."
+                />
+              </label>
+            </div>
+          </details>
 
-        <details className="property-edit-section">
-          <summary><span><b>7</b><strong>Calendar & notifications</strong></span><small>{selectedCalendar?.label || "Decide later"}</small></summary>
-          <div className="property-edit-body">
-            <div className="calendar-preference-grid">{calendarPreferences.map((option) => <button type="button" key={option.value} className={(form.calendarPreference || "UNSET") === option.value ? "selected" : ""} onClick={() => update("calendarPreference", option.value)}><strong>{option.label}</strong><span>{option.detail}</span></button>)}</div>
-            <div className="field-grid onboarding-fields property-notification-fields"><label><span>Booking notification email</span><input type="email" value={form.notificationEmail || ""} onChange={(e) => update("notificationEmail", e.target.value)} /></label><label><span>Operations notification email</span><input type="email" value={form.operationsEmail || ""} onChange={(e) => update("operationsEmail", e.target.value)} /></label></div>
-            <div className="connection-card"><div className="connection-icon">↻</div><div><strong>Manage calendar connections and availability in one place.</strong><span>Connect iCal feeds, review sync status and block dates from the Calendar workspace.</span></div><Link className="button button-small" href="/host/calendar">Open calendar</Link></div>
-          </div>
-        </details>
+          <details className="property-edit-section" open={setupPricingEditable}>
+            <summary>
+              <span>
+                <b>4</b>
+                <strong>Rates &amp; fees</strong>
+              </span>
+              <small>
+                {form.weeknight
+                  ? `$${form.weeknight}/night`
+                  : "Not priced"}
+              </small>
+            </summary>
 
+            <div className="property-edit-body">
+              {setupPricingEditable ? (
+                <>
+                  <div className="field-grid onboarding-fields">
+                    <label>
+                      <span>Weeknight rate · required to publish</span>
+                      <div className="money-input">
+                        <i>$</i>
+                        <input
+                          type="number"
+                          min="1"
+                          step="0.01"
+                          value={form.weeknight || ""}
+                          onChange={(event) =>
+                            update("weeknight", event.target.value)
+                          }
+                          placeholder="199"
+                        />
+                      </div>
+                      <small>Sunday–Thursday base nightly rate.</small>
+                    </label>
+
+                    <label>
+                      <span>Weekend rate</span>
+                      <div className="money-input">
+                        <i>$</i>
+                        <input
+                          type="number"
+                          min="1"
+                          step="0.01"
+                          value={form.weekend || ""}
+                          onChange={(event) =>
+                            update("weekend", event.target.value)
+                          }
+                          placeholder="Optional"
+                        />
+                      </div>
+                      <small>
+                        Friday–Saturday. Leave blank to use the
+                        weeknight rate.
+                      </small>
+                    </label>
+
+                    <label>
+                      <span>Default minimum stay</span>
+                      <input
+                        type="number"
+                        min="1"
+                        max="365"
+                        value={form.minStay || "1"}
+                        onChange={(event) =>
+                          update("minStay", event.target.value)
+                        }
+                      />
+                      <small>
+                        Used unless a date-specific minimum overrides
+                        it later.
+                      </small>
+                    </label>
+
+                    <label>
+                      <span>Cleaning fee</span>
+                      <div className="money-input">
+                        <i>$</i>
+                        <input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          value={form.cleaning || ""}
+                          onChange={(event) =>
+                            update("cleaning", event.target.value)
+                          }
+                          placeholder="0"
+                        />
+                      </div>
+                      <small>Flat fee per stay. Leave blank for none.</small>
+                    </label>
+
+                    <label>
+                      <span>Pet fee</span>
+                      <div className="money-input">
+                        <i>$</i>
+                        <input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          value={form.pet || ""}
+                          onChange={(event) =>
+                            update("pet", event.target.value)
+                          }
+                          placeholder="0"
+                        />
+                      </div>
+                      <small>
+                        During initial setup this uses the standard
+                        per-pet, per-night mode.
+                      </small>
+                    </label>
+                  </div>
+
+                  <div className="inline-note commission-note">
+                    <strong>Set the booking basics here.</strong>
+                    <span>
+                      These values save into the same pricing records
+                      used by checkout. After the listing is live, use
+                      Rates &amp; fees for seasonal rates, pet-fee
+                      modes, additional-guest fees, promo codes and
+                      guest add-ons.
+                    </span>
+                    <Link
+                      className="inline-note-link"
+                      href={`/host/rates/${
+                        form.slug || initial.form.slug
+                      }`}
+                    >
+                      Open advanced Rates &amp; fees →
+                    </Link>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="property-pricing-summary">
+                    <div>
+                      <span>Weeknight</span>
+                      <strong>
+                        {form.weeknight
+                          ? `$${form.weeknight}`
+                          : "Not set"}
+                      </strong>
+                    </div>
+                    <div>
+                      <span>Weekend</span>
+                      <strong>
+                        {form.weekend
+                          ? `$${form.weekend}`
+                          : "Uses weeknight"}
+                      </strong>
+                    </div>
+                    <div>
+                      <span>Default minimum</span>
+                      <strong>
+                        {form.minStay || "1"} night
+                        {(form.minStay || "1") === "1" ? "" : "s"}
+                      </strong>
+                    </div>
+                  </div>
+                  <div className="inline-note commission-note">
+                    <strong>Live pricing stays in Rates &amp; fees.</strong>
+                    <span>
+                      Once a listing is live or paused, operational
+                      pricing is changed from the pricing workspace so
+                      this property-details screen cannot overwrite
+                      date rules, promotions or other active pricing.
+                    </span>
+                    <Link
+                      className="inline-note-link"
+                      href={`/host/rates/${
+                        form.slug || initial.form.slug
+                      }`}
+                    >
+                      Open Rates &amp; fees →
+                    </Link>
+                  </div>
+                </>
+              )}
+            </div>
+          </details>
+
+          <details className="property-edit-section" open>
+            <summary>
+              <span>
+                <b>5</b>
+                <strong>Policies &amp; stay rules</strong>
+              </span>
+              <small>{policies.length} selected</small>
+            </summary>
+            <div className="property-edit-body">
+              <div className="selection-groups policy-picker">
+                {policyGroups.map((group) => (
+                  <details
+                    key={group.title}
+                    open={group.title === "House rules"}
+                  >
+                    <summary>
+                      <strong>{group.title}</strong>
+                      <span>
+                        {
+                          group.items.filter((item) =>
+                            policies.includes(item),
+                          ).length
+                        }{" "}
+                        selected
+                      </span>
+                    </summary>
+                    <div className="amenity-picker">
+                      {group.items.map((item) => (
+                        <label
+                          className={
+                            policies.includes(item) ? "selected" : ""
+                          }
+                          key={item}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={policies.includes(item)}
+                            onChange={() =>
+                              toggle(item, policies, setPolicies)
+                            }
+                          />
+                          <span>{item}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </details>
+                ))}
+              </div>
+
+              <div className="field-grid onboarding-fields conditional-fields">
+                {policies.includes("Quiet hours apply") ? (
+                  <>
+                    <label>
+                      <span>Quiet hours start</span>
+                      <input
+                        type="time"
+                        value={form.quietStart || "22:00"}
+                        onChange={(event) =>
+                          update("quietStart", event.target.value)
+                        }
+                      />
+                    </label>
+                    <label>
+                      <span>Quiet hours end</span>
+                      <input
+                        type="time"
+                        value={form.quietEnd || "07:00"}
+                        onChange={(event) =>
+                          update("quietEnd", event.target.value)
+                        }
+                      />
+                    </label>
+                  </>
+                ) : null}
+
+                {policies.includes("Pets allowed") ? (
+                  <label>
+                    <span>Maximum pets</span>
+                    <input
+                      type="number"
+                      min="1"
+                      value={form.maxPets || ""}
+                      onChange={(event) =>
+                        update("maxPets", event.target.value)
+                      }
+                    />
+                  </label>
+                ) : null}
+
+                {policies.includes("Minimum booking age applies") ? (
+                  <label>
+                    <span>Minimum booking age</span>
+                    <input
+                      type="number"
+                      min="18"
+                      value={form.minimumAge || ""}
+                      onChange={(event) =>
+                        update("minimumAge", event.target.value)
+                      }
+                    />
+                  </label>
+                ) : null}
+
+                <label>
+                  <span>Check-in</span>
+                  <input
+                    type="time"
+                    value={form.checkIn || ""}
+                    onChange={(event) =>
+                      update("checkIn", event.target.value)
+                    }
+                  />
+                </label>
+
+                <label>
+                  <span>Checkout</span>
+                  <input
+                    type="time"
+                    value={form.checkout || ""}
+                    onChange={(event) =>
+                      update("checkout", event.target.value)
+                    }
+                  />
+                </label>
+
+                <label className="full">
+                  <span>
+                    Cancellation &amp; refund terms · required to
+                    publish
+                  </span>
+                  <textarea
+                    value={form.cancellation || ""}
+                    onChange={(event) =>
+                      update("cancellation", event.target.value)
+                    }
+                    placeholder="Example: Full refund when canceled 14 or more days before check-in. No refund within 14 days of check-in."
+                  />
+                  <small>
+                    Write the actual terms the guest is agreeing to.
+                    A label such as “none,” “firm,” “moderate” or
+                    “strict” does not count as a complete policy.
+                  </small>
+                </label>
+
+                <label className="full">
+                  <span>Custom property policies</span>
+                  <textarea
+                    value={form.customPolicies || ""}
+                    onChange={(event) =>
+                      update("customPolicies", event.target.value)
+                    }
+                    placeholder="Uncommon property-specific rules or instructions."
+                  />
+                </label>
+              </div>
+            </div>
+          </details>
+
+          <details className="property-edit-section" open>
+            <summary>
+              <span>
+                <b>6</b>
+                <strong>Photos</strong>
+              </span>
+              <small>{images.length}/12 uploaded</small>
+            </summary>
+            <div className="property-edit-body">
+              <label
+                className={`property-upload ${
+                  uploading ? "busy" : ""
+                }`}
+              >
+                <input
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  multiple
+                  disabled={uploading || images.length >= 12}
+                  onChange={(event) => {
+                    void uploadFiles(event.target.files);
+                    event.currentTarget.value = "";
+                  }}
+                />
+                <strong>
+                  {uploading ? "Uploading…" : "Add property photos"}
+                </strong>
+                <span>
+                  JPG, PNG or WebP · up to 10 MB each · private until
+                  this property is published
+                </span>
+              </label>
+
+              {images.length ? (
+                <div className="property-image-grid">
+                  {images.map((image, index) => (
+                    <figure key={image.id}>
+                      {image.signedUrl ? (
+                        <img
+                          src={image.signedUrl}
+                          alt={
+                            image.altText ||
+                            form.name ||
+                            "Property"
+                          }
+                        />
+                      ) : (
+                        <div className="property-image-missing">
+                          Preview unavailable
+                        </div>
+                      )}
+                      <figcaption>
+                        <span>
+                          {index === 0
+                            ? "Primary photo"
+                            : image.originalName ||
+                              `Photo ${index + 1}`}
+                        </span>
+                        <button
+                          type="button"
+                          disabled={uploading}
+                          onClick={() => void removeImage(image)}
+                        >
+                          Remove
+                        </button>
+                      </figcaption>
+                    </figure>
+                  ))}
+                </div>
+              ) : (
+                <div className="panel-empty">
+                  <strong>No photos uploaded yet.</strong>
+                  <span>
+                    Add at least one property photo before publishing
+                    the listing.
+                  </span>
+                </div>
+              )}
+            </div>
+          </details>
+
+          <details className="property-edit-section">
+            <summary>
+              <span>
+                <b>7</b>
+                <strong>Calendar &amp; notifications</strong>
+              </span>
+              <small>{selectedCalendar?.label || "Decide later"}</small>
+            </summary>
+            <div className="property-edit-body">
+              <div className="calendar-preference-grid">
+                {calendarPreferences.map((option) => (
+                  <button
+                    type="button"
+                    key={option.value}
+                    className={
+                      (form.calendarPreference || "UNSET") ===
+                      option.value
+                        ? "selected"
+                        : ""
+                    }
+                    onClick={() =>
+                      update("calendarPreference", option.value)
+                    }
+                  >
+                    <strong>{option.label}</strong>
+                    <span>{option.detail}</span>
+                  </button>
+                ))}
+              </div>
+
+              <div className="field-grid onboarding-fields property-notification-fields">
+                <label>
+                  <span>Booking notification email</span>
+                  <input
+                    type="email"
+                    value={form.notificationEmail || ""}
+                    onChange={(event) =>
+                      update(
+                        "notificationEmail",
+                        event.target.value,
+                      )
+                    }
+                  />
+                </label>
+                <label>
+                  <span>Operations notification email</span>
+                  <input
+                    type="email"
+                    value={form.operationsEmail || ""}
+                    onChange={(event) =>
+                      update(
+                        "operationsEmail",
+                        event.target.value,
+                      )
+                    }
+                  />
+                </label>
+              </div>
+
+              <div className="connection-card">
+                <div className="connection-icon">↻</div>
+                <div>
+                  <strong>
+                    Manage calendar connections and availability in
+                    one place.
+                  </strong>
+                  <span>
+                    Connect iCal feeds, review sync status and block
+                    dates from the Calendar workspace.
+                  </span>
+                </div>
+                <Link
+                  className="button button-small"
+                  href="/host/calendar"
+                >
+                  Open calendar
+                </Link>
+              </div>
+            </div>
+          </details>
         </fieldset>
-        <div className="property-editor-footer"><div><strong>{liveEditable ? "Listing changes" : editable ? "Property details" : "Listing review"}</strong><span>{liveEditable ? initial.status === "PUBLISHED" ? "Saving updates the live guest-facing listing immediately. Rates, availability, taxes and payment settings stay in their dedicated tools." : "Saving updates this paused listing without changing its publication state." : editable ? "Saving keeps your listing changes without publishing them." : "Editing is locked while this listing is in review."}</span></div><button type="button" className="button" disabled={saving || !editable} onClick={save}>{saving ? "Saving…" : liveEditable ? "Save live changes" : editable ? "Save property" : "Editing locked"}</button></div>
+
+        <div className="property-editor-footer">
+          <div>
+            <strong>
+              {liveEditable
+                ? "Listing changes"
+                : editable
+                  ? "Property details"
+                  : "Listing review"}
+            </strong>
+            <span>
+              {liveEditable
+                ? initial.status === "PUBLISHED"
+                  ? "Saving updates the live guest-facing listing immediately. Operational rates, availability, taxes and payment settings stay in their dedicated tools."
+                  : "Saving updates this paused listing without changing its publication state."
+                : editable
+                  ? "Save as you go. When the required details, cancellation terms, base rate, photo and payment account are ready, you can publish the listing."
+                  : "Editing is locked in the current listing state."}
+            </span>
+          </div>
+          <button
+            type="button"
+            className="button"
+            disabled={saving || !editable}
+            onClick={save}
+          >
+            {saving
+              ? "Saving…"
+              : liveEditable
+                ? "Save live changes"
+                : editable
+                  ? "Save property"
+                  : "Editing locked"}
+          </button>
+        </div>
       </section>
 
       <aside className="property-editor-aside">
-        <div className="property-status-card"><small>Listing status</small><strong>{initial.status.replaceAll("_", " ")}</strong><p>{initial.status === "DRAFT" || initial.status === "CHANGES_REQUESTED" || initial.status === "REJECTED" ? "Finish the listing and submit it to the Find A Place team for review." : initial.status === "PENDING_REVIEW" ? "Submitted to the Find A Place team. Editing is locked while review is active." : initial.status === "APPROVED" ? "Approved by the Find A Place team. It is not public until an authorized admin publishes it." : initial.status === "PUBLISHED" ? "Live in the guest-facing marketplace. Hosts can edit listing details and photos here; operational rates, availability, taxes and payment settings stay in their dedicated tools." : initial.status === "PAUSED" ? "Currently paused from public marketplace visibility. Property details remain editable while paused." : "Currently unavailable for host editing."}</p></div>
-        {editable ? <div className="property-url-card"><small>Review readiness</small>{initial.submissionIssues.length ? <><strong>{initial.submissionIssues.length} item{initial.submissionIssues.length === 1 ? "" : "s"} remaining</strong><div>{initial.submissionIssues.map((issue) => <span key={issue}>• {issue}</span>)}</div></> : <><strong>Ready to submit</strong><p>The minimum listing information required for admin review is complete.</p></>}</div> : null}
-        <div className="property-url-card"><small>Booking URL</small><strong>/stays/{form.slug}</strong><p>This is the public listing address once the property is published.</p></div>
+        <div className="property-status-card">
+          <small>Listing status</small>
+          <strong>{initial.status.replaceAll("_", " ")}</strong>
+          <p>
+            {initial.status === "DRAFT" ||
+            initial.status === "CHANGES_REQUESTED" ||
+            initial.status === "REJECTED"
+              ? "Finish the required listing information, then publish it directly from this property page."
+              : initial.status === "PUBLISHED"
+                ? "Live in the guest-facing marketplace. Listing details and photos can be updated here."
+                : initial.status === "PAUSED"
+                  ? "Currently paused from public visibility. Republish from the property page when you are ready."
+                  : "This listing is in a protected lifecycle state."}
+          </p>
+        </div>
+
+        {editable ? (
+          <div className="property-url-card">
+            <small>Publication readiness</small>
+            {initial.submissionIssues.length ? (
+              <>
+                <strong>
+                  {initial.submissionIssues.length} item
+                  {initial.submissionIssues.length === 1 ? "" : "s"}{" "}
+                  remaining
+                </strong>
+                <div>
+                  {initial.submissionIssues.map((issue) => (
+                    <span key={issue}>• {issue}</span>
+                  ))}
+                </div>
+              </>
+            ) : (
+              <>
+                <strong>Listing details are ready</strong>
+                <p>
+                  The property has the minimum listing information
+                  required for publication. Live payment readiness is
+                  checked again when you publish.
+                </p>
+              </>
+            )}
+          </div>
+        ) : null}
+
+        <div className="property-url-card">
+          <small>Booking URL</small>
+          <strong>/stays/{form.slug}</strong>
+          <p>
+            This is the public listing address once the property is
+            published.
+          </p>
+        </div>
       </aside>
     </div>
   );

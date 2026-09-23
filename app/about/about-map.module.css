@@ -27,13 +27,237 @@
   z-index: -2;
   pointer-events: none;
   background:
-    linear-gradient(90deg, rgba(7, 16, 13, .77) 0%, rgba(7, 17, 14, .61) 42%, rgba(7, 16, 13, .30) 72%, rgba(7, 16, 13, .22) 100%),
-    linear-gradient(180deg, rgba(3, 9, 7, .12) 0%, rgba(3, 9, 7, .18) 55%, rgba(3, 9, 7, .34) 100%);
+    linear-gradient(90deg, rgba(7, 16, 13, .82) 0%, rgba(7, 17, 14, .65) 43%, rgba(7, 16, 13, .31) 74%, rgba(7, 16, 13, .24) 100%),
+    linear-gradient(180deg, rgba(3, 9, 7, .12) 0%, rgba(3, 9, 7, .18) 55%, rgba(3, 9, 7, .36) 100%);
 }
 
 .aboutHeroContent {
   position: relative;
   z-index: 1;
+}
+
+.heroSealPanel {
+  align-self: center;
+}
+
+.heroSealMedia {
+  display: grid;
+  place-items: center;
+  background: #f4f1e9;
+  padding: 26px;
+}
+
+.heroSealMedia img {
+  width: min(100%, 340px);
+  height: auto;
+  object-fit: contain;
+}
+
+.storySection {
+  padding: 92px 0;
+  background: #f7f4ed;
+}
+
+.storyGrid {
+  display: grid;
+  grid-template-columns: minmax(280px, .8fr) minmax(0, 1.2fr);
+  gap: clamp(40px, 7vw, 100px);
+  align-items: start;
+}
+
+.storyHeading {
+  position: sticky;
+  top: 28px;
+}
+
+.storyHeading h2,
+.bookingBridge h2,
+.teamIntro h2,
+.partnerMapHeading h2 {
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: clamp(2.4rem, 4vw, 4.2rem);
+  line-height: 1.03;
+  letter-spacing: -.035em;
+  font-weight: 500;
+  margin: 0;
+}
+
+.storyCopy {
+  display: grid;
+  gap: 24px;
+  color: #3d4742;
+  font-size: 1.02rem;
+  line-height: 1.8;
+}
+
+.storyCopy > p,
+.historyList p {
+  margin: 0;
+}
+
+.historyList {
+  display: grid;
+  gap: 16px;
+  padding-left: 22px;
+  border-left: 2px solid rgba(49, 95, 75, .25);
+}
+
+.followingLine {
+  margin-top: 8px !important;
+  color: #1f3d31;
+  font-weight: 800;
+  font-size: 1.08rem;
+}
+
+.bookingBridgeSection {
+  padding: 76px 0;
+  background: #e7e5df;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+}
+
+.bookingBridge {
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(300px, .95fr);
+  gap: clamp(36px, 7vw, 88px);
+  align-items: center;
+}
+
+.bookingBridge > div:last-child {
+  display: grid;
+  gap: 22px;
+  justify-items: start;
+}
+
+.bookingBridge p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.75;
+}
+
+.teamSection {
+  padding: 92px 0 104px;
+  background: #fbf9f4;
+}
+
+.teamIntro {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(280px, .85fr);
+  gap: 58px;
+  align-items: end;
+  margin-bottom: 42px;
+}
+
+.teamIntro > p {
+  color: var(--muted);
+  line-height: 1.75;
+  margin: 0 0 5px;
+  max-width: 560px;
+}
+
+.teamGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 24px;
+}
+
+.teamCard {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid rgba(46, 56, 51, .14);
+  border-radius: 22px;
+  background: #fff;
+  box-shadow: 0 14px 34px rgba(26, 34, 30, .06);
+}
+
+.teamCardFeatured {
+  grid-column: span 2;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+}
+
+.teamPhoto {
+  position: relative;
+  min-height: 300px;
+  overflow: hidden;
+  background: #e5e4dc;
+}
+
+.teamCard:not(.teamCardFeatured) .teamPhoto {
+  aspect-ratio: 4 / 3;
+  min-height: 0;
+}
+
+.teamPhoto > img {
+  object-fit: cover;
+}
+
+.teamPhotoPlaceholder {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 50px;
+  background:
+    radial-gradient(circle at top right, rgba(151, 86, 57, .14), transparent 44%),
+    linear-gradient(145deg, #f0eee7, #dedfd6);
+}
+
+.teamPhotoPlaceholder img {
+  width: min(72%, 280px);
+  height: auto;
+  opacity: .82;
+}
+
+.teamCardBody {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 18px;
+  padding: 24px;
+}
+
+.teamCardBody h3 {
+  margin: 0;
+  font-size: 1.25rem;
+  line-height: 1.18;
+  color: #202a26;
+}
+
+.teamSubtitle {
+  margin: 6px 0 0;
+  color: #315f4b;
+  font-size: .86rem;
+  font-weight: 800;
+  line-height: 1.45;
+}
+
+.teamBio {
+  margin: 0;
+  color: #5a625e;
+  font-size: .91rem;
+  line-height: 1.67;
+}
+
+.teamLink,
+.teamLinkMuted {
+  margin-top: auto;
+  font-size: .79rem;
+  font-weight: 850;
+}
+
+.teamLink {
+  color: #315f4b;
+}
+
+.teamLink:hover {
+  text-decoration: underline;
+}
+
+.teamLinkMuted {
+  color: #89908c;
 }
 
 .partnerMapSection {
@@ -49,15 +273,6 @@
   gap: 64px;
   align-items: end;
   margin-bottom: 30px;
-}
-
-.partnerMapHeading h2 {
-  font-family: Georgia, "Times New Roman", serif;
-  font-size: clamp(2.5rem, 4vw, 4.35rem);
-  line-height: 1.02;
-  letter-spacing: -.035em;
-  font-weight: 500;
-  margin: 0;
 }
 
 .partnerMapHeading > p {
@@ -103,22 +318,55 @@
   text-decoration: underline;
 }
 
+@media (max-width: 1100px) {
+  .teamGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .teamCardFeatured {
+    grid-column: span 2;
+  }
+}
+
 @media (max-width: 850px) {
   .aboutHeroVideo {
     object-position: 52% center;
   }
 
   .aboutHeroShade {
-    background: linear-gradient(180deg, rgba(7, 17, 14, .56), rgba(7, 17, 14, .69));
+    background: linear-gradient(180deg, rgba(7, 17, 14, .58), rgba(7, 17, 14, .72));
   }
 
+  .storySection,
+  .teamSection {
+    padding: 68px 0;
+  }
+
+  .storyGrid,
+  .bookingBridge,
+  .teamIntro,
+  .partnerMapHeading {
+    grid-template-columns: 1fr;
+    gap: 24px;
+  }
+
+  .storyHeading {
+    position: static;
+  }
+
+  .bookingBridgeSection,
   .partnerMapSection {
     padding: 64px 0;
   }
 
-  .partnerMapHeading {
-    grid-template-columns: 1fr;
-    gap: 18px;
+  .teamCardFeatured {
+    display: flex;
+    grid-column: auto;
+  }
+
+  .teamCardFeatured .teamPhoto {
+    aspect-ratio: 4 / 3;
+    min-height: 0;
   }
 
   .partnerMapFrame {
@@ -126,9 +374,36 @@
   }
 }
 
-@media (max-width: 600px) {
+@media (max-width: 640px) {
+  .heroSealMedia {
+    padding: 20px;
+  }
+
+  .storySection,
+  .teamSection {
+    padding: 54px 0;
+  }
+
+  .bookingBridgeSection,
   .partnerMapSection {
     padding: 52px 0;
+  }
+
+  .teamGrid {
+    grid-template-columns: 1fr;
+    gap: 18px;
+  }
+
+  .teamCardFeatured {
+    grid-column: auto;
+  }
+
+  .teamCard {
+    border-radius: 18px;
+  }
+
+  .teamCardBody {
+    padding: 21px;
   }
 
   .partnerMapFrame {

@@ -1,7 +1,11 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
-import { archiveProperty, submitPropertyForReview } from "@/app/host/properties/actions";
+import {
+  archiveProperty,
+  publishPropertyListing,
+  setPropertyMarketplaceVisibility,
+} from "@/app/host/properties/actions";
 import { DashboardShell } from "@/components/DashboardShell";
 import { PropertyEditor } from "@/components/PropertyEditor";
 import { PropertyPolicyDocument } from "@/components/PropertyPolicyDocument";
@@ -22,8 +26,11 @@ export default async function ManagePropertyPage({
   params: Promise<{ slug: string }>;
   searchParams: Promise<{
     created?: string;
-    submitted?: string;
-    review_error?: string;
+    published?: string;
+    publish_error?: string;
+    onboarding?: string;
+    marketplace?: string;
+    marketplace_error?: string;
   }>;
 }) {
   const [{ slug }, query] = await Promise.all([params, searchParams]);
@@ -34,10 +41,14 @@ export default async function ManagePropertyPage({
     property.propertyId,
   );
 
-  const canSubmit = ["DRAFT", "CHANGES_REQUESTED", "REJECTED"].includes(
-    property.status,
-  );
-  const ready = canSubmit && property.submissionIssues.length === 0;
+  const canPublish = [
+    "DRAFT",
+    "CHANGES_REQUESTED",
+    "REJECTED",
+    "APPROVED",
+    "PAUSED",
+  ].includes(property.status);
+  const ready = canPublish && property.submissionIssues.length === 0;
 
   return (
     <DashboardShell
@@ -47,25 +58,51 @@ export default async function ManagePropertyPage({
     >
       <div className="property-editor-heading">
         <Link href="/host/properties">← All properties</Link>
-        {query.created ? (
-          <span className="status-pill">Real property created</span>
+        {query.created || query.onboarding ? (
+          <span className="status-pill">
+            {property.status === "PUBLISHED"
+              ? "Created & published"
+              : "Real property created"}
+          </span>
         ) : (
-          <span className="status-pill status-muted">
+          <span
+            className={`status-pill ${
+              property.status === "PUBLISHED" ? "" : "status-muted"
+            }`}
+          >
             {readable(property.status)}
           </span>
         )}
       </div>
 
-      {query.submitted ? (
+      {query.published ? (
         <div className="admin-message success">
-          <strong>Submitted for review.</strong> The Find A Place team can now
-          review this listing. Editing is locked until they approve it or return
-          it for changes.
+          <strong>Listing published.</strong> This property is now available
+          to the public marketplace and can receive bookings.
         </div>
       ) : null}
 
-      {query.review_error ? (
-        <div className="admin-message error">{query.review_error}</div>
+      {query.publish_error ? (
+        <div className="admin-message error">{query.publish_error}</div>
+      ) : null}
+
+      {query.marketplace === "disabled" ? (
+        <div className="admin-message success">
+          <strong>Listing disabled.</strong> It is hidden from the public
+          marketplace. Existing reservations and calendar records remain
+          intact.
+        </div>
+      ) : null}
+
+      {query.marketplace === "enabled" ? (
+        <div className="admin-message success">
+          <strong>Listing enabled.</strong> It is public in the marketplace
+          again.
+        </div>
+      ) : null}
+
+      {query.marketplace_error ? (
+        <div className="admin-message error">{query.marketplace_error}</div>
       ) : null}
 
       <PropertyEditor initial={property} />
@@ -78,61 +115,85 @@ export default async function ManagePropertyPage({
 
       <section className="panel property-review-submit">
         <div>
-          <p className="eyebrow dark">Listing review</p>
+          <p className="eyebrow dark">Marketplace visibility</p>
           <h2>
-            {property.status === "PENDING_REVIEW"
-              ? "Review in progress"
-              : property.status === "APPROVED"
-                ? "Approved and waiting for publication"
-                : property.status === "PUBLISHED"
-                  ? "Published to the marketplace"
-                  : property.status === "PAUSED"
-                    ? "Publication paused"
-                    : "Submit this listing to Find A Place"}
+            {property.status === "PUBLISHED"
+              ? "Listing is enabled"
+              : property.status === "PAUSED"
+                ? "Listing is disabled"
+                : "Publish this listing when it is ready"}
           </h2>
 
-          {canSubmit ? (
-            property.submissionIssues.length ? (
-              <>
-                <p>
-                  Finish the minimum listing details below before sending it to
-                  the admin team.
-                </p>
-                <div className="review-readiness-list">
-                  {property.submissionIssues.map((issue) => (
-                    <span key={issue}>• {issue}</span>
-                  ))}
-                </div>
-              </>
-            ) : (
+          {property.status === "PUBLISHED" ? (
+            <p>
+              This property is visible in traveler searches and can receive
+              new bookings. Disable it any time to take it off the marketplace
+              without deleting the property or changing existing reservations.
+            </p>
+          ) : property.status === "PAUSED" ? (
+            <p>
+              The property is hidden from traveler searches. Existing
+              reservations and calendar records are unchanged. Enable it again
+              whenever you are ready to accept new bookings.
+            </p>
+          ) : property.submissionIssues.length ? (
+            <>
               <p>
-                The minimum review requirements are complete. Submission sends
-                the current saved property record to the Find A Place admin
-                queue.
+                Finish the required listing details below before the stay can
+                go live.
               </p>
-            )
+              <div className="review-readiness-list">
+                {property.submissionIssues.map((issue) => (
+                  <span key={issue}>• {issue}</span>
+                ))}
+              </div>
+            </>
           ) : (
             <p>
-              {property.status === "PENDING_REVIEW"
-                ? "The listing is locked while the admin team reviews the saved version."
-                : property.status === "APPROVED"
-                  ? "Approval does not automatically make a listing public. An authorized admin must publish it separately."
-                  : property.status === "PUBLISHED"
-                    ? "The listing is guest-visible and can receive bookings when checkout is enabled."
-                    : "This listing is not currently editable from the host side."}
+              The minimum listing requirements are complete. Publishing makes
+              the property public immediately. A live, ready Stripe account is
+              checked again when you publish.
             </p>
           )}
 
           {property.reviewNote ? (
             <div className="review-note-inline">
-              <strong>Latest review note</strong>
+              <strong>Previous admin note</strong>
               <span>{property.reviewNote}</span>
             </div>
           ) : null}
         </div>
 
-        {canSubmit ? (
-          <form action={submitPropertyForReview}>
+        {property.status === "PUBLISHED" ? (
+          <form action={setPropertyMarketplaceVisibility}>
+            <input
+              type="hidden"
+              name="propertyId"
+              value={property.propertyId}
+            />
+            <input type="hidden" name="slug" value={property.form.slug} />
+            <input type="hidden" name="returnTo" value="detail" />
+            <input type="hidden" name="intent" value="DISABLE" />
+            <button className="button button-quiet" type="submit">
+              Disable listing
+            </button>
+          </form>
+        ) : property.status === "PAUSED" ? (
+          <form action={setPropertyMarketplaceVisibility}>
+            <input
+              type="hidden"
+              name="propertyId"
+              value={property.propertyId}
+            />
+            <input type="hidden" name="slug" value={property.form.slug} />
+            <input type="hidden" name="returnTo" value="detail" />
+            <input type="hidden" name="intent" value="ENABLE" />
+            <button className="button" type="submit">
+              Enable listing →
+            </button>
+          </form>
+        ) : canPublish ? (
+          <form action={publishPropertyListing}>
             <input
               type="hidden"
               name="propertyId"
@@ -140,13 +201,13 @@ export default async function ManagePropertyPage({
             />
             <input type="hidden" name="slug" value={property.form.slug} />
             <button className="button" type="submit" disabled={!ready}>
-              Submit for review →
+              Publish listing →
             </button>
           </form>
         ) : null}
       </section>
 
-      {canSubmit ? (
+      {property.status !== "PUBLISHED" ? (
         <section className="panel property-danger-zone">
           <div>
             <p className="eyebrow dark">Property lifecycle</p>

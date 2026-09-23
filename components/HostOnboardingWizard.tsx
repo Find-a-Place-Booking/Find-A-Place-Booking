@@ -314,10 +314,20 @@ export function HostOnboardingWizard({
           "Host setup complete. Opening the finished property record…",
       });
 
+      const completionQuery = payload.published
+        ? "onboarding=complete&published=1"
+        : `onboarding=complete${
+            payload.publicationMessage
+              ? `&publish_error=${encodeURIComponent(
+                  payload.publicationMessage,
+                )}`
+              : ""
+          }`;
+
       router.push(
         `/host/properties/${encodeURIComponent(
           payload.slug,
-        )}?onboarding=complete`,
+        )}?${completionQuery}`,
       );
       router.refresh();
     } catch (error) {
@@ -411,7 +421,8 @@ export function HostOnboardingWizard({
             <p className="eyebrow dark">Host profile</p>
             <h2>Who manages the stay?</h2>
             <p>
-              Add the name and contact details guests and Find A Place should use.
+              This creates the host organization used by the dashboard,
+              guest contact details and admin team.
             </p>
             <div className="field-grid onboarding-fields">
               <label className="full">
@@ -663,9 +674,10 @@ export function HostOnboardingWizard({
         {step === 4 && (
           <>
             <p className="eyebrow dark">Photos</p>
-            <h2>Add your listing photos.</h2>
+            <h2>Upload the actual listing photos now.</h2>
             <p>
-              Photos added here stay with this property and will appear on the listing.
+              These photos save directly to the real draft property, so
+              you will not have to upload them again after onboarding.
             </p>
             <OnboardingPhotoManager
               organizationId={initial.organizationId}
@@ -947,8 +959,9 @@ export function HostOnboardingWizard({
             <p className="eyebrow dark">Calendar</p>
             <h2>Choose the source of truth for availability.</h2>
             <p>
-              Choose how you want availability managed. Calendar connections can
-              be added after the listing is created.
+              Save the preferred calendar approach here. Calendar
+              connections can be added after the listing is created;
+              your choice here is carried into the real property record.
             </p>
             <div className="calendar-preference-grid">
               {calendarPreferences.map((option) => (
@@ -975,10 +988,11 @@ export function HostOnboardingWizard({
         {step === 8 && (
           <>
             <p className="eyebrow dark">Payments</p>
-            <h2>Connect Stripe before you finish.</h2>
+            <h2>Connect Stripe before you finish onboarding.</h2>
             <p>
-              Connect the Stripe account that will receive guest payments. Once
-              it is ready, you will not need to set it up again.
+              Complete the same secure Stripe Connect flow used by
+              Payments &amp; taxes here. Once Stripe is ready, you will
+              not need to repeat this setup after onboarding.
             </p>
             <OnboardingStripeSetup
               organizationId={initial.organizationId}
@@ -990,7 +1004,7 @@ export function HostOnboardingWizard({
         {step === 9 && (
           <>
             <p className="eyebrow dark">Review</p>
-            <h2>Review and finish {propertyLabel}.</h2>
+            <h2>Finish setup and create {propertyLabel}.</h2>
             <div className="review-groups">
               <div>
                 <span>Host</span>
@@ -1021,7 +1035,7 @@ export function HostOnboardingWizard({
                     : "At least one required"}
                 </strong>
                 <small>
-                  These photos are attached to this listing.
+                  Photos are already attached to the real listing draft.
                 </small>
               </div>
               <div>
@@ -1032,7 +1046,8 @@ export function HostOnboardingWizard({
                     : "Will be checked before completion"}
                 </strong>
                 <small>
-                  Guest payments are processed through your connected Stripe account.
+                  Guest payments use the host-owned connected Stripe
+                  account.
                 </small>
               </div>
               <div>
@@ -1123,6 +1138,23 @@ export function HostOnboardingWizard({
         </div>
       </section>
 
+      <aside className="onboarding-plan">
+        <small>Find A Place host setup</small>
+        <strong>Complete once</strong>
+        <span>listing + photos + payments</span>
+        <hr />
+        <p>
+          The first listing, its property photos and Stripe payment
+          connection are completed in this setup instead of sending
+          hosts back through the dashboard afterward.
+        </p>
+        <div className="plan-points">
+          <span>✓ Real listing photos saved now</span>
+          <span>✓ Stripe Connect completed now</span>
+          <span>✓ Host-owned direct payments</span>
+          <span>✓ Listing data carries into the property record</span>
+        </div>
+      </aside>
     </div>
   );
 }

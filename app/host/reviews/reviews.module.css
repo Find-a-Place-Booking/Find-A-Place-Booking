@@ -1,0 +1,167 @@
+.metrics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.metric {
+  border: 1px solid #ddd6cb;
+  background: #fff;
+  padding: 16px;
+}
+
+.metric span,
+.metric strong,
+.metric small {
+  display: block;
+}
+
+.metric span {
+  color: #777;
+  font-size: .66rem;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  font-weight: 800;
+}
+
+.metric strong {
+  margin-top: 5px;
+  font-family: Georgia, serif;
+  font-size: 1.55rem;
+  font-weight: 500;
+}
+
+.metric small {
+  margin-top: 3px;
+  color: #777;
+}
+
+.list {
+  display: grid;
+  gap: 12px;
+}
+
+.card {
+  border: 1px solid #ddd6cb;
+  background: #fff;
+  padding: 18px;
+}
+
+.top {
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+  align-items: flex-start;
+}
+
+.identity {
+  display: grid;
+  gap: 5px;
+}
+
+.identity h2 {
+  margin: 0;
+  font-family: Georgia, serif;
+  font-size: 1.2rem;
+  font-weight: 500;
+}
+
+.identity a {
+  color: #315f4b;
+  font-size: .72rem;
+  font-weight: 850;
+}
+
+.meta {
+  display: grid;
+  gap: 4px;
+  text-align: right;
+}
+
+.meta span {
+  color: #757a75;
+  font-size: .68rem;
+}
+
+.body {
+  margin: 15px 0 0;
+  white-space: pre-wrap;
+  line-height: 1.65;
+  color: #535b56;
+}
+
+.response {
+  display: grid;
+  gap: 8px;
+  margin-top: 16px;
+  border-top: 1px solid #ebe5db;
+  padding-top: 15px;
+}
+
+.response label {
+  display: grid;
+  gap: 7px;
+}
+
+.response label > span {
+  font-size: .75rem;
+  font-weight: 850;
+}
+
+.response textarea {
+  width: 100%;
+  min-height: 92px;
+  resize: vertical;
+  border: 1px solid #d3ccc0;
+  border-radius: 10px;
+  padding: 11px 12px;
+  font: inherit;
+}
+
+.responseActions {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+}
+
+.responseActions small {
+  color: #777;
+}
+
+.currentResponse {
+  border-left: 3px solid #9fb1a2;
+  background: #f4f7f4;
+  padding: 12px 14px;
+  color: #505a53;
+  line-height: 1.55;
+  white-space: pre-wrap;
+}
+
+.empty {
+  padding: 34px;
+  text-align: center;
+}
+
+@media (max-width: 760px) {
+  .metrics {
+    grid-template-columns: 1fr;
+  }
+
+  .top {
+    display: grid;
+  }
+
+  .meta {
+    text-align: left;
+  }
+
+  .responseActions {
+    display: grid;
+  }
+
+  .responseActions button {
+    width: 100%;
+  }
+}

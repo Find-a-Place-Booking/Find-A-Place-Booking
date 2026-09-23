@@ -1,3 +1,4 @@
+import { revalidatePath } from "next/cache";
 import { NextRequest, NextResponse } from "next/server";
 
 import {
@@ -28,12 +29,18 @@ export async function GET(request: NextRequest) {
     .eq("reservation_id", reservationId)
     .maybeSingle();
 
-  return NextResponse.json({ review: data ?? null });
+  return NextResponse.json(
+    { review: data ?? null },
+    { headers: { "Cache-Control": "private, no-store, max-age=0" } },
+  );
 }
 
 export async function POST(request: NextRequest) {
   if (!sameOrigin(request)) {
-    return NextResponse.json({ error: "Invalid request origin." }, { status: 403 });
+    return NextResponse.json(
+      { error: "Invalid request origin." },
+      { status: 403 },
+    );
   }
 
   const body = (await request.json().catch(() => null)) as
@@ -48,7 +55,7 @@ export async function POST(request: NextRequest) {
   const reservationId = body?.reservationId?.trim() || "";
   const checkoutToken = body?.checkoutToken?.trim() || "";
   const rating = Number(body?.rating);
-  const review = body?.review?.trim().slice(0, 4000) || null;
+  const review = body?.review?.trim().slice(0, 4000) || "";
 
   if (
     !reservationId ||
@@ -62,7 +69,14 @@ export async function POST(request: NextRequest) {
 
   if (!Number.isInteger(rating) || rating < 1 || rating > 5) {
     return NextResponse.json(
-      { error: "Choose a rating from 1 to 5." },
+      { error: "Choose a rating from 1 to 5 stars." },
+      { status: 400 },
+    );
+  }
+
+  if (review.length < 10) {
+    return NextResponse.json(
+      { error: "Write a short review of at least 10 characters." },
       { status: 400 },
     );
   }
@@ -70,9 +84,7 @@ export async function POST(request: NextRequest) {
   const admin = createAdminClient();
   const { data: reservation } = await admin
     .from("reservations")
-    .select(
-      "id,status,property_id,unit_id,guest_name,check_out",
-    )
+    .select("id,status,property_id,unit_id,guest_name,check_out")
     .eq("id", reservationId)
     .maybeSingle();
 
@@ -109,11 +121,22 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    console.error("[trip review] insert failed", error);
     return NextResponse.json(
       { error: "Unable to save review." },
       { status: 500 },
     );
   }
+
+  const { data: unit } = await admin
+    .from("property_units")
+    .select("slug")
+    .eq("id", reservation.unit_id)
+    .maybeSingle();
+
+  revalidatePath("/");
+  revalidatePath("/stays");
+  if (unit?.slug) revalidatePath(`/stays/${unit.slug}`);
 
   return NextResponse.json({ ok: true });
 }

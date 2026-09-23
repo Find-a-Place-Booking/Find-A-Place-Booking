@@ -34,7 +34,7 @@ export function OnboardingStripeSetup({
       setReady(false);
       onReadyChange?.(false);
       setMessage(
-        "Stripe setup is temporarily unavailable. Try again shortly.",
+        "Stripe setup is temporarily unavailable because the publishable key is not configured.",
       );
       return;
     }
@@ -79,7 +79,7 @@ export function OnboardingStripeSetup({
       onReadyChange?.(nextReady);
       setMessage(
         nextReady
-          ? "Stripe is connected and ready for guest payments."
+          ? "Stripe is connected and ready for guest payments. Nothing else is required in Payments & taxes after onboarding."
           : "Stripe has been started but still needs information before guest payments can be accepted.",
       );
     } catch (error) {

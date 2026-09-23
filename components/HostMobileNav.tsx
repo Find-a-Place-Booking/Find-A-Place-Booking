@@ -11,6 +11,7 @@ const links = [
   ["Rates & fees", "/host/rates"],
   ["Payments & taxes", "/host/payments"],
   ["Messages", "/host/messages"],
+  ["Reviews", "/host/reviews"],
   ["Reports", "/host/reports"],
   ["Settings", "/host/settings"],
   ["Help & contact", "/contact#host"],
@@ -45,7 +46,9 @@ export function HostMobileNav({
                   className={alertStyles.badge}
                   aria-label={`${messageAlertCount} message alerts`}
                 >
-                  {messageAlertCount > 10 ? "10+" : messageAlertCount}
+                  {messageAlertCount > 10
+                    ? "10+"
+                    : messageAlertCount}
                 </b>
               ) : null}
               <span aria-hidden="true">›</span>

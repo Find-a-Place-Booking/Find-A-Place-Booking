@@ -2,6 +2,8 @@
 
 import { FormEvent, useCallback, useEffect, useState } from "react";
 
+import { StarRating } from "@/components/StarRating";
+import reviewStyles from "./GuestReview.module.css";
 import styles from "./ReservationChat.module.css";
 
 type Message = {
@@ -75,6 +77,15 @@ function readable(value: string | null | undefined) {
     .replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
 
+function ratingLabel(rating: number) {
+  if (rating === 5) return "Excellent";
+  if (rating === 4) return "Very good";
+  if (rating === 3) return "Good";
+  if (rating === 2) return "Fair";
+  if (rating === 1) return "Poor";
+  return "Choose 1–5 stars";
+}
+
 function isLegacyRequestMessage(body: string) {
   const value = body.trim();
   return (
@@ -112,8 +123,10 @@ export function GuestTripTools({
   const [messageDraft, setMessageDraft] = useState("");
   const [requestDraft, setRequestDraft] = useState("");
   const [requestMode, setRequestMode] = useState<RequestMode>(null);
-  const [rating, setRating] = useState(5);
+  const [rating, setRating] = useState(0);
   const [reviewBody, setReviewBody] = useState("");
+  const [reviewNotice, setReviewNotice] = useState<string | null>(null);
+  const [reviewError, setReviewError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [requestBusy, setRequestBusy] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
@@ -130,15 +143,22 @@ export function GuestTripTools({
 
     if (messageResponse.ok) {
       const payload = await messageResponse.json();
-      setMessages((payload.messages ?? []).filter((item: Message) => !isLegacyRequestMessage(item.body)));
+      setMessages(
+        (payload.messages ?? []).filter(
+          (item: Message) => !isLegacyRequestMessage(item.body),
+        ),
+      );
     }
+
     if (reviewResponse.ok) {
       const payload = await reviewResponse.json();
       setReview(payload.review ?? null);
     }
+
     if (cancellationResponse.ok) {
       setCancellation((await cancellationResponse.json()) as CancellationState);
     }
+
     if (changeResponse.ok) {
       setChangeRequest((await changeResponse.json()) as ChangeState);
     }
@@ -152,12 +172,14 @@ export function GuestTripTools({
 
   useEffect(() => {
     if (!requestMode) return;
+
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape" && !requestBusy) {
         setRequestMode(null);
         setRequestDraft("");
       }
     };
+
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [requestMode, requestBusy]);
@@ -168,6 +190,7 @@ export function GuestTripTools({
 
     setBusy(true);
     setNotice(null);
+
     const response = await fetch("/api/trip/messages", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -177,6 +200,7 @@ export function GuestTripTools({
         message: messageDraft.trim(),
       }),
     });
+
     const payload = await response.json().catch(() => null);
     setBusy(false);
 
@@ -204,7 +228,10 @@ export function GuestTripTools({
     setNotice(null);
 
     const endpoint =
-      requestMode === "CHANGE" ? "/api/trip/change-request" : "/api/trip/cancellation";
+      requestMode === "CHANGE"
+        ? "/api/trip/change-request"
+        : "/api/trip/cancellation";
+
     const body =
       requestMode === "CHANGE"
         ? {
@@ -223,6 +250,7 @@ export function GuestTripTools({
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
     });
+
     const payload = await response.json().catch(() => null);
     setRequestBusy(false);
 
@@ -246,22 +274,44 @@ export function GuestTripTools({
     event.preventDefault();
     if (busy) return;
 
+    const cleanedReview = reviewBody.trim();
+
+    if (rating < 1 || rating > 5) {
+      setReviewError("Choose a 1–5 star rating.");
+      return;
+    }
+
+    if (cleanedReview.length < 10) {
+      setReviewError("Write a short review of at least 10 characters.");
+      return;
+    }
+
     setBusy(true);
-    setNotice(null);
+    setReviewNotice(null);
+    setReviewError(null);
+
     const response = await fetch("/api/trip/review", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ reservationId, checkoutToken, rating, review: reviewBody }),
+      body: JSON.stringify({
+        reservationId,
+        checkoutToken,
+        rating,
+        review: cleanedReview,
+      }),
     });
+
     const payload = await response.json().catch(() => null);
     setBusy(false);
 
     if (!response.ok) {
-      setNotice(payload?.error || "Review could not be saved.");
+      setReviewError(payload?.error || "Review could not be saved.");
       return;
     }
 
-    setNotice("Thanks. Your verified review is now attached to the stay.");
+    setReviewNotice(
+      "Thanks. Your verified review and star rating are now attached to the stay.",
+    );
     await load();
   }
 
@@ -280,14 +330,124 @@ export function GuestTripTools({
 
   return (
     <>
+      <section className={reviewStyles.panel} id="review">
+        <div className={reviewStyles.header}>
+          <div>
+            <p className="eyebrow dark">Verified guest review</p>
+            <h2>{review ? "Your review" : "How was your stay?"}</h2>
+            <p className="muted">
+              Reviews can only be left by guests with a completed Find A Place
+              reservation.
+            </p>
+          </div>
+          <span className={reviewStyles.verified}>Verified stay</span>
+        </div>
+
+        {review ? (
+          <div className={reviewStyles.submitted}>
+            <StarRating rating={review.rating} showValue />
+            <p>{review.body}</p>
+            {review.host_response ? (
+              <div className={reviewStyles.hostResponse}>
+                <strong>Response from {hostName}</strong>
+                <span>{review.host_response}</span>
+              </div>
+            ) : null}
+          </div>
+        ) : canReview ? (
+          <form className={reviewStyles.form} onSubmit={submitReview}>
+            <label className={reviewStyles.field}>
+              <span>Your review</span>
+              <textarea
+                rows={5}
+                minLength={10}
+                maxLength={4000}
+                value={reviewBody}
+                onChange={(event) => setReviewBody(event.target.value)}
+                placeholder="What did you like about the stay? What should another traveler know?"
+                required
+              />
+              <small className={reviewStyles.counter}>
+                {reviewBody.length}/4000
+              </small>
+            </label>
+
+            <div className={reviewStyles.starField}>
+              <span>Your rating</span>
+              <div
+                className={reviewStyles.starButtons}
+                role="group"
+                aria-label="Rate this stay from 1 to 5 stars"
+              >
+                {[1, 2, 3, 4, 5].map((value) => (
+                  <button
+                    className={`${reviewStyles.starButton} ${
+                      value <= rating
+                        ? reviewStyles.starButtonActive
+                        : ""
+                    }`}
+                    type="button"
+                    aria-label={`${value} star${value === 1 ? "" : "s"}`}
+                    aria-pressed={rating === value}
+                    key={value}
+                    onClick={() => {
+                      setRating(value);
+                      setReviewError(null);
+                    }}
+                  >
+                    ★
+                  </button>
+                ))}
+              </div>
+              <span className={reviewStyles.ratingLabel}>
+                {ratingLabel(rating)}
+              </span>
+            </div>
+
+            {reviewError ? (
+              <div className={reviewStyles.error}>{reviewError}</div>
+            ) : null}
+
+            {reviewNotice ? (
+              <div className={reviewStyles.success}>{reviewNotice}</div>
+            ) : null}
+
+            <div className={reviewStyles.actions}>
+              <button
+                className="button"
+                type="submit"
+                disabled={
+                  busy ||
+                  rating < 1 ||
+                  reviewBody.trim().length < 10
+                }
+              >
+                {busy ? "Submitting…" : "Submit review"}
+              </button>
+            </div>
+          </form>
+        ) : (
+          <div className={reviewStyles.locked}>
+            Review access opens after checkout. Come back to My Trip after the
+            stay to leave a written review and a 1–5 star rating.
+          </div>
+        )}
+
+        {reviewNotice && review ? (
+          <div className={reviewStyles.success}>{reviewNotice}</div>
+        ) : null}
+      </section>
+
       <section className={styles.requestToolbar} aria-label="Booking requests">
         <div>
           <p className="eyebrow dark">Booking requests</p>
           <h2>Need to change something?</h2>
           <p className="muted">
-            Send a structured request to the host. Requests stay separate from your normal message thread.
+            Send a structured request to the host. Requests stay separate from
+            your normal message thread.
           </p>
         </div>
+
         <div className={styles.requestActions}>
           <button
             className={styles.secondaryAction}
@@ -303,11 +463,13 @@ export function GuestTripTools({
             onClick={() => openRequest("CANCEL")}
             disabled={openCancellation || !cancellation?.canRequest}
           >
-            {openCancellation ? "Cancellation requested" : "Request cancellation"}
+            {openCancellation
+              ? "Cancellation requested"
+              : "Request cancellation"}
           </button>
         </div>
 
-        {(changeRequest?.request || cancellation?.request) ? (
+        {changeRequest?.request || cancellation?.request ? (
           <div className={styles.requestStatusStrip}>
             {changeRequest?.request ? (
               <div>
@@ -318,6 +480,7 @@ export function GuestTripTools({
                 ) : null}
               </div>
             ) : null}
+
             {cancellation?.request ? (
               <div>
                 <span>Cancellation request</span>
@@ -337,19 +500,35 @@ export function GuestTripTools({
             <p className="eyebrow dark">Booking messages</p>
             <h2>Talk with {hostName}.</h2>
             <p className="muted">
-              Use this thread for check-in details, questions and normal conversation about the stay.
+              Use this thread for check-in details, questions and normal
+              conversation about the stay.
             </p>
-            <span className={styles.guestIdentity}>Booking guest · {guestName}</span>
+            <span className={styles.guestIdentity}>
+              Booking guest · {guestName}
+            </span>
           </div>
+
           <div className={styles.contactLinks}>
             {hostEmailHref ? (
-              <a className={styles.actionLink} href={hostEmailHref}>Email host</a>
+              <a className={styles.actionLink} href={hostEmailHref}>
+                Email host
+              </a>
             ) : null}
             {hostPhone ? (
-              <a className={styles.actionLink} href={`tel:${hostPhone}`}>Call host</a>
+              <a
+                className={styles.actionLink}
+                href={`tel:${hostPhone}`}
+              >
+                Call host
+              </a>
             ) : null}
             {hostPhone ? (
-              <a className={styles.actionLink} href={`sms:${hostPhone}`}>Text host</a>
+              <a
+                className={styles.actionLink}
+                href={`sms:${hostPhone}`}
+              >
+                Text host
+              </a>
             ) : null}
           </div>
         </div>
@@ -358,21 +537,37 @@ export function GuestTripTools({
           {messages.length ? (
             messages.map((item) => {
               const guest = item.sender_type === "GUEST";
+
               return (
                 <div
-                  className={`${styles.messageRow} ${guest ? styles.messageRowGuest : styles.messageRowHost}`}
+                  className={`${styles.messageRow} ${
+                    guest
+                      ? styles.messageRowGuest
+                      : styles.messageRowHost
+                  }`}
                   key={item.id}
                 >
-                  <div className={`${styles.bubble} ${guest ? styles.bubbleGuest : styles.bubbleHost}`}>
+                  <div
+                    className={`${styles.bubble} ${
+                      guest ? styles.bubbleGuest : styles.bubbleHost
+                    }`}
+                  >
                     <div className={styles.bubbleMeta}>
-                      <strong>{guest ? `You · ${guestName}` : senderLabel(item.sender_type)}</strong>
+                      <strong>
+                        {guest
+                          ? `You · ${guestName}`
+                          : senderLabel(item.sender_type)}
+                      </strong>
                       <span>
-                        {new Date(item.created_at).toLocaleString("en-US", {
-                          month: "short",
-                          day: "numeric",
-                          hour: "numeric",
-                          minute: "2-digit",
-                        })}
+                        {new Date(item.created_at).toLocaleString(
+                          "en-US",
+                          {
+                            month: "short",
+                            day: "numeric",
+                            hour: "numeric",
+                            minute: "2-digit",
+                          },
+                        )}
                       </span>
                     </div>
                     <div className={styles.bubbleBody}>{item.body}</div>
@@ -384,7 +579,10 @@ export function GuestTripTools({
             <div className={styles.emptyThread}>
               <div>
                 <strong>No messages yet.</strong>
-                <p>Send the host a message whenever you have a question about the stay.</p>
+                <p>
+                  Send the host a message whenever you have a question
+                  about the stay.
+                </p>
               </div>
             </div>
           )}
@@ -399,78 +597,46 @@ export function GuestTripTools({
           />
           <div className={styles.composerFooter}>
             <span className={styles.composerNote}>
-              Messages stay with this reservation and also notify the host by email.
+              Messages stay with this reservation and also notify the host
+              by email.
             </span>
-            <button className={styles.sendButton} type="submit" disabled={busy}>
+            <button
+              className={styles.sendButton}
+              type="submit"
+              disabled={busy}
+            >
               {busy ? "Sending…" : "Send message"}
             </button>
           </div>
         </form>
       </section>
 
-      {notice ? <div className={`admin-message success ${styles.pageNotice}`}>{notice}</div> : null}
-
-      <section className={`panel ${styles.reviewPanel}`} id="review">
-        <p className="eyebrow dark">Verified review</p>
-        {review ? (
-          <>
-            <h2>{review.rating}/5</h2>
-            <p>{review.body || "Rating submitted without written review."}</p>
-            {review.host_response ? (
-              <div className="review-note-inline">
-                <strong>Host response</strong>
-                <span>{review.host_response}</span>
-              </div>
-            ) : null}
-          </>
-        ) : canReview ? (
-          <>
-            <h2>How was your stay?</h2>
-            <form className="settings-form" onSubmit={submitReview}>
-              <label>
-                <span>Rating</span>
-                <select value={rating} onChange={(event) => setRating(Number(event.target.value))}>
-                  <option value={5}>5 - Excellent</option>
-                  <option value={4}>4 - Very good</option>
-                  <option value={3}>3 - Good</option>
-                  <option value={2}>2 - Fair</option>
-                  <option value={1}>1 - Poor</option>
-                </select>
-              </label>
-              <label>
-                <span>Review</span>
-                <textarea
-                  rows={4}
-                  value={reviewBody}
-                  onChange={(event) => setReviewBody(event.target.value)}
-                  placeholder="What should another traveler know about this stay?"
-                />
-              </label>
-              <button className="button button-small" type="submit" disabled={busy}>
-                Submit review
-              </button>
-            </form>
-          </>
-        ) : (
-          <>
-            <h2>Review after checkout.</h2>
-            <p className="muted">Verified reviews open once the stay is complete.</p>
-          </>
-        )}
-      </section>
+      {notice ? (
+        <div className={`admin-message success ${styles.pageNotice}`}>
+          {notice}
+        </div>
+      ) : null}
 
       {requestMode ? (
         <div
           className={styles.modalBackdrop}
           role="presentation"
           onMouseDown={(event) => {
-            if (event.currentTarget === event.target && !requestBusy) {
+            if (
+              event.currentTarget === event.target &&
+              !requestBusy
+            ) {
               setRequestMode(null);
               setRequestDraft("");
             }
           }}
         >
-          <div className={styles.modal} role="dialog" aria-modal="true" aria-labelledby="trip-request-title">
+          <div
+            className={styles.modal}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="trip-request-title"
+          >
             <button
               className={styles.modalClose}
               type="button"
@@ -483,25 +649,40 @@ export function GuestTripTools({
             >
               ×
             </button>
+
             <p className="eyebrow dark">
-              {requestMode === "CHANGE" ? "Booking change" : "Cancellation"}
+              {requestMode === "CHANGE"
+                ? "Booking change"
+                : "Cancellation"}
             </p>
+
             <h2 id="trip-request-title">
-              {requestMode === "CHANGE" ? "Request a change from your host" : "Request cancellation from your host"}
+              {requestMode === "CHANGE"
+                ? "Request a change from your host"
+                : "Request cancellation from your host"}
             </h2>
+
             <p className="muted">
               {requestMode === "CHANGE"
                 ? "Tell the host exactly what you want changed. Nothing changes until the host responds and the reservation is updated."
-                : cancellation?.policy || "Sending a request does not cancel the reservation or guarantee a refund."}
+                : cancellation?.policy ||
+                  "Sending a request does not cancel the reservation or guarantee a refund."}
             </p>
+
             <form onSubmit={submitRequest}>
               <label className={styles.modalField}>
-                <span>{requestMode === "CHANGE" ? "What would you like to change?" : "Reason or note for the host"}</span>
+                <span>
+                  {requestMode === "CHANGE"
+                    ? "What would you like to change?"
+                    : "Reason or note for the host"}
+                </span>
                 <textarea
                   autoFocus
                   rows={6}
                   value={requestDraft}
-                  onChange={(event) => setRequestDraft(event.target.value)}
+                  onChange={(event) =>
+                    setRequestDraft(event.target.value)
+                  }
                   placeholder={
                     requestMode === "CHANGE"
                       ? "Example: Could we move our stay from Oct. 21–24 to Oct. 22–25?"
@@ -510,6 +691,7 @@ export function GuestTripTools({
                   required
                 />
               </label>
+
               <div className={styles.modalActions}>
                 <button
                   className={styles.modalCancel}
@@ -522,7 +704,11 @@ export function GuestTripTools({
                 >
                   Back
                 </button>
-                <button className={styles.sendButton} type="submit" disabled={requestBusy}>
+                <button
+                  className={styles.sendButton}
+                  type="submit"
+                  disabled={requestBusy}
+                >
                   {requestBusy
                     ? "Sending…"
                     : requestMode === "CHANGE"

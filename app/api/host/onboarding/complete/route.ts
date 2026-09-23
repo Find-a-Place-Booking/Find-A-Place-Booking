@@ -170,6 +170,28 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    let published = false;
+    let publicationMessage: string | null = null;
+
+    const { error: publicationError } = await supabase.rpc(
+      "host_publish_property",
+      { target_property_id: property.property_id },
+    );
+
+    if (publicationError) {
+      publicationMessage = publicationError.message;
+      console.info(
+        "[complete host onboarding] property remains draft",
+        publicationError.message,
+      );
+    } else {
+      published = true;
+    }
+
+    revalidatePath("/");
+    revalidatePath("/stays");
+    revalidatePath(`/stays/${property.slug}`);
+    revalidatePath("/sitemap.xml");
     revalidatePath("/host");
     revalidatePath("/host/onboarding");
     revalidatePath("/host/properties");
@@ -182,6 +204,8 @@ export async function POST(request: NextRequest) {
       propertyId: property.property_id,
       unitId: property.unit_id,
       slug: property.slug,
+      published,
+      publicationMessage,
     });
   } catch (error) {
     console.error("[complete host onboarding]", error);

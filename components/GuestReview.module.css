@@ -1,0 +1,203 @@
+.panel {
+  margin: 24px 0;
+  border: 1px solid #ded7ca;
+  border-radius: 20px;
+  background: #fff;
+  padding: 24px;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+  align-items: flex-start;
+}
+
+.header h2 {
+  margin: 4px 0 7px;
+}
+
+.header p {
+  margin: 0;
+  max-width: 700px;
+}
+
+.verified {
+  flex: 0 0 auto;
+  border-radius: 999px;
+  background: #edf4ef;
+  color: #315f4b;
+  padding: 7px 11px;
+  font-size: .68rem;
+  font-weight: 850;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+}
+
+.form {
+  display: grid;
+  gap: 17px;
+  margin-top: 20px;
+}
+
+.field {
+  display: grid;
+  gap: 8px;
+}
+
+.field > span {
+  font-size: .78rem;
+  font-weight: 850;
+}
+
+.field textarea {
+  width: 100%;
+  min-height: 130px;
+  resize: vertical;
+  border: 1px solid #d1c9bd;
+  border-radius: 12px;
+  background: #fff;
+  padding: 13px 14px;
+  font: inherit;
+  line-height: 1.55;
+}
+
+.counter {
+  color: #77736c;
+  font-size: .68rem;
+  text-align: right;
+}
+
+.starField {
+  display: grid;
+  gap: 8px;
+}
+
+.starField > span {
+  font-size: .78rem;
+  font-weight: 850;
+}
+
+.starButtons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.starButton {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: #d3ccc1;
+  cursor: pointer;
+  padding: 3px;
+  font-size: 2.15rem;
+  line-height: 1;
+  transition: transform .12s ease, color .12s ease;
+}
+
+.starButton:hover {
+  transform: translateY(-1px);
+}
+
+.starButtonActive {
+  color: #a7642f;
+}
+
+.ratingLabel {
+  color: #656b66;
+  font-size: .74rem;
+  min-height: 1.2em;
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.error,
+.success {
+  margin-top: 14px;
+  border-radius: 10px;
+  padding: 11px 13px;
+  font-size: .78rem;
+}
+
+.error {
+  border: 1px solid #e2b9ac;
+  background: #fbefea;
+  color: #8b422d;
+}
+
+.success {
+  border: 1px solid #c8ddce;
+  background: #edf5ef;
+  color: #315f4b;
+}
+
+.submitted {
+  display: grid;
+  gap: 12px;
+  margin-top: 18px;
+  padding: 18px;
+  border: 1px solid #e1dbd1;
+  border-radius: 14px;
+  background: #fbfaf7;
+}
+
+.submitted p {
+  margin: 0;
+  white-space: pre-wrap;
+  line-height: 1.65;
+}
+
+.hostResponse {
+  display: grid;
+  gap: 5px;
+  border-left: 3px solid #9caf9f;
+  padding: 10px 0 10px 14px;
+}
+
+.hostResponse strong {
+  font-size: .75rem;
+}
+
+.hostResponse span {
+  color: #5f665f;
+  line-height: 1.55;
+}
+
+.locked {
+  margin-top: 16px;
+  padding: 15px 16px;
+  border-radius: 12px;
+  background: #f5f2ec;
+  color: #666b66;
+  line-height: 1.55;
+}
+
+@media (max-width: 680px) {
+  .panel {
+    padding: 18px;
+  }
+
+  .header {
+    display: grid;
+  }
+
+  .verified {
+    justify-self: start;
+  }
+
+  .starButton {
+    font-size: 2rem;
+  }
+
+  .actions {
+    display: grid;
+  }
+
+  .actions button {
+    width: 100%;
+  }
+}

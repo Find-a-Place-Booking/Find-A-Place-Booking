@@ -1,0 +1,27 @@
+.rating {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: #a7642f;
+}
+
+.stars {
+  display: inline-flex;
+  gap: 2px;
+  letter-spacing: .02em;
+  line-height: 1;
+}
+
+.star {
+  font-size: 1rem;
+}
+
+.empty {
+  color: #d7d0c6;
+}
+
+.value {
+  color: #5f655f;
+  font-size: .72rem;
+  font-weight: 800;
+}

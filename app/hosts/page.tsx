@@ -5,6 +5,11 @@ import { DeferredBackgroundVideo } from "@/components/DeferredBackgroundVideo";
 import { Footer } from "@/components/Footer";
 import { Header } from "@/components/Header";
 import { TrackedLink } from "@/components/TrackedLink";
+import {
+  copyBlock,
+  loadManagedCopy,
+} from "@/lib/public/managed-copy";
+
 import styles from "./hosts.module.css";
 
 export const metadata: Metadata = {
@@ -20,7 +25,104 @@ export const metadata: Metadata = {
   },
 };
 
-export default function HostsPage() {
+const defaults = {
+  "hosts.hero": {
+    eyebrow: "For independent hosts",
+    title: "Your place should show up when someone is planning the trip.",
+    body:
+      "Find A Place helps the right stay show up around the trip while you keep control of your property, rates, rules, guest relationship and payment account.",
+  },
+  "hosts.commission": {
+    title: "Platform commission",
+    body:
+      "Commission is calculated from the nightly lodging subtotal after host discounts, not legitimate cleaning fees, pet fees, taxes, refundable deposits or optional add-ons.",
+  },
+  "hosts.value": {
+    eyebrow: "What Find A Place handles",
+    title: "Built to help travelers find and book the right stay.",
+    body:
+      "Find A Place keeps discovery, booking and host operations together without taking control away from the property owner.",
+  },
+  "hosts.value.search": {
+    title: "Show up when travelers are searching",
+    body:
+      "Your listing can appear when guests search by destination, dates and group size.",
+  },
+  "hosts.value.details": {
+    title: "Give guests the details they need",
+    body:
+      "Photos, amenities, house rules, rates and your cancellation/refund terms stay together on one complete property page.",
+  },
+  "hosts.value.manage": {
+    title: "Manage hosting in one place",
+    body:
+      "Reservations, calendars, rates, fees, guest messages, cancellation requests, reports and listing details stay within your host dashboard.",
+  },
+  "hosts.dashboard": {
+    eyebrow: "Built for everyday hosting",
+    title: "Keep bookings, availability and guest details within easy reach.",
+    body:
+      "Your host dashboard brings reservations, calendar availability, rates, messages, direct-payment records and listing details together. Stripe handles your balance and normal bank deposits.",
+  },
+  "hosts.promotion": {
+    eyebrow: "Optional property promotion",
+    title: "Want a custom advertising plan too?",
+    body:
+      "The booking marketplace and the Find A Place social/community side can work together. Advertising is optional and separate from the booking commission.",
+  },
+  "hosts.steps": {
+    eyebrow: "Getting your place ready",
+    title: "From your property details to a stay travelers can find.",
+    body:
+      "Host setup is broken into practical steps so you can finish a complete listing without one giant form.",
+  },
+  "hosts.step1": {
+    title: "Tell us who's hosting",
+    body:
+      "Add the business/contact information and who manages the property.",
+  },
+  "hosts.step2": {
+    title: "Build the stay",
+    body:
+      "Add photos, amenities, occupancy, rates, fees and the house rules and cancellation terms guests need to know.",
+  },
+  "hosts.step3": {
+    title: "Connect calendars and Stripe",
+    body:
+      "Keep availability aligned and connect the host payment account that will own guest charges.",
+  },
+  "hosts.step4": {
+    title: "Publish when your listing is ready",
+    body:
+      "Once the required listing details are complete and your payment account is ready, you can publish the stay directly from your host dashboard.",
+  },
+  "hosts.cta": {
+    eyebrow: "Ready to add your place?",
+    title: "We'll walk through it one piece at a time.",
+    body:
+      "The host setup covers the property, amenities, rates, policies, calendars and payments without dropping everything into one giant form.",
+  },
+};
+
+export default async function HostsPage() {
+  const content = await loadManagedCopy(defaults);
+  const get = (key: keyof typeof defaults) => copyBlock(content, key);
+
+  const hero = get("hosts.hero");
+  const commission = get("hosts.commission");
+  const value = get("hosts.value");
+  const valueSearch = get("hosts.value.search");
+  const valueDetails = get("hosts.value.details");
+  const valueManage = get("hosts.value.manage");
+  const dashboard = get("hosts.dashboard");
+  const promotion = get("hosts.promotion");
+  const steps = get("hosts.steps");
+  const step1 = get("hosts.step1");
+  const step2 = get("hosts.step2");
+  const step3 = get("hosts.step3");
+  const step4 = get("hosts.step4");
+  const cta = get("hosts.cta");
+
   return (
     <>
       <div className={`hosts-hero ${styles.videoHero}`}>
@@ -35,17 +137,11 @@ export default function HostsPage() {
 
         <div className={`shell hosts-hero-grid ${styles.content}`}>
           <div>
-            <p className="eyebrow">For independent hosts</p>
+            <p className="eyebrow">{hero.eyebrow}</p>
 
-            <h1>
-              Your place should show up when someone is planning the trip.
-            </h1>
+            <h1>{hero.title}</h1>
 
-            <p>
-              Find A Place helps the right stay show up around the trip
-              while you keep control of your property, rates, rules,
-              guest relationship and payment account.
-            </p>
+            <p>{hero.body}</p>
 
             <div className="host-hero-actions">
               <TrackedLink
@@ -69,7 +165,7 @@ export default function HostsPage() {
           </div>
 
           <div className="host-hero-card">
-            <small>Platform commission</small>
+            <small>{commission.title}</small>
 
             <strong>
               7%
@@ -78,11 +174,7 @@ export default function HostsPage() {
 
             <hr />
 
-            <p>
-              Commission is calculated from the nightly lodging subtotal
-              after host discounts, not legitimate cleaning fees, pet
-              fees, taxes, refundable deposits or optional add-ons.
-            </p>
+            <p>{commission.body}</p>
 
             <ul>
               <li>Marketplace listing</li>
@@ -100,40 +192,26 @@ export default function HostsPage() {
         <section className="hosts-value shell">
           <div className="section-heading">
             <div>
-              <p className="eyebrow dark">
-                What Find A Place handles
-              </p>
-              <h2>
-                Built to help travelers find and book the right stay.
-              </h2>
+              <p className="eyebrow dark">{value.eyebrow}</p>
+              <h2>{value.title}</h2>
+              {value.body ? <p className="muted">{value.body}</p> : null}
             </div>
           </div>
 
           <div className="host-value-grid">
             <article>
-              <h3>Show up when travelers are searching</h3>
-              <p>
-                Your listing can appear when guests search by
-                destination, dates and group size.
-              </p>
+              <h3>{valueSearch.title}</h3>
+              <p>{valueSearch.body}</p>
             </article>
 
             <article>
-              <h3>Give guests the details they need</h3>
-              <p>
-                Photos, amenities, house rules, rates and your
-                cancellation/refund terms stay together on one complete
-                property page.
-              </p>
+              <h3>{valueDetails.title}</h3>
+              <p>{valueDetails.body}</p>
             </article>
 
             <article>
-              <h3>Manage hosting in one place</h3>
-              <p>
-                Reservations, calendars, rates, fees, guest messages,
-                cancellation requests, reports and listing details stay
-                within your host dashboard.
-              </p>
+              <h3>{valueManage.title}</h3>
+              <p>{valueManage.body}</p>
             </article>
           </div>
         </section>
@@ -141,21 +219,11 @@ export default function HostsPage() {
         <section className="host-preview-section">
           <div className="shell host-preview-grid">
             <div className="host-preview-copy">
-              <p className="eyebrow dark">
-                Built for everyday hosting
-              </p>
+              <p className="eyebrow dark">{dashboard.eyebrow}</p>
 
-              <h2>
-                Keep bookings, availability and guest details within
-                easy reach.
-              </h2>
+              <h2>{dashboard.title}</h2>
 
-              <p>
-                Your host dashboard brings reservations, calendar
-                availability, rates, messages, direct-payment records
-                and listing details together. Stripe handles your
-                balance and normal bank deposits.
-              </p>
+              <p>{dashboard.body}</p>
 
               <Link
                 className="under-link"
@@ -194,15 +262,9 @@ export default function HostsPage() {
 
         <section className="host-promotion-band shell">
           <div>
-            <p className="eyebrow dark">
-              Optional property promotion
-            </p>
-            <h2>Want a custom advertising plan too?</h2>
-            <p>
-              The booking marketplace and the Find A Place
-              social/community side can work together. Advertising is
-              optional and separate from the booking commission.
-            </p>
+            <p className="eyebrow dark">{promotion.eyebrow}</p>
+            <h2>{promotion.title}</h2>
+            <p>{promotion.body}</p>
           </div>
 
           <div className="host-promotion-actions">
@@ -222,77 +284,33 @@ export default function HostsPage() {
 
         <section className="hosts-steps shell">
           <div>
-            <p className="eyebrow dark">
-              Getting your place ready
-            </p>
-            <h2>
-              From your property details to a stay travelers can find.
-            </h2>
+            <p className="eyebrow dark">{steps.eyebrow}</p>
+            <h2>{steps.title}</h2>
+            {steps.body ? <p className="muted">{steps.body}</p> : null}
           </div>
 
           <ol>
-            <li>
-              <span>1</span>
-              <div>
-                <strong>Tell us who&apos;s hosting</strong>
-                <p>
-                  Add the business/contact information and who manages
-                  the property.
-                </p>
-              </div>
-            </li>
-
-            <li>
-              <span>2</span>
-              <div>
-                <strong>Build the stay</strong>
-                <p>
-                  Add photos, amenities, occupancy, rates, fees and the
-                  house rules and cancellation terms guests need to
-                  know.
-                </p>
-              </div>
-            </li>
-
-            <li>
-              <span>3</span>
-              <div>
-                <strong>Connect calendars and Stripe</strong>
-                <p>
-                  Keep availability aligned and connect the host payment
-                  account that will own guest charges.
-                </p>
-              </div>
-            </li>
-
-            <li>
-              <span>4</span>
-              <div>
-                <strong>Send it for review</strong>
-                <p>
-                  Find A Place checks the listing, then it can appear in
-                  traveler searches.
-                </p>
-              </div>
-            </li>
+            {[step1, step2, step3, step4].map((step, index) => (
+              <li key={step.key}>
+                <span>{index + 1}</span>
+                <div>
+                  <strong>{step.title}</strong>
+                  <p>{step.body}</p>
+                </div>
+              </li>
+            ))}
           </ol>
         </section>
 
         <section className="host-cta">
           <div className="shell host-cta-inner">
             <div>
-              <p className="eyebrow">Ready to add your place?</p>
-              <h2>
-                We&apos;ll walk through it one piece at a time.
-              </h2>
+              <p className="eyebrow">{cta.eyebrow}</p>
+              <h2>{cta.title}</h2>
             </div>
 
             <div>
-              <p>
-                The host setup covers the property, amenities, rates,
-                policies, calendars and payments without dropping
-                everything into one giant form.
-              </p>
+              <p>{cta.body}</p>
 
               <TrackedLink
                 className="button button-light"

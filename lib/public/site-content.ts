@@ -1,3 +1,5 @@
+import { unstable_noStore as noStore } from "next/cache";
+
 import { createClient } from "@/lib/supabase/server";
 
 export type SiteContentBlock = {
@@ -11,6 +13,11 @@ export type SiteContentBlock = {
 };
 
 export async function getSiteContentBlocks(keys: string[]) {
+  // Site copy is managed from the admin editor and should reflect the current
+  // public Supabase record immediately after save. Explicitly opt this read out
+  // of route/data caching rather than depending only on path revalidation.
+  noStore();
+
   const supabase = await createClient();
 
   const { data, error } = await supabase
