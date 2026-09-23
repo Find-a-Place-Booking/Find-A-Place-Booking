@@ -83,6 +83,11 @@ export type StripeAccountV2 = {
   dashboard?: "none" | "express" | "full" | null;
   defaults?: {
     currency?: string | null;
+    profile?: {
+      business_url?: string | null;
+      doing_business_as?: string | null;
+      product_description?: string | null;
+    } | null;
     responsibilities?: {
       fees_collector?: string | null;
       losses_collector?: string | null;
@@ -112,6 +117,20 @@ export type StripeAccountV2 = {
   } | null;
 };
 
+type MerchantBusinessProfileInput = {
+  displayName: string;
+  businessUrl?: string | null;
+  productDescription: string;
+};
+
+function merchantProfile(input: MerchantBusinessProfileInput) {
+  return {
+    doing_business_as: input.displayName,
+    product_description: input.productDescription,
+    ...(input.businessUrl ? { business_url: input.businessUrl } : {}),
+  };
+}
+
 function accountCreationIdempotencyKey(scope: string, body: unknown) {
   const fingerprint = createHash("sha256")
     .update(scope)
@@ -127,6 +146,8 @@ export async function createEmbeddedMerchantAccount(input: {
   displayName: string;
   country?: string;
   requestScope: string;
+  businessUrl?: string | null;
+  productDescription: string;
 }) {
   const country = (input.country || "US").toLowerCase();
 
@@ -148,6 +169,7 @@ export async function createEmbeddedMerchantAccount(input: {
     },
     defaults: {
       currency: "usd",
+      profile: merchantProfile(input),
       responsibilities: {
         fees_collector: "stripe",
         losses_collector: "stripe",
@@ -167,6 +189,30 @@ export async function createEmbeddedMerchantAccount(input: {
     idempotencyKey: accountCreationIdempotencyKey(input.requestScope, body),
     body,
   });
+}
+
+export async function updateEmbeddedMerchantBusinessProfile(
+  accountId: string,
+  input: MerchantBusinessProfileInput,
+) {
+  return stripeV2Request<StripeAccountV2>(
+    `/core/accounts/${encodeURIComponent(accountId)}`,
+    {
+      method: "POST",
+      body: {
+        display_name: input.displayName,
+        defaults: {
+          profile: merchantProfile(input),
+        },
+        include: [
+          "configuration.merchant",
+          "defaults",
+          "identity",
+          "requirements",
+        ],
+      },
+    },
+  );
 }
 
 export async function retrieveEmbeddedMerchantAccount(accountId: string) {

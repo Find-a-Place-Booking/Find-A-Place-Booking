@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import {
   createAccountSession,
   createEmbeddedMerchantAccount,
+  updateEmbeddedMerchantBusinessProfile,
 } from "@/lib/payments/stripe-rest";
 import { stripeEnvironment } from "@/lib/payments/booking-runtime";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -19,6 +20,93 @@ function jsonError(error: unknown, status = 500) {
 
   console.error("[stripe connect account-session]", error);
   return NextResponse.json({ error: message }, { status });
+}
+
+function usablePublicOrigin(request: Request, environment: "TEST" | "LIVE") {
+  const configured = process.env.NEXT_PUBLIC_SITE_URL?.trim();
+  const candidates = [configured, new URL(request.url).origin].filter(
+    (value): value is string => Boolean(value),
+  );
+
+  for (const candidate of candidates) {
+    try {
+      const url = new URL(candidate);
+      const local =
+        url.hostname === "localhost" ||
+        url.hostname === "127.0.0.1" ||
+        url.hostname === "::1";
+
+      if (local) continue;
+      if (environment === "LIVE" && url.protocol !== "https:") continue;
+
+      return url.origin;
+    } catch {
+      // Try the next candidate.
+    }
+  }
+
+  return null;
+}
+
+async function getStripeBusinessProfile(input: {
+  admin: ReturnType<typeof createAdminClient>;
+  organizationId: string;
+  displayName: string;
+  request: Request;
+  environment: "TEST" | "LIVE";
+}) {
+  const { data: property, error: propertyError } = await input.admin
+    .from("properties")
+    .select("id,name,description,status,published_at")
+    .eq("organization_id", input.organizationId)
+    .eq("status", "PUBLISHED")
+    .order("published_at", { ascending: true })
+    .limit(1)
+    .maybeSingle();
+
+  if (propertyError) {
+    throw new Error(
+      `Unable to load the host's public listing for Stripe: ${propertyError.message}`,
+    );
+  }
+
+  let businessUrl: string | null = null;
+
+  if (property?.id) {
+    const { data: unit, error: unitError } = await input.admin
+      .from("property_units")
+      .select("slug")
+      .eq("property_id", property.id)
+      .eq("is_primary", true)
+      .limit(1)
+      .maybeSingle();
+
+    if (unitError) {
+      throw new Error(
+        `Unable to load the host's public listing URL for Stripe: ${unitError.message}`,
+      );
+    }
+
+    const origin = usablePublicOrigin(input.request, input.environment);
+    if (origin && unit?.slug) {
+      businessUrl = `${origin}/stays/${encodeURIComponent(unit.slug)}`;
+    }
+  }
+
+  const listingName =
+    typeof property?.name === "string" && property.name.trim()
+      ? property.name.trim()
+      : input.displayName;
+
+  const productDescription =
+    `${input.displayName} offers short-term vacation rental and lodging ` +
+    `accommodations through Find A Place Booking. Guests can book stays ` +
+    `such as ${listingName} through the Find A Place platform.`;
+
+  return {
+    businessUrl,
+    productDescription,
+  };
 }
 
 export async function POST(request: Request) {
@@ -90,6 +178,14 @@ export async function POST(request: Request) {
     const admin = createAdminClient();
     const environment = stripeEnvironment();
 
+    const businessProfile = await getStripeBusinessProfile({
+      admin,
+      organizationId,
+      displayName,
+      request,
+      environment,
+    });
+
     const { data: existing, error: existingError } = await admin
       .from("payment_accounts")
       .select("id,provider_account_id,status,is_default,metadata")
@@ -126,6 +222,8 @@ export async function POST(request: Request) {
         displayName,
         country: "US",
         requestScope: `${organizationId}:${environment}:direct-charge-v1`,
+        businessUrl: businessProfile.businessUrl,
+        productDescription: businessProfile.productDescription,
       });
 
       providerAccountId = stripeAccount.id;
@@ -141,6 +239,10 @@ export async function POST(request: Request) {
         losses_collector: "stripe",
         payment_environment: environment,
         payout_schedule: "STRIPE_MANAGED",
+        business_profile_source: businessProfile.businessUrl
+          ? "FAP_PUBLIC_LISTING"
+          : "PRODUCT_DESCRIPTION",
+        business_profile_url: businessProfile.businessUrl,
       };
 
       const replacedPaymentAccountId = existing?.id ?? null;
@@ -209,6 +311,36 @@ export async function POST(request: Request) {
             `Unable to move property payment routing to the direct-charge account: ${assignmentError.message}`,
           );
         }
+      }
+    } else {
+      // Existing LIVE/TEST accounts can also be repaired. This replaces a
+      // manually entered unrelated website with the host's Find A Place public
+      // listing when one exists and always supplies Stripe with a useful
+      // product/service description.
+      await updateEmbeddedMerchantBusinessProfile(providerAccountId, {
+        displayName,
+        businessUrl: businessProfile.businessUrl,
+        productDescription: businessProfile.productDescription,
+      });
+
+      const { error: metadataUpdateError } = await admin
+        .from("payment_accounts")
+        .update({
+          metadata: {
+            ...existingMetadata,
+            business_profile_source: businessProfile.businessUrl
+              ? "FAP_PUBLIC_LISTING"
+              : "PRODUCT_DESCRIPTION",
+            business_profile_url: businessProfile.businessUrl,
+            business_profile_refreshed_at: new Date().toISOString(),
+          },
+        })
+        .eq("id", paymentAccountId);
+
+      if (metadataUpdateError) {
+        throw new Error(
+          `Unable to save Stripe business-profile status: ${metadataUpdateError.message}`,
+        );
       }
     }
 

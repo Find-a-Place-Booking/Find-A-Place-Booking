@@ -21,7 +21,8 @@ export function PropertyEditor({ initial }: { initial: PropertyEditorRecord }) {
   const [message, setMessage] = useState("Loaded from the production property record.");
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
-  const editable = ["DRAFT", "CHANGES_REQUESTED", "REJECTED"].includes(initial.status);
+  const editable = ["DRAFT", "CHANGES_REQUESTED", "REJECTED", "PUBLISHED", "PAUSED"].includes(initial.status);
+  const liveEditable = ["PUBLISHED", "PAUSED"].includes(initial.status);
 
   const selectedCalendar = useMemo(() => calendarPreferences.find((option) => option.value === (form.calendarPreference || "UNSET")), [form.calendarPreference]);
 
@@ -146,23 +147,38 @@ export function PropertyEditor({ initial }: { initial: PropertyEditorRecord }) {
     if (uploading || !editable) return;
     setUploading(true);
     const supabase = createClient();
-    const { error: storageError } = await supabase.storage.from("property-images").remove([image.storagePath]);
-    if (storageError) {
+
+    // Remove the database row first. Published listings have a database guard
+    // that prevents removing their final photo, so we must not delete the
+    // storage object before that guard has a chance to run.
+    const { error } = await supabase.from("property_images").delete().eq("id", image.id);
+    if (error) {
       setUploading(false);
       setSaveTone("error");
-      setMessage("Couldn't remove the stored image.");
+      setMessage(
+        error.message?.includes("must keep at least one property photo")
+          ? "A published listing must keep at least one photo. Upload the replacement first, then remove this one."
+          : "Couldn't remove this photo from the property.",
+      );
       return;
     }
-    const { error } = await supabase.from("property_images").delete().eq("id", image.id);
+
+    const { error: storageError } = await supabase.storage
+      .from("property-images")
+      .remove([image.storagePath]);
+
     setUploading(false);
-    if (error) {
-      setSaveTone("error");
-      setMessage("The image file was removed, but its database record needs attention.");
-      return;
-    }
     setImages((current) => current.filter((item) => item.id !== image.id));
-    setSaveTone("saved");
-    setMessage("Photo removed.");
+
+    if (storageError) {
+      console.error("[property image storage cleanup]", storageError);
+      setSaveTone("error");
+      setMessage("Photo removed from the listing, but its old stored file needs cleanup.");
+    } else {
+      setSaveTone("saved");
+      setMessage("Photo removed.");
+    }
+
     router.refresh();
   }
 
@@ -171,10 +187,10 @@ export function PropertyEditor({ initial }: { initial: PropertyEditorRecord }) {
       <section className="property-editor-main">
         <div className={`property-save-bar ${saveTone}`}>
           <div><strong>{saveTone === "error" ? "Needs attention" : saveTone === "dirty" ? "Unsaved changes" : saveTone === "saving" ? "Saving" : "Property record connected"}</strong><span>{message}</span></div>
-          <button type="button" className="button button-small" disabled={saving || !editable} onClick={save}>{saving ? "Saving…" : editable ? "Save property" : "Editing locked"}</button>
+          <button type="button" className="button button-small" disabled={saving || !editable} onClick={save}>{saving ? "Saving…" : liveEditable ? "Save live changes" : editable ? "Save property" : "Editing locked"}</button>
         </div>
 
-        {!editable ? <div className="property-review-lock"><strong>Listing editing is temporarily locked.</strong><span>{initial.status === "PENDING_REVIEW" ? "The Find A Place team is reviewing this submission." : initial.status === "APPROVED" ? "This listing is approved and waiting for publication." : initial.status === "PUBLISHED" ? "This listing is live. A later revision workflow will handle changes without silently altering the approved public version." : "This listing is paused. Publication controls are handled by the admin team."}</span></div> : null}
+        {liveEditable ? <div className="property-review-lock"><strong>{initial.status === "PUBLISHED" ? "Live listing editing is enabled." : "Paused listing editing is enabled."}</strong><span>{initial.status === "PUBLISHED" ? "Saved listing details, amenities, stay rules and photos update the guest-facing listing immediately. Rates, availability, taxes and payment settings remain managed in their dedicated dashboard sections. Existing reservations keep the snapshots captured when they booked." : "You can update this property while publication is paused. The admin publication state is unchanged by saving property details."}</span></div> : !editable ? <div className="property-review-lock"><strong>Listing editing is temporarily locked.</strong><span>{initial.status === "PENDING_REVIEW" ? "The Find A Place team is reviewing this submission." : initial.status === "APPROVED" ? "This listing is approved and waiting for publication." : "This listing state is protected from host-side edits."}</span></div> : null}
         {initial.reviewNote ? <div className="property-review-note"><strong>Review note</strong><span>{initial.reviewNote}</span></div> : null}
 
         <fieldset className="property-editor-fieldset" disabled={!editable}>
@@ -258,11 +274,11 @@ export function PropertyEditor({ initial }: { initial: PropertyEditorRecord }) {
         </details>
 
         </fieldset>
-        <div className="property-editor-footer"><div><strong>{editable ? "Editable property record" : "Reviewed property record"}</strong><span>{editable ? "Saving updates the property record but does not publish the listing or accept bookings." : "This state is protected from host-side edits until the review/publication workflow returns it for changes."}</span></div><button type="button" className="button" disabled={saving || !editable} onClick={save}>{saving ? "Saving…" : editable ? "Save property" : "Editing locked"}</button></div>
+        <div className="property-editor-footer"><div><strong>{liveEditable ? "Editable live property record" : editable ? "Editable property record" : "Reviewed property record"}</strong><span>{liveEditable ? initial.status === "PUBLISHED" ? "Saving updates the live guest-facing listing immediately. Operational rates, availability, taxes and payment settings stay in their dedicated tools." : "Saving updates this paused property record without changing its publication state." : editable ? "Saving updates the property record but does not publish the listing or accept bookings." : "This state is protected from host-side edits until the review/publication workflow returns it for changes."}</span></div><button type="button" className="button" disabled={saving || !editable} onClick={save}>{saving ? "Saving…" : liveEditable ? "Save live changes" : editable ? "Save property" : "Editing locked"}</button></div>
       </section>
 
       <aside className="property-editor-aside">
-        <div className="property-status-card"><small>Listing status</small><strong>{initial.status.replaceAll("_", " ")}</strong><p>{initial.status === "DRAFT" || initial.status === "CHANGES_REQUESTED" || initial.status === "REJECTED" ? "Finish the listing and submit it to the Find A Place team for review." : initial.status === "PENDING_REVIEW" ? "Submitted to the Find A Place team. Editing is locked while review is active." : initial.status === "APPROVED" ? "Approved by the Find A Place team. It is not public until an authorized admin publishes it." : initial.status === "PUBLISHED" ? "Live in the guest-facing marketplace. Online booking depends on checkout, calendar, tax and payment readiness." : "Currently paused from public marketplace visibility."}</p></div>
+        <div className="property-status-card"><small>Listing status</small><strong>{initial.status.replaceAll("_", " ")}</strong><p>{initial.status === "DRAFT" || initial.status === "CHANGES_REQUESTED" || initial.status === "REJECTED" ? "Finish the listing and submit it to the Find A Place team for review." : initial.status === "PENDING_REVIEW" ? "Submitted to the Find A Place team. Editing is locked while review is active." : initial.status === "APPROVED" ? "Approved by the Find A Place team. It is not public until an authorized admin publishes it." : initial.status === "PUBLISHED" ? "Live in the guest-facing marketplace. Hosts can edit listing details and photos here; operational rates, availability, taxes and payment settings stay in their dedicated tools." : initial.status === "PAUSED" ? "Currently paused from public marketplace visibility. Property details remain editable while paused." : "Currently unavailable for host editing."}</p></div>
         {editable ? <div className="property-url-card"><small>Review readiness</small>{initial.submissionIssues.length ? <><strong>{initial.submissionIssues.length} item{initial.submissionIssues.length === 1 ? "" : "s"} remaining</strong><div>{initial.submissionIssues.map((issue) => <span key={issue}>• {issue}</span>)}</div></> : <><strong>Ready to submit</strong><p>The minimum listing information required for admin review is complete.</p></>}</div> : null}
         <div className="property-url-card"><small>Reserved booking URL</small><strong>/stays/{form.slug}</strong><p>Stable internal property ID: <code>{initial.propertyId.slice(0, 8)}…</code></p>{initial.oldSlugs.length ? <div><span>Old URLs preserved</span>{initial.oldSlugs.slice(0, 4).map((slug) => <code key={slug}>/stays/{slug}</code>)}</div> : null}</div>
       </aside>
