@@ -276,7 +276,7 @@ export function GuestVerification({
   if (!status) {
     return (
       <div className={styles.card}>
-        <strong>Preparing guest verification…</strong>
+        <strong>Preparing email verification…</strong>
       </div>
     );
   }
@@ -297,117 +297,120 @@ export function GuestVerification({
 
       <p className={styles.intro}>
         {status.identityRequired
-          ? "A phone number is required for the reservation. We verify your email and identity before payment."
-          : "A phone number is required for the reservation. We verify your email before payment so booking confirmations and important reservation messages go to the right address."}
+          ? "A phone number is required for the reservation. We verify your email first, then your identity, before payment."
+          : "A phone number is required for the reservation. We send a one-time code to your email so booking confirmations and important reservation updates go to the right person."}
       </p>
 
-      <div className={styles.steps}>
-        <div className={status.emailVerified ? styles.done : ""}>
-          <span>1</span>
-          <div>
-            <strong>Email</strong>
-            <small>
+      <div className={styles.stepPanel}>
+        <div className={styles.stepRow}>
+          <span className={styles.stepNumber}>1</span>
+          <div className={styles.stepCopy}>
+            <strong>Email verification</strong>
+            <span>
               {status.emailVerified
-                ? "Verified"
-                : `Code sent to ${status.maskedEmail || guestEmail}`}
-            </small>
+                ? `${status.maskedEmail || guestEmail} has been verified.`
+                : `Enter the six-digit code sent to ${status.maskedEmail || guestEmail}.`}
+            </span>
           </div>
         </div>
 
-        {status.identityRequired ? (
-          <div className={status.identityVerified ? styles.done : ""}>
-            <span>2</span>
-            <div>
-              <strong>Identity</strong>
-              <small>{friendlyIdentityStatus(status.identityStatus)}</small>
+        {status.emailVerified ? (
+          <span className={styles.donePill}>Verified</span>
+        ) : null}
+
+        {!status.emailVerified ? (
+          <div className={styles.actionBox}>
+            <label>
+              <span>Email verification code</span>
+              <input
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                maxLength={6}
+                value={code}
+                onChange={(event) =>
+                  setCode(event.target.value.replace(/\D/g, "").slice(0, 6))
+                }
+                placeholder="123456"
+              />
+            </label>
+
+                        {testMode && testCode ? (
+              <small className={styles.testCode}>
+                Test mode code: <strong>{testCode}</strong>
+              </small>
+            ) : null}
+
+            <p className={styles.helperText}>
+              Didn&apos;t get it yet? You can request another code and we&apos;ll
+              resend it to the same email address.
+            </p>
+
+            <div className={styles.actions}>
+              <button
+                className="button button-small"
+                type="button"
+                disabled={busy || code.length !== 6}
+                onClick={confirmEmail}
+              >
+                {busy ? "Checking…" : "Verify email"}
+              </button>
+              <button
+                className="button button-small button-quiet"
+                type="button"
+                disabled={busy}
+                onClick={sendEmailCode}
+              >
+                Send another code
+              </button>
             </div>
           </div>
         ) : null}
       </div>
 
-      {!status.emailVerified ? (
-        <div className={styles.actionBox}>
-          <label>
-            <span>Email verification code</span>
-            <input
-              inputMode="numeric"
-              autoComplete="one-time-code"
-              maxLength={6}
-              value={code}
-              onChange={(event) =>
-                setCode(event.target.value.replace(/\D/g, "").slice(0, 6))
-              }
-              placeholder="123456"
-            />
-          </label>
-
-          {testMode && testCode ? (
-            <small className={styles.testCode}>
-              Test mode code: <strong>{testCode}</strong>
-            </small>
-          ) : null}
-
-          <div className={styles.actions}>
+      {status.identityRequired && !status.identityVerified ? (
+        <div className={styles.identityPanel}>
+          <strong>Identity verification</strong>
+          <p>
+            Status: {friendlyIdentityStatus(status.identityStatus)}. Stripe
+            Identity will ask for a government-issued photo ID and a matching
+            selfie. Find A Place stores the verification result, not a copy of
+            your ID.
+          </p>
+          <div className={styles.identityActions}>
             <button
-              className="button button-small"
+              className="button"
               type="button"
-              disabled={busy || code.length !== 6}
-              onClick={confirmEmail}
+              disabled={busy || status.identityStatus === "PROCESSING"}
+              onClick={verifyIdentity}
             >
-              {busy ? "Checking…" : "Verify email"}
+              {status.identityStatus === "PROCESSING"
+                ? "Identity verification processing…"
+                : busy
+                  ? "Opening verification…"
+                  : status.identityStatus === "REQUIRES_INPUT"
+                    ? "Continue identity verification"
+                    : "Verify identity"}
             </button>
-            <button
-              className="button button-small button-quiet"
-              type="button"
-              disabled={busy}
-              onClick={sendEmailCode}
-            >
-              Send another code
-            </button>
+            {status.identityStatus === "PROCESSING" ? (
+              <button
+                className="button button-quiet"
+                type="button"
+                disabled={busy}
+                onClick={() => void pollIdentity()}
+              >
+                Check status
+              </button>
+            ) : null}
           </div>
         </div>
-      ) : status.identityRequired && !status.identityVerified ? (
-        <div className={styles.actionBox}>
-          <p>
-            Stripe Identity will ask for a government-issued photo ID and a
-            matching selfie. Find A Place stores the verification result, not a
-            copy of your ID.
-          </p>
-          <button
-            className="button button-full"
-            type="button"
-            disabled={busy || status.identityStatus === "PROCESSING"}
-            onClick={verifyIdentity}
-          >
-            {status.identityStatus === "PROCESSING"
-              ? "Identity verification processing…"
-              : busy
-                ? "Opening verification…"
-                : status.identityStatus === "REQUIRES_INPUT"
-                  ? "Continue identity verification"
-                  : "Verify identity"}
-          </button>
-          {status.identityStatus === "PROCESSING" ? (
-            <button
-              className="button button-small button-quiet"
-              type="button"
-              disabled={busy}
-              onClick={() => void pollIdentity()}
-            >
-              Check status
-            </button>
-          ) : null}
-        </div>
-      ) : (
+      ) : null}
+
+      {status.emailVerified && !status.identityRequired ? (
         <div className={styles.ready}>
-          <strong>
-            {status.identityRequired
-              ? "Verification complete"
-              : "Email verified"}
-          </strong>
+          <strong>Email verified</strong>
           <span>Loading booking policies…</span>
         </div>
-      )}
+      ) : null}
 
       {message ? <div className={styles.message}>{message}</div> : null}
       {error ? <div className={styles.error}>{error}</div> : null}

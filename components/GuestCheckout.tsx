@@ -492,7 +492,7 @@ export function GuestCheckout({
         ) : hold && !clientSecret ? (
           <>
             <div className={styles.holdNotice}>
-              <strong>Your dates are held during verification</strong>
+              <strong>Your dates are held while you finish checkout</strong>
               <span>Reservation {hold.confirmationCode}</span>
             </div>
 
@@ -529,7 +529,7 @@ export function GuestCheckout({
                 )}
               </>
             ) : (
-              <p>Loading secure verification…</p>
+              <p>Loading verification…</p>
             )}
           </>
         ) : !clientSecret ? (
@@ -653,13 +653,13 @@ export function GuestCheckout({
                 (Boolean(turnstileSiteKey) && !turnstileToken)
               }
             >
-              {busy ? "Checking dates…" : "Continue to verification"}
+              {busy ? "Checking dates…" : "Continue to secure checkout"}
             </button>
           </>
         ) : paymentStripePromise && hold ? (
           <>
             <div className={styles.holdNotice}>
-              <strong>Guest verification and policy agreement complete</strong>
+              <strong>Verification and policy agreement complete</strong>
               <span>Reservation {hold.confirmationCode}</span>
             </div>
 
