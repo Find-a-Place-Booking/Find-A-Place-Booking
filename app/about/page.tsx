@@ -58,9 +58,26 @@ export default async function AboutPage() {
 
   return (
     <>
-      <div className="home-hero">
+      <div className={`home-hero ${styles.aboutHero}`}>
+        <video
+          className={styles.aboutHeroVideo}
+          autoPlay
+          muted
+          loop
+          playsInline
+          preload="auto"
+          poster="/media/find-a-place-about-fall-poster.jpg"
+          aria-hidden="true"
+        >
+          <source
+            src="/media/find-a-place-about-fall-remix.mp4"
+            type="video/mp4"
+          />
+        </video>
+        <div className={styles.aboutHeroShade} aria-hidden="true" />
+
         <Header light />
-        <div className="shell hero-layout">
+        <div className={`shell hero-layout ${styles.aboutHeroContent}`}>
           <div className="hero-copy">
             <p className="eyebrow">{hero.eyebrow}</p>
             <h1>{hero.title}</h1>
