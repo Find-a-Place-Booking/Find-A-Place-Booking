@@ -150,7 +150,8 @@ const teamMemberDefaults: TeamMember[] = [
     contentKey: "about.team.jake",
     name: "Jake",
     subtitle: "Platform Development & Technology",
-    imageAlt: "Find A Place logo representing Jake, platform development and technology",
+    image: "/about/team/jake.webp",
+    imageAlt: "Jake, Find A Place platform development and technology",
     href: "https://www.hometownwebservicesar.com",
     linkLabel: "Website",
     bio:
