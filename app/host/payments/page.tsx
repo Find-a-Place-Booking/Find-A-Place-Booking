@@ -101,7 +101,9 @@ export default async function PaymentsPage() {
             <strong>Stripe Connect</strong>
             <span>
               {stripe.configured
-                ? "Already use Stripe? Sign in and Stripe can reuse eligible verified business details. New to Stripe? Create and complete your account here."
+                ? readyAccount
+                  ? "Stripe is already connected and ready for this host account. Keep this compact unless you need to review Stripe, refresh onboarding details or reconnect a different Stripe account."
+                  : "Already use Stripe? Sign in and Stripe can reuse eligible verified business details. New to Stripe? Create and complete your account here."
                 : "Stripe setup is temporarily unavailable. Contact Find A Place for help."}
             </span>
           </div>
@@ -110,6 +112,7 @@ export default async function PaymentsPage() {
             <EmbeddedStripeOnboarding
               organizationId={organization.id}
               publishableKey={publishableKey}
+              connectedAndReady={Boolean(readyAccount)}
             />
           ) : (
             <button className="button button-small" disabled>
