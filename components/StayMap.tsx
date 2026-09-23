@@ -62,6 +62,8 @@ function popupNode(stay: StayMapItem) {
     const image = document.createElement("img");
     image.src = stay.image;
     image.alt = "";
+    image.loading = "lazy";
+    image.decoding = "async";
     card.appendChild(image);
   }
 

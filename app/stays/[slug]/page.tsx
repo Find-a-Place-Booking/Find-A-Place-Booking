@@ -56,19 +56,32 @@ export default async function PropertyPage({
               className="gallery-main"
               src={mainImage}
               alt={`${property.name} exterior`}
+              loading="eager"
+              decoding="async"
+              fetchPriority="high"
             />
           ) : (
             <div className="gallery-main gallery-placeholder">Property photo</div>
           )}
 
           {secondImage ? (
-            <img src={secondImage} alt={`${property.name} surroundings`} />
+            <img
+              src={secondImage}
+              alt={`${property.name} surroundings`}
+              loading="lazy"
+              decoding="async"
+            />
           ) : (
             <div className="gallery-placeholder">Property photo</div>
           )}
 
           {thirdImage ? (
-            <img src={thirdImage} alt={`${property.name} detail`} />
+            <img
+              src={thirdImage}
+              alt={`${property.name} detail`}
+              loading="lazy"
+              decoding="async"
+            />
           ) : (
             <div className="gallery-placeholder">Property photo</div>
           )}

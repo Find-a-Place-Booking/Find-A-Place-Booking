@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { DeferredBackgroundVideo } from "@/components/DeferredBackgroundVideo";
 import { Footer } from "@/components/Footer";
 import { Header } from "@/components/Header";
 import styles from "./hosts.module.css";
@@ -8,21 +9,11 @@ export default function HostsPage() {
   return (
     <>
       <div className={`hosts-hero ${styles.videoHero}`}>
-        <video
+        <DeferredBackgroundVideo
           className={styles.video}
-          autoPlay
-          muted
-          loop
-          playsInline
-          preload="metadata"
+          src="/media/find-a-place-host-fall-loop.mp4"
           poster="/media/find-a-place-host-fall-poster.jpg"
-          aria-hidden="true"
-        >
-          <source
-            src="/media/find-a-place-host-fall-loop.mp4"
-            type="video/mp4"
-          />
-        </video>
+        />
         <div className={styles.shade} aria-hidden="true" />
 
         <Header light />

@@ -2,7 +2,9 @@
   position: relative;
   overflow: hidden;
   isolation: isolate;
-  background: #203238;
+  background:
+    #203238
+    url('/media/find-a-place-host-fall-poster.jpg') center 52% / cover no-repeat;
 }
 
 .video {
@@ -48,7 +50,17 @@
     object-position: 64% center;
   }
 
+  .videoHero {
+    background-position: 64% center;
+  }
+
   .shade {
     background: rgba(12, 28, 23, 0.82);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .video {
+    display: none;
   }
 }

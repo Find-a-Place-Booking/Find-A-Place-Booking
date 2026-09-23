@@ -14,6 +14,10 @@ const primaryLinks = [
   ["About Find A Place", "/about"],
 ];
 
+function linkPrefetch(href: string) {
+  return href === "/stays" ? false : undefined;
+}
+
 export function Header({ light = false }: { light?: boolean }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
@@ -76,7 +80,12 @@ export function Header({ light = false }: { light?: boolean }) {
 
               <div className="mobile-menu-primary">
                 {primaryLinks.map(([label, href]) => (
-                  <Link key={label} href={href} onClick={closeMenu}>
+                  <Link
+                    key={label}
+                    href={href}
+                    prefetch={linkPrefetch(href)}
+                    onClick={closeMenu}
+                  >
                     {label}
                     <span>→</span>
                   </Link>
@@ -118,7 +127,7 @@ export function Header({ light = false }: { light?: boolean }) {
 
           <nav className="main-nav" aria-label="Main navigation">
             {primaryLinks.map(([label, href]) => (
-              <Link key={label} href={href}>
+              <Link key={label} href={href} prefetch={linkPrefetch(href)}>
                 {label}
               </Link>
             ))}
@@ -151,9 +160,7 @@ export function Header({ light = false }: { light?: boolean }) {
               aria-label={menuOpen ? "Close menu" : "Open menu"}
               aria-expanded={menuOpen}
               aria-controls={menuId}
-              onClick={() =>
-                setMenuOpen((value) => !value)
-              }
+              onClick={() => setMenuOpen((value) => !value)}
             >
               <span />
               <span />

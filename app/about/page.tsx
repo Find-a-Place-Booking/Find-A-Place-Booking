@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { DeferredBackgroundVideo } from "@/components/DeferredBackgroundVideo";
 import { Footer } from "@/components/Footer";
 import { Header } from "@/components/Header";
 import { getSiteContentBlocks } from "@/lib/public/site-content";
@@ -65,21 +66,11 @@ export default async function AboutPage() {
   return (
     <>
       <div className={`home-hero ${styles.aboutHero}`}>
-        <video
+        <DeferredBackgroundVideo
           className={styles.aboutHeroVideo}
-          autoPlay
-          muted
-          loop
-          playsInline
-          preload="auto"
+          src="/media/find-a-place-about-fall-remix.mp4"
           poster="/media/find-a-place-about-fall-poster.jpg"
-          aria-hidden="true"
-        >
-          <source
-            src="/media/find-a-place-about-fall-remix.mp4"
-            type="video/mp4"
-          />
-        </video>
+        />
         <div className={styles.aboutHeroShade} aria-hidden="true" />
 
         <Header light />
@@ -95,6 +86,9 @@ export default async function AboutPage() {
               <img
                 src="/brand/find-a-place-pin.jpg"
                 alt="Find A Place"
+                loading="eager"
+                decoding="async"
+                fetchPriority="high"
               />
             </div>
             <div className="hero-featured-copy">

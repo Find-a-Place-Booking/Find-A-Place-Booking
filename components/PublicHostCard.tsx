@@ -27,6 +27,8 @@ export async function PublicHostCard({
           <img
             src={host.avatarUrl}
             alt={`${name} host profile`}
+            loading="lazy"
+            decoding="async"
             style={{
               width: "100%",
               height: "100%",

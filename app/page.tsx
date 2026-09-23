@@ -1,11 +1,12 @@
 import Image from "next/image";
 import Link from "next/link";
 
+import { DeferredBackgroundVideo } from "@/components/DeferredBackgroundVideo";
+import { DeferredStayMap } from "@/components/DeferredStayMap";
 import { Footer } from "@/components/Footer";
 import { Header } from "@/components/Header";
 import { PropertyCard } from "@/components/PropertyCard";
 import { SearchBar } from "@/components/SearchBar";
-import { StayMap } from "@/components/StayMap";
 import { destinations } from "@/data/catalog";
 import { getPublishedMapStays, getPublishedProperties } from "@/lib/public/listings";
 import { getSiteContentBlocks } from "@/lib/public/site-content";
@@ -110,21 +111,11 @@ export default async function HomePage() {
   return (
     <>
       <div className="home-hero">
-        <video
+        <DeferredBackgroundVideo
           className="home-hero-video"
-          autoPlay
-          muted
-          loop
-          playsInline
-          preload="auto"
+          src="/media/find-a-place-hero-loop.mp4"
           poster="/media/find-a-place-hero-poster.jpg"
-          aria-hidden="true"
-        >
-          <source
-            src="/media/find-a-place-hero-loop.mp4"
-            type="video/mp4"
-          />
-        </video>
+        />
         <div className="home-hero-video-shade" aria-hidden="true" />
 
         <Header light />
@@ -157,12 +148,16 @@ export default async function HomePage() {
                 <Link
                   className="hero-featured-media hero-featured-live"
                   href={`/stays/${featuredStay.slug}`}
+                  prefetch={false}
                   aria-label={`View ${featuredStay.name}`}
                 >
                   {featuredStay.image ? (
                     <img
                       src={featuredStay.image}
                       alt={`${featuredStay.name} in ${featuredStay.location}`}
+                      loading="eager"
+                      decoding="async"
+                      fetchPriority="high"
                     />
                   ) : (
                     <div className="hero-featured-photo-placeholder">
@@ -185,7 +180,7 @@ export default async function HomePage() {
                     <b>${featuredStay.price}</b>
                     <small>/ night</small>
                   </div>
-                  <Link href={`/stays/${featuredStay.slug}`}>
+                  <Link href={`/stays/${featuredStay.slug}`} prefetch={false}>
                     View this stay →
                   </Link>
                 </div>
@@ -202,7 +197,9 @@ export default async function HomePage() {
                     One standout cabin, cottage or getaway at a time, picked for
                     the kind of trip you’ll want to start planning.
                   </p>
-                  <Link href="/stays">Browse all stays →</Link>
+                  <Link href="/stays" prefetch={false}>
+                    Browse all stays →
+                  </Link>
                 </div>
               </>
             )}
@@ -224,6 +221,7 @@ export default async function HomePage() {
               <Link
                 href={`/stays?where=${encodeURIComponent(destination.name)}`}
                 key={destination.name}
+                prefetch={false}
               >
                 {destination.name}
               </Link>
@@ -238,7 +236,7 @@ export default async function HomePage() {
                 <p className="eyebrow dark">Featured stays</p>
                 <h2>Places people are already looking at.</h2>
               </div>
-              <Link className="under-link" href="/stays">
+              <Link className="under-link" href="/stays" prefetch={false}>
                 See all stays →
               </Link>
             </div>
@@ -278,12 +276,12 @@ export default async function HomePage() {
                   listings show the general area instead of the exact driveway.
                 </p>
               </div>
-              <Link className="under-link" href="/stays">
+              <Link className="under-link" href="/stays" prefetch={false}>
                 Browse all stays →
               </Link>
             </div>
             <div className="shell-wide home-map-frame">
-              <StayMap stays={mapStays} className="home-stay-map" />
+              <DeferredStayMap stays={mapStays} className="home-stay-map" />
             </div>
           </section>
         ) : null}
@@ -295,7 +293,7 @@ export default async function HomePage() {
                 src="/stay-types/slice-cabin.png"
                 alt=""
                 fill
-                sizes="(max-width: 700px) 100vw, 25vw"
+                sizes="(max-width: 700px) 50vw, 25vw"
               />
             </div>
             <div className="stay-type-slice stay-type-slice-2">
@@ -303,7 +301,7 @@ export default async function HomePage() {
                 src="/stay-types/slice-waterfront.png"
                 alt=""
                 fill
-                sizes="(max-width: 700px) 100vw, 25vw"
+                sizes="(max-width: 700px) 50vw, 25vw"
               />
             </div>
             <div className="stay-type-slice stay-type-slice-3">
@@ -311,7 +309,7 @@ export default async function HomePage() {
                 src="/stay-types/slice-rustic-cabin.png"
                 alt=""
                 fill
-                sizes="(max-width: 700px) 100vw, 25vw"
+                sizes="(max-width: 700px) 50vw, 25vw"
               />
             </div>
             <div className="stay-type-slice stay-type-slice-4">
@@ -319,7 +317,7 @@ export default async function HomePage() {
                 src="/stay-types/slice-luxe-cabin.png"
                 alt=""
                 fill
-                sizes="(max-width: 700px) 100vw, 25vw"
+                sizes="(max-width: 700px) 50vw, 25vw"
               />
             </div>
           </div>
@@ -341,6 +339,7 @@ export default async function HomePage() {
                     collection.filter,
                   )}`}
                   key={collection.filter}
+                  prefetch={false}
                 >
                   <div>
                     <strong>{collection.label}</strong>
@@ -362,36 +361,41 @@ export default async function HomePage() {
             </div>
 
             <div className="destination-grid">
-              {destinations.map((destination) => (
-                <Link
-                  href={`/stays?where=${encodeURIComponent(destination.name)}`}
-                  className="destination-card"
-                  key={destination.name}
-                >
-                  <span
-                    className="destination-card-media"
-                    style={{
-                      backgroundImage: `url(${
-                        destinationImages[destination.name] ??
-                        "/brand/find-a-place-pin.jpg"
-                      })`,
-                    }}
-                    aria-hidden="true"
-                  />
-                  <span
-                    className="destination-card-overlay"
-                    aria-hidden="true"
-                  />
-                  <span className="destination-card-content">
-                    <span>
-                      <h3>{destination.name}</h3>
-                      <p>{destination.detail}</p>
-                      <small>Browse stays</small>
+              {destinations.map((destination) => {
+                const destinationImage =
+                  destinationImages[destination.name] ??
+                  "/brand/find-a-place-pin.jpg";
+
+                return (
+                  <Link
+                    href={`/stays?where=${encodeURIComponent(destination.name)}`}
+                    className="destination-card"
+                    key={destination.name}
+                    prefetch={false}
+                  >
+                    <span className="destination-card-media" aria-hidden="true">
+                      <Image
+                        src={destinationImage}
+                        alt=""
+                        fill
+                        sizes="(max-width: 700px) calc(100vw - 44px), 50vw"
+                      />
                     </span>
-                    <b>↗</b>
-                  </span>
-                </Link>
-              ))}
+                    <span
+                      className="destination-card-overlay"
+                      aria-hidden="true"
+                    />
+                    <span className="destination-card-content">
+                      <span>
+                        <h3>{destination.name}</h3>
+                        <p>{destination.detail}</p>
+                        <small>Browse stays</small>
+                      </span>
+                      <b>↗</b>
+                    </span>
+                  </Link>
+                );
+              })}
             </div>
           </div>
         </section>
@@ -404,7 +408,7 @@ export default async function HomePage() {
                   <p className="eyebrow dark">Keep exploring</p>
                   <h2>More stays worth keeping in mind.</h2>
                 </div>
-                <Link className="under-link" href="/stays">
+                <Link className="under-link" href="/stays" prefetch={false}>
                   Browse every stay →
                 </Link>
               </div>
@@ -423,6 +427,8 @@ export default async function HomePage() {
             <img
               src={story.image_url || "/brand/find-a-place-pin.jpg"}
               alt="Find A Place cabin, campfire and water mark"
+              loading="lazy"
+              decoding="async"
             />
           </div>
 

@@ -1,7 +1,9 @@
 .aboutHero {
   position: relative;
   isolation: isolate;
-  background: #14251f;
+  background:
+    #14251f
+    url('/media/find-a-place-about-fall-poster.jpg') center / cover no-repeat;
 }
 
 .aboutHero::before {
@@ -144,12 +146,6 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .aboutHero {
-    background:
-      linear-gradient(90deg, rgba(7, 16, 13, .70), rgba(7, 16, 13, .30)),
-      url('/media/find-a-place-about-fall-poster.jpg') center / cover no-repeat;
-  }
-
   .aboutHeroVideo {
     display: none;
   }
