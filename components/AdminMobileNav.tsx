@@ -35,7 +35,7 @@ const links: MobileLink[] = [
     "partners",
     ["SUPER_ADMIN", "PARTNER_ADMIN"],
   ],
-  ["Audit log", "/admin/audit", "audit"],
+  ["Activity log", "/admin/audit", "audit"],
 ];
 
 export function AdminMobileNav({

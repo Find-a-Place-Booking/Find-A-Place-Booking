@@ -39,7 +39,7 @@ const nav: NavItem[] = [
     key: "partners",
     roles: ["SUPER_ADMIN", "PARTNER_ADMIN"],
   },
-  { label: "Audit log", href: "/admin/audit", key: "audit" },
+  { label: "Activity log", href: "/admin/audit", key: "audit" },
 ];
 
 export function AdminSidebar({
