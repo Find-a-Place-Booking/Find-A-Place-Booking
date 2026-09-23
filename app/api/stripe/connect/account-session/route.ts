@@ -3,7 +3,6 @@ import { NextResponse } from "next/server";
 import {
   createAccountSession,
   createEmbeddedMerchantAccount,
-  updateEmbeddedMerchantBusinessProfile,
 } from "@/lib/payments/stripe-rest";
 import { stripeEnvironment } from "@/lib/payments/booking-runtime";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -178,14 +177,6 @@ export async function POST(request: Request) {
     const admin = createAdminClient();
     const environment = stripeEnvironment();
 
-    const businessProfile = await getStripeBusinessProfile({
-      admin,
-      organizationId,
-      displayName,
-      request,
-      environment,
-    });
-
     const { data: existing, error: existingError } = await admin
       .from("payment_accounts")
       .select("id,provider_account_id,status,is_default,metadata")
@@ -217,6 +208,14 @@ export async function POST(request: Request) {
       : null;
 
     if (!providerAccountId) {
+      const businessProfile = await getStripeBusinessProfile({
+        admin,
+        organizationId,
+        displayName,
+        request,
+        environment,
+      });
+
       const stripeAccount = await createEmbeddedMerchantAccount({
         email,
         displayName,
@@ -312,42 +311,17 @@ export async function POST(request: Request) {
           );
         }
       }
-    } else {
-      // Existing LIVE/TEST accounts can also be repaired. This replaces a
-      // manually entered unrelated website with the host's Find A Place public
-      // listing when one exists and always supplies Stripe with a useful
-      // product/service description.
-      await updateEmbeddedMerchantBusinessProfile(providerAccountId, {
-        displayName,
-        businessUrl: businessProfile.businessUrl,
-        productDescription: businessProfile.productDescription,
-      });
-
-      const { error: metadataUpdateError } = await admin
-        .from("payment_accounts")
-        .update({
-          metadata: {
-            ...existingMetadata,
-            business_profile_source: businessProfile.businessUrl
-              ? "FAP_PUBLIC_LISTING"
-              : "PRODUCT_DESCRIPTION",
-            business_profile_url: businessProfile.businessUrl,
-            business_profile_refreshed_at: new Date().toISOString(),
-          },
-        })
-        .eq("id", paymentAccountId);
-
-      if (metadataUpdateError) {
-        throw new Error(
-          `Unable to save Stripe business-profile status: ${metadataUpdateError.message}`,
-        );
-      }
     }
 
     if (!paymentAccountId || !providerAccountId) {
       throw new Error("Stripe payment setup could not be initialized.");
     }
 
+    // For an already-onboarded connected account, do not try to rewrite
+    // defaults.profile fields here. Stripe's embedded/hosted onboarding owns
+    // those fields after Account Link / Account Session onboarding. The host
+    // can edit supported business/public/bank details through the embedded
+    // Account Management component instead.
     const session = await createAccountSession(providerAccountId);
 
     if (!session.client_secret) {

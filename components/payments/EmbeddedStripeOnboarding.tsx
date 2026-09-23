@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import {
+  ConnectAccountManagement,
   ConnectAccountOnboarding,
   ConnectComponentsProvider,
 } from "@stripe/react-connect-js";
@@ -138,7 +139,7 @@ export function EmbeddedStripeOnboarding({
   const managerDescription = useMemo(
     () =>
       connectedAndReady
-        ? "Review Stripe onboarding details, refresh any new Stripe requirements, or reconnect if the host changes Stripe accounts."
+        ? "View or update the connected Stripe account's business details, public information and payout bank account. Stripe keeps sensitive account information on Stripe."
         : "Find A Place needs a Stripe Connect relationship for host booking payments. If you already use Stripe, use your normal Stripe login and Stripe may reuse eligible verified business information. Your unrelated Stripe activity stays separate.",
     [connectedAndReady],
   );
@@ -167,7 +168,7 @@ export function EmbeddedStripeOnboarding({
                   type="button"
                   onClick={() => openStripeOnboarding("existing")}
                 >
-                  Open Stripe
+                  Open Stripe account
                 </button>
 
                 <button
@@ -218,19 +219,19 @@ export function EmbeddedStripeOnboarding({
           <span className={styles.kicker}>Stripe Connect</span>
 
           <strong>
-            {entryMode === "existing"
-              ? connectedAndReady
-                ? "Review or refresh your Stripe connection"
-                : "Sign in with Stripe"
-              : "Create your Stripe payment account"}
+            {connectedAndReady
+              ? "Manage your Stripe account"
+              : entryMode === "existing"
+                ? "Sign in with Stripe"
+                : "Create your Stripe payment account"}
           </strong>
 
           <p>
-            {entryMode === "existing"
-              ? connectedAndReady
-                ? "Open Stripe's secure onboarding flow to review the current connection, satisfy any new Stripe requirements, or sign in with another Stripe account if you need to replace the connected account."
-                : "Sign in with the Stripe login you already use. Stripe can reuse eligible business and verification details it already has, so you do not have to re-enter the same information. If Stripe has an outstanding requirement, it may still ask you to confirm or update it."
-              : "Create your Stripe account and complete Stripe's secure onboarding below. Guest booking charges will be created directly on your connected Stripe account."}
+            {connectedAndReady
+              ? "Review or update supported business details, public information and payout bank information through Stripe's secure embedded account management."
+              : entryMode === "existing"
+                ? "Sign in with the Stripe login you already use. Stripe can reuse eligible business and verification details it already has, so you do not have to re-enter the same information. If Stripe has an outstanding requirement, it may still ask you to confirm or update it."
+                : "Create your Stripe account and complete Stripe's secure onboarding below. Guest booking charges will be created directly on your connected Stripe account."}
           </p>
 
           <p>
@@ -242,9 +243,24 @@ export function EmbeddedStripeOnboarding({
         <button
           className={styles.close}
           type="button"
-          onClick={() => {
+          onClick={async () => {
+            if (connectedAndReady) {
+              try {
+                await refreshStripeStatus();
+              } catch (error) {
+                console.error(
+                  "[stripe connect] status refresh failed",
+                  error,
+                );
+              }
+            }
+
             setShowOnboarding(false);
             setEntryMode(null);
+
+            if (connectedAndReady) {
+              window.location.reload();
+            }
           }}
         >
           Back
@@ -256,20 +272,24 @@ export function EmbeddedStripeOnboarding({
           <ConnectComponentsProvider
             connectInstance={stripeConnectInstance}
           >
-            <ConnectAccountOnboarding
-              onExit={async () => {
-                try {
-                  await refreshStripeStatus();
-                } catch (error) {
-                  console.error(
-                    "[stripe connect] status refresh failed",
-                    error,
-                  );
-                }
+            {connectedAndReady ? (
+              <ConnectAccountManagement />
+            ) : (
+              <ConnectAccountOnboarding
+                onExit={async () => {
+                  try {
+                    await refreshStripeStatus();
+                  } catch (error) {
+                    console.error(
+                      "[stripe connect] status refresh failed",
+                      error,
+                    );
+                  }
 
-                window.location.reload();
-              }}
-            />
+                  window.location.reload();
+                }}
+              />
+            )}
           </ConnectComponentsProvider>
         ) : null}
       </div>
