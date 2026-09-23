@@ -240,7 +240,7 @@ export function EmbeddedStripeOnboarding({
           <button
             className={`${styles.modeButton} ${entryMode === "existing" ? styles.modeButtonActive : ""}`}
             type="button"
-            onClick={() => setEntryMode("existing")}
+            onClick={() => openStripeOnboarding("existing")}
             aria-pressed={entryMode === "existing"}
           >
             Use my existing Stripe login
@@ -248,7 +248,7 @@ export function EmbeddedStripeOnboarding({
           <button
             className={`${styles.modeButton} ${entryMode === "new" ? styles.modeButtonActive : ""}`}
             type="button"
-            onClick={() => setEntryMode("new")}
+            onClick={() => openStripeOnboarding("new")}
             aria-pressed={entryMode === "new"}
           >
             I&apos;m new to Stripe
@@ -275,15 +275,6 @@ export function EmbeddedStripeOnboarding({
                 <h4>{selectedTitle}</h4>
                 <p>{selectedDescription}</p>
               </div>
-              <button
-                className="button button-small"
-                type="button"
-                onClick={() => openStripeOnboarding(entryMode)}
-              >
-                {entryMode === "existing"
-                  ? "Continue with Stripe"
-                  : "Create Stripe account"}
-              </button>
             </div>
 
             <ul className={styles.bulletList}>
