@@ -135,3 +135,52 @@ export async function setPropertyLiveCheckout(formData: FormData) {
   revalidatePath(`/admin/properties/${propertyId}`);
   redirect(`/admin/properties/${encodeURIComponent(propertyId)}?saved=${encodeURIComponent(enabled ? "Live checkout enabled for this pilot property." : "Live checkout disabled.")}`);
 }
+
+export async function setHomepageFeaturePriority(formData: FormData) {
+  const context = await getAdminContext();
+  const propertyId = field(formData, "property_id", 100);
+  const rawPriority = field(formData, "priority", 2);
+  const priority = Number.parseInt(rawPriority, 10);
+
+  if (!hasAnyAdminRole(context, ["SUPER_ADMIN", "OPERATIONS_ADMIN"])) {
+    redirect(`/admin/properties?error=${encodeURIComponent("Your admin role cannot change homepage placement priority.")}`);
+  }
+
+  if (!propertyId || ![1, 2, 3].includes(priority)) {
+    redirect(`/admin/properties?error=${encodeURIComponent("Homepage priority must be 1, 2 or 3.")}`);
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("admin_set_homepage_feature_priority", {
+    target_property_id: propertyId,
+    target_priority: priority,
+  });
+
+  if (error) {
+    console.error("[setHomepageFeaturePriority] RPC failed", {
+      code: error.code,
+      message: error.message,
+      details: error.details,
+      hint: error.hint,
+    });
+
+    redirect(`/admin/properties?error=${encodeURIComponent(error.message || "Homepage priority could not be saved.")}`);
+  }
+
+  revalidatePath("/");
+  revalidatePath("/admin/properties");
+  revalidatePath(`/admin/properties/${propertyId}`);
+
+  const label =
+    priority === 1
+      ? "Founding partner"
+      : priority === 2
+        ? "Paid placement"
+        : "Standard";
+
+  redirect(
+    `/admin/properties?saved=${encodeURIComponent(
+      `Homepage priority saved: ${priority} · ${label}.`,
+    )}`,
+  );
+}

@@ -174,12 +174,56 @@ type PublishedPropertySearch = {
   limit?: number;
   checkIn?: string;
   checkOut?: string;
+  featuredPriority?: boolean;
 };
+
+async function orderHomepageFeaturedRows(rows: PublicIndexRow[]) {
+  if (rows.length < 2) return rows;
+
+  const admin = createAdminClient();
+  const propertyIds = rows.map((row) => row.property_id);
+
+  const { data, error } = await admin
+    .from("properties")
+    .select("id,homepage_feature_priority")
+    .in("id", propertyIds);
+
+  if (error) {
+    console.error("[getPublishedProperties] homepage feature priority unavailable", error);
+    return rows;
+  }
+
+  const priorityByProperty = new Map(
+    (data ?? []).map((row) => [
+      row.id as string,
+      Number(row.homepage_feature_priority || 3),
+    ]),
+  );
+
+  // Keep the existing public-listing order inside each priority band. The
+  // only ranking rule added here is 1 before 2 before 3.
+  return rows
+    .map((row, originalIndex) => ({
+      row,
+      originalIndex,
+      priority: priorityByProperty.get(row.property_id) ?? 3,
+    }))
+    .sort((a, b) => {
+      const priorityDifference = a.priority - b.priority;
+      return priorityDifference || a.originalIndex - b.originalIndex;
+    })
+    .map(({ row }) => row);
+}
 
 export async function getPublishedProperties(
   input?: number | PublishedPropertySearch,
 ): Promise<Property[]> {
-  const options = typeof input === "number" ? { limit: input } : input ?? {};
+  const numericFeaturedRequest = typeof input === "number";
+  const options =
+    numericFeaturedRequest
+      ? { limit: input, featuredPriority: true }
+      : input ?? {};
+
   const supabase = await createClient();
   const [listingResult, coordinateResult] = await Promise.all([
     supabase.rpc("public_listing_index"),
@@ -241,6 +285,10 @@ export async function getPublishedProperties(
       );
       allRows = allRows.filter((row) => !blockedUnits.has(row.unit_id));
     }
+  }
+
+  if (options.featuredPriority) {
+    allRows = await orderHomepageFeaturedRows(allRows);
   }
 
   const rows =
