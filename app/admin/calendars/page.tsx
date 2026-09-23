@@ -1,7 +1,10 @@
 import Link from "next/link";
 
 import { AdminShell } from "@/components/AdminShell";
-import { getAdminContext } from "@/lib/admin/context";
+import {
+  getAdminContext,
+  hasAnyAdminRole,
+} from "@/lib/admin/context";
 import { cleanStatus, formatAdminDate } from "@/lib/admin/format";
 import { createClient } from "@/lib/supabase/server";
 
@@ -49,22 +52,67 @@ export default async function AdminCalendarsPage() {
   const context = await getAdminContext();
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("admin_calendar_health_bundle");
-  if (error) throw new Error("Unable to load calendar operations. Refresh the page, and contact Find A Place support if the problem continues.");
+  if (error) {
+    throw new Error(
+      "Unable to load calendar operations. Refresh the page, and contact Find A Place support if the problem continues.",
+    );
+  }
 
-  const bundle = (data ?? { connections: [], owner_blocks: 0, external_blocks: 0 }) as CalendarHealthBundle;
+  const bundle = (data ?? {
+    connections: [],
+    owner_blocks: 0,
+    external_blocks: 0,
+  }) as CalendarHealthBundle;
   const connections = bundle.connections ?? [];
-  const healthy = connections.filter((connection) => connection.sync_status === "HEALTHY").length;
-  const errors = connections.filter((connection) => connection.sync_status === "ERROR").length;
-  const neverSynced = connections.filter((connection) => connection.sync_status === "NEVER_SYNCED").length;
+  const healthy = connections.filter(
+    (connection) => connection.sync_status === "HEALTHY",
+  ).length;
+  const errors = connections.filter(
+    (connection) => connection.sync_status === "ERROR",
+  ).length;
+  const neverSynced = connections.filter(
+    (connection) => connection.sync_status === "NEVER_SYNCED",
+  ).length;
+  const canUseTestLab = hasAnyAdminRole(context, [
+    "SUPER_ADMIN",
+    "OPERATIONS_ADMIN",
+  ]);
 
   return (
-    <AdminShell active="calendars" eyebrow="Integration health" title="Calendars" context={context}>
+    <AdminShell
+      active="calendars"
+      eyebrow="Integration health"
+      title="Calendars"
+      context={context}
+    >
       <div className="metrics dash-grid">
         <div><span>Active sources</span><strong>{connections.length}</strong><small>{healthy} healthy</small></div>
         <div><span>Sync errors</span><strong>{errors}</strong><small>{neverSynced} never synced</small></div>
         <div><span>Imported blocks</span><strong>{bundle.external_blocks ?? 0}</strong><small>Imported external availability</small></div>
         <div><span>Owner blocks</span><strong>{bundle.owner_blocks ?? 0}</strong><small>Manual host blocks</small></div>
       </div>
+
+      {canUseTestLab ? (
+        <section className="panel">
+          <div className="panel-head">
+            <div>
+              <p className="eyebrow dark">Testing tools</p>
+              <h2>Need a fake Airbnb, Vrbo or ResNexus feed?</h2>
+            </div>
+            <Link
+              className="button button-small"
+              href="/admin/calendars/test-lab"
+            >
+              Open iCal Test Lab
+            </Link>
+          </div>
+          <p className="muted">
+            Generate synthetic iCal reservations, change their dates, cancel or
+            remove them, and verify that the real calendar sync reconciles the
+            changes correctly.
+          </p>
+        </section>
+      ) : null}
 
       <section className="panel">
         <div className="panel-head"><div><p className="eyebrow dark">Calendar operations</p><h2>Connected availability sources</h2></div><span className="status-pill status-muted">Read only</span></div>

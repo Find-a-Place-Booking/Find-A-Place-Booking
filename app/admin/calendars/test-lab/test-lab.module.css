@@ -1,0 +1,39 @@
+.pageIntro { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:1rem; align-items:start; }
+.pageIntro p { margin:.35rem 0 0; }
+.warning { border:1px solid #d9b06b; background:#fff8e8; border-radius:14px; padding:.9rem 1rem; margin:1rem 0; }
+.warning strong,.warning span { display:block; }
+.warning span { margin-top:.2rem; color:#5a4a34; }
+.feedGrid { display:grid; gap:1rem; margin-top:1rem; }
+.feedCard { border:1px solid #d8ddd8; border-radius:18px; background:white; padding:1rem; }
+.feedHead { display:flex; justify-content:space-between; gap:1rem; align-items:flex-start; margin-bottom:.8rem; }
+.feedHead h2,.feedHead p { margin:0; }
+.feedHead p { margin-top:.2rem; color:#69706c; }
+.badges { display:flex; gap:.4rem; flex-wrap:wrap; justify-content:flex-end; }
+.badge { border:1px solid #d8ddd8; border-radius:999px; padding:.3rem .55rem; font-size:.78rem; white-space:nowrap; }
+.feedUrl { display:grid; gap:.6rem; border:1px solid #e3e7e3; border-radius:14px; padding:.8rem; background:#f8faf8; margin-bottom:1rem; }
+.feedUrl code { overflow-wrap:anywhere; font-size:.82rem; }
+.rowActions { display:flex; gap:.5rem; flex-wrap:wrap; align-items:center; }
+.configGrid { display:grid; grid-template-columns:1.3fr 1fr 1fr 1fr auto auto; gap:.7rem; align-items:end; margin-bottom:1rem; }
+.configGrid label,.addEvent label,.eventForm label,.createFeed label { display:grid; gap:.25rem; min-width:0; }
+.configGrid input,.configGrid select,.addEvent input,.addEvent select,.eventForm input,.eventForm select,.createFeed input,.createFeed select { width:100%; min-width:0; }
+.enabled { display:flex !important; align-items:center; gap:.45rem !important; min-height:44px; }
+.enabled input { width:auto !important; }
+.events { display:grid; gap:.6rem; margin-top:.8rem; }
+.eventForm { display:grid; grid-template-columns:minmax(150px,1.4fr) repeat(4,minmax(120px,1fr)) auto; gap:.6rem; align-items:end; border-top:1px solid #ecefec; padding-top:.8rem; }
+.addEvent { display:grid; grid-template-columns:minmax(170px,1.3fr) repeat(4,minmax(120px,1fr)) auto; gap:.7rem; align-items:end; }
+.createFeed { display:grid; grid-template-columns:1fr 1.4fr 1fr auto; gap:.7rem; align-items:end; }
+.sectionHead { display:flex; justify-content:space-between; align-items:end; gap:1rem; margin:1.1rem 0 .5rem; }
+.sectionHead h3,.sectionHead p { margin:0; }
+.sectionHead p { color:#69706c; margin-top:.2rem; }
+.empty { padding:1rem; border:1px dashed #cfd5cf; border-radius:14px; color:#69706c; }
+.help { color:#69706c; font-size:.88rem; margin:.45rem 0 0; }
+.dangerRow { display:flex; justify-content:flex-end; margin-top:1rem; }
+@media (max-width:1100px) {
+  .configGrid,.eventForm,.addEvent,.createFeed { grid-template-columns:1fr 1fr; }
+}
+@media (max-width:640px) {
+  .pageIntro,.feedHead { display:grid; grid-template-columns:1fr; }
+  .badges { justify-content:flex-start; }
+  .configGrid,.eventForm,.addEvent,.createFeed { grid-template-columns:1fr; }
+  .rowActions > *, .rowActions form, .rowActions button, .rowActions a { width:100%; }
+}
