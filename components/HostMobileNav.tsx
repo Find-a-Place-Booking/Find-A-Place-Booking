@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { signOutHost } from "@/app/auth/actions";
+import alertStyles from "./HostMessageAlerts.module.css";
 
 const links = [
   ["Overview", "/host"],
@@ -15,7 +16,13 @@ const links = [
   ["Help & contact", "/contact#host"],
 ];
 
-export function HostMobileNav({ active }: { active: string }) {
+export function HostMobileNav({
+  active,
+  messageAlertCount = 0,
+}: {
+  active: string;
+  messageAlertCount?: number;
+}) {
   return (
     <details className="internal-mobile-nav">
       <summary>
@@ -32,7 +39,17 @@ export function HostMobileNav({ active }: { active: string }) {
             key={label}
           >
             {label}
-            <span>›</span>
+            <span className={alertStyles.linkMeta}>
+              {label === "Messages" && messageAlertCount > 0 ? (
+                <b
+                  className={alertStyles.badge}
+                  aria-label={`${messageAlertCount} message alerts`}
+                >
+                  {messageAlertCount > 10 ? "10+" : messageAlertCount}
+                </b>
+              ) : null}
+              <span aria-hidden="true">›</span>
+            </span>
           </Link>
         ))}
 

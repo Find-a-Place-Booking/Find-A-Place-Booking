@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import { createClient } from "@/lib/supabase/server";
 import { Brand } from "./Brand";
+import alertStyles from "./HostMessageAlerts.module.css";
 
 const links = [
   ["Overview", "/host"],
@@ -40,7 +41,13 @@ async function livePropertyLabel() {
     : "No properties live yet";
 }
 
-export async function HostSidebar({ active }: { active: string }) {
+export async function HostSidebar({
+  active,
+  messageAlertCount = 0,
+}: {
+  active: string;
+  messageAlertCount?: number;
+}) {
   const liveLabel = await livePropertyLabel();
   return (
     <aside className="dash-sidebar">
@@ -53,7 +60,18 @@ export async function HostSidebar({ active }: { active: string }) {
       <nav>
         {links.map(([label, href]) => (
           <Link className={active === label ? "active" : ""} key={label} href={href}>
-            {label}<span>›</span>
+            {label}
+            <span className={alertStyles.linkMeta}>
+              {label === "Messages" && messageAlertCount > 0 ? (
+                <b
+                  className={alertStyles.badge}
+                  aria-label={`${messageAlertCount} message alerts`}
+                >
+                  {messageAlertCount > 10 ? "10+" : messageAlertCount}
+                </b>
+              ) : null}
+              <span aria-hidden="true">›</span>
+            </span>
           </Link>
         ))}
       </nav>

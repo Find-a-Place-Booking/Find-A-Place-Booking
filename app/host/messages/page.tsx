@@ -146,6 +146,12 @@ export default async function MessagesPage({
     conversations[0] ??
     null;
 
+  if (active) {
+    await supabase.rpc("mark_host_reservation_messages_read", {
+      target_reservation_id: active.reservation.id,
+    });
+  }
+
   const activeMessages = active
     ? cleanMessages
         .filter((message) => message.reservation_id === active.reservation.id)

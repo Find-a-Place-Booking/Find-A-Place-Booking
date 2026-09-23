@@ -1,18 +1,22 @@
 import Link from "next/link";
 
 import { signOutHost } from "@/app/auth/actions";
+import { getHostMessageAlertCount } from "@/lib/host/message-alerts";
 import { getHostAccountProfile, initialsForHost } from "@/lib/host/profile";
 import { HostMobileNav } from "./HostMobileNav";
 import { HostSidebar } from "./HostSidebar";
 
 export async function DashboardShell({ active, title, eyebrow, children }: { active: string; title: string; eyebrow?: string; children: React.ReactNode }) {
-  const profile = await getHostAccountProfile();
+  const [profile, messageAlertCount] = await Promise.all([
+    getHostAccountProfile(),
+    getHostMessageAlertCount(),
+  ]);
   const initials = initialsForHost(profile);
   return (
     <div className="dashboard-layout">
-      <HostSidebar active={active} />
+      <HostSidebar active={active} messageAlertCount={messageAlertCount} />
       <main className="dash-main">
-        <HostMobileNav active={active} />
+        <HostMobileNav active={active} messageAlertCount={messageAlertCount} />
         <header className="dash-topbar">
           <div><small>{eyebrow || "Host dashboard"}</small><h1>{title}</h1></div>
           <div className="dash-actions">

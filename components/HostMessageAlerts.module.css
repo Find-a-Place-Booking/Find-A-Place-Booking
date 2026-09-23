@@ -1,0 +1,32 @@
+.linkMeta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  min-width: 36px;
+}
+
+.badge {
+  min-width: 22px;
+  height: 22px;
+  padding: 0 6px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #c8a76e;
+  color: #1d2e28;
+  font-size: 0.65rem;
+  line-height: 1;
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.12);
+}
+
+@media (max-width: 720px) {
+  .badge {
+    min-width: 24px;
+    height: 24px;
+    font-size: 0.68rem;
+  }
+}
