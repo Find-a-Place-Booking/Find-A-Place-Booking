@@ -229,6 +229,7 @@ export function GuestCheckout({
     Boolean(initialReservationId && initialCheckoutToken),
   );
   const [error, setError] = useState<string | null>(null);
+  const [holdSecondsLeft, setHoldSecondsLeft] = useState<number | null>(null);
   const [verificationComplete, setVerificationComplete] = useState(false);
   const [policyComplete, setPolicyComplete] = useState(false);
   const [turnstileToken, setTurnstileToken] = useState("");
@@ -395,6 +396,42 @@ export function GuestCheckout({
     };
   }, [initialReservationId, initialCheckoutToken]);
 
+
+  useEffect(() => {
+    if (!hold?.holdExpiresAt) {
+      setHoldSecondsLeft(null);
+      return;
+    }
+
+    function updateHoldTimer() {
+      const expiresAt = new Date(hold!.holdExpiresAt).getTime();
+      const seconds = Math.max(0, Math.ceil((expiresAt - Date.now()) / 1000));
+      setHoldSecondsLeft(seconds);
+    }
+
+    updateHoldTimer();
+    const timer = window.setInterval(updateHoldTimer, 1000);
+
+    return () => window.clearInterval(timer);
+  }, [hold?.holdExpiresAt]);
+
+  const checkoutStage = !hold
+    ? 0
+    : !verificationComplete
+      ? 1
+      : !policyComplete
+        ? 2
+        : 3;
+
+  const holdTimeLabel =
+    holdSecondsLeft == null
+      ? null
+      : holdSecondsLeft <= 0
+        ? "Hold expired"
+        : `${Math.floor(holdSecondsLeft / 60)}:${String(
+            holdSecondsLeft % 60,
+          ).padStart(2, "0")}`;
+
   const nights = useMemo(() => {
     const start = new Date(`${checkIn}T12:00:00`);
     const end = new Date(`${checkOut}T12:00:00`);
@@ -484,6 +521,31 @@ export function GuestCheckout({
         </p>
         <h1>Complete your booking</h1>
 
+        <div className={styles.progress} aria-label="Booking progress">
+          {["Details", "Verify", "Review", "Pay"].map((label, index) => (
+            <div
+              className={`${styles.progressItem} ${
+                index < checkoutStage
+                  ? styles.progressDone
+                  : index === checkoutStage
+                    ? styles.progressActive
+                    : ""
+              }`}
+              key={label}
+            >
+              <span>{index < checkoutStage ? "✓" : index + 1}</span>
+              <strong>{label}</strong>
+            </div>
+          ))}
+        </div>
+
+        {!hold ? (
+          <p className={styles.stageIntro}>
+            Add the booking contact details, optional extras and any promo code.
+            We will hold the dates before email verification and payment.
+          </p>
+        ) : null}
+
         {busy &&
         initialReservationId &&
         initialCheckoutToken &&
@@ -494,6 +556,12 @@ export function GuestCheckout({
             <div className={styles.holdNotice}>
               <strong>Your dates are held while you finish checkout</strong>
               <span>Reservation {hold.confirmationCode}</span>
+              {holdTimeLabel ? (
+                <span className={styles.holdTimer}>
+                  <b>{holdTimeLabel}</b>
+                  <small>{holdSecondsLeft === 0 ? "Choose dates again if payment will not start." : "remaining on this hold"}</small>
+                </span>
+              ) : null}
             </div>
 
             {!verificationComplete && identityStripePromise ? (
@@ -623,8 +691,8 @@ export function GuestCheckout({
             </div>
 
             <small>
-              Email verification is required before payment. Your phone number
-              is required for the reservation but is not verified by text message.
+              We verify the booking email before payment. Your phone number is
+              saved for reservation contact but is not verified by text message.
             </small>
 
             {error ? <div className={styles.error}>{error}</div> : null}
@@ -659,9 +727,25 @@ export function GuestCheckout({
         ) : paymentStripePromise && hold ? (
           <>
             <div className={styles.holdNotice}>
-              <strong>Verification and policy agreement complete</strong>
+              <strong>Your dates are still held for payment</strong>
               <span>Reservation {hold.confirmationCode}</span>
+              {holdTimeLabel ? (
+                <span className={styles.holdTimer}>
+                  <b>{holdTimeLabel}</b>
+                  <small>{holdSecondsLeft === 0 ? "This hold may need to be restarted." : "remaining on this hold"}</small>
+                </span>
+              ) : null}
             </div>
+
+            <div className={styles.paymentStage}>
+              <div className={styles.paymentHeading}>
+                <small>Final step</small>
+                <strong>Pay securely</strong>
+                <span>
+                  Review the total at right, then complete payment through the
+                  host&apos;s connected Stripe account.
+                </span>
+              </div>
 
             <Elements
               stripe={paymentStripePromise}
@@ -679,6 +763,7 @@ export function GuestCheckout({
                 testMode={testMode}
               />
             </Elements>
+            </div>
           </>
         ) : (
           <>

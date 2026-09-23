@@ -1,22 +1,316 @@
-.card{display:grid;gap:18px;border:1px solid #d8d0c3;background:#fff;padding:22px;margin-top:18px}.heading{display:flex;justify-content:space-between;gap:18px;align-items:flex-start}.heading h2{font-family:Georgia,"Times New Roman",serif;font-weight:500;margin:0;font-size:1.55rem}.intro{margin:0;color:#676b66;line-height:1.65}.reviewGrid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.reviewCard{border:1px solid #ddd7cc;background:#f8f6f1;padding:15px;display:grid;gap:8px}.reviewCard strong{font-size:.9rem}.reviewCard p{margin:0;color:#6d706b;font-size:.78rem;line-height:1.55}.reviewed{border-color:#789487;background:#f0f5f2}.policyCopy{display:grid;gap:8px;border-top:1px solid #ece7de;padding-top:12px}.policyCopy ul{margin:0;padding-left:20px;color:#555b56}.policyCopy p{white-space:pre-wrap;margin:0;color:#555b56;font-size:.84rem;line-height:1.6}.links{display:flex;gap:14px;flex-wrap:wrap;font-size:.76rem}.links a{font-weight:800;color:#315f4b;text-decoration:underline}.agreement{display:flex;gap:10px;align-items:flex-start;border-top:1px solid #ece7de;padding-top:14px;font-size:.84rem;line-height:1.55}.agreement input{margin-top:3px}.error{background:#fff0ed;color:#8a3f31;border:1px solid #edc8bf;padding:10px 12px;font-size:.8rem}.status{font-size:.7rem;text-transform:uppercase;letter-spacing:.08em;font-weight:850;color:#315f4b}
-
-/* These are required review actions, not low-emphasis controls. Keep their
-   foreground readable even when global button-quiet styles are layered later. */
-.reviewCard :global(.button.button-quiet){
-  background:#111411;
-  border-color:#111411;
-  color:#fff;
-}
-.reviewCard :global(.button.button-quiet:hover){
-  background:#263a33;
-  border-color:#263a33;
-  color:#fff;
-}
-.reviewCard :global(.button.button-quiet:disabled){
-  background:#111411;
-  border-color:#111411;
-  color:#fff;
-  opacity:.65;
+.card {
+  display: grid;
+  gap: 18px;
+  border: 1px solid #d7d0c6;
+  border-radius: 18px;
+  background: #f7f4ef;
+  padding: 24px;
 }
 
-@media(max-width:700px){.reviewGrid{grid-template-columns:1fr}.card{padding:18px}.heading{display:grid}}
+.heading {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: flex-start;
+}
+
+.heading h2 {
+  margin: 5px 0 0;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: clamp(1.7rem, 2.8vw, 2.25rem);
+  line-height: 1.08;
+  font-weight: 500;
+}
+
+.status {
+  flex: 0 0 auto;
+  border-radius: 999px;
+  background: #e7ede6;
+  color: #245447;
+  font-size: .72rem;
+  font-weight: 850;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  padding: 8px 12px;
+}
+
+.intro {
+  margin: 0;
+  max-width: 68ch;
+  color: #596367;
+  line-height: 1.7;
+}
+
+.reviewList {
+  display: grid;
+  gap: 10px;
+}
+
+.reviewCard {
+  border: 1px solid #ddd6cb;
+  border-radius: 14px;
+  background: #fff;
+  overflow: hidden;
+}
+
+.reviewed {
+  border-color: #b8d0c1;
+}
+
+.reviewToggle {
+  width: 100%;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr) auto 22px;
+  gap: 12px;
+  align-items: center;
+  padding: 16px;
+  color: inherit;
+  text-align: left;
+}
+
+.reviewToggle:hover {
+  background: #fbfaf7;
+}
+
+.reviewIcon {
+  width: 36px;
+  height: 36px;
+  border-radius: 999px;
+  background: #ece6dc;
+  display: grid;
+  place-items: center;
+  font-weight: 850;
+}
+
+.reviewed .reviewIcon {
+  background: #e7f0ea;
+  color: #2b624c;
+}
+
+.reviewCopy {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+
+.reviewCopy strong {
+  font-size: .94rem;
+}
+
+.reviewCopy small {
+  color: #69716d;
+  line-height: 1.45;
+}
+
+.reviewState {
+  font-size: .72rem;
+  font-weight: 850;
+  color: #315f4b;
+  white-space: nowrap;
+}
+
+.chevron {
+  font-size: 1.3rem;
+  line-height: 1;
+  color: #6e746f;
+  text-align: center;
+}
+
+.reviewBody {
+  display: grid;
+  gap: 14px;
+  border-top: 1px solid #ece6dd;
+  background: #fbfaf7;
+  padding: 16px;
+  max-height: 360px;
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+
+.compactFacts {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.compactFacts div {
+  min-width: 120px;
+  border: 1px solid #e1dbd1;
+  border-radius: 10px;
+  background: #fff;
+  padding: 10px 12px;
+}
+
+.compactFacts span,
+.compactFacts strong {
+  display: block;
+}
+
+.compactFacts span {
+  font-size: .64rem;
+  color: #777d78;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  font-weight: 800;
+}
+
+.compactFacts strong {
+  margin-top: 2px;
+  font-size: .84rem;
+}
+
+.policyBlock {
+  display: grid;
+  gap: 6px;
+}
+
+.policyBlock > strong {
+  font-size: .8rem;
+}
+
+.policyBlock p,
+.policyBlock ul,
+.platformSummary p,
+.muted {
+  margin: 0;
+  color: #59615d;
+  font-size: .82rem;
+  line-height: 1.6;
+  white-space: pre-wrap;
+}
+
+.policyBlock ul {
+  padding-left: 20px;
+}
+
+.policyBlock li + li {
+  margin-top: 4px;
+}
+
+.documentLink {
+  justify-self: start;
+  color: #315f4b;
+  font-size: .78rem;
+  font-weight: 850;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  overflow-wrap: anywhere;
+}
+
+.platformSummary {
+  display: grid;
+  gap: 8px;
+}
+
+.links {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding-top: 4px;
+}
+
+.links a {
+  color: #315f4b;
+  font-size: .76rem;
+  font-weight: 850;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.acceptArea {
+  display: grid;
+  gap: 14px;
+  border-top: 1px solid #ddd6cb;
+  padding-top: 16px;
+}
+
+.reviewProgress {
+  display: flex;
+  gap: 8px 14px;
+  flex-wrap: wrap;
+  color: #5e6762;
+  font-size: .74rem;
+}
+
+.agreement {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  border: 1px solid #d7d0c6;
+  border-radius: 12px;
+  background: #fff;
+  padding: 13px 14px;
+  font-size: .84rem;
+  line-height: 1.55;
+}
+
+.agreement input {
+  flex: 0 0 auto;
+  margin-top: 3px;
+}
+
+.agreementDisabled {
+  opacity: .58;
+  background: #f2f0eb;
+}
+
+.error {
+  border: 1px solid #e2b9ac;
+  border-radius: 10px;
+  background: #fbefea;
+  color: #8b422d;
+  padding: 11px 13px;
+  font-size: .82rem;
+}
+
+@media (max-width: 700px) {
+  .card {
+    padding: 18px;
+  }
+
+  .heading {
+    display: grid;
+  }
+
+  .status {
+    justify-self: start;
+  }
+
+  .reviewToggle {
+    grid-template-columns: 34px minmax(0, 1fr) 20px;
+    gap: 10px;
+    padding: 14px;
+  }
+
+  .reviewState {
+    grid-column: 2;
+    justify-self: start;
+  }
+
+  .chevron {
+    grid-column: 3;
+    grid-row: 1 / 3;
+  }
+
+  .reviewBody {
+    max-height: 300px;
+    padding: 14px;
+  }
+
+  .compactFacts {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .compactFacts div {
+    min-width: 0;
+  }
+
+  .links {
+    display: grid;
+    gap: 8px;
+  }
+}

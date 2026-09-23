@@ -14,14 +14,77 @@
 }
 
 .checkoutCard {
+  min-width: 0;
   padding: 30px;
 }
 
 .checkoutCard h1 {
-  margin: 0 0 24px;
+  margin: 0 0 18px;
   font-family: Georgia, "Times New Roman", serif;
   font-size: clamp(2rem, 4vw, 3.2rem);
   font-weight: 500;
+}
+
+.progress {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0 0 24px;
+}
+
+.progressItem {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr);
+  gap: 8px;
+  align-items: center;
+  padding: 9px 10px;
+  border: 1px solid #ddd6cb;
+  border-radius: 10px;
+  background: #f8f6f1;
+  color: #7a7d78;
+}
+
+.progressItem > span:first-child {
+  width: 26px;
+  height: 26px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  background: #e9e3d9;
+  font-size: .68rem;
+  font-weight: 900;
+}
+
+.progressItem strong {
+  min-width: 0;
+  font-size: .67rem;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.progressActive {
+  border-color: #9fb3a8;
+  background: #f0f5f2;
+  color: #254b3d;
+}
+
+.progressActive > span:first-child,
+.progressDone > span:first-child {
+  background: #315f4b;
+  color: #fff;
+}
+
+.progressDone {
+  color: #315f4b;
+}
+
+.stageIntro {
+  margin: -6px 0 22px;
+  color: #68706c;
+  font-size: .88rem;
+  line-height: 1.65;
 }
 
 .guestGrid {
@@ -52,6 +115,7 @@
 }
 
 .summary {
+  min-width: 0;
   overflow: hidden;
   position: sticky;
   top: 20px;
@@ -108,15 +172,81 @@
 }
 
 .holdNotice {
-  display: flex;
-  justify-content: space-between;
-  gap: 20px;
-  padding: 12px 14px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 5px 18px;
+  align-items: center;
+  padding: 13px 15px;
   margin-bottom: 18px;
   background: #eef4ef;
   border: 1px solid #cddbcf;
-  border-radius: 9px;
+  border-radius: 10px;
   font-size: .76rem;
+}
+
+.holdNotice strong {
+  font-size: .78rem;
+}
+
+.holdNotice span {
+  color: #51605a;
+}
+
+.holdTimer {
+  grid-column: 2;
+  grid-row: 1 / 3;
+  text-align: right;
+}
+
+.holdTimer b,
+.holdTimer small {
+  display: block;
+}
+
+.holdTimer b {
+  color: #315f4b;
+  font-size: .9rem;
+}
+
+.holdTimer small {
+  margin-top: 2px;
+  color: #65706a;
+  font-size: .62rem;
+}
+
+.paymentStage {
+  display: grid;
+  gap: 16px;
+}
+
+.paymentHeading {
+  border-bottom: 1px solid #e4ddd2;
+  padding-bottom: 15px;
+}
+
+.paymentHeading small {
+  display: block;
+  color: #315f4b;
+  font-size: .67rem;
+  font-weight: 850;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+}
+
+.paymentHeading strong {
+  display: block;
+  margin-top: 4px;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 1.5rem;
+  font-weight: 500;
+}
+
+.paymentHeading span {
+  display: block;
+  margin-top: 5px;
+  color: #6b706c;
+  font-size: .78rem;
+  line-height: 1.5;
 }
 
 .paymentForm {
@@ -137,32 +267,6 @@
   color: #7b4635;
   border-radius: 8px;
   font-size: .76rem;
-}
-
-@media (max-width: 900px) {
-  .layout {
-    grid-template-columns: 1fr;
-  }
-
-  .summary {
-    position: static;
-    order: -1;
-  }
-}
-
-@media (max-width: 620px) {
-  .checkoutCard {
-    padding: 20px;
-  }
-
-  .guestGrid {
-    grid-template-columns: 1fr;
-  }
-
-  .holdNotice {
-    display: grid;
-    gap: 4px;
-  }
 }
 
 .extrasSection {
@@ -251,7 +355,48 @@
   color: #42634c;
 }
 
+@media (max-width: 900px) {
+  .layout {
+    grid-template-columns: 1fr;
+  }
+
+  .summary {
+    position: static;
+    order: -1;
+  }
+}
+
+@media (max-width: 720px) {
+  .progress {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
 @media (max-width: 620px) {
+  .layout {
+    gap: 18px;
+    padding-top: 22px;
+  }
+
+  .checkoutCard {
+    padding: 20px;
+  }
+
+  .guestGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .holdNotice {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .holdTimer {
+    grid-column: auto;
+    grid-row: auto;
+    text-align: left;
+    padding-top: 4px;
+  }
+
   .addOnOption {
     grid-template-columns: auto minmax(0, 1fr);
   }
@@ -261,3 +406,12 @@
   }
 }
 
+@media (max-width: 430px) {
+  .progress {
+    grid-template-columns: 1fr;
+  }
+
+  .progressItem {
+    padding: 8px 9px;
+  }
+}
