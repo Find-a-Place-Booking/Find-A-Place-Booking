@@ -1,0 +1,111 @@
+.card{
+  display:grid;
+  gap:16px;
+  border:1px solid #d8d0c3;
+  background:#fff;
+  padding:20px;
+  margin-top:4px
+}
+.heading{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:16px
+}
+.heading h2{
+  margin:0;
+  font-family:Georgia,"Times New Roman",serif;
+  font-weight:500;
+  font-size:1.45rem;
+  line-height:1.18
+}
+.required{
+  flex:0 0 auto;
+  font-size:.68rem;
+  text-transform:uppercase;
+  letter-spacing:.08em;
+  font-weight:850;
+  color:#315f4b
+}
+.intro{
+  margin:0;
+  color:#666b66;
+  font-size:.84rem;
+  line-height:1.6
+}
+.policyGrid{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:10px
+}
+.policyCard{
+  border:1px solid #ddd7cc;
+  background:#f8f6f1;
+  padding:14px;
+  display:grid;
+  gap:12px;
+  align-content:space-between
+}
+.policyCard strong{
+  display:block;
+  font-size:.88rem
+}
+.policyCard p{
+  margin:5px 0 0;
+  color:#6c706b;
+  font-size:.74rem;
+  line-height:1.5
+}
+.reviewed{
+  border-color:#789487;
+  background:#f0f5f2
+}
+.openButton{
+  width:100%;
+  border:1px solid #1d2e28;
+  background:#1d2e28;
+  color:#fff;
+  border-radius:7px;
+  padding:9px 11px;
+  font:inherit;
+  font-size:.75rem;
+  font-weight:800;
+  cursor:pointer
+}
+.openButton:hover{
+  background:#29453a
+}
+.reviewNote,
+.reviewComplete{
+  margin:0;
+  font-size:.75rem;
+  line-height:1.5
+}
+.reviewNote{color:#7a6851}
+.reviewComplete{color:#315f4b;font-weight:800}
+.agreement{
+  display:flex!important;
+  grid-template-columns:auto 1fr;
+  gap:10px!important;
+  align-items:flex-start!important;
+  border-top:1px solid #ece7de;
+  padding-top:14px
+}
+.agreement input{
+  width:auto!important;
+  margin-top:4px
+}
+.agreement input:disabled{
+  cursor:not-allowed
+}
+.agreement span{
+  font-size:.82rem!important;
+  line-height:1.55;
+  color:#303632!important
+}
+
+@media(max-width:700px){
+  .policyGrid{grid-template-columns:1fr}
+  .card{padding:16px}
+  .heading{display:grid}
+}

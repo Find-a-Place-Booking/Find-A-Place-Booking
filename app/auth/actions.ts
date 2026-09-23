@@ -4,7 +4,12 @@ import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 
 import { safeInternalPath } from "@/lib/auth/paths";
-import { HOST_AGREEMENT_VERSION } from "@/lib/policies/versions";
+import {
+  CANCELLATION_POLICY_VERSION,
+  GUEST_TERMS_VERSION,
+  HOST_AGREEMENT_VERSION,
+  PRIVACY_NOTICE_VERSION,
+} from "@/lib/policies/versions";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
@@ -61,11 +66,6 @@ function isSupabaseAuthCookie(name: string) {
   );
 }
 
-/*
- * Sign-in must never depend on whatever Supabase session cookie happens
- * to already be in the browser. Remove stale/current auth cookies first,
- * then let signInWithPassword establish a completely fresh session.
- */
 async function clearLocalSupabaseSession() {
   const cookieStore = await cookies();
 
@@ -148,10 +148,31 @@ export async function signUpHost(
 
   const acceptedTerms =
     formData.get("host_terms_accepted") === "on";
-  const acceptedVersion = value(
+  const acceptedHostVersion = value(
     formData,
     "host_terms_version",
   );
+  const acceptedPlatformVersion = value(
+    formData,
+    "platform_terms_version",
+  );
+  const acceptedCancellationVersion = value(
+    formData,
+    "cancellation_policy_version",
+  );
+  const acceptedPrivacyVersion = value(
+    formData,
+    "privacy_notice_version",
+  );
+
+  const openedHostAgreement =
+    value(formData, "host_agreement_opened") === "yes";
+  const openedPlatformTerms =
+    value(formData, "platform_terms_opened") === "yes";
+  const openedCancellationPolicy =
+    value(formData, "cancellation_policy_opened") === "yes";
+  const openedPrivacyNotice =
+    value(formData, "privacy_notice_opened") === "yes";
 
   if (!fullName || !email || !password) {
     authError(
@@ -161,13 +182,26 @@ export async function signUpHost(
     );
   }
 
+  const currentVersionsMatch =
+    acceptedHostVersion === HOST_AGREEMENT_VERSION &&
+    acceptedPlatformVersion === GUEST_TERMS_VERSION &&
+    acceptedCancellationVersion === CANCELLATION_POLICY_VERSION &&
+    acceptedPrivacyVersion === PRIVACY_NOTICE_VERSION;
+
+  const allPoliciesOpened =
+    openedHostAgreement &&
+    openedPlatformTerms &&
+    openedCancellationPolicy &&
+    openedPrivacyNotice;
+
   if (
     !acceptedTerms ||
-    acceptedVersion !== HOST_AGREEMENT_VERSION
+    !allPoliciesOpened ||
+    !currentVersionsMatch
   ) {
     authError(
       "/host/sign-up",
-      "Review and accept the current Find A Place Host Agreement and platform terms before creating a host account.",
+      "Open and review each current Find A Place host policy, then agree before creating your host account.",
       next,
     );
   }
@@ -209,6 +243,12 @@ export async function signUpHost(
         signup_source: "host",
         host_agreement_version:
           HOST_AGREEMENT_VERSION,
+        platform_terms_version:
+          GUEST_TERMS_VERSION,
+        cancellation_policy_version:
+          CANCELLATION_POLICY_VERSION,
+        privacy_notice_version:
+          PRIVACY_NOTICE_VERSION,
         host_agreement_accepted_at: acceptedAt,
       },
     },
@@ -229,8 +269,26 @@ export async function signUpHost(
       user_id: data.user.id,
       agreement_version:
         HOST_AGREEMENT_VERSION,
+      platform_terms_version:
+        GUEST_TERMS_VERSION,
+      cancellation_policy_version:
+        CANCELLATION_POLICY_VERSION,
+      privacy_notice_version:
+        PRIVACY_NOTICE_VERSION,
       accepted_at: acceptedAt,
       user_agent: userAgent,
+      review_evidence: {
+        source: "host_signup",
+        required_open_before_accept: true,
+        opened: {
+          host_agreement: true,
+          platform_terms: true,
+          cancellation_policy: true,
+          privacy_notice: true,
+        },
+        acceptance_statement:
+          "I have opened and reviewed the current Host Agreement, Terms of Service, cancellation and refund policy, and Privacy Notice, and I agree to them as a Find A Place host.",
+      },
     });
 
   if (acceptanceError) {
