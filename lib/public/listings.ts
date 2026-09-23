@@ -177,6 +177,56 @@ type PublishedPropertySearch = {
   featuredPriority?: boolean;
 };
 
+function centralMondayRotationIndex(now = new Date()) {
+  const dateParts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/Chicago",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(now);
+
+  const part = (type: Intl.DateTimeFormatPartTypes) =>
+    Number(dateParts.find((item) => item.type === type)?.value || 0);
+
+  // Convert the current Central calendar date into a UTC-only calendar value
+  // so daylight-saving changes cannot shift the weekly rotation boundary.
+  const centralCalendarDate = new Date(
+    Date.UTC(part("year"), part("month") - 1, part("day")),
+  );
+
+  // Monday = 0, Sunday = 6.
+  const daysSinceMonday = (centralCalendarDate.getUTCDay() + 6) % 7;
+  centralCalendarDate.setUTCDate(
+    centralCalendarDate.getUTCDate() - daysSinceMonday,
+  );
+
+  // 1970-01-05 was a Monday. This creates one stable integer per Central-time
+  // Monday-to-Sunday week and requires no cron job or scheduled database task.
+  const firstMonday = Date.UTC(1970, 0, 5);
+  return Math.floor(
+    (centralCalendarDate.getTime() - firstMonday) /
+      (7 * 24 * 60 * 60 * 1000),
+  );
+}
+
+function rotatePriorityBand(
+  rows: PublicIndexRow[],
+  rotationIndex: number,
+) {
+  if (rows.length < 2) return rows;
+
+  // UUID ordering gives the band a stable baseline independent of whatever
+  // order the public listing RPC happens to return.
+  const stable = [...rows].sort((a, b) =>
+    a.property_id.localeCompare(b.property_id),
+  );
+
+  const offset =
+    ((rotationIndex % stable.length) + stable.length) % stable.length;
+
+  return [...stable.slice(offset), ...stable.slice(0, offset)];
+}
+
 async function orderHomepageFeaturedRows(rows: PublicIndexRow[]) {
   if (rows.length < 2) return rows;
 
@@ -189,7 +239,10 @@ async function orderHomepageFeaturedRows(rows: PublicIndexRow[]) {
     .in("id", propertyIds);
 
   if (error) {
-    console.error("[getPublishedProperties] homepage feature priority unavailable", error);
+    console.error(
+      "[getPublishedProperties] homepage feature priority unavailable",
+      error,
+    );
     return rows;
   }
 
@@ -200,19 +253,29 @@ async function orderHomepageFeaturedRows(rows: PublicIndexRow[]) {
     ]),
   );
 
-  // Keep the existing public-listing order inside each priority band. The
-  // only ranking rule added here is 1 before 2 before 3.
-  return rows
-    .map((row, originalIndex) => ({
-      row,
-      originalIndex,
-      priority: priorityByProperty.get(row.property_id) ?? 3,
-    }))
-    .sort((a, b) => {
-      const priorityDifference = a.priority - b.priority;
-      return priorityDifference || a.originalIndex - b.originalIndex;
-    })
-    .map(({ row }) => row);
+  const priorityOne: PublicIndexRow[] = [];
+  const priorityTwo: PublicIndexRow[] = [];
+  const priorityThree: PublicIndexRow[] = [];
+
+  for (const row of rows) {
+    const priority = priorityByProperty.get(row.property_id) ?? 3;
+
+    if (priority === 1) priorityOne.push(row);
+    else if (priority === 2) priorityTwo.push(row);
+    else priorityThree.push(row);
+  }
+
+  const rotationIndex = centralMondayRotationIndex();
+
+  // Founding partners always remain ahead of paid-placement partners, and paid
+  // placement remains ahead of standard inventory. Within priority 1 and 2,
+  // the starting listing changes every Monday so the same property does not
+  // permanently own the hero/top-grid positions.
+  return [
+    ...rotatePriorityBand(priorityOne, rotationIndex),
+    ...rotatePriorityBand(priorityTwo, rotationIndex),
+    ...priorityThree,
+  ];
 }
 
 export async function getPublishedProperties(
