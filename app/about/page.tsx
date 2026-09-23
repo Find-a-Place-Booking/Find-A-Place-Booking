@@ -13,6 +13,11 @@ const defaults = {
     body:
       "Find A Place grew from a simple idea: the place you stay should feel connected to the trip you came to take.",
   },
+  "about.featured": {
+    title: "Find a stay. Find the adventure around it.",
+    body:
+      "Cabins, campgrounds, lake stays, RV spots and independent places close to the places people already want to explore.",
+  },
   "about.who": {
     eyebrow: "Who we are",
     title: "A travel and outdoor network built close to home.",
@@ -51,6 +56,7 @@ export default async function AboutPage() {
   });
 
   const hero = get("about.hero");
+  const featured = get("about.featured");
   const who = get("about.who");
   const what = get("about.what");
   const community = get("about.community");
@@ -92,12 +98,8 @@ export default async function AboutPage() {
               />
             </div>
             <div className="hero-featured-copy">
-              <span>Arkansas first</span>
-              <strong>Find a stay. Find the adventure around it.</strong>
-              <p>
-                Cabins, campgrounds, lake stays, RV spots and independent places
-                close to the places people already want to explore.
-              </p>
+              <strong>{featured.title}</strong>
+              <p>{featured.body}</p>
             </div>
           </div>
         </div>

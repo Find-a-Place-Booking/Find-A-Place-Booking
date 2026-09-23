@@ -1,0 +1,14 @@
+.mobileMenuWidth {
+  width: min(390px, calc(100vw - 24px));
+  max-width: calc(100vw - 24px);
+  margin-left: auto;
+  margin-right: 12px;
+  box-sizing: border-box;
+  overflow-x: hidden;
+}
+
+@media (max-width: 430px) {
+  .mobileMenuWidth {
+    width: calc(100vw - 24px);
+  }
+}

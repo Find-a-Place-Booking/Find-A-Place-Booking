@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import { useEffect, useId, useState } from "react";
 
 import { Brand } from "./Brand";
+import mobileStyles from "./HeaderMobileMenu.module.css";
 
 const primaryLinks = [
   ["Find a stay", "/stays"],
@@ -58,7 +59,7 @@ export function Header({ light = false }: { light?: boolean }) {
             />
             <nav
               id={menuId}
-              className="mobile-menu"
+              className={`mobile-menu ${mobileStyles.mobileMenuWidth}`}
               aria-label="Mobile navigation"
             >
               <div className="mobile-menu-heading">
