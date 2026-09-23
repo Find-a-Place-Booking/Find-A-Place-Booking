@@ -2143,3 +2143,62 @@ main > .marketplace-band:first-of-type {
   grid-template-columns: 1fr;
 }
 
+
+
+/* UI polish pass: production-safe fallbacks and a simpler host setup layout. */
+.hero-layout.hero-layout-single {
+  grid-template-columns: minmax(0, 1fr);
+}
+.hero-layout.hero-layout-single .hero-copy {
+  max-width: 900px;
+}
+
+.property-image-empty,
+.gallery-brand-placeholder,
+.hero-featured-photo-placeholder {
+  position: relative;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 70% 25%, rgba(255,255,255,.5), transparent 28%),
+    linear-gradient(135deg, #ddd6ca, #c8c2b7 52%, #aeb8aa);
+}
+.property-image-empty::after,
+.gallery-brand-placeholder::after,
+.hero-featured-photo-placeholder::after {
+  content: "";
+  width: 72px;
+  height: 72px;
+  background: url("/brand/find-a-place-seal.png") center / contain no-repeat;
+  opacity: .28;
+}
+.gallery-brand-placeholder::after {
+  width: 86px;
+  height: 86px;
+}
+.property-image-empty {
+  min-height: 100%;
+}
+
+.wizard.near-production-wizard {
+  grid-template-columns: 190px minmax(0, 1fr);
+}
+.wizard.near-production-wizard .wizard-panel {
+  max-width: 900px;
+}
+
+@media (max-width: 1100px) {
+  .hero-layout.hero-layout-single {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .wizard.near-production-wizard {
+    grid-template-columns: 180px minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 700px) {
+  .wizard.near-production-wizard {
+    display: block;
+  }
+}

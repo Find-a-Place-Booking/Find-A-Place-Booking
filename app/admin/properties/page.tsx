@@ -109,7 +109,7 @@ export default async function AdminPropertiesPage({ searchParams }: { searchPara
         <span className="status-pill status-muted">{properties.length} shown</span>
       </div>
 
-      {error ? <div className="admin-message error">Property lookup failed. Confirm the latest database migrations were applied.</div> : null}
+      {error ? <div className="admin-message error">Property lookup failed. Refresh and try again. If the problem continues, check platform status.</div> : null}
 
       {!error && properties.length ? (
         <div className="admin-property-results">

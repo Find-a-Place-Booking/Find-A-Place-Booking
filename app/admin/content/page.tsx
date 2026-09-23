@@ -45,7 +45,7 @@ export default async function AdminContentPage({
     supabase.from("platform_policy_versions").select("policy_key,version_label"),
   ]);
 
-  if (error) throw new Error("Unable to load managed site content. Apply the latest content migration and refresh.");
+  if (error) throw new Error("Unable to load managed site content. Refresh and try again. If the problem continues, check platform status.");
 
   const rows = (data ?? []) as ContentBlock[];
   const versionByPolicy = new Map((versions ?? []).map((row) => [row.policy_key as string, row.version_label as string]));

@@ -47,7 +47,7 @@ export function OnboardingPhotoManager({
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [message, setMessage] = useState(
-    "Preparing the real listing photo storage…",
+    "Preparing your listing photos…",
   );
   const [error, setError] = useState<string | null>(null);
 
@@ -79,7 +79,7 @@ export function OnboardingPhotoManager({
     if (!response.ok || !payload?.target) {
       throw new Error(
         payload?.error ||
-          "Unable to prepare property photo storage. Save the property name and try again.",
+          "Unable to load listing photos. Save the property name and try again.",
       );
     }
 
@@ -90,7 +90,7 @@ export function OnboardingPhotoManager({
     setMessage(
       nextImages.length
         ? `${nextImages.length} photo${nextImages.length === 1 ? "" : "s"} already saved to this listing.`
-        : "Photo storage is ready. Upload at least one photo before finishing setup.",
+        : "Add at least one photo before finishing setup.",
     );
   }, [organizationId, publishNames]);
 
@@ -107,7 +107,7 @@ export function OnboardingPhotoManager({
         setError(
           loadError instanceof Error
             ? loadError.message
-            : "Unable to prepare property photo storage.",
+            : "Unable to load listing photos.",
         );
       } finally {
         setLoading(false);
@@ -127,7 +127,7 @@ export function OnboardingPhotoManager({
     const selected = Array.from(files).slice(0, remaining);
     setUploading(true);
     setError(null);
-    setMessage("Uploading property photos…");
+    setMessage("Uploading photos…");
 
     const supabase = createClient();
     const { data: userData } = await supabase.auth.getUser();
@@ -214,7 +214,7 @@ export function OnboardingPhotoManager({
 
     if (nextImages.length > images.length) {
       setMessage(
-        `${nextImages.length} photo${nextImages.length === 1 ? "" : "s"} saved to the real listing. You will not need to upload them again later.`,
+        `${nextImages.length} photo${nextImages.length === 1 ? "" : "s"} saved to this listing.`,
       );
     }
   }
@@ -249,7 +249,7 @@ export function OnboardingPhotoManager({
     if (storageError) {
       console.error("[onboarding photo storage cleanup]", storageError);
       setError(
-        "The photo was removed from the listing, but its old stored file needs cleanup.",
+        "The photo was removed from the listing, but cleanup could not be completed. You can continue setup.",
       );
       return;
     }
@@ -267,7 +267,7 @@ export function OnboardingPhotoManager({
         <div>
           <strong>
             {loading
-              ? "Preparing photo storage"
+              ? "Preparing photos"
               : uploading
                 ? "Saving photos"
                 : "Photos save immediately"}
@@ -275,7 +275,7 @@ export function OnboardingPhotoManager({
           <span>{message}</span>
         </div>
         {!loading && target ? (
-          <span className={styles.saved}>Connected to listing draft</span>
+          <span className={styles.saved}>Saved with this listing</span>
         ) : null}
       </div>
 
@@ -337,8 +337,7 @@ export function OnboardingPhotoManager({
       ) : null}
 
       <p className={styles.help}>
-        These are the actual files used by the property listing. Finishing
-        onboarding will keep them attached to the listing automatically.
+        Photos added here stay attached to this listing when you finish setup.
       </p>
     </div>
   );

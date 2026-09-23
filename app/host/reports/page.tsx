@@ -39,8 +39,7 @@ export default async function ReportsPage({
             reservations.
           </p>
           <small>
-            Guest charges belong to your connected processor account. TEST and
-            LIVE records remain separate.
+            Reports include the booking and payment records available to this host account.
           </small>
         </div>
         <Link
@@ -77,9 +76,7 @@ export default async function ReportsPage({
           <button className="button button-small" type="submit">
             Run report
           </button>
-          <span className="status-pill status-muted">
-            {report.environment} money
-          </span>
+
         </div>
       </form>
 

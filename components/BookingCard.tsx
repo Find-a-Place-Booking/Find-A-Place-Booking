@@ -42,16 +42,16 @@ export function BookingCard({
 
         <div className="availability-note">
           <span>●</span>
-          <strong>Online booking opens soon</strong>
+          <strong>Online booking is unavailable</strong>
         </div>
 
         <div className="booking-coming-soon">
-          <strong>Save this one for later.</strong>
-          <p>Online dates and secure checkout will open soon.</p>
+          <strong>This stay cannot be booked online right now.</strong>
+          <p>Browse the listing details and check back later.</p>
         </div>
 
         <button className="button button-full" type="button" disabled>
-          Online booking coming soon
+          Booking unavailable
         </button>
       </aside>
     );

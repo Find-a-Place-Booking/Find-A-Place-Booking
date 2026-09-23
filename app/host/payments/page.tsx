@@ -80,11 +80,7 @@ export default async function PaymentsPage() {
           </h2>
           <p>
             {readyAccount
-              ? `Guest payments are charged directly on this host Stripe account for ${
-                  workspace.environment === "TEST"
-                    ? "test"
-                    : "live"
-                } bookings. Stripe handles processing, balance availability and bank deposits.`
+              ? "Guest payments are charged directly on this host Stripe account. Stripe handles processing, balance availability and bank deposits."
               : "Connect Stripe here so guest payments can be processed directly on your host account. Bank and identity details stay with Stripe."}
           </p>
         </div>
@@ -143,15 +139,9 @@ export default async function PaymentsPage() {
           </small>
         </div>
         <div>
-          <span>Payment mode</span>
-          <strong>
-            {workspace.environment === "TEST" ? "Test" : "Live"}
-          </strong>
-          <small>
-            {workspace.environment === "TEST"
-              ? "Stripe test data only"
-              : "Real guest payments"}
-          </small>
+          <span>Bank deposits</span>
+          <strong>Stripe managed</strong>
+          <small>Stripe controls balance availability and payout timing</small>
         </div>
       </div>
 

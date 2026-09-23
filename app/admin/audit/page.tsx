@@ -589,7 +589,7 @@ export default async function AdminAuditPage({
           payment and Stripe-account events are isolated to the active
           {environment} environment. Profiles, hosts, properties, content and
           other non-transaction admin activity remain visible across the platform.
-          Technical event codes stay underneath for support/debugging.
+          Technical event codes remain available underneath for support and troubleshooting.
         </p>
       </section>
 
@@ -610,8 +610,8 @@ export default async function AdminAuditPage({
 
         {error ? (
           <div className="admin-message error">
-            Platform activity could not be loaded. Apply migration 068 and
-            refresh.
+            Platform activity could not be loaded. Refresh and try again. If the
+            problem continues, check platform status.
           </div>
         ) : null}
 

@@ -35,9 +35,10 @@ export function PropertyCard({
             decoding="async"
           />
         ) : (
-          <div className="property-image property-image-empty">
-            Photo coming soon
-          </div>
+          <div
+            className="property-image property-image-empty"
+            aria-label="Property photo unavailable"
+          />
         )}
         <span className="property-type">{property.type}</span>
         {property.instantBook && <span className="instant-label">Instant book</span>}

@@ -189,13 +189,13 @@ export default async function AdminHostDetailPage({ params }: { params: Promise<
               );
             })}
           </div>
-        ) : <div className="panel-empty"><strong>No host organization yet.</strong><span>The signed-in host creates the first real organization when they begin `/host/onboarding`.</span></div>}
+        ) : <div className="panel-empty"><strong>No host organization yet.</strong><span>A host organization will appear here after the host begins setup.</span></div>}
       </section>
 
 
       <section className="panel admin-organization-panel">
-        <div className="panel-head"><div><p className="eyebrow dark">Properties</p><h2>Real listing records</h2></div><Link href="/admin/properties">All properties</Link></div>
-        {properties.length ? <div className="admin-list">{properties.map((property) => <Link className="admin-list-row" href={`/admin/properties/${property.id}`} key={property.id}><span><strong>{property.name}</strong><small>{property.public_area || "Area not set"} · {cleanStatus(property.status)}</small></span><b>Open →</b></Link>)}</div> : <div className="panel-empty"><strong>No property records yet.</strong><span>Once the host converts onboarding into a real draft property, it will appear here.</span></div>}
+        <div className="panel-head"><div><p className="eyebrow dark">Properties</p><h2>Listing records</h2></div><Link href="/admin/properties">All properties</Link></div>
+        {properties.length ? <div className="admin-list">{properties.map((property) => <Link className="admin-list-row" href={`/admin/properties/${property.id}`} key={property.id}><span><strong>{property.name}</strong><small>{property.public_area || "Area not set"} · {cleanStatus(property.status)}</small></span><b>Open →</b></Link>)}</div> : <div className="panel-empty"><strong>No property records yet.</strong><span>Once the host creates a property from setup, it will appear here.</span></div>}
       </section>
 
       <section className="panel">

@@ -42,12 +42,12 @@ export default async function AdminHostsPage({
           <input name="q" defaultValue={search} aria-label="Search hosts" placeholder="Owner name, organization, email or phone…" autoFocus />
           <button className="button button-small" type="submit">Search</button>
         </form>
-        <p className="muted">This searches real host identities and organizations. Open a host to see its onboarding state; real properties are also available in the Properties workspace.</p>
+        <p className="muted">Search host accounts and organizations. Open a host to review onboarding, account details and connected properties.</p>
       </section>
 
       <section className="panel admin-results-panel">
         <div className="panel-head"><div><p className="eyebrow dark">Results</p><h2>{search ? `Matches for “${search}”` : "Recent host profiles"}</h2></div><span className="status-pill status-muted">{rows.length} shown</span></div>
-        {error ? <div className="admin-message error">Host lookup failed. Refresh and try again. If the problem continues, verify the admin database foundation is current.</div> : null}
+        {error ? <div className="admin-message error">Host lookup failed. Refresh and try again. If the problem continues, check platform status or contact support.</div> : null}
         {!error && rows.length ? (
           <div className="admin-host-results">
             {rows.map((row, index) => (

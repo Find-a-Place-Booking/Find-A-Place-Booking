@@ -126,7 +126,7 @@ export default async function HomePage() {
 
         <Header light />
 
-        <div className="shell hero-layout">
+        <div className={`shell hero-layout ${featuredStay ? "" : "hero-layout-single"}`}>
           <div className="hero-copy">
             <p className="eyebrow">{hero.eyebrow}</p>
             <h1>{hero.title}</h1>
@@ -148,83 +148,65 @@ export default async function HomePage() {
             </div>
           </div>
 
-          <div className="hero-featured-panel" aria-label="Featured stay">
-            {featuredStay ? (
-              <>
+          {featuredStay ? (
+            <div className="hero-featured-panel" aria-label="Featured stay">
+              <TrackedLink
+                className="hero-featured-media hero-featured-live"
+                href={`/stays/${featuredStay.slug}`}
+                prefetch={false}
+                aria-label={`View ${featuredStay.name}`}
+                eventName="property_click"
+                eventData={{
+                  slug: featuredStay.slug,
+                  surface: "home_featured",
+                  trigger: "image",
+                }}
+              >
+                {featuredStay.image ? (
+                  <img
+                    src={featuredStay.image}
+                    alt={`${featuredStay.name} in ${featuredStay.location}`}
+                    loading="eager"
+                    decoding="async"
+                    fetchPriority="high"
+                  />
+                ) : (
+                  <div
+                    className="hero-featured-photo-placeholder"
+                    aria-label="Property photo unavailable"
+                  />
+                )}
+                <span>Featured stay</span>
+              </TrackedLink>
+
+              <div className="hero-featured-copy">
+                <span>{featuredStay.location}</span>
+                <strong>{featuredStay.name}</strong>
+                <p>
+                  {featuredStay.sleeps} guests · {featuredStay.type}
+                  {featuredStay.tags.length
+                    ? ` · ${featuredStay.tags.slice(0, 2).join(" · ")}`
+                    : ""}
+                </p>
+                <div className="hero-featured-meta">
+                  <b>${featuredStay.price}</b>
+                  <small>/ night</small>
+                </div>
                 <TrackedLink
-                  className="hero-featured-media hero-featured-live"
                   href={`/stays/${featuredStay.slug}`}
                   prefetch={false}
-                  aria-label={`View ${featuredStay.name}`}
                   eventName="property_click"
                   eventData={{
                     slug: featuredStay.slug,
                     surface: "home_featured",
-                    trigger: "image",
+                    trigger: "text",
                   }}
                 >
-                  {featuredStay.image ? (
-                    <img
-                      src={featuredStay.image}
-                      alt={`${featuredStay.name} in ${featuredStay.location}`}
-                      loading="eager"
-                      decoding="async"
-                      fetchPriority="high"
-                    />
-                  ) : (
-                    <div className="hero-featured-photo-placeholder">
-                      <span>Featured stay</span>
-                    </div>
-                  )}
-                  <span>Featured stay</span>
+                  View this stay →
                 </TrackedLink>
-
-                <div className="hero-featured-copy">
-                  <span>{featuredStay.location}</span>
-                  <strong>{featuredStay.name}</strong>
-                  <p>
-                    {featuredStay.sleeps} guests · {featuredStay.type}
-                    {featuredStay.tags.length
-                      ? ` · ${featuredStay.tags.slice(0, 2).join(" · ")}`
-                      : ""}
-                  </p>
-                  <div className="hero-featured-meta">
-                    <b>${featuredStay.price}</b>
-                    <small>/ night</small>
-                  </div>
-                  <TrackedLink
-                    href={`/stays/${featuredStay.slug}`}
-                    prefetch={false}
-                    eventName="property_click"
-                    eventData={{
-                      slug: featuredStay.slug,
-                      surface: "home_featured",
-                      trigger: "text",
-                    }}
-                  >
-                    View this stay →
-                  </TrackedLink>
-                </div>
-              </>
-            ) : (
-              <>
-                <div className="hero-featured-media" aria-hidden="true">
-                  <span>Featured cabin photo</span>
-                </div>
-                <div className="hero-featured-copy">
-                  <span>Featured stay</span>
-                  <strong>Featured cabin coming soon.</strong>
-                  <p>
-                    One standout cabin, cottage or getaway at a time, picked for
-                    the kind of trip you’ll want to start planning.
-                  </p>
-                  <Link href="/stays" prefetch={false}>
-                    Browse all stays →
-                  </Link>
-                </div>
-              </>
-            )}
-          </div>
+              </div>
+            </div>
+          ) : null}
         </div>
       </div>
 
@@ -271,21 +253,12 @@ export default async function HomePage() {
             ) : (
               <div className="featured-empty home-inventory-empty">
                 <div>
-                  <p className="eyebrow dark">The first stays are on the way</p>
-                  <h3>We’re getting the first places ready for travelers.</h3>
+                  <p className="eyebrow dark">No stays to show here right now</p>
+                  <h3>Try another destination or check back soon.</h3>
                   <p>
-                    As approved hosts publish their properties, they’ll start
-                    showing up here.
+                    Published stays will appear here as they become available.
                   </p>
                 </div>
-                <TrackedLink
-                  className="button button-quiet"
-                  href="/hosts"
-                  eventName="host_cta_click"
-                  eventData={{ surface: "home_inventory_empty" }}
-                >
-                  List a property
-                </TrackedLink>
               </div>
             )}
           </div>

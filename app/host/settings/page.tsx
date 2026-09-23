@@ -161,7 +161,7 @@ export default async function SettingsPage({
               defaultValue={profile.publicHostName || profile.organizationName || ""}
               placeholder="Example: Pine Hollow Stays"
             />
-            <small>This is the name guests see. It can be different from the internal organization name.</small>
+            <small>This is the name guests see. It can be different from the organization name on your account.</small>
           </label>
           <label>
             <span>Host description</span>

@@ -144,7 +144,10 @@ export default async function PropertyPage({
               fetchPriority="high"
             />
           ) : (
-            <div className="gallery-main gallery-placeholder">Property photo</div>
+            <div
+              className="gallery-main gallery-placeholder gallery-brand-placeholder"
+              aria-label="Property photo unavailable"
+            />
           )}
 
           {secondImage ? (
@@ -155,7 +158,10 @@ export default async function PropertyPage({
               decoding="async"
             />
           ) : (
-            <div className="gallery-placeholder">Property photo</div>
+            <div
+              className="gallery-placeholder gallery-brand-placeholder"
+              aria-label="Property photo unavailable"
+            />
           )}
 
           {thirdImage ? (
@@ -166,7 +172,10 @@ export default async function PropertyPage({
               decoding="async"
             />
           ) : (
-            <div className="gallery-placeholder">Property photo</div>
+            <div
+              className="gallery-placeholder gallery-brand-placeholder"
+              aria-label="Property photo unavailable"
+            />
           )}
 
           <div className="gallery-detail">
@@ -213,7 +222,7 @@ export default async function PropertyPage({
                   <span key={amenity}>✓ {amenity}</span>
                 ))
               ) : (
-                <span>Amenities are being finalized.</span>
+                <span>No additional amenities listed.</span>
               )}
             </div>
 

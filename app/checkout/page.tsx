@@ -29,9 +29,9 @@ export default async function CheckoutPage({
 
         <section className="shell standalone-empty checkout-empty guest-state-card">
           <p className="eyebrow dark">Booking</p>
-          <h1>Online booking opens soon.</h1>
+          <h1>Booking is temporarily unavailable.</h1>
           <p>
-            Dates and secure checkout are currently unavailable.
+            Browse stays for now and try checkout again shortly.
           </p>
           <Link className="button" href="/stays">Find a stay</Link>
         </section>

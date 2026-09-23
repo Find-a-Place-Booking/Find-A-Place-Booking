@@ -135,7 +135,7 @@ export function StayResults({
           <div className="results-count">
             <strong>{filtered.length}</strong>{" "}
             {filtered.length === 1 ? "stay" : "stays"}{" "}
-            <span>· Availability is rechecked again before checkout</span>
+            <span>· Availability is confirmed again before checkout</span>
           </div>
 
           {filtered.length > 0 ? (
@@ -147,16 +147,16 @@ export function StayResults({
           ) : (
             <div className="empty-results production-empty">
               <p className="eyebrow dark">
-                {inventoryEmpty ? "More places are coming" : "Nothing matched"}
+                {inventoryEmpty ? "No stays available right now" : "Nothing matched"}
               </p>
               <h2>
                 {inventoryEmpty
-                  ? "We’re still getting the first places ready."
+                  ? "There aren’t any published stays to show here right now."
                   : "No stays match those filters."}
               </h2>
               <p>
                 {inventoryEmpty
-                  ? "New stays will show up here as hosts finish getting them ready."
+                  ? "Try another destination or check back soon."
                   : "Try removing a filter or searching a nearby destination."}
               </p>
               {!inventoryEmpty && (
