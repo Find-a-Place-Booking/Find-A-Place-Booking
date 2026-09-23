@@ -1,9 +1,24 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 
 import { DeferredBackgroundVideo } from "@/components/DeferredBackgroundVideo";
 import { Footer } from "@/components/Footer";
 import { Header } from "@/components/Header";
+import { TrackedLink } from "@/components/TrackedLink";
 import styles from "./hosts.module.css";
+
+export const metadata: Metadata = {
+  title: "List Your Property",
+  description:
+    "List your cabin, cottage, RV stay or independent getaway on Find A Place Booking and manage listings, availability, reservations and guest communication.",
+  alternates: { canonical: "/hosts" },
+  openGraph: {
+    title: "List Your Property",
+    description:
+      "Put your independent stay in front of travelers already planning the trip.",
+    url: "/hosts",
+  },
+};
 
 export default function HostsPage() {
   return (
@@ -33,13 +48,15 @@ export default function HostsPage() {
             </p>
 
             <div className="host-hero-actions">
-              <Link
+              <TrackedLink
                 className="button button-light"
                 href="/host/sign-up?next=%2Fhost%2Fonboarding"
                 prefetch={false}
+                eventName="host_cta_click"
+                eventData={{ surface: "hosts_hero" }}
               >
                 Start your listing
-              </Link>
+              </TrackedLink>
 
               <Link
                 className="host-text-link"
@@ -277,13 +294,15 @@ export default function HostsPage() {
                 everything into one giant form.
               </p>
 
-              <Link
+              <TrackedLink
                 className="button button-light"
                 href="/host/sign-up?next=%2Fhost%2Fonboarding"
                 prefetch={false}
+                eventName="host_cta_click"
+                eventData={{ surface: "hosts_footer" }}
               >
                 Start host setup →
-              </Link>
+              </TrackedLink>
             </div>
           </div>
         </section>

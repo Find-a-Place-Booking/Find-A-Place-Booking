@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import { useEffect, useId, useState } from "react";
 
 import { Brand } from "./Brand";
+import { TrackedLink } from "./TrackedLink";
 import mobileStyles from "./HeaderMobileMenu.module.css";
 
 const primaryLinks = [
@@ -105,14 +106,16 @@ export function Header({ light = false }: { light?: boolean }) {
                 </Link>
               </div>
 
-              <Link
+              <TrackedLink
                 className="button button-full"
                 href="/host/sign-up?next=%2Fhost%2Fonboarding"
                 prefetch={false}
                 onClick={closeMenu}
+                eventName="host_cta_click"
+                eventData={{ surface: "mobile_header" }}
               >
                 List your property
-              </Link>
+              </TrackedLink>
             </nav>
           </div>,
           document.body,
@@ -146,13 +149,15 @@ export function Header({ light = false }: { light?: boolean }) {
               Host sign in
             </Link>
 
-            <Link
+            <TrackedLink
               className="button button-small button-outline header-list-property"
               href="/host/sign-up?next=%2Fhost%2Fonboarding"
               prefetch={false}
+              eventName="host_cta_click"
+              eventData={{ surface: "desktop_header" }}
             >
               List your property
-            </Link>
+            </TrackedLink>
 
             <button
               className={`mobile-menu-toggle ${menuOpen ? "is-open" : ""}`}

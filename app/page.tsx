@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 
@@ -6,10 +7,15 @@ import { DeferredStayMap } from "@/components/DeferredStayMap";
 import { Footer } from "@/components/Footer";
 import { Header } from "@/components/Header";
 import { PropertyCard } from "@/components/PropertyCard";
+import { TrackedLink } from "@/components/TrackedLink";
 import { SearchBar } from "@/components/SearchBar";
 import { destinations } from "@/data/catalog";
 import { getPublishedMapStays, getPublishedProperties } from "@/lib/public/listings";
 import { getSiteContentBlocks } from "@/lib/public/site-content";
+
+export const metadata: Metadata = {
+  alternates: { canonical: "/" },
+};
 
 const stayCollections = [
   {
@@ -145,11 +151,17 @@ export default async function HomePage() {
           <div className="hero-featured-panel" aria-label="Featured stay">
             {featuredStay ? (
               <>
-                <Link
+                <TrackedLink
                   className="hero-featured-media hero-featured-live"
                   href={`/stays/${featuredStay.slug}`}
                   prefetch={false}
                   aria-label={`View ${featuredStay.name}`}
+                  eventName="property_click"
+                  eventData={{
+                    slug: featuredStay.slug,
+                    surface: "home_featured",
+                    trigger: "image",
+                  }}
                 >
                   {featuredStay.image ? (
                     <img
@@ -165,7 +177,7 @@ export default async function HomePage() {
                     </div>
                   )}
                   <span>Featured stay</span>
-                </Link>
+                </TrackedLink>
 
                 <div className="hero-featured-copy">
                   <span>{featuredStay.location}</span>
@@ -180,9 +192,18 @@ export default async function HomePage() {
                     <b>${featuredStay.price}</b>
                     <small>/ night</small>
                   </div>
-                  <Link href={`/stays/${featuredStay.slug}`} prefetch={false}>
+                  <TrackedLink
+                    href={`/stays/${featuredStay.slug}`}
+                    prefetch={false}
+                    eventName="property_click"
+                    eventData={{
+                      slug: featuredStay.slug,
+                      surface: "home_featured",
+                      trigger: "text",
+                    }}
+                  >
                     View this stay →
-                  </Link>
+                  </TrackedLink>
                 </div>
               </>
             ) : (
@@ -244,7 +265,7 @@ export default async function HomePage() {
             {primaryStays.length > 0 ? (
               <div className="home-property-grid">
                 {primaryStays.map((property) => (
-                  <PropertyCard key={property.slug} property={property} />
+                  <PropertyCard key={property.slug} property={property} surface="home_primary" />
                 ))}
               </div>
             ) : (
@@ -257,9 +278,14 @@ export default async function HomePage() {
                     showing up here.
                   </p>
                 </div>
-                <Link className="button button-quiet" href="/hosts">
+                <TrackedLink
+                  className="button button-quiet"
+                  href="/hosts"
+                  eventName="host_cta_click"
+                  eventData={{ surface: "home_inventory_empty" }}
+                >
                   List a property
-                </Link>
+                </TrackedLink>
               </div>
             )}
           </div>
@@ -333,20 +359,25 @@ export default async function HomePage() {
 
             <div className="stay-type-grid">
               {stayCollections.map((collection) => (
-                <Link
+                <TrackedLink
                   className="stay-type-card"
                   href={`/stays?filter=${encodeURIComponent(
                     collection.filter,
                   )}`}
                   key={collection.filter}
                   prefetch={false}
+                  eventName="collection_click"
+                  eventData={{
+                    collection: collection.filter,
+                    surface: "home_stay_types",
+                  }}
                 >
                   <div>
                     <strong>{collection.label}</strong>
                     <p>{collection.detail}</p>
                   </div>
                   <span>Browse →</span>
-                </Link>
+                </TrackedLink>
               ))}
             </div>
           </div>
@@ -367,11 +398,16 @@ export default async function HomePage() {
                   "/brand/find-a-place-pin.jpg";
 
                 return (
-                  <Link
+                  <TrackedLink
                     href={`/stays?where=${encodeURIComponent(destination.name)}`}
                     className="destination-card"
                     key={destination.name}
                     prefetch={false}
+                    eventName="destination_click"
+                    eventData={{
+                      destination: destination.name,
+                      surface: "home_destination_cards",
+                    }}
                   >
                     <span className="destination-card-media" aria-hidden="true">
                       <Image
@@ -393,7 +429,7 @@ export default async function HomePage() {
                       </span>
                       <b>↗</b>
                     </span>
-                  </Link>
+                  </TrackedLink>
                 );
               })}
             </div>
@@ -415,7 +451,7 @@ export default async function HomePage() {
 
               <div className="home-property-grid home-property-grid-secondary">
                 {moreStays.map((property) => (
-                  <PropertyCard key={property.slug} property={property} />
+                  <PropertyCard key={property.slug} property={property} surface="home_more" />
                 ))}
               </div>
             </div>
@@ -466,12 +502,14 @@ export default async function HomePage() {
             </div>
             <div>
               <p>{hostCta.body}</p>
-              <Link
+              <TrackedLink
                 className="button button-light"
                 href={hostCta.cta_href || "/hosts"}
+                eventName="host_cta_click"
+                eventData={{ surface: "home_host_cta" }}
               >
                 {hostCta.cta_label || "See how hosting works"} →
-              </Link>
+              </TrackedLink>
             </div>
           </div>
         </section>

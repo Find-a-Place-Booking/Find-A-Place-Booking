@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 
 import { DeferredBackgroundVideo } from "@/components/DeferredBackgroundVideo";
@@ -6,6 +7,19 @@ import { Header } from "@/components/Header";
 import { getSiteContentBlocks } from "@/lib/public/site-content";
 
 import styles from "./about-map.module.css";
+
+export const metadata: Metadata = {
+  title: "About Find A Place",
+  description:
+    "Learn how Find A Place Booking connects travelers with independent stays near the trips, towns, lakes, rivers and outdoor destinations they want to explore.",
+  alternates: { canonical: "/about" },
+  openGraph: {
+    title: "About Find A Place",
+    description:
+      "Find A Place Booking connects travelers with independent stays near the places they want to explore.",
+    url: "/about",
+  },
+};
 
 const defaults = {
   "about.hero": {

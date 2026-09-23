@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { track } from "@vercel/analytics";
 import { PropertyCard } from "./PropertyCard";
 import { DeferredStayMap } from "./DeferredStayMap";
 import {
@@ -113,7 +114,16 @@ export function StayResults({
           <button
             className="map-toggle"
             type="button"
-            onClick={() => setMapOpen((value) => !value)}
+            onClick={() => {
+              setMapOpen((value) => {
+                const next = !value;
+                track("map_toggle", {
+                  surface: "search_results",
+                  state: next ? "shown" : "hidden",
+                });
+                return next;
+              });
+            }}
           >
             {mapOpen ? "Hide map" : "Show map"}
           </button>
@@ -131,7 +141,7 @@ export function StayResults({
           {filtered.length > 0 ? (
             <div className="result-grid">
               {filtered.map((property) => (
-                <PropertyCard key={property.slug} property={property} />
+                <PropertyCard key={property.slug} property={property} surface="search_results" />
               ))}
             </div>
           ) : (

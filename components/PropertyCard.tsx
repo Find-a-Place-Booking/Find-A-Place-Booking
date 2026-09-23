@@ -1,21 +1,30 @@
-import Link from "next/link";
-
 import type { Property } from "@/data/catalog";
 import { SaveStayButton } from "@/components/SaveStayButton";
+import { TrackedLink } from "@/components/TrackedLink";
 
 export function PropertyCard({
   property,
   wide = false,
+  surface = "property_card",
 }: {
   property: Property;
   wide?: boolean;
+  surface?: string;
 }) {
+  const href = `/stays/${property.slug}`;
+
   return (
     <article className={`property-card ${wide ? "property-wide" : ""}`}>
-      <Link
+      <TrackedLink
         className="property-image-wrap"
-        href={`/stays/${property.slug}`}
+        href={href}
         prefetch={false}
+        eventName="property_click"
+        eventData={{
+          slug: property.slug,
+          surface,
+          trigger: "image",
+        }}
       >
         {property.image ? (
           <img
@@ -32,9 +41,13 @@ export function PropertyCard({
         )}
         <span className="property-type">{property.type}</span>
         {property.instantBook && <span className="instant-label">Instant book</span>}
-      </Link>
+      </TrackedLink>
 
-      <SaveStayButton propertyName={property.name} />
+      <SaveStayButton
+        propertyName={property.name}
+        propertySlug={property.slug}
+        surface={surface}
+      />
 
       <div className="property-body">
         <div className="property-kicker">
@@ -45,9 +58,18 @@ export function PropertyCard({
               : "New on Find A Place"}
           </span>
         </div>
-        <Link href={`/stays/${property.slug}`} prefetch={false}>
+        <TrackedLink
+          href={href}
+          prefetch={false}
+          eventName="property_click"
+          eventData={{
+            slug: property.slug,
+            surface,
+            trigger: "title",
+          }}
+        >
           <h3>{property.name}</h3>
-        </Link>
+        </TrackedLink>
         <p>{property.tags.slice(0, 3).join(" · ")}</p>
         <div className="price-line">
           <strong>${property.price}</strong> / night

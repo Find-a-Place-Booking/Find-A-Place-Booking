@@ -1,3 +1,5 @@
+import type { Metadata } from "next";
+
 import { Footer } from "@/components/Footer";
 import { Header } from "@/components/Header";
 import { SearchBar } from "@/components/SearchBar";
@@ -5,6 +7,19 @@ import { StayResults } from "@/components/StayResults";
 import { propertyMatchesDestination } from "@/data/catalog";
 import { getPublishedProperties } from "@/lib/public/listings";
 import { copyBlock, loadManagedCopy } from "@/lib/public/managed-copy";
+
+export const metadata: Metadata = {
+  title: "Find a Stay",
+  description:
+    "Browse published cabins, cottages, RV stays, lake stays and independent getaways on Find A Place Booking.",
+  alternates: { canonical: "/stays" },
+  openGraph: {
+    title: "Find a Stay",
+    description:
+      "Browse published cabins, cottages, RV stays, lake stays and independent getaways on Find A Place Booking.",
+    url: "/stays",
+  },
+};
 
 function prettyDate(value?: string) {
   if (!value) return null;

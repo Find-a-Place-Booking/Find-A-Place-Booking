@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef } from "react";
 import type { MapLayerMouseEvent } from "mapbox-gl";
+import { track } from "@vercel/analytics";
 
 export type StayMapItem = {
   slug: string;
@@ -57,6 +58,13 @@ function popupNode(stay: StayMapItem) {
   const card = document.createElement("a");
   card.className = "stay-map-popup";
   card.href = `/stays/${encodeURIComponent(stay.slug)}`;
+  card.addEventListener("click", () => {
+    track("property_click", {
+      slug: stay.slug,
+      surface: "map",
+      trigger: "popup",
+    });
+  });
 
   if (stay.image) {
     const image = document.createElement("img");

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { track } from "@vercel/analytics";
 
 import { AvailabilityDatePicker } from "@/components/AvailabilityDatePicker";
 
@@ -103,6 +104,11 @@ export function BookingCard({
         type="button"
         disabled={!checkIn || !checkOut}
         onClick={() => {
+          track("checkout_started", {
+            slug,
+            mode: testMode ? "test" : "live",
+          });
+
           const query = new URLSearchParams({
             stay: slug,
             checkIn,

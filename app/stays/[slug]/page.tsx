@@ -1,11 +1,62 @@
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { cache } from "react";
 
 import { BookingCard } from "@/components/BookingCard";
 import { Footer } from "@/components/Footer";
 import { Header } from "@/components/Header";
 import { PropertyActions } from "@/components/PropertyActions";
 import { PublicHostCard } from "@/components/PublicHostCard";
+import { JsonLd } from "@/components/JsonLd";
 import { getPublishedListingBySlug } from "@/lib/public/listings";
+import { absoluteUrl, seoDescription } from "@/lib/seo";
+
+const getProperty = cache(getPublishedListingBySlug);
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ slug: string }>;
+}): Promise<Metadata> {
+  const { slug } = await params;
+  const property = await getProperty(slug);
+
+  if (!property) {
+    return {
+      title: "Stay not found",
+      robots: { index: false, follow: false },
+    };
+  }
+
+  const description = seoDescription(
+    property.description,
+    `${property.name} in ${property.location}. View details and availability on Find A Place Booking.`,
+  );
+  const canonical = `/stays/${property.slug}`;
+
+  return {
+    title: property.name,
+    description,
+    alternates: { canonical },
+    openGraph: {
+      type: "website",
+      title: property.name,
+      description,
+      url: canonical,
+      images: property.images[0]
+        ? [{ url: property.images[0], alt: property.name }]
+        : [{ url: "/brand/find-a-place-seal.png", alt: "Find A Place Booking" }],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: property.name,
+      description,
+      images: property.images[0]
+        ? [property.images[0]]
+        : ["/brand/find-a-place-seal.png"],
+    },
+  };
+}
 
 export default async function PropertyPage({
   params,
@@ -13,8 +64,39 @@ export default async function PropertyPage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const property = await getPublishedListingBySlug(slug);
+  const property = await getProperty(slug);
   if (!property) notFound();
+
+  const lodgingSchema = {
+    "@context": "https://schema.org",
+    "@type": "LodgingBusiness",
+    name: property.name,
+    description: seoDescription(property.description),
+    url: absoluteUrl(`/stays/${property.slug}`),
+    address: {
+      "@type": "PostalAddress",
+      addressLocality: property.city || undefined,
+      addressRegion: property.state || undefined,
+      addressCountry: "US",
+    },
+    priceRange: property.price > 0 ? `$${property.price}+` : undefined,
+    amenityFeature: property.amenities.slice(0, 20).map((amenity) => ({
+      "@type": "LocationFeatureSpecification",
+      name: amenity,
+      value: true,
+    })),
+    ...(property.reviewCount > 0
+      ? {
+          aggregateRating: {
+            "@type": "AggregateRating",
+            ratingValue: property.rating,
+            reviewCount: property.reviewCount,
+            bestRating: 5,
+            worstRating: 1,
+          },
+        }
+      : {}),
+  };
 
   const images = property.images;
   const mainImage = images[0];
@@ -28,6 +110,7 @@ export default async function PropertyPage({
 
   return (
     <>
+      <JsonLd data={lodgingSchema} />
       <Header />
 
       <main className="property-page">
