@@ -1,0 +1,947 @@
+warning: in the working copy of 'README.md', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'README_BOOKING_FLOW_CLEANUP.txt', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'README_BOOKING_VERIFICATION_UI_CLEANUP.txt', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'README_IDENTITY_GATE_DISABLED.txt', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'README_ONBOARDING_COMPLETION.txt', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'app/admin/audit/page.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'app/admin/content/page.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'app/admin/hosts/[profileId]/page.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'app/admin/hosts/page.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'app/admin/properties/page.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'app/api/booking/verification/identity/session/route.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'app/api/booking/verification/status/route.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'app/api/host/onboarding/complete/route.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'app/api/host/onboarding/photos/route.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'app/checkout/page.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'app/find-a-place-theme.css', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'app/host/payments/page.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'app/host/properties/new/page.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'app/host/reports/page.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'app/host/settings/page.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'app/page.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'app/stays/[slug]/page.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'components/BookingCard.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'components/BookingConfirmation.module.css', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'components/BookingConfirmation.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'components/GuestCheckout.module.css', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'components/GuestCheckout.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'components/GuestPolicyAcceptance.module.css', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'components/GuestPolicyAcceptance.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'components/GuestVerification.module.css', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'components/GuestVerification.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'components/HostOnboardingWizard.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'components/OnboardingPhotoManager.module.css', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'components/OnboardingPhotoManager.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'components/PropertyCard.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'components/PropertyEditor.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'components/StayResults.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'components/payments/OnboardingStripeSetup.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'lib/bookings/guest-verification.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'lib/host/finalize-onboarding-property.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'supabase/migrations/20260923093934_onboarding_real_photos_and_finalization.sql', LF will be replaced by CRLF the next time Git touches it
+[1mdiff --git a/README.md b/README.md[m
+[1mindex dfc3263..7834877 100644[m
+[1m--- a/README.md[m
+[1m+++ b/README.md[m
+[36m@@ -1,17 +1,47 @@[m
+[31m-# Admin environment null-narrowing build fix[m
+[32m+[m[32m# Find A Place Booking — UI polish pass[m
+ [m
+[31m-Fixes Vercel TypeScript errors in `app/admin/reservations/actions.ts`:[m
+[32m+[m[32mThis patch is based on the current `main` state reviewed on September 23, 2026.[m
+ [m
+[31m-- TS18047 reservation is possibly null[m
+[32m+[m[32mIt intentionally **does not modify any editable/CMS copy in Supabase**.[m
+ [m
+[31m-The environment guard is unchanged. The code now exits the failure branches[m
+[31m-before reading `reservation.payment_environment`.[m
+[32m+[m[32mWhat it changes:[m
+[32m+[m[32m- Removes launch-style / placeholder fallback copy from non-CMS UI states.[m
+[32m+[m[32m- Replaces visible "Photo coming soon" / "Property photo" placeholders with branded visual fallbacks.[m
+[32m+[m[32m- Cleans up the no-inventory and checkout-unavailable states.[m
+[32m+[m[32m- Simplifies host onboarding wording that exposed implementation details.[m
+[32m+[m[32m- Removes the redundant onboarding right-side explainer.[m
+[32m+[m[32m- Cleans host photo/Stripe status messages.[m
+[32m+[m[32m- Removes host-facing TEST/LIVE implementation wording where it is not operationally useful.[m
+[32m+[m[32m- Replaces developer-oriented property/admin wording with normal product language.[m
+[32m+[m[32m- Fixes stale property-editor messaging from the earlier placeholder photo/calendar implementation.[m
+[32m+[m[32m- Replaces the disabled calendar button with a real link to the host Calendar workspace.[m
+[32m+[m[32m- Removes the internal property ID/old-URL details from the host-facing listing card.[m
+[32m+[m[32m- Removes Stripe-webhook jargon from the guest confirmation flow.[m
+[32m+[m[32m- Adds small CSS overrides so the simplified screens keep the current visual style and responsive behavior.[m
+ [m
+[31m-No Stripe/webhook/payment calculation behavior is changed.[m
+[32m+[m[32m## Apply[m
+ [m
+[31m-Run:[m
+[32m+[m[32mFrom the root of the Find-A-Place-Booking repository:[m
+ [m
+ ```powershell[m
+[32m+[m[32mnode .\apply-ui-polish.mjs[m
+ npm run typecheck[m
+ npm run build[m
+[32m+[m[32mgit diff[m
+ ```[m
+[32m+[m
+[32m+[m[32mIf the diff looks good:[m
+[32m+[m
+[32m+[m[32m```powershell[m
+[32m+[m[32mgit add app components[m
+[32m+[m[32mgit commit -m "Polish production UI and host onboarding"[m
+[32m+[m[32mgit push[m
+[32m+[m[32m```[m
+[32m+[m
+[32m+[m[32m## Revert before committing[m
+[32m+[m
+[32m+[m[32m```powershell[m
+[32m+[m[32mgit restore app components[m
+[32m+[m[32m```[m
+[32m+[m
+[32m+[m[32mThe script stops with an error if the expected current source text does not match, so it should not silently alter a newer/different implementation.[m
+[1mdiff --git a/app/admin/audit/page.tsx b/app/admin/audit/page.tsx[m
+[1mindex ad22e2d..533ffd7 100644[m
+[1m--- a/app/admin/audit/page.tsx[m
+[1m+++ b/app/admin/audit/page.tsx[m
+[36m@@ -589,7 +589,7 @@[m [mexport default async function AdminAuditPage({[m
+           payment and Stripe-account events are isolated to the active[m
+           {environment} environment. Profiles, hosts, properties, content and[m
+           other non-transaction admin activity remain visible across the platform.[m
+[31m-          Technical event codes stay underneath for support/debugging.[m
+[32m+[m[32m          Technical event codes remain available underneath for support and troubleshooting.[m
+         </p>[m
+       </section>[m
+ [m
+[36m@@ -610,8 +610,8 @@[m [mexport default async function AdminAuditPage({[m
+ [m
+         {error ? ([m
+           <div className="admin-message error">[m
+[31m-            Platform activity could not be loaded. Apply migration 068 and[m
+[31m-            refresh.[m
+[32m+[m[32m            Platform activity could not be loaded. Refresh and try again. If the[m
+[32m+[m[32m            problem continues, check platform status.[m
+           </div>[m
+         ) : null}[m
+ [m
+[1mdiff --git a/app/admin/content/page.tsx b/app/admin/content/page.tsx[m
+[1mindex c5b8962..d3df0b6 100644[m
+[1m--- a/app/admin/content/page.tsx[m
+[1m+++ b/app/admin/content/page.tsx[m
+[36m@@ -45,7 +45,7 @@[m [mexport default async function AdminContentPage({[m
+     supabase.from("platform_policy_versions").select("policy_key,version_label"),[m
+   ]);[m
+ [m
+[31m-  if (error) throw new Error("Unable to load managed site content. Apply the latest content migration and refresh.");[m
+[32m+[m[32m  if (error) throw new Error("Unable to load managed site content. Refresh and try again. If the problem continues, check platform status.");[m
+ [m
+   const rows = (data ?? []) as ContentBlock[];[m
+   const versionByPolicy = new Map((versions ?? []).map((row) => [row.policy_key as string, row.version_label as string]));[m
+[1mdiff --git a/app/admin/hosts/[profileId]/page.tsx b/app/admin/hosts/[profileId]/page.tsx[m
+[1mindex df59543..4f252a6 100644[m
+[1m--- a/app/admin/hosts/[profileId]/page.tsx[m
+[1m+++ b/app/admin/hosts/[profileId]/page.tsx[m
+[36m@@ -189,13 +189,13 @@[m [mexport default async function AdminHostDetailPage({ params }: { params: Promise<[m
+               );[m
+             })}[m
+           </div>[m
+[31m-        ) : <div className="panel-empty"><strong>No host organization yet.</strong><span>The signed-in host creates the first real organization when they begin `/host/onboarding`.</span></div>}[m
+[32m+[m[32m        ) : <div className="panel-empty"><strong>No host organization yet.</strong><span>A host organization will appear here after the host begins setup.</span></div>}[m
+       </section>[m
+ [m
+ [m
+       <section className="panel admin-organization-panel">[m
+[31m-        <div className="panel-head"><div><p className="eyebrow dark">Properties</p><h2>Real listing records</h2></div><Link href="/admin/properties">All properties</Link></div>[m
+[31m-        {properties.length ? <div className="admin-list">{properties.map((property) => <Link className="admin-list-row" href={`/admin/properties/${property.id}`} key={property.id}><span><strong>{property.name}</strong><small>{property.public_area || "Area not set"} · {cleanStatus(property.status)}</small></span><b>Open →</b></Link>)}</div> : <div className="panel-empty"><strong>No property records yet.</strong><span>Once the host converts onboarding into a real draft property, it will appear here.</span></div>}[m
+[32m+[m[32m        <div className="panel-head"><div><p className="eyebrow dark">Properties</p><h2>Listing records</h2></div><Link href="/admin/properties">All properties</Link></div>[m
+[32m+[m[32m        {properties.length ? <div className="admin-list">{properties.map((property) => <Link className="admin-list-row" href={`/admin/properties/${property.id}`} key={property.id}><span><strong>{property.name}</strong><small>{property.public_area || "Area not set"} · {cleanStatus(property.status)}</small></span><b>Open →</b></Link>)}</div> : <div className="panel-empty"><strong>No property records yet.</strong><span>Once the host creates a property from setup, it will appear here.</span></div>}[m
+       </section>[m
+ [m
+       <section className="panel">[m
+[1mdiff --git a/app/admin/hosts/page.tsx b/app/admin/hosts/page.tsx[m
+[1mindex 9d6c6f0..296bd4a 100644[m
+[1m--- a/app/admin/hosts/page.tsx[m
+[1m+++ b/app/admin/hosts/page.tsx[m
+[36m@@ -42,12 +42,12 @@[m [mexport default async function AdminHostsPage({[m
+           <input name="q" defaultValue={search} aria-label="Search hosts" placeholder="Owner name, organization, email or phone…" autoFocus />[m
+           <button className="button button-small" type="submit">Search</button>[m
+         </form>[m
+[31m-        <p className="muted">This searches real host identities and organizations. Open a host to see its onboarding state; real properties are also available in the Properties workspace.</p>[m
+[32m+[m[32m        <p className="muted">Search host accounts and organizations. Open a host to review onboarding, account details and connected properties.</p>[m
+       </section>[m
+ [m
+       <section className="panel admin-results-panel">[m
+         <div className="panel-head"><div><p className="eyebrow dark">Results</p><h2>{search ? `Matches for “${search}”` : "Recent host profiles"}</h2></div><span className="status-pill status-muted">{rows.length} shown</span></div>[m
+[31m-        {error ? <div className="admin-message error">Host lookup failed. Refresh and try again. If the problem continues, verify the admin database foundation is current.</div> : null}[m
+[32m+[m[32m        {error ? <div className="admin-message error">Host lookup failed. Refresh and try again. If the problem continues, check platform status or contact support.</div> : null}[m
+         {!error && rows.length ? ([m
+           <div className="admin-host-results">[m
+             {rows.map((row, index) => ([m
+[1mdiff --git a/app/admin/properties/page.tsx b/app/admin/properties/page.tsx[m
+[1mindex 6a6b33e..b1c2b49 100644[m
+[1m--- a/app/admin/properties/page.tsx[m
+[1m+++ b/app/admin/properties/page.tsx[m
+[36m@@ -109,7 +109,7 @@[m [mexport default async function AdminPropertiesPage({ searchParams }: { searchPara[m
+         <span className="status-pill status-muted">{properties.length} shown</span>[m
+       </div>[m
+ [m
+[31m-      {error ? <div className="admin-message error">Property lookup failed. Confirm the latest database migrations were applied.</div> : null}[m
+[32m+[m[32m      {error ? <div className="admin-message error">Property lookup failed. Refresh and try again. If the problem continues, check platform status.</div> : null}[m
+ [m
+       {!error && properties.length ? ([m
+         <div className="admin-property-results">[m
+[1mdiff --git a/app/checkout/page.tsx b/app/checkout/page.tsx[m
+[1mindex 4b8e035..9e0df32 100644[m
+[1m--- a/app/checkout/page.tsx[m
+[1m+++ b/app/checkout/page.tsx[m
+[36m@@ -29,9 +29,9 @@[m [mexport default async function CheckoutPage({[m
+ [m
+         <section className="shell standalone-empty checkout-empty guest-state-card">[m
+           <p className="eyebrow dark">Booking</p>[m
+[31m-          <h1>Online booking opens soon.</h1>[m
+[32m+[m[32m          <h1>Booking is temporarily unavailable.</h1>[m
+           <p>[m
+[31m-            Dates and secure checkout are currently unavailable.[m
+[32m+[m[32m            Browse stays for now and try checkout again shortly.[m
+           </p>[m
+           <Link className="button" href="/stays">Find a stay</Link>[m
+         </section>[m
+[1mdiff --git a/app/find-a-place-theme.css b/app/find-a-place-theme.css[m
+[1mindex 8f622f7..26b8a0a 100644[m
+[1m--- a/app/find-a-place-theme.css[m
+[1m+++ b/app/find-a-place-theme.css[m
+[36m@@ -2143,3 +2143,62 @@[m [mmain > .marketplace-band:first-of-type {[m
+   grid-template-columns: 1fr;[m
+ }[m
+ [m
+[32m+[m
+[32m+[m
+[32m+[m[32m/* UI polish pass: production-safe fallbacks and a simpler host setup layout. */[m
+[32m+[m[32m.hero-layout.hero-layout-single {[m
+[32m+[m[32m  grid-template-columns: minmax(0, 1fr);[m
+[32m+[m[32m}[m
+[32m+[m[32m.hero-layout.hero-layout-single .hero-copy {[m
+[32m+[m[32m  max-width: 900px;[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32m.property-image-empty,[m
+[32m+[m[32m.gallery-brand-placeholder,[m
+[32m+[m[32m.hero-featured-photo-placeholder {[m
+[32m+[m[32m  position: relative;[m
+[32m+[m[32m  display: grid;[m
+[32m+[m[32m  place-items: center;[m
+[32m+[m[32m  overflow: hidden;[m
+[32m+[m[32m  background:[m
+[32m+[m[32m    radial-gradient(circle at 70% 25%, rgba(255,255,255,.5), transparent 28%),[m
+[32m+[m[32m    linear-gradient(135deg, #ddd6ca, #c8c2b7 52%, #aeb8aa);[m
+[32m+[m[32m}[m
+[32m+[m[32m.property-image-empty::after,[m
+[32m+[m[32m.gallery-brand-placeholder::after,[m
+[32m+[m[32m.hero-featured-photo-placeholder::after {[m
+[32m+[m[32m  content: "";[m
+[32m+[m[32m  width: 72px;[m
+[32m+[m[32m  height: 72px;[m
+[32m+[m[32m  background: url("/brand/find-a-place-seal.png") center / contain no-repeat;[m
+[32m+[m[32m  opacity: .28;[m
+[32m+[m[32m}[m
+[32m+[m[32m.gallery-brand-placeholder::after {[m
+[32m+[m[32m  width: 86px;[m
+[32m+[m[32m  height: 86px;[m
+[32m+[m[32m}[m
+[32m+[m[32m.property-image-empty {[m
+[32m+[m[32m  min-height: 100%;[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32m.wizard.near-production-wizard {[m
+[32m+[m[32m  grid-template-columns: 190px minmax(0, 1fr);[m
+[32m+[m[32m}[m
+[32m+[m[32m.wizard.near-production-wizard .wizard-panel {[m
+[32m+[m[32m  max-width: 900px;[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32m@media (max-width: 1100px) {[m
+[32m+[m[32m  .hero-layout.hero-layout-single {[m
+[32m+[m[32m    grid-template-columns: minmax(0, 1fr);[m
+[32m+[m[32m  }[m
+[32m+[m[32m  .wizard.near-production-wizard {[m
+[32m+[m[32m    grid-template-columns: 180px minmax(0, 1fr);[m
+[32m+[m[32m  }[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32m@media (max-width: 700px) {[m
+[32m+[m[32m  .wizard.near-production-wizard {[m
+[32m+[m[32m    display: block;[m
+[32m+[m[32m  }[m
+[32m+[m[32m}[m
+[1mdiff --git a/app/host/payments/page.tsx b/app/host/payments/page.tsx[m
+[1mindex 6444c6b..0d13f19 100644[m
+[1m--- a/app/host/payments/page.tsx[m
+[1m+++ b/app/host/payments/page.tsx[m
+[36m@@ -80,11 +80,7 @@[m [mexport default async function PaymentsPage() {[m
+           </h2>[m
+           <p>[m
+             {readyAccount[m
+[31m-              ? `Guest payments are charged directly on this host Stripe account for ${[m
+[31m-                  workspace.environment === "TEST"[m
+[31m-                    ? "test"[m
+[31m-                    : "live"[m
+[31m-                } bookings. Stripe handles processing, balance availability and bank deposits.`[m
+[32m+[m[32m              ? "Guest payments are charged directly on this host Stripe account. Stripe handles processing, balance availability and bank deposits."[m
+               : "Connect Stripe here so guest payments can be processed directly on your host account. Bank and identity details stay with Stripe."}[m
+           </p>[m
+         </div>[m
+[36m@@ -143,15 +139,9 @@[m [mexport default async function PaymentsPage() {[m
+           </small>[m
+         </div>[m
+         <div>[m
+[31m-          <span>Payment mode</span>[m
+[31m-          <strong>[m
+[31m-            {workspace.environment === "TEST" ? "Test" : "Live"}[m
+[31m-          </strong>[m
+[31m-          <small>[m
+[31m-            {workspace.environment === "TEST"[m
+[31m-              ? "Stripe test data only"[m
+[31m-              : "Real guest payments"}[m
+[31m-          </small>[m
+[32m+[m[32m          <span>Bank deposits</span>[m
+[32m+[m[32m          <strong>Stripe managed</strong>[m
+[32m+[m[32m          <small>Stripe controls balance availability and payout timing</small>[m
+         </div>[m
+       </div>[m
+ [m
+[1mdiff --git a/app/host/properties/new/page.tsx b/app/host/properties/new/page.tsx[m
+[1mindex 6951225..e7098c6 100644[m
+[1m--- a/app/host/properties/new/page.tsx[m
+[1m+++ b/app/host/properties/new/page.tsx[m
+[36m@@ -12,7 +12,7 @@[m [mexport default async function NewPropertyPage({ searchParams }: { searchParams:[m
+   return <DashboardShell active="Properties" title="Add property" eyebrow="Property setup">[m
+     <div className="admin-detail-back"><Link href="/host/properties">← Back to properties</Link></div>[m
+     <section className="panel new-property-card">[m
+[31m-      <p className="eyebrow dark">New draft listing</p><h2>Create the real property record first.</h2><p>Start with the identity and public area. The full editor opens immediately after creation so you can add address, capacity, photos, amenities, policies, rates and notification routing.</p>[m
+[32m+[m[32m      <p className="eyebrow dark">New property</p><h2>Start the property listing.</h2><p>Add the name, type and public area first. The full editor opens next so you can finish the address, capacity, photos, amenities, policies, rates and notification settings.</p>[m
+       {error ? <div className="admin-message error">Could not create the property. Check the required fields and try again.</div> : null}[m
+       {primary ? <form action={createBlankProperty} className="field-grid onboarding-fields new-property-form">[m
+         <input type="hidden" name="organizationId" value={primary.id} />[m
+[36m@@ -20,7 +20,7 @@[m [mexport default async function NewPropertyPage({ searchParams }: { searchParams:[m
+         <label className="full"><span>Property / listing name</span><input name="name" required maxLength={180} placeholder="Pine Hollow Ridge Cabin" /></label>[m
+         <label><span>Property type</span><select name="propertyType" defaultValue=""><option value="">Select type</option>{propertyTypes.map((type) => <option key={type}>{type}</option>)}</select></label>[m
+         <label><span>Public area</span><input name="publicArea" maxLength={180} placeholder="Hot Springs, AR" /></label>[m
+[31m-        <div className="full new-property-actions"><Link className="button button-quiet" href="/host/properties">Cancel</Link><button className="button" type="submit">Create draft property →</button></div>[m
+[32m+[m[32m        <div className="full new-property-actions"><Link className="button button-quiet" href="/host/properties">Cancel</Link><button className="button" type="submit">Create property →</button></div>[m
+       </form> : <div className="panel-empty"><strong>No host organization available.</strong><span>Complete host setup before creating a property.</span><Link className="button button-small" href="/host/onboarding">Open host setup</Link></div>}[m
+     </section>[m
+   </DashboardShell>;[m
+[1mdiff --git a/app/host/reports/page.tsx b/app/host/reports/page.tsx[m
+[1mindex 5a3c9cd..b0ebd9c 100644[m
+[1m--- a/app/host/reports/page.tsx[m
+[1m+++ b/app/host/reports/page.tsx[m
+[36m@@ -39,8 +39,7 @@[m [mexport default async function ReportsPage({[m
+             reservations.[m
+           </p>[m
+           <small>[m
+[31m-            Guest charges belong to your connected processor account. TEST and[m
+[31m-            LIVE records remain separate.[m
+[32m+[m[32m            Reports include the booking and payment records available to this host account.[m
+           </small>[m
+         </div>[m
+         <Link[m
+[36m@@ -77,9 +76,7 @@[m [mexport default async function ReportsPage({[m
+           <button className="button button-small" type="submit">[m
+             Run report[m
+           </button>[m
+[31m-          <span className="status-pill status-muted">[m
+[31m-            {report.environment} money[m
+[31m-          </span>[m
+[32m+[m
+         </div>[m
+       </form>[m
+ [m
+[1mdiff --git a/app/host/settings/page.tsx b/app/host/settings/page.tsx[m
+[1mindex 8d0837e..ad76f8d 100644[m
+[1m--- a/app/host/settings/page.tsx[m
+[1m+++ b/app/host/settings/page.tsx[m
+[36m@@ -161,7 +161,7 @@[m [mexport default async function SettingsPage({[m
+               defaultValue={profile.publicHostName || profile.organizationName || ""}[m
+               placeholder="Example: Pine Hollow Stays"[m
+             />[m
+[31m-            <small>This is the name guests see. It can be different from the internal organization name.</small>[m
+[32m+[m[32m            <small>This is the name guests see. It can be different from the organization name on your account.</small>[m
+           </label>[m
+           <label>[m
+             <span>Host description</span>[m
+[1mdiff --git a/app/page.tsx b/app/page.tsx[m
+[1mindex 2ea2c0c..1c9e8ce 100644[m
+[1m--- a/app/page.tsx[m
+[1m+++ b/app/page.tsx[m
+[36m@@ -126,7 +126,7 @@[m [mexport default async function HomePage() {[m
+ [m
+         <Header light />[m
+ [m
+[31m-        <div className="shell hero-layout">[m
+[32m+[m[32m        <div className={`shell hero-layout ${featuredStay ? "" : "hero-layout-single"}`}>[m
+           <div className="hero-copy">[m
+             <p className="eyebrow">{hero.eyebrow}</p>[m
+             <h1>{hero.title}</h1>[m
+[36m@@ -148,83 +148,65 @@[m [mexport default async function HomePage() {[m
+             </div>[m
+           </div>[m
+ [m
+[31m-          <div className="hero-featured-panel" aria-label="Featured stay">[m
+[31m-            {featuredStay ? ([m
+[31m-              <>[m
+[32m+[m[32m          {featuredStay ? ([m
+[32m+[m[32m            <div className="hero-featured-panel" aria-label="Featured stay">[m
+[32m+[m[32m              <TrackedLink[m
+[32m+[m[32m                className="hero-featured-media hero-featured-live"[m
+[32m+[m[32m                href={`/stays/${featuredStay.slug}`}[m
+[32m+[m[32m                prefetch={false}[m
+[32m+[m[32m                aria-label={`View ${featuredStay.name}`}[m
+[32m+[m[32m                eventName="property_click"[m
+[32m+[m[32m                eventData={{[m
+[32m+[m[32m                  slug: featuredStay.slug,[m
+[32m+[m[32m                  surface: "home_featured",[m
+[32m+[m[32m                  trigger: "image",[m
+[32m+[m[32m                }}[m
+[32m+[m[32m              >[m
+[32m+[m[32m                {featuredStay.image ? ([m
+[32m+[m[32m                  <img[m
+[32m+[m[32m                    src={featuredStay.image}[m
+[32m+[m[32m                    alt={`${featuredStay.name} in ${featuredStay.location}`}[m
+[32m+[m[32m                    loading="eager"[m
+[32m+[m[32m                    decoding="async"[m
+[32m+[m[32m                    fetchPriority="high"[m
+[32m+[m[32m                  />[m
+[32m+[m[32m                ) : ([m
+[32m+[m[32m                  <div[m
+[32m+[m[32m                    className="hero-featured-photo-placeholder"[m
+[32m+[m[32m                    aria-label="Property photo unavailable"[m
+[32m+[m[32m                  />[m
+[32m+[m[32m                )}[m
+[32m+[m[32m                <span>Featured stay</span>[m
+[32m+[m[32m              </TrackedLink>[m
+[32m+[m
+[32m+[m[32m              <div className="hero-featured-copy">[m
+[32m+[m[32m                <span>{featuredStay.location}</span>[m
+[32m+[m[32m                <strong>{featuredStay.name}</strong>[m
+[32m+[m[32m                <p>[m
+[32m+[m[32m                  {featuredStay.sleeps} guests · {featuredStay.type}[m
+[32m+[m[32m                  {featuredStay.tags.length[m
+[32m+[m[32m                    ? ` · ${featuredStay.tags.slice(0, 2).join(" · ")}`[m
+[32m+[m[32m                    : ""}[m
+[32m+[m[32m                </p>[m
+[32m+[m[32m                <div className="hero-featured-meta">[m
+[32m+[m[32m                  <b>${featuredStay.price}</b>[m
+[32m+[m[32m                  <small>/ night</small>[m
+[32m+[m[32m                </div>[m
+                 <TrackedLink[m
+[31m-                  className="hero-featured-media hero-featured-live"[m
+                   href={`/stays/${featuredStay.slug}`}[m
+                   prefetch={false}[m
+[31m-                  aria-label={`View ${featuredStay.name}`}[m
+                   eventName="property_click"[m
+                   eventData={{[m
+                     slug: featuredStay.slug,[m
+                     surface: "home_featured",[m
+[31m-                    trigger: "image",[m
+[32m+[m[32m                    trigger: "text",[m
+                   }}[m
+                 >[m
+[31m-                  {featuredStay.image ? ([m
+[31m-                    <img[m
+[31m-                      src={featuredStay.image}[m
+[31m-                      alt={`${featuredStay.name} in ${featuredStay.location}`}[m
+[31m-                      loading="eager"[m
+[31m-                      decoding="async"[m
+[31m-                      fetchPriority="high"[m
+[31m-                    />[m
+[31m-                  ) : ([m
+[31m-                    <div className="hero-featured-photo-placeholder">[m
+[31m-                      <span>Featured stay</span>[m
+[31m-                    </div>[m
+[31m-                  )}[m
+[31m-                  <span>Featured stay</span>[m
+[32m+[m[32m                  View this stay →[m
+                 </TrackedLink>[m
+[31m-[m
+[31m-                <div className="hero-featured-copy">[m
+[31m-                  <span>{featuredStay.location}</span>[m
+[31m-                  <strong>{featuredStay.name}</strong>[m
+[31m-                  <p>[m
+[31m-                    {featuredStay.sleeps} guests · {featuredStay.type}[m
+[31m-                    {featuredStay.tags.length[m
+[31m-                      ? ` · ${featuredStay.tags.slice(0, 2).join(" · ")}`[m
+[31m-                      : ""}[m
+[31m-                  </p>[m
+[31m-                  <div className="hero-featured-meta">[m
+[31m-                    <b>${featuredStay.price}</b>[m
+[31m-                    <small>/ night</small>[m
+[31m-                  </div>[m
+[31m-                  <TrackedLink[m
+[31m-                    href={`/stays/${featuredStay.slug}`}[m
+[31m-                    prefetch={false}[m
+[31m-                    eventName="property_click"[m
+[31m-                    eventData={{[m
+[31m-                      slug: featuredStay.slug,[m
+[31m-                      surface: "home_featured",[m
+[31m-                      trigger: "text",[m
+[31m-                    }}[m
+[31m-                  >[m
+[31m-                    View this stay →[m
+[31m-                  </TrackedLink>[m
+[31m-                </div>[m
+[31m-              </>[m
+[31m-            ) : ([m
+[31m-              <>[m
+[31m-                <div className="hero-featured-media" aria-hidden="true">[m
+[31m-                  <span>Featured cabin photo</span>[m
+[31m-                </div>[m
+[31m-                <div className="hero-featured-copy">[m
+[31m-                  <span>Featured stay</span>[m
+[31m-                  <strong>Featured cabin coming soon.</strong>[m
+[31m-                  <p>[m
+[31m-                    One standout cabin, cottage or getaway at a time, picked for[m
+[31m-                    the kind of trip you’ll want to start planning.[m
+[31m-                  </p>[m
+[31m-                  <Link href="/stays" prefetch={false}>[m
+[31m-                    Browse all stays →[m
+[31m-                  </Link>[m
+[31m-                </div>[m
+[31m-              </>[m
+[31m-            )}[m
+[31m-          </div>[m
+[32m+[m[32m              </div>[m
+[32m+[m[32m            </div>[m
+[32m+[m[32m          ) : null}[m
+         </div>[m
+       </div>[m
+ [m
+[36m@@ -271,21 +253,12 @@[m [mexport default async function HomePage() {[m
+             ) : ([m
+               <div className="featured-empty home-inventory-empty">[m
+                 <div>[m
+[31m-                  <p className="eyebrow dark">The first stays are on the way</p>[m
+[31m-                  <h3>We’re getting the first places ready for travelers.</h3>[m
+[32m+[m[32m                  <p className="eyebrow dark">No stays to show here right now</p>[m
+[32m+[m[32m                  <h3>Try another destination or check back soon.</h3>[m
+                   <p>[m
+[31m-                    As approved hosts publish their properties, they’ll start[m
+[31m-                    showing up here.[m
+[32m+[m[32m                    Published stays will appear here as they become available.[m
+                   </p>[m
+                 </div>[m
+[31m-                <TrackedLink[m
+[31m-                  className="button button-quiet"[m
+[31m-                  href="/hosts"[m
+[31m-                  eventName="host_cta_click"[m
+[31m-                  eventData={{ surface: "home_inventory_empty" }}[m
+[31m-                >[m
+[31m-                  List a property[m
+[31m-                </TrackedLink>[m
+               </div>[m
+             )}[m
+           </div>[m
+[1mdiff --git a/app/stays/[slug]/page.tsx b/app/stays/[slug]/page.tsx[m
+[1mindex d5a755c..3d968e4 100644[m
+[1m--- a/app/stays/[slug]/page.tsx[m
+[1m+++ b/app/stays/[slug]/page.tsx[m
+[36m@@ -144,7 +144,10 @@[m [mexport default async function PropertyPage({[m
+               fetchPriority="high"[m
+             />[m
+           ) : ([m
+[31m-            <div className="gallery-main gallery-placeholder">Property photo</div>[m
+[32m+[m[32m            <div[m
+[32m+[m[32m              className="gallery-main gallery-placeholder gallery-brand-placeholder"[m
+[32m+[m[32m              aria-label="Property photo unavailable"[m
+[32m+[m[32m            />[m
+           )}[m
+ [m
+           {secondImage ? ([m
+[36m@@ -155,7 +158,10 @@[m [mexport default async function PropertyPage({[m
+               decoding="async"[m
+             />[m
+           ) : ([m
+[31m-            <div className="gallery-placeholder">Property photo</div>[m
+[32m+[m[32m            <div[m
+[32m+[m[32m              className="gallery-placeholder gallery-brand-placeholder"[m
+[32m+[m[32m              aria-label="Property photo unavailable"[m
+[32m+[m[32m            />[m
+           )}[m
+ [m
+           {thirdImage ? ([m
+[36m@@ -166,7 +172,10 @@[m [mexport default async function PropertyPage({[m
+               decoding="async"[m
+             />[m
+           ) : ([m
+[31m-            <div className="gallery-placeholder">Property photo</div>[m
+[32m+[m[32m            <div[m
+[32m+[m[32m              className="gallery-placeholder gallery-brand-placeholder"[m
+[32m+[m[32m              aria-label="Property photo unavailable"[m
+[32m+[m[32m            />[m
+           )}[m
+ [m
+           <div className="gallery-detail">[m
+[36m@@ -213,7 +222,7 @@[m [mexport default async function PropertyPage({[m
+                   <span key={amenity}>✓ {amenity}</span>[m
+                 ))[m
+               ) : ([m
+[31m-                <span>Amenities are being finalized.</span>[m
+[32m+[m[32m                <span>No additional amenities listed.</span>[m
+               )}[m
+             </div>[m
+ [m
+[1mdiff --git a/components/BookingCard.tsx b/components/BookingCard.tsx[m
+[1mindex d140967..e7059f3 100644[m
+[1m--- a/components/BookingCard.tsx[m
+[1m+++ b/components/BookingCard.tsx[m
+[36m@@ -42,16 +42,16 @@[m [mexport function BookingCard({[m
+ [m
+         <div className="availability-note">[m
+           <span>●</span>[m
+[31m-          <strong>Online booking opens soon</strong>[m
+[32m+[m[32m          <strong>Online booking is unavailable</strong>[m
+         </div>[m
+ [m
+         <div className="booking-coming-soon">[m
+[31m-          <strong>Save this one for later.</strong>[m
+[31m-          <p>Online dates and secure checkout will open soon.</p>[m
+[32m+[m[32m          <strong>This stay cannot be booked online right now.</strong>[m
+[32m+[m[32m          <p>Browse the listing details and check back later.</p>[m
+         </div>[m
+ [m
+         <button className="button button-full" type="button" disabled>[m
+[31m-          Online booking coming soon[m
+[32m+[m[32m          Booking unavailable[m
+         </button>[m
+       </aside>[m
+     );[m
+[1mdiff --git a/components/BookingConfirmation.tsx b/components/BookingConfirmation.tsx[m
+[1mindex bd37be5..ceb82c5 100644[m
+[1m--- a/components/BookingConfirmation.tsx[m
+[1m+++ b/components/BookingConfirmation.tsx[m
+[36m@@ -127,8 +127,8 @@[m [mexport function BookingConfirmation({[m
+         <p className="eyebrow dark">Payment processing</p>[m
+         <h1>We&apos;re finishing your reservation.</h1>[m
+         <p>[m
+[31m-          Payment status: {booking.paymentStatus}. This page checks[m
+[31m-          automatically while the signed Stripe webhook completes the booking.[m
+[32m+[m[32m          We are waiting for payment confirmation. This page will update[m
+[32m+[m[32m          automatically when the reservation is ready.[m
+         </p>[m
+       </div>[m
+     );[m
+[1mdiff --git a/components/HostOnboardingWizard.tsx b/components/HostOnboardingWizard.tsx[m
+[1mindex aa5fd52..4811936 100644[m
+[1m--- a/components/HostOnboardingWizard.tsx[m
+[1m+++ b/components/HostOnboardingWizard.tsx[m
+[36m@@ -411,8 +411,7 @@[m [mexport function HostOnboardingWizard({[m
+             <p className="eyebrow dark">Host profile</p>[m
+             <h2>Who manages the stay?</h2>[m
+             <p>[m
+[31m-              This creates the host organization used by the dashboard,[m
+[31m-              guest contact details and admin team.[m
+[32m+[m[32m              Add the name and contact details guests and Find A Place should use.[m
+             </p>[m
+             <div className="field-grid onboarding-fields">[m
+               <label className="full">[m
+[36m@@ -664,10 +663,9 @@[m [mexport function HostOnboardingWizard({[m
+         {step === 4 && ([m
+           <>[m
+             <p className="eyebrow dark">Photos</p>[m
+[31m-            <h2>Upload the actual listing photos now.</h2>[m
+[32m+[m[32m            <h2>Add your listing photos.</h2>[m
+             <p>[m
+[31m-              These photos save directly to the real draft property, so[m
+[31m-              you will not have to upload them again after onboarding.[m
+[32m+[m[32m              Photos added here stay with this property and will appear on the listing.[m
+             </p>[m
+             <OnboardingPhotoManager[m
+               organizationId={initial.organizationId}[m
+[36m@@ -949,9 +947,8 @@[m [mexport function HostOnboardingWizard({[m
+             <p className="eyebrow dark">Calendar</p>[m
+             <h2>Choose the source of truth for availability.</h2>[m
+             <p>[m
+[31m-              Save the preferred calendar approach here. Calendar[m
+[31m-              connections can be added after the listing is created;[m
+[31m-              your choice here is carried into the real property record.[m
+[32m+[m[32m              Choose how you want availability managed. Calendar connections can[m
+[32m+[m[32m              be added after the listing is created.[m
+             </p>[m
+             <div className="calendar-preference-grid">[m
+               {calendarPreferences.map((option) => ([m
+[36m@@ -978,11 +975,10 @@[m [mexport function HostOnboardingWizard({[m
+         {step === 8 && ([m
+           <>[m
+             <p className="eyebrow dark">Payments</p>[m
+[31m-            <h2>Connect Stripe before you finish onboarding.</h2>[m
+[32m+[m[32m            <h2>Connect Stripe before you finish.</h2>[m
+             <p>[m
+[31m-              Complete the same secure Stripe Connect flow used by[m
+[31m-              Payments &amp; taxes here. Once Stripe is ready, you will[m
+[31m-              not need to repeat this setup after onboarding.[m
+[32m+[m[32m              Connect the Stripe account that will receive guest payments. Once[m
+[32m+[m[32m              it is ready, you will not need to set it up again.[m
+             </p>[m
+             <OnboardingStripeSetup[m
+               organizationId={initial.organizationId}[m
+[36m@@ -994,7 +990,7 @@[m [mexport function HostOnboardingWizard({[m
+         {step === 9 && ([m
+           <>[m
+             <p className="eyebrow dark">Review</p>[m
+[31m-            <h2>Finish setup and create {propertyLabel}.</h2>[m
+[32m+[m[32m            <h2>Review and finish {propertyLabel}.</h2>[m
+             <div className="review-groups">[m
+               <div>[m
+                 <span>Host</span>[m
+[36m@@ -1025,7 +1021,7 @@[m [mexport function HostOnboardingWizard({[m
+                     : "At least one required"}[m
+                 </strong>[m
+                 <small>[m
+[31m-                  Photos are already attached to the real listing draft.[m
+[32m+[m[32m                  These photos are attached to this listing.[m
+                 </small>[m
+               </div>[m
+               <div>[m
+[36m@@ -1036,8 +1032,7 @@[m [mexport function HostOnboardingWizard({[m
+                     : "Will be checked before completion"}[m
+                 </strong>[m
+                 <small>[m
+[31m-                  Guest payments use the host-owned connected Stripe[m
+[31m-                  account.[m
+[32m+[m[32m                  Guest payments are processed through your connected Stripe account.[m
+                 </small>[m
+               </div>[m
+               <div>[m
+[36m@@ -1128,23 +1123,6 @@[m [mexport function HostOnboardingWizard({[m
+         </div>[m
+       </section>[m
+ [m
+[31m-      <aside className="onboarding-plan">[m
+[31m-        <small>Find A Place host setup</small>[m
+[31m-        <strong>Complete once</strong>[m
+[31m-        <span>listing + photos + payments</span>[m
+[31m-        <hr />[m
+[31m-        <p>[m
+[31m-          The first listing, its property photos and Stripe payment[m
+[31m-          connection are completed in this setup instead of sending[m
+[31m-          hosts back through the dashboard afterward.[m
+[31m-        </p>[m
+[31m-        <div className="plan-points">[m
+[31m-          <span>✓ Real listing photos saved now</span>[m
+[31m-          <span>✓ Stripe Connect completed now</span>[m
+[31m-          <span>✓ Host-owned direct payments</span>[m
+[31m-          <span>✓ Listing data carries into the property record</span>[m
+[31m-        </div>[m
+[31m-      </aside>[m
+     </div>[m
+   );[m
+ }[m
+[1mdiff --git a/components/OnboardingPhotoManager.tsx b/components/OnboardingPhotoManager.tsx[m
+[1mindex 6b78ceb..c33ca20 100644[m
+[1m--- a/components/OnboardingPhotoManager.tsx[m
+[1m+++ b/components/OnboardingPhotoManager.tsx[m
+[36m@@ -47,7 +47,7 @@[m [mexport function OnboardingPhotoManager({[m
+   const [loading, setLoading] = useState(true);[m
+   const [uploading, setUploading] = useState(false);[m
+   const [message, setMessage] = useState([m
+[31m-    "Preparing the real listing photo storage…",[m
+[32m+[m[32m    "Preparing your listing photos…",[m
+   );[m
+   const [error, setError] = useState<string | null>(null);[m
+ [m
+[36m@@ -79,7 +79,7 @@[m [mexport function OnboardingPhotoManager({[m
+     if (!response.ok || !payload?.target) {[m
+       throw new Error([m
+         payload?.error ||[m
+[31m-          "Unable to prepare property photo storage. Save the property name and try again.",[m
+[32m+[m[32m          "Unable to load listing photos. Save the property name and try again.",[m
+       );[m
+     }[m
+ [m
+[36m@@ -90,7 +90,7 @@[m [mexport function OnboardingPhotoManager({[m
+     setMessage([m
+       nextImages.length[m
+         ? `${nextImages.length} photo${nextImages.length === 1 ? "" : "s"} already saved to this listing.`[m
+[31m-        : "Photo storage is ready. Upload at least one photo before finishing setup.",[m
+[32m+[m[32m        : "Add at least one photo before finishing setup.",[m
+     );[m
+   }, [organizationId, publishNames]);[m
+ [m
+[36m@@ -107,7 +107,7 @@[m [mexport function OnboardingPhotoManager({[m
+         setError([m
+           loadError instanceof Error[m
+             ? loadError.message[m
+[31m-            : "Unable to prepare property photo storage.",[m
+[32m+[m[32m            : "Unable to load listing photos.",[m
+         );[m
+       } finally {[m
+         setLoading(false);[m
+[36m@@ -127,7 +127,7 @@[m [mexport function OnboardingPhotoManager({[m
+     const selected = Array.from(files).slice(0, remaining);[m
+     setUploading(true);[m
+     setError(null);[m
+[31m-    setMessage("Uploading property photos…");[m
+[32m+[m[32m    setMessage("Uploading photos…");[m
+ [m
+     const supabase = createClient();[m
+     const { data: userData } = await supabase.auth.getUser();[m
+[36m@@ -214,7 +214,7 @@[m [mexport function OnboardingPhotoManager({[m
+ [m
+     if (nextImages.length > images.length) {[m
+       setMessage([m
+[31m-        `${nextImages.length} photo${nextImages.length === 1 ? "" : "s"} saved to the real listing. You will not need to upload them again later.`,[m
+[32m+[m[32m        `${nextImages.length} photo${nextImages.length === 1 ? "" : "s"} saved to this listing.`,[m
+       );[m
+     }[m
+   }[m
+[36m@@ -249,7 +249,7 @@[m [mexport function OnboardingPhotoManager({[m
+     if (storageError) {[m
+       console.error("[onboarding photo storage cleanup]", storageError);[m
+       setError([m
+[31m-        "The photo was removed from the listing, but its old stored file needs cleanup.",[m
+[32m+[m[32m        "The photo was removed from the listing, but cleanup could not be completed. You can continue setup.",[m
+       );[m
+       return;[m
+     }[m
+[36m@@ -267,7 +267,7 @@[m [mexport function OnboardingPhotoManager({[m
+         <div>[m
+           <strong>[m
+             {loading[m
+[31m-              ? "Preparing photo storage"[m
+[32m+[m[32m              ? "Preparing photos"[m
+               : uploading[m
+                 ? "Saving photos"[m
+                 : "Photos save immediately"}[m
+[36m@@ -275,7 +275,7 @@[m [mexport function OnboardingPhotoManager({[m
+           <span>{message}</span>[m
+         </div>[m
+         {!loading && target ? ([m
+[31m-          <span className={styles.saved}>Connected to listing draft</span>[m
+[32m+[m[32m          <span className={styles.saved}>Saved with this listing</span>[m
+         ) : null}[m
+       </div>[m
+ [m
+[36m@@ -337,8 +337,7 @@[m [mexport function OnboardingPhotoManager({[m
+       ) : null}[m
+ [m
+       <p className={styles.help}>[m
+[31m-        These are the actual files used by the property listing. Finishing[m
+[31m-        onboarding will keep them attached to the listing automatically.[m
+[32m+[m[32m        Photos added here stay attached to this listing when you finish setup.[m
+       </p>[m
+     </div>[m
+   );[m
+[1mdiff --git a/components/PropertyCard.tsx b/components/PropertyCard.tsx[m
+[1mindex 9bc9168..36e4759 100644[m
+[1m--- a/components/PropertyCard.tsx[m
+[1m+++ b/components/PropertyCard.tsx[m
+[36m@@ -35,9 +35,10 @@[m [mexport function PropertyCard({[m
+             decoding="async"[m
+           />[m
+         ) : ([m
+[31m-          <div className="property-image property-image-empty">[m
+[31m-            Photo coming soon[m
+[31m-          </div>[m
+[32m+[m[32m          <div[m
+[32m+[m[32m            className="property-image property-image-empty"[m
+[32m+[m[32m            aria-label="Property photo unavailable"[m
+[32m+[m[32m          />[m
+         )}[m
+         <span className="property-type">{property.type}</span>[m
+         {property.instantBook && <span className="instant-label">Instant book</span>}[m
+[1mdiff --git a/components/PropertyEditor.tsx b/components/PropertyEditor.tsx[m
+[1mindex 6f7f9a4..3542db4 100644[m
+[1m--- a/components/PropertyEditor.tsx[m
+[1m+++ b/components/PropertyEditor.tsx[m
+[36m@@ -18,7 +18,7 @@[m [mexport function PropertyEditor({ initial }: { initial: PropertyEditorRecord }) {[m
+   const [policies, setPolicies] = useState(initial.policies);[m
+   const [images, setImages] = useState<PropertyImageRecord[]>(initial.images);[m
+   const [saveTone, setSaveTone] = useState<SaveTone>("saved");[m
+[31m-  const [message, setMessage] = useState("Loaded from the production property record.");[m
+[32m+[m[32m  const [message, setMessage] = useState("Property details loaded.");[m
+   const [saving, setSaving] = useState(false);[m
+   const [uploading, setUploading] = useState(false);[m
+   const editable = ["DRAFT", "CHANGES_REQUESTED", "REJECTED", "PUBLISHED", "PAUSED"].includes(initial.status);[m
+[36m@@ -260,7 +260,7 @@[m [mexport function PropertyEditor({ initial }: { initial: PropertyEditorRecord }) {[m
+           <summary><span><b>6</b><strong>Photos</strong></span><small>{images.length}/12 uploaded</small></summary>[m
+           <div className="property-edit-body">[m
+             <label className={`property-upload ${uploading ? "busy" : ""}`}><input type="file" accept="image/jpeg,image/png,image/webp" multiple disabled={uploading || images.length >= 12} onChange={(e) => { void uploadFiles(e.target.files); e.currentTarget.value = ""; }} /><strong>{uploading ? "Uploading…" : "Add property photos"}</strong><span>JPG, PNG or WebP · up to 10 MB each · private until this property is published</span></label>[m
+[31m-            {images.length ? <div className="property-image-grid">{images.map((image, index) => <figure key={image.id}>{image.signedUrl ? <img src={image.signedUrl} alt={image.altText || form.name || "Property"} /> : <div className="property-image-missing">Preview unavailable</div>}<figcaption><span>{index === 0 ? "Primary photo" : image.originalName || `Photo ${index + 1}`}</span><button type="button" disabled={uploading} onClick={() => void removeImage(image)}>Remove</button></figcaption></figure>)}</div> : <div className="panel-empty"><strong>No real photos uploaded yet.</strong><span>The filenames saved during host onboarding were only draft references. Upload the actual image files here.</span></div>}[m
+[32m+[m[32m            {images.length ? <div className="property-image-grid">{images.map((image, index) => <figure key={image.id}>{image.signedUrl ? <img src={image.signedUrl} alt={image.altText || form.name || "Property"} /> : <div className="property-image-missing">Preview unavailable</div>}<figcaption><span>{index === 0 ? "Primary photo" : image.originalName || `Photo ${index + 1}`}</span><button type="button" disabled={uploading} onClick={() => void removeImage(image)}>Remove</button></figcaption></figure>)}</div> : <div className="panel-empty"><strong>No photos uploaded yet.</strong><span>Add at least one property photo before submitting the listing for review.</span></div>}[m
+           </div>[m
+         </details>[m
+ [m
+[36m@@ -269,18 +269,18 @@[m [mexport function PropertyEditor({ initial }: { initial: PropertyEditorRecord }) {[m
+           <div className="property-edit-body">[m
+             <div className="calendar-preference-grid">{calendarPreferences.map((option) => <button type="button" key={option.value} className={(form.calendarPreference || "UNSET") === option.value ? "selected" : ""} onClick={() => update("calendarPreference", option.value)}><strong>{option.label}</strong><span>{option.detail}</span></button>)}</div>[m
+             <div className="field-grid onboarding-fields property-notification-fields"><label><span>Booking notification email</span><input type="email" value={form.notificationEmail || ""} onChange={(e) => update("notificationEmail", e.target.value)} /></label><label><span>Operations notification email</span><input type="email" value={form.operationsEmail || ""} onChange={(e) => update("operationsEmail", e.target.value)} /></label></div>[m
+[31m-            <div className="connection-card"><div className="connection-icon">↻</div><div><strong>Calendar preference is real; the connection is not yet active.</strong><span>iCal/PMS URLs, sync health and availability ingestion will appear when calendar sync is enabled.</span></div><button className="button button-small" type="button" disabled>Connect calendar</button></div>[m
+[32m+[m[32m            <div className="connection-card"><div className="connection-icon">↻</div><div><strong>Manage calendar connections and availability in one place.</strong><span>Connect iCal feeds, review sync status and block dates from the Calendar workspace.</span></div><Link className="button button-small" href="/host/calendar">Open calendar</Link></div>[m
+           </div>[m
+         </details>[m
+ [m
+         </fieldset>[m
+[31m-        <div className="property-editor-footer"><div><strong>{liveEditable ? "Editable live property record" : editable ? "Editable property record" : "Reviewed property record"}</strong><span>{liveEditable ? initial.status === "PUBLISHED" ? "Saving updates the live guest-facing listing immediately. Operational rates, availability, taxes and payment settings stay in their dedicated tools." : "Saving updates this paused property record without changing its publication state." : editable ? "Saving updates the property record but does not publish the listing or accept bookings." : "This state is protected from host-side edits until the review/publication workflow returns it for changes."}</span></div><button type="button" className="button" disabled={saving || !editable} onClick={save}>{saving ? "Saving…" : liveEditable ? "Save live changes" : editable ? "Save property" : "Editing locked"}</button></div>[m
+[32m+[m[32m        <div className="property-editor-footer"><div><strong>{liveEditable ? "Listing changes" : editable ? "Property details" : "Listing review"}</strong><span>{liveEditable ? initial.status === "PUBLISHED" ? "Saving updates the live guest-facing listing immediately. Rates, availability, taxes and payment settings stay in their dedicated tools." : "Saving updates this paused listing without changing its publication state." : editable ? "Saving keeps your listing changes without publishing them." : "Editing is locked while this listing is in review."}</span></div><button type="button" className="button" disabled={saving || !editable} onClick={save}>{saving ? "Saving…" : liveEditable ? "Save live changes" : editable ? "Save property" : "Editing locked"}</button></div>[m
+       </section>[m
+ [m
+       <aside className="property-editor-aside">[m
+         <div className="property-status-card"><small>Listing status</small><strong>{initial.status.replaceAll("_", " ")}</strong><p>{initial.status === "DRAFT" || initial.status === "CHANGES_REQUESTED" || initial.status === "REJECTED" ? "Finish the listing and submit it to the Find A Place team for review." : initial.status === "PENDING_REVIEW" ? "Submitted to the Find A Place team. Editing is locked while review is active." : initial.status === "APPROVED" ? "Approved by the Find A Place team. It is not public until an authorized admin publishes it." : initial.status === "PUBLISHED" ? "Live in the guest-facing marketplace. Hosts can edit listing details and photos here; operational rates, availability, taxes and payment settings stay in their dedicated tools." : initial.status === "PAUSED" ? "Currently paused from public marketplace visibility. Property details remain editable while paused." : "Currently unavailable for host editing."}</p></div>[m
+         {editable ? <div className="property-url-card"><small>Review readiness</small>{initial.submissionIssues.length ? <><strong>{initial.submissionIssues.length} item{initial.submissionIssues.length === 1 ? "" : "s"} remaining</strong><div>{initial.submissionIssues.map((issue) => <span key={issue}>• {issue}</span>)}</div></> : <><strong>Ready to submit</strong><p>The minimum listing information required for admin review is complete.</p></>}</div> : null}[m
+[31m-        <div className="property-url-card"><small>Reserved booking URL</small><strong>/stays/{form.slug}</strong><p>Stable internal property ID: <code>{initial.propertyId.slice(0, 8)}…</code></p>{initial.oldSlugs.length ? <div><span>Old URLs preserved</span>{initial.oldSlugs.slice(0, 4).map((slug) => <code key={slug}>/stays/{slug}</code>)}</div> : null}</div>[m
+[32m+[m[32m        <div className="property-url-card"><small>Booking URL</small><strong>/stays/{form.slug}</strong><p>This is the public listing address once the property is published.</p></div>[m
+       </aside>[m
+     </div>[m
+   );[m
+[1mdiff --git a/components/StayResults.tsx b/components/StayResults.tsx[m
+[1mindex 34c05c8..2054de0 100644[m
+[1m--- a/components/StayResults.tsx[m
+[1m+++ b/components/StayResults.tsx[m
+[36m@@ -135,7 +135,7 @@[m [mexport function StayResults({[m
+           <div className="results-count">[m
+             <strong>{filtered.length}</strong>{" "}[m
+             {filtered.length === 1 ? "stay" : "stays"}{" "}[m
+[31m-            <span>· Availability is rechecked again before checkout</span>[m
+[32m+[m[32m            <span>· Availability is confirmed again before checkout</span>[m
+           </div>[m
+ [m
+           {filtered.length > 0 ? ([m
+[36m@@ -147,16 +147,16 @@[m [mexport function StayResults({[m
+           ) : ([m
+             <div className="empty-results production-empty">[m
+               <p className="eyebrow dark">[m
+[31m-                {inventoryEmpty ? "More places are coming" : "Nothing matched"}[m
+[32m+[m[32m                {inventoryEmpty ? "No stays available right now" : "Nothing matched"}[m
+               </p>[m
+               <h2>[m
+                 {inventoryEmpty[m
+[31m-                  ? "We’re still getting the first places ready."[m
+[32m+[m[32m                  ? "There aren’t any published stays to show here right now."[m
+                   : "No stays match those filters."}[m
+               </h2>[m
+               <p>[m
+                 {inventoryEmpty[m
+[31m-                  ? "New stays will show up here as hosts finish getting them ready."[m
+[32m+[m[32m                  ? "Try another destination or check back soon."[m
+                   : "Try removing a filter or searching a nearby destination."}[m
+               </p>[m
+               {!inventoryEmpty && ([m
+[1mdiff --git a/components/payments/OnboardingStripeSetup.tsx b/components/payments/OnboardingStripeSetup.tsx[m
+[1mindex 2109384..437f25b 100644[m
+[1m--- a/components/payments/OnboardingStripeSetup.tsx[m
+[1m+++ b/components/payments/OnboardingStripeSetup.tsx[m
+[36m@@ -34,7 +34,7 @@[m [mexport function OnboardingStripeSetup({[m
+       setReady(false);[m
+       onReadyChange?.(false);[m
+       setMessage([m
+[31m-        "Stripe setup is temporarily unavailable because the publishable key is not configured.",[m
+[32m+[m[32m        "Stripe setup is temporarily unavailable. Try again shortly.",[m
+       );[m
+       return;[m
+     }[m
+[36m@@ -79,7 +79,7 @@[m [mexport function OnboardingStripeSetup({[m
+       onReadyChange?.(nextReady);[m
+       setMessage([m
+         nextReady[m
+[31m-          ? "Stripe is connected and ready for guest payments. Nothing else is required in Payments & taxes after onboarding."[m
+[32m+[m[32m          ? "Stripe is connected and ready for guest payments."[m
+           : "Stripe has been started but still needs information before guest payments can be accepted.",[m
+       );[m
+     } catch (error) {[m
