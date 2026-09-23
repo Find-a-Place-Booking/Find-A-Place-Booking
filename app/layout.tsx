@@ -34,6 +34,9 @@ export const metadata: Metadata = {
     "independent stays",
     "Find A Place Booking",
   ],
+  verification: {
+    google: "G6WzRosMsXoi_gnlmUQhoKaJ8cmAVcr-g09DBsAEMAE",
+  },
   openGraph: {
     type: "website",
     siteName: SITE_NAME,
