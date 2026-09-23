@@ -7,6 +7,7 @@ import {
 } from "@stripe/react-connect-js";
 import { loadConnectAndInitialize } from "@stripe/connect-js/pure";
 
+import { StripeConnectGuide } from "./StripeConnectGuide";
 import styles from "./EmbeddedStripeOnboarding.module.css";
 
 type Props = {
@@ -138,7 +139,7 @@ export function EmbeddedStripeOnboarding({
     () =>
       connectedAndReady
         ? "Review Stripe onboarding details, refresh any new Stripe requirements, or reconnect if the host changes Stripe accounts."
-        : "Existing Stripe users can sign in and use Stripe's networked onboarding to reuse eligible verified business information. New users can create and complete their Stripe account in the same secure flow.",
+        : "Find A Place needs a Stripe Connect relationship for host booking payments. If you already use Stripe, use your normal Stripe login and Stripe may reuse eligible verified business information. Your unrelated Stripe activity stays separate.",
     [connectedAndReady],
   );
 
@@ -184,24 +185,28 @@ export function EmbeddedStripeOnboarding({
     }
 
     return (
-      <div className={styles.entryChoices}>
-        <button
-          className="button button-small"
-          type="button"
-          onClick={() => openStripeOnboarding("existing")}
-        >
-          I already use Stripe
-        </button>
+      <div className={styles.entryShell}>
+        <div className={styles.entryChoices}>
+          <button
+            className="button button-small"
+            type="button"
+            onClick={() => openStripeOnboarding("existing")}
+          >
+            Use my existing Stripe login
+          </button>
 
-        <button
-          className="button button-small button-quiet"
-          type="button"
-          onClick={() => openStripeOnboarding("new")}
-        >
-          I&apos;m new to Stripe
-        </button>
+          <button
+            className="button button-small button-quiet"
+            type="button"
+            onClick={() => openStripeOnboarding("new")}
+          >
+            I&apos;m new to Stripe
+          </button>
 
-        <small className={styles.entryHelp}>{managerDescription}</small>
+          <small className={styles.entryHelp}>{managerDescription}</small>
+        </div>
+
+        <StripeConnectGuide />
       </div>
     );
   }
@@ -223,7 +228,7 @@ export function EmbeddedStripeOnboarding({
           <p>
             {entryMode === "existing"
               ? connectedAndReady
-                ? "Open Stripe\'s secure onboarding flow to review the current connection, satisfy any new Stripe requirements, or sign in with another Stripe account if you need to replace the connected account."
+                ? "Open Stripe's secure onboarding flow to review the current connection, satisfy any new Stripe requirements, or sign in with another Stripe account if you need to replace the connected account."
                 : "Sign in with the Stripe login you already use. Stripe can reuse eligible business and verification details it already has, so you do not have to re-enter the same information. If Stripe has an outstanding requirement, it may still ask you to confirm or update it."
               : "Create your Stripe account and complete Stripe's secure onboarding below. Guest booking charges will be created directly on your connected Stripe account."}
           </p>
