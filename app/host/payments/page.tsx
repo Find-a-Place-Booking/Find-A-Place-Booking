@@ -97,12 +97,12 @@ export default async function PaymentsPage() {
       >
         <div className="payment-provider-card">
           <div>
-            <small>Recommended</small>
-            <strong>Stripe Connect</strong>
+            <small>{readyAccount ? "Payment processor" : "Recommended"}</small>
+            <strong>{readyAccount ? "Stripe Connect · Connected" : "Stripe Connect"}</strong>
             <span>
               {stripe.configured
                 ? readyAccount
-                  ? "Stripe is already connected and ready for this host account. Keep this compact unless you need to review Stripe, refresh onboarding details or reconnect a different Stripe account."
+                  ? "Ready for direct guest payments. Stripe handles processing and bank deposits."
                   : "Already use Stripe? Sign in and Stripe can reuse eligible verified business details. New to Stripe? Create and complete your account here."
                 : "Stripe setup is temporarily unavailable. Contact Find A Place for help."}
             </span>

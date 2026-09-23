@@ -248,3 +248,162 @@
     justify-self: start;
   }
 }
+
+
+/* -------------------------------------------------------------------------
+ * READY STATE — intentionally compact.
+ * The large status card above already says the account is ready, so this
+ * provider row only identifies Stripe and gives the host a small management
+ * control. No repeated headings, onboarding copy or oversized panels.
+ * ------------------------------------------------------------------------- */
+
+:global(.payment-provider-card):has(.readyManager) {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 18px;
+  padding: 14px 18px;
+  min-height: 0;
+}
+
+:global(.payment-provider-card):has(.readyManager) > div:first-child {
+  display: grid;
+  gap: 2px;
+  padding: 0;
+  border: 0;
+}
+
+:global(.payment-provider-card):has(.readyManager) > div:first-child small {
+  margin: 0;
+  font-size: 0.58rem;
+  letter-spacing: 0.1em;
+}
+
+:global(.payment-provider-card):has(.readyManager) > div:first-child strong {
+  margin: 0;
+  font-size: 0.9rem;
+  line-height: 1.2;
+}
+
+:global(.payment-provider-card):has(.readyManager) > div:first-child span {
+  margin: 0;
+  max-width: 700px;
+  font-size: 0.72rem;
+  line-height: 1.4;
+}
+
+:global(.payment-provider-card):has(.readyManager) .readyManager {
+  grid-column: auto;
+}
+
+.readyManager {
+  min-width: 0;
+}
+
+.manageToggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  min-height: 38px;
+  padding: 8px 13px;
+  border: 1px solid #d5d2ca;
+  border-radius: 9px;
+  background: #fff;
+  color: #203336;
+  font-size: 0.72rem;
+  font-weight: 850;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.manageToggle:hover {
+  background: #f7f4ee;
+}
+
+.manageToggle span:last-child {
+  transform: translateY(-1px);
+  font-size: 0.8rem;
+}
+
+.readyExpanded {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 14px;
+  max-width: 720px;
+}
+
+.readyExpanded > span {
+  color: #6f746f;
+  font-size: 0.7rem;
+  line-height: 1.4;
+  text-align: right;
+}
+
+.readyActions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
+}
+
+.collapseButton {
+  min-height: 36px;
+  padding: 7px 10px;
+  border: 0;
+  background: transparent;
+  color: #6f746f;
+  font-size: 0.7rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.collapseButton:hover {
+  color: #203336;
+  text-decoration: underline;
+}
+
+@media (max-width: 900px) {
+  :global(.payment-provider-card):has(.readyManager) {
+    grid-template-columns: 1fr auto;
+    gap: 12px;
+  }
+
+  .readyExpanded {
+    max-width: 560px;
+  }
+}
+
+@media (max-width: 700px) {
+  :global(.payment-provider-card):has(.readyManager) {
+    grid-template-columns: 1fr;
+    padding: 14px;
+  }
+
+  :global(.payment-provider-card):has(.readyManager) .readyManager {
+    grid-column: 1;
+  }
+
+  .manageToggle {
+    width: 100%;
+  }
+
+  .readyExpanded {
+    display: grid;
+    justify-items: stretch;
+    gap: 10px;
+    max-width: none;
+  }
+
+  .readyExpanded > span {
+    text-align: left;
+  }
+
+  .readyActions {
+    width: 100%;
+  }
+
+  .readyActions :global(.button) {
+    flex: 1;
+  }
+}

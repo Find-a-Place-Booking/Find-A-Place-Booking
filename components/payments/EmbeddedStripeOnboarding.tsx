@@ -137,74 +137,71 @@ export function EmbeddedStripeOnboarding({
   const managerDescription = useMemo(
     () =>
       connectedAndReady
-        ? "Stripe is already connected and ready. Open this only if you need to review onboarding details, refresh Stripe requirements or reconnect a different Stripe account."
+        ? "Review Stripe onboarding details, refresh any new Stripe requirements, or reconnect if the host changes Stripe accounts."
         : "Existing Stripe users can sign in and use Stripe's networked onboarding to reuse eligible verified business information. New users can create and complete their Stripe account in the same secure flow.",
     [connectedAndReady],
   );
 
   if (!showOnboarding) {
-    if (connectedAndReady && !managerOpen) {
+    if (connectedAndReady) {
       return (
-        <div className={styles.readyCollapsed}>
-          <div className={styles.readySummary}>
-            <strong>Stripe is connected and ready.</strong>
-            <small>
-              Guest payments can already be processed on this host Stripe
-              account.
-            </small>
-          </div>
+        <div className={styles.readyManager}>
+          {!managerOpen ? (
+            <button
+              className={styles.manageToggle}
+              type="button"
+              onClick={() => setManagerOpen(true)}
+              aria-expanded="false"
+            >
+              <span>Manage Stripe</span>
+              <span aria-hidden="true">⌄</span>
+            </button>
+          ) : (
+            <div className={styles.readyExpanded}>
+              <span>{managerDescription}</span>
 
-          <button
-            className="button button-small button-quiet"
-            type="button"
-            onClick={() => setManagerOpen(true)}
-          >
-            Manage Stripe connection
-          </button>
+              <div className={styles.readyActions}>
+                <button
+                  className="button button-small"
+                  type="button"
+                  onClick={() => openStripeOnboarding("existing")}
+                >
+                  Open Stripe
+                </button>
+
+                <button
+                  className={styles.collapseButton}
+                  type="button"
+                  onClick={() => setManagerOpen(false)}
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       );
     }
 
     return (
-      <div className={styles.entryShell}>
-        {connectedAndReady ? (
-          <div className={styles.manageHeader}>
-            <div>
-              <strong>Manage Stripe connection</strong>
-              <p>{managerDescription}</p>
-            </div>
+      <div className={styles.entryChoices}>
+        <button
+          className="button button-small"
+          type="button"
+          onClick={() => openStripeOnboarding("existing")}
+        >
+          I already use Stripe
+        </button>
 
-            <button
-              className={styles.hideManager}
-              type="button"
-              onClick={() => setManagerOpen(false)}
-            >
-              Hide
-            </button>
-          </div>
-        ) : null}
+        <button
+          className="button button-small button-quiet"
+          type="button"
+          onClick={() => openStripeOnboarding("new")}
+        >
+          I&apos;m new to Stripe
+        </button>
 
-        <div className={styles.entryChoices}>
-          <button
-            className="button button-small"
-            type="button"
-            onClick={() => openStripeOnboarding("existing")}
-          >
-            {connectedAndReady ? "Review or update Stripe" : "I already use Stripe"}
-          </button>
-
-          {!connectedAndReady ? (
-            <button
-              className="button button-small button-quiet"
-              type="button"
-              onClick={() => openStripeOnboarding("new")}
-            >
-              I&apos;m new to Stripe
-            </button>
-          ) : null}
-
-          <small className={styles.entryHelp}>{managerDescription}</small>
-        </div>
+        <small className={styles.entryHelp}>{managerDescription}</small>
       </div>
     );
   }
