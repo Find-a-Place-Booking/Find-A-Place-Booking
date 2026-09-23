@@ -5,6 +5,8 @@ import {
   setPropertyMarketplaceVisibility,
 } from "@/app/host/properties/actions";
 import { DashboardShell } from "@/components/DashboardShell";
+import { PropertyPublicationControl } from "@/components/PropertyPublicationControl";
+import { createClient } from "@/lib/supabase/server";
 import {
   getHostProperties,
   getPropertyCreationState,
@@ -43,6 +45,37 @@ export default async function PropertiesPage({
     getHostProperties(),
     getPropertyCreationState(),
   ]);
+
+  const supabase = await createClient();
+  const propertyIds = properties.map((property) => property.id);
+  const cancellationByProperty = new Map<string, string>();
+
+  if (propertyIds.length) {
+    const { data: units } = await supabase
+      .from("property_units")
+      .select("property_id,cancellation_policy")
+      .in("property_id", propertyIds)
+      .eq("is_primary", true);
+
+    for (const unit of units ?? []) {
+      cancellationByProperty.set(
+        unit.property_id as string,
+        (unit.cancellation_policy as string | null) || "",
+      );
+    }
+  }
+
+  function hasSpecificCancellation(propertyId: string) {
+    const value = (
+      cancellationByProperty.get(propertyId) || ""
+    ).trim().toLowerCase();
+
+    return Boolean(
+      value &&
+        !["flexible", "moderate", "firm", "strict"].includes(value) &&
+        value.length >= 20,
+    );
+  }
 
   const readyDraft = creation.readyDraft;
   const canCreateFromDraft = Boolean(
@@ -209,7 +242,7 @@ export default async function PropertiesPage({
                   </div>
 
                   <div className={styles.actions}>
-                    {isLive || isPaused ? (
+                    {isLive ? (
                       <form action={setPropertyMarketplaceVisibility}>
                         <input
                           type="hidden"
@@ -222,20 +255,24 @@ export default async function PropertiesPage({
                           value={property.slug}
                         />
                         <input type="hidden" name="returnTo" value="list" />
-                        <input
-                          type="hidden"
-                          name="intent"
-                          value={isLive ? "DISABLE" : "ENABLE"}
-                        />
+                        <input type="hidden" name="intent" value="DISABLE" />
                         <button
-                          className={`${styles.toggle} ${
-                            isLive ? styles.disable : ""
-                          }`}
+                          className={`${styles.toggle} ${styles.disable}`}
                           type="submit"
                         >
-                          {isLive ? "Disable listing" : "Enable listing"}
+                          Disable listing
                         </button>
                       </form>
+                    ) : isPaused ? (
+                      <PropertyPublicationControl
+                        mode="enable"
+                        propertyId={property.id}
+                        slug={property.slug}
+                        returnTo="list"
+                        missingCancellation={
+                          !hasSpecificCancellation(property.id)
+                        }
+                      />
                     ) : null}
 
                     <Link

@@ -1,0 +1,61 @@
+.wrap {
+  display: grid;
+}
+.warningButton {
+  white-space: nowrap;
+}
+.backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(16, 22, 20, .58);
+}
+.modal {
+  width: min(520px, 100%);
+  border: 1px solid #d8c9b9;
+  border-radius: 18px;
+  background: #fff;
+  box-shadow: 0 24px 70px rgba(0, 0, 0, .24);
+  padding: 24px;
+}
+.modal h2 {
+  margin: 6px 0 10px;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 1.7rem;
+  font-weight: 500;
+}
+.modal p {
+  margin: 0;
+  color: #5e625d;
+  line-height: 1.65;
+}
+.notice {
+  margin-top: 16px;
+  border: 1px solid #e2cdb8;
+  background: #fbf5ee;
+  border-radius: 12px;
+  padding: 13px 14px;
+  color: #704f32;
+  font-size: .82rem;
+  line-height: 1.55;
+}
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 20px;
+}
+@media (max-width: 560px) {
+  .modal {
+    padding: 20px;
+  }
+  .actions {
+    display: grid;
+  }
+  .actions button {
+    width: 100%;
+  }
+}

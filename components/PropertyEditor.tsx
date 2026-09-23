@@ -895,8 +895,7 @@ export function PropertyEditor({
 
                 <label className="full">
                   <span>
-                    Cancellation &amp; refund terms · required to
-                    publish
+                    Cancellation &amp; refund terms
                   </span>
                   <textarea
                     value={form.cancellation || ""}
@@ -906,9 +905,9 @@ export function PropertyEditor({
                     placeholder="Example: Full refund when canceled 14 or more days before check-in. No refund within 14 days of check-in."
                   />
                   <small>
-                    Write the actual terms the guest is agreeing to.
-                    A label such as “none,” “firm,” “moderate” or
-                    “strict” does not count as a complete policy.
+                    Recommended before publishing. If you leave this blank or
+                    only enter a short policy label, we will warn you before
+                    the listing goes live, but you can still continue.
                   </small>
                 </label>
 
@@ -1104,7 +1103,7 @@ export function PropertyEditor({
                   ? "Saving updates the live guest-facing listing immediately. Operational rates, availability, taxes and payment settings stay in their dedicated tools."
                   : "Saving updates this paused listing without changing its publication state."
                 : editable
-                  ? "Save as you go. When the required details, cancellation terms, base rate, photo and payment account are ready, you can publish the listing."
+                  ? "Save as you go. Cancellation/refund terms are recommended, but if they are missing we will warn you before publishing instead of blocking the listing."
                   : "Editing is locked in the current listing state."}
             </span>
           </div>
@@ -1145,29 +1144,60 @@ export function PropertyEditor({
         {editable ? (
           <div className="property-url-card">
             <small>Publication readiness</small>
-            {initial.submissionIssues.length ? (
-              <>
-                <strong>
-                  {initial.submissionIssues.length} item
-                  {initial.submissionIssues.length === 1 ? "" : "s"}{" "}
-                  remaining
-                </strong>
-                <div>
-                  {initial.submissionIssues.map((issue) => (
-                    <span key={issue}>• {issue}</span>
-                  ))}
-                </div>
-              </>
-            ) : (
-              <>
-                <strong>Listing details are ready</strong>
-                <p>
-                  The property has the minimum listing information
-                  required for publication. Live payment readiness is
-                  checked again when you publish.
-                </p>
-              </>
-            )}
+            {(() => {
+              const cancellationIssue =
+                "Specific cancellation/refund terms (not just a policy label)";
+              const missingCancellation =
+                initial.submissionIssues.includes(cancellationIssue);
+              const blockingIssues = initial.submissionIssues.filter(
+                (issue) => issue !== cancellationIssue,
+              );
+
+              if (blockingIssues.length) {
+                return (
+                  <>
+                    <strong>
+                      {blockingIssues.length} item
+                      {blockingIssues.length === 1 ? "" : "s"} remaining
+                    </strong>
+                    <div>
+                      {blockingIssues.map((issue) => (
+                        <span key={issue}>• {issue}</span>
+                      ))}
+                    </div>
+                    {missingCancellation ? (
+                      <p>
+                        Cancellation/refund terms are also missing, but that
+                        item gives a publish warning instead of blocking.
+                      </p>
+                    ) : null}
+                  </>
+                );
+              }
+
+              if (missingCancellation) {
+                return (
+                  <>
+                    <strong>Ready with 1 warning</strong>
+                    <p>
+                      Cancellation/refund terms are not set. Publishing is
+                      allowed after you confirm the warning.
+                    </p>
+                  </>
+                );
+              }
+
+              return (
+                <>
+                  <strong>Listing details are ready</strong>
+                  <p>
+                    The property has the minimum listing information required
+                    for publication. Live payment readiness is checked again
+                    when you publish.
+                  </p>
+                </>
+              );
+            })()}
           </div>
         ) : null}
 

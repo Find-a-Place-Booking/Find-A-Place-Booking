@@ -3,12 +3,12 @@ import { notFound } from "next/navigation";
 
 import {
   archiveProperty,
-  publishPropertyListing,
   setPropertyMarketplaceVisibility,
 } from "@/app/host/properties/actions";
 import { DashboardShell } from "@/components/DashboardShell";
 import { PropertyEditor } from "@/components/PropertyEditor";
 import { PropertyPolicyDocument } from "@/components/PropertyPolicyDocument";
+import { PropertyPublicationControl } from "@/components/PropertyPublicationControl";
 import { getCurrentPropertyPolicyDocument } from "@/lib/host/policy-documents";
 import { getHostPropertyBySlug } from "@/lib/host/properties";
 
@@ -41,6 +41,14 @@ export default async function ManagePropertyPage({
     property.propertyId,
   );
 
+  const cancellationIssue =
+    "Specific cancellation/refund terms (not just a policy label)";
+  const missingCancellation =
+    property.submissionIssues.includes(cancellationIssue);
+  const blockingIssues = property.submissionIssues.filter(
+    (issue) => issue !== cancellationIssue,
+  );
+
   const canPublish = [
     "DRAFT",
     "CHANGES_REQUESTED",
@@ -48,7 +56,7 @@ export default async function ManagePropertyPage({
     "APPROVED",
     "PAUSED",
   ].includes(property.status);
-  const ready = canPublish && property.submissionIssues.length === 0;
+  const ready = canPublish && blockingIssues.length === 0;
 
   return (
     <DashboardShell
@@ -131,23 +139,43 @@ export default async function ManagePropertyPage({
               without deleting the property or changing existing reservations.
             </p>
           ) : property.status === "PAUSED" ? (
-            <p>
-              The property is hidden from traveler searches. Existing
-              reservations and calendar records are unchanged. Enable it again
-              whenever you are ready to accept new bookings.
-            </p>
-          ) : property.submissionIssues.length ? (
+            <>
+              <p>
+                The property is hidden from traveler searches. Existing
+                reservations and calendar records are unchanged. Enable it again
+                whenever you are ready to accept new bookings.
+              </p>
+              {blockingIssues.length ? (
+                <div className="review-readiness-list">
+                  {blockingIssues.map((issue) => (
+                    <span key={issue}>• {issue}</span>
+                  ))}
+                </div>
+              ) : missingCancellation ? (
+                <div className="admin-message warning">
+                  Cancellation/refund terms are not set. You can still enable
+                  the listing, but you will be asked to confirm first.
+                </div>
+              ) : null}
+            </>
+          ) : blockingIssues.length ? (
             <>
               <p>
                 Finish the required listing details below before the stay can
                 go live.
               </p>
               <div className="review-readiness-list">
-                {property.submissionIssues.map((issue) => (
+                {blockingIssues.map((issue) => (
                   <span key={issue}>• {issue}</span>
                 ))}
               </div>
             </>
+          ) : missingCancellation ? (
+            <p>
+              The required listing details are complete. Cancellation/refund
+              terms are not set, so publishing will show a confirmation warning
+              before the listing goes live.
+            </p>
           ) : (
             <p>
               The minimum listing requirements are complete. Publishing makes
@@ -179,31 +207,22 @@ export default async function ManagePropertyPage({
             </button>
           </form>
         ) : property.status === "PAUSED" ? (
-          <form action={setPropertyMarketplaceVisibility}>
-            <input
-              type="hidden"
-              name="propertyId"
-              value={property.propertyId}
-            />
-            <input type="hidden" name="slug" value={property.form.slug} />
-            <input type="hidden" name="returnTo" value="detail" />
-            <input type="hidden" name="intent" value="ENABLE" />
-            <button className="button" type="submit">
-              Enable listing →
-            </button>
-          </form>
+          <PropertyPublicationControl
+            mode="enable"
+            propertyId={property.propertyId}
+            slug={property.form.slug}
+            returnTo="detail"
+            missingCancellation={missingCancellation}
+            disabled={blockingIssues.length > 0}
+          />
         ) : canPublish ? (
-          <form action={publishPropertyListing}>
-            <input
-              type="hidden"
-              name="propertyId"
-              value={property.propertyId}
-            />
-            <input type="hidden" name="slug" value={property.form.slug} />
-            <button className="button" type="submit" disabled={!ready}>
-              Publish listing →
-            </button>
-          </form>
+          <PropertyPublicationControl
+            mode="publish"
+            propertyId={property.propertyId}
+            slug={property.form.slug}
+            missingCancellation={missingCancellation}
+            disabled={!ready}
+          />
         ) : null}
       </section>
 

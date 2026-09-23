@@ -270,13 +270,21 @@ export function GuestPolicyAcceptance({
                   <strong>Cancellation / refund terms</strong>
                   <p>{status.propertyPolicies.cancellationPolicy}</p>
                 </div>
-              ) : null}
+              ) : (
+                <div className={styles.policyBlock}>
+                  <strong>Cancellation / refund terms</strong>
+                  <p>
+                    This host has not provided specific cancellation/refund
+                    terms for this property. Contact the host before booking if
+                    you need clarification about refunds or cancellation.
+                  </p>
+                </div>
+              )
 
               {!status.propertyPolicies.policies.length &&
-              !status.propertyPolicies.customPolicies &&
-              !status.propertyPolicies.cancellationPolicy ? (
+              !status.propertyPolicies.customPolicies ? (
                 <p className={styles.muted}>
-                  No additional host-written rules are attached to this
+                  No additional host-written house rules are attached to this
                   reservation.
                 </p>
               ) : null}

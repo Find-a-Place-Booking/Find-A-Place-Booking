@@ -95,6 +95,14 @@ export default async function AdminPropertiesPage({ searchParams }: { searchPara
         Hosts submit complete drafts here. Operations/Super Admin can review publication and set homepage feature priority:
         <strong> 1 founding partner</strong>, <strong>2 paid placement</strong>, <strong>3 standard</strong>.
       </p>
+      <div className="pricing-inline-actions" style={{ marginTop: 12 }}>
+        <Link
+          className="button button-small button-quiet"
+          href="/admin/properties/export-share-urls"
+        >
+          Download #1 & #2 stay URLs
+        </Link>
+      </div>
     </section>
 
     {saved ? <div className="admin-message success">{saved}</div> : null}

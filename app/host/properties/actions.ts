@@ -352,10 +352,17 @@ export async function publishPropertyListing(formData: FormData) {
     redirect("/host/properties?error=missing-property");
   }
 
+  const allowMissingCancellation =
+    compact(formData.get("allowMissingCancellation"), 10) === "true";
+
   const supabase = await requireHostSession();
-  const { data, error } = await supabase.rpc("host_publish_property", {
-    target_property_id: propertyId,
-  });
+  const { data, error } = await supabase.rpc(
+    "host_publish_property_acknowledged",
+    {
+      target_property_id: propertyId,
+      allow_missing_cancellation: allowMissingCancellation,
+    },
+  );
 
   if (error) {
     console.error("[publishPropertyListing] RPC failed", {
@@ -423,15 +430,20 @@ export async function setPropertyMarketplaceVisibility(
     );
   }
 
-  const supabase = await requireHostSession();
-  const rpcName =
-    intent === "DISABLE"
-      ? "host_pause_property"
-      : "host_publish_property";
+  const allowMissingCancellation =
+    compact(formData.get("allowMissingCancellation"), 10) === "true";
 
-  const { data, error } = await supabase.rpc(rpcName, {
-    target_property_id: propertyId,
-  });
+  const supabase = await requireHostSession();
+
+  const { data, error } =
+    intent === "DISABLE"
+      ? await supabase.rpc("host_pause_property", {
+          target_property_id: propertyId,
+        })
+      : await supabase.rpc("host_publish_property_acknowledged", {
+          target_property_id: propertyId,
+          allow_missing_cancellation: allowMissingCancellation,
+        });
 
   if (error) {
     console.error("[setPropertyMarketplaceVisibility] RPC failed", {
