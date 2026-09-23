@@ -54,6 +54,8 @@ const destinationImages: Record<string, string> = {
     "https://upload.wikimedia.org/wikipedia/commons/thumb/5/53/Aerial_shot_of_downtown_Eureka_Springs%2C_Arkansas.jpg/960px-Aerial_shot_of_downtown_Eureka_Springs%2C_Arkansas.jpg",
   Branson:
     "https://thumb.wikimedia.org/wikipedia/commons/thumb/1/1c/Downtown_Branson_Missouri.jpg/960px-Downtown_Branson_Missouri.jpg",
+  Jasper:
+    "https://upload.wikimedia.org/wikipedia/commons/thumb/7/79/Jasper%2C_Arkansas.jpg/960px-Jasper%2C_Arkansas.jpg",
 };
 
 const defaults = {

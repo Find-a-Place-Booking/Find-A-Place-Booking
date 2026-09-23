@@ -3,7 +3,10 @@
 import { useMemo, useState } from "react";
 import { PropertyCard } from "./PropertyCard";
 import { StayMap } from "./StayMap";
-import type { Property } from "@/data/catalog";
+import {
+  propertyMatchesDestination,
+  type Property,
+} from "@/data/catalog";
 
 const filterOptions = ["Cabin", "RV Site", "Hot tub", "Pet friendly", "Waterfront", "Under $250", "2+ bedrooms"];
 
@@ -13,11 +16,14 @@ export function StayResults({ properties, destination, guests, initialFilter = "
   const [mapOpen, setMapOpen] = useState(true);
 
   const filtered = useMemo(() => {
-    const normalized = destination.toLowerCase().trim();
     let result = properties.filter((property) => {
-      const destinationMatch = !normalized || normalized.includes("anywhere") ||
-        [property.location, property.city, property.state, property.region].join(" ").toLowerCase().includes(normalized);
+      const destinationMatch = propertyMatchesDestination(
+        property,
+        destination,
+      );
+
       if (!destinationMatch || property.sleeps < guests) return false;
+
       return filters.every((filter) => {
         if (filter === "Cabin") return property.type === "Cabin";
         if (filter === "RV Site") return property.type === "RV Site";
@@ -26,6 +32,7 @@ export function StayResults({ properties, destination, guests, initialFilter = "
         return property.tags.includes(filter);
       });
     });
+
     if (sort === "price-low") result = [...result].sort((a, b) => a.price - b.price);
     if (sort === "rating") result = [...result].sort((a, b) => b.rating - a.rating);
     return result;
