@@ -161,33 +161,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Host onboarding is a live-production flow. Once the host has a payment-ready
-    // Stripe account and the listing is complete, do not leave the property behind
-    // the old per-property pilot checkout gate.
-    const { error: liveCheckoutError } = await admin
-      .from("properties")
-      .update({
-        live_checkout_enabled: true,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", property.property_id)
-      .neq("status", "ARCHIVED");
-
-    if (liveCheckoutError) {
-      console.error(
-        "[complete host onboarding] live checkout enable failed",
-        liveCheckoutError,
-      );
-      return NextResponse.json(
-        {
-          error:
-            "The listing was created, but live booking could not be enabled. Try finishing setup again before sharing the listing.",
-          code: "LIVE_CHECKOUT_ENABLE_FAILED",
-        },
-        { status: 500 },
-      );
-    }
-
     try {
       await syncOnboardingPropertyMapLocation(property.property_id);
     } catch (mapError) {
