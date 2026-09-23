@@ -1,14 +1,42 @@
 .mobileMenuWidth {
-  width: min(390px, calc(100vw - 24px));
-  max-width: calc(100vw - 24px);
-  margin-left: auto;
-  margin-right: 12px;
+  /*
+   * The menu is rendered through a portal into the fixed
+   * .mobile-menu-shell. Anchor the drawer to that viewport layer instead of
+   * letting margins/legacy menu positioning push it off the right edge.
+   */
+  position: absolute !important;
+  top: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  left: auto !important;
+
+  width: min(420px, 100%) !important;
+  max-width: 100% !important;
+  height: 100% !important;
+  max-height: 100% !important;
+
+  margin: 0 !important;
+  transform: none !important;
+  translate: none !important;
+
   box-sizing: border-box;
-  overflow-x: hidden;
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
 }
 
-@media (max-width: 430px) {
+/*
+ * On phones the navigation becomes a full-width sheet directly below the
+ * site header. This keeps every link and action inside the visible viewport
+ * regardless of browser chrome / dynamic viewport width.
+ */
+@media (max-width: 700px) {
   .mobileMenuWidth {
-    width: calc(100vw - 24px);
+    width: 100% !important;
+    max-width: 100% !important;
+    border-left: 0 !important;
+    border-right: 0 !important;
+    border-radius: 0 !important;
   }
 }
