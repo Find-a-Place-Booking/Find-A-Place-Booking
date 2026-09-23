@@ -1,0 +1,1 @@
+Fixes the JSX syntax error in components/GuestPolicyAcceptance.tsx at the cancellation-policy ternary. The missing closing `}` after the fallback policy block caused the Vercel Turbopack parse failure at line 284.

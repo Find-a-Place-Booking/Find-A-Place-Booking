@@ -279,7 +279,7 @@ export function GuestPolicyAcceptance({
                     you need clarification about refunds or cancellation.
                   </p>
                 </div>
-              )
+              )}
 
               {!status.propertyPolicies.policies.length &&
               !status.propertyPolicies.customPolicies ? (
