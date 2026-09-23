@@ -1,207 +1,79 @@
-.wrap {
-  width: 100%;
+.shell {
   display: grid;
-  gap: 12px;
+  gap: 16px;
 }
 
-.existingNote {
-  display: grid;
-  gap: 7px;
-  padding: 15px 16px;
-  border: 1px solid #d9ddd7;
+.lead {
   border-left: 4px solid #315f4b;
-  border-radius: 10px;
-  background: #f4f7f4;
+  padding-left: 14px;
 }
 
-.existingNote strong {
-  color: #203336;
-  font-size: 0.86rem;
+.lead strong,
+.stepCard h4,
+.noteCard strong {
+  color: #1d2e28;
 }
 
-.existingNote p {
-  margin: 0;
-  color: #626963;
-  font-size: 0.72rem;
-  line-height: 1.55;
+.lead p,
+.stepCard p,
+.noteCard p {
+  margin: 8px 0 0;
+  color: #636863;
+  line-height: 1.6;
 }
 
-.guide {
-  overflow: hidden;
-  border: 1px solid #ded9cf;
-  border-radius: 12px;
-  background: #fff;
-}
-
-.guide > summary {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 18px;
-  padding: 14px 16px;
-  cursor: pointer;
-  list-style: none;
-  color: #203336;
-}
-
-.guide > summary::-webkit-details-marker {
-  display: none;
-}
-
-.guide > summary::after {
-  content: "+";
-  margin-left: auto;
-  color: #315f4b;
-  font-size: 1.1rem;
-  font-weight: 800;
-}
-
-.guide[open] > summary::after {
-  content: "–";
-}
-
-.guide > summary > span {
-  font-size: 0.8rem;
-  font-weight: 850;
-}
-
-.guide > summary > small {
-  color: #747873;
-  font-size: 0.66rem;
-}
-
-.guideBody {
+.stepGrid {
   display: grid;
-  gap: 20px;
-  padding: 4px 16px 18px;
-  border-top: 1px solid #eee9e1;
-}
-
-.guideIntro {
-  display: grid;
-  gap: 5px;
-  padding-top: 16px;
-}
-
-.guideIntro strong,
-.needsBox > strong,
-.faq > strong {
-  color: #203336;
-  font-size: 0.8rem;
-}
-
-.guideIntro p {
-  margin: 0;
-  max-width: 760px;
-  color: #69706b;
-  font-size: 0.72rem;
-  line-height: 1.55;
-}
-
-.steps {
-  display: grid;
-  gap: 0;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  border-top: 1px solid #e8e2d9;
-}
-
-.steps > li {
-  display: grid;
-  grid-template-columns: 30px 1fr;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px;
-  padding: 12px 0;
-  border-bottom: 1px solid #e8e2d9;
 }
 
-.steps > li > span {
-  width: 24px;
-  height: 24px;
+.stepCard,
+.noteCard {
+  border: 1px solid #ddd7cb;
+  border-radius: 16px;
+  background: #faf9f6;
+  padding: 16px;
+}
+
+.stepCard {
   display: grid;
-  place-items: center;
-  border-radius: 50%;
-  background: #203336;
-  color: #fff;
-  font-size: 0.62rem;
+  gap: 12px;
+}
+
+.stepNumber {
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #eef4ef;
+  color: #315f4b;
+  font-size: 0.8rem;
   font-weight: 900;
 }
 
-.steps > li > div {
-  display: grid;
-  gap: 3px;
-}
-
-.steps strong {
-  color: #202525;
-  font-size: 0.75rem;
-}
-
-.steps p {
+.stepCard h4 {
   margin: 0;
-  color: #6f746f;
-  font-size: 0.7rem;
-  line-height: 1.5;
+  font-size: 1rem;
+  line-height: 1.3;
 }
 
-.needsBox {
+.noteRow {
   display: grid;
-  gap: 9px;
-  padding: 14px 16px;
-  border-radius: 10px;
-  background: #f8f5ef;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
 }
 
-.needsBox ul {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 7px 22px;
-  margin: 0;
-  padding-left: 18px;
-  color: #646a65;
-  font-size: 0.69rem;
-  line-height: 1.45;
-}
-
-.faq {
-  display: grid;
-  gap: 8px;
-}
-
-.faq > details {
-  border-top: 1px solid #e8e2d9;
-  padding-top: 9px;
-}
-
-.faq > details > summary {
-  cursor: pointer;
-  color: #293c3f;
-  font-size: 0.72rem;
-  font-weight: 800;
-}
-
-.faq > details p {
-  margin: 7px 0 2px;
-  max-width: 760px;
-  color: #6f746f;
-  font-size: 0.69rem;
-  line-height: 1.55;
-}
-
-@media (max-width: 640px) {
-  .guide > summary {
-    display: grid;
-    grid-template-columns: 1fr auto;
-    gap: 3px 10px;
-  }
-
-  .guide > summary::after {
-    grid-column: 2;
-    grid-row: 1 / span 2;
-    align-self: center;
-  }
-
-  .needsBox ul {
+@media (max-width: 760px) {
+  .stepGrid,
+  .noteRow {
     grid-template-columns: 1fr;
+  }
+
+  .stepCard,
+  .noteCard {
+    padding: 14px;
   }
 }

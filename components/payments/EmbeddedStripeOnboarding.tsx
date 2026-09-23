@@ -51,7 +51,7 @@ export function EmbeddedStripeOnboarding({
   connectedAndReady = false,
 }: Props) {
   const [showOnboarding, setShowOnboarding] = useState(false);
-  const [entryMode, setEntryMode] = useState<EntryMode | null>(null);
+  const [entryMode, setEntryMode] = useState<EntryMode>("existing");
   const [managerOpen, setManagerOpen] = useState(!connectedAndReady);
   const [stripeConnectInstance, setStripeConnectInstance] = useState<
     ReturnType<typeof loadConnectAndInitialize> | null
@@ -111,10 +111,7 @@ export function EmbeddedStripeOnboarding({
     const payload = await response.json().catch(() => null);
 
     if (!response.ok) {
-      throw new Error(
-        payload?.error ||
-          "Unable to refresh Stripe account status.",
-      );
+      throw new Error(payload?.error || "Unable to refresh Stripe account status.");
     }
 
     return payload;
@@ -140,74 +137,172 @@ export function EmbeddedStripeOnboarding({
     () =>
       connectedAndReady
         ? "View or update the connected Stripe account's business details, public information and payout bank account. Stripe keeps sensitive account information on Stripe."
-        : "Find A Place needs a Stripe Connect relationship for host booking payments. If you already use Stripe, use your normal Stripe login and Stripe may reuse eligible verified business information. Your unrelated Stripe activity stays separate.",
+        : "Find A Place uses Stripe Connect so guest booking payments can go directly to your host payment account. Use the Stripe login you already have, or create a new Stripe account during setup.",
     [connectedAndReady],
   );
+
+  const selectedTitle =
+    entryMode === "existing"
+      ? "Already have Stripe? You're not starting over."
+      : "New to Stripe? We'll walk you through it.";
+
+  const selectedDescription =
+    entryMode === "existing"
+      ? "Sign in with your normal Stripe login. Stripe can often reuse business and identity details it already has, though it may still ask you to confirm a few items for this connection."
+      : "Create your Stripe account during setup. Stripe will collect the payment details and verification items needed so Find A Place can send your guest booking money straight to your connected host account.";
+
+  const selectedBullets =
+    entryMode === "existing"
+      ? [
+          "Best if you already use Stripe for another business or property.",
+          "Your unrelated Stripe activity stays separate from Find A Place.",
+          "You may only need to confirm a few details instead of starting from scratch.",
+        ]
+      : [
+          "Best if this is your first Stripe account.",
+          "Stripe will guide you through business, identity and payout setup.",
+          "You can finish everything without leaving host onboarding.",
+        ];
 
   if (!showOnboarding) {
     if (connectedAndReady) {
       return (
         <div className={styles.readyManager}>
-          {!managerOpen ? (
-            <button
-              className={styles.manageToggle}
-              type="button"
-              onClick={() => setManagerOpen(true)}
-              aria-expanded="false"
-            >
-              <span>Manage Stripe</span>
-              <span aria-hidden="true">⌄</span>
-            </button>
-          ) : (
-            <div className={styles.readyExpanded}>
-              <span>{managerDescription}</span>
+          <div className={styles.readyPanel}>
+            <div className={styles.readyCopy}>
+              <span className={styles.kicker}>Stripe Connect</span>
+              <h3>Manage your Stripe connection</h3>
+              <p>{managerDescription}</p>
+            </div>
 
-              <div className={styles.readyActions}>
-                <button
-                  className="button button-small"
-                  type="button"
-                  onClick={() => openStripeOnboarding("existing")}
-                >
-                  Open Stripe account
-                </button>
-
+            <div className={styles.readyActions}>
+              <button
+                className="button button-small"
+                type="button"
+                onClick={() => openStripeOnboarding("existing")}
+              >
+                Open Stripe account
+              </button>
+              {managerOpen ? (
                 <button
                   className={styles.collapseButton}
                   type="button"
                   onClick={() => setManagerOpen(false)}
                 >
-                  Close
+                  Hide details
                 </button>
+              ) : (
+                <button
+                  className={styles.collapseButton}
+                  type="button"
+                  onClick={() => setManagerOpen(true)}
+                >
+                  Show details
+                </button>
+              )}
+            </div>
+          </div>
+
+          {managerOpen ? (
+            <div className={styles.readyMeta}>
+              <div>
+                <strong>What you can manage</strong>
+                <p>
+                  Business details, public profile details, payout bank information,
+                  and any Stripe requirements tied to the connected account.
+                </p>
+              </div>
+              <div>
+                <strong>Good to know</strong>
+                <p>
+                  Find A Place never stores your raw bank-account details,
+                  identity documents or Stripe password.
+                </p>
               </div>
             </div>
-          )}
+          ) : null}
         </div>
       );
     }
 
     return (
       <div className={styles.entryShell}>
-        <div className={styles.entryChoices}>
+        <div className={styles.entryHeader}>
+          <div>
+            <span className={styles.kicker}>Stripe Connect</span>
+            <h3>Connect how you want to use Stripe</h3>
+            <p>{managerDescription}</p>
+          </div>
+          <span className={styles.recommendedBadge}>Recommended</span>
+        </div>
+
+        <div className={styles.toggleRow}>
           <button
-            className="button button-small"
+            className={`${styles.modeButton} ${entryMode === "existing" ? styles.modeButtonActive : ""}`}
             type="button"
-            onClick={() => openStripeOnboarding("existing")}
+            onClick={() => setEntryMode("existing")}
+            aria-pressed={entryMode === "existing"}
           >
             Use my existing Stripe login
           </button>
-
           <button
-            className="button button-small button-quiet"
+            className={`${styles.modeButton} ${entryMode === "new" ? styles.modeButtonActive : ""}`}
             type="button"
-            onClick={() => openStripeOnboarding("new")}
+            onClick={() => setEntryMode("new")}
+            aria-pressed={entryMode === "new"}
           >
             I&apos;m new to Stripe
           </button>
-
-          <small className={styles.entryHelp}>{managerDescription}</small>
         </div>
 
-        <StripeConnectGuide />
+        <div className={styles.featureGrid}>
+          <aside className={styles.sideNote}>
+            <strong>
+              {entryMode === "existing"
+                ? "Existing Stripe login"
+                : "New Stripe setup"}
+            </strong>
+            <p>
+              {entryMode === "existing"
+                ? "Sign in with Stripe and let Stripe reuse eligible information where possible."
+                : "Create your Stripe account inside the Find A Place host flow."}
+            </p>
+          </aside>
+
+          <div className={styles.mainCard}>
+            <div className={styles.mainCardHead}>
+              <div>
+                <h4>{selectedTitle}</h4>
+                <p>{selectedDescription}</p>
+              </div>
+              <button
+                className="button button-small"
+                type="button"
+                onClick={() => openStripeOnboarding(entryMode)}
+              >
+                {entryMode === "existing"
+                  ? "Continue with Stripe"
+                  : "Create Stripe account"}
+              </button>
+            </div>
+
+            <ul className={styles.bulletList}>
+              {selectedBullets.map((bullet) => (
+                <li key={bullet}>{bullet}</li>
+              ))}
+            </ul>
+          </div>
+        </div>
+
+        <details className={styles.guideCard}>
+          <summary>
+            <span>How Stripe setup works</span>
+            <span className={styles.guideSummaryText}>View the step-by-step guide</span>
+          </summary>
+          <div className={styles.guideBody}>
+            <StripeConnectGuide />
+          </div>
+        </details>
       </div>
     );
   }
@@ -235,8 +330,8 @@ export function EmbeddedStripeOnboarding({
           </p>
 
           <p>
-            Find A Place never stores your raw bank-account details,
-            identity documents or Stripe password.
+            Find A Place never stores your raw bank-account details, identity
+            documents or Stripe password.
           </p>
         </div>
 
@@ -248,15 +343,11 @@ export function EmbeddedStripeOnboarding({
               try {
                 await refreshStripeStatus();
               } catch (error) {
-                console.error(
-                  "[stripe connect] status refresh failed",
-                  error,
-                );
+                console.error("[stripe connect] status refresh failed", error);
               }
             }
 
             setShowOnboarding(false);
-            setEntryMode(null);
 
             if (connectedAndReady) {
               window.location.reload();
@@ -269,9 +360,7 @@ export function EmbeddedStripeOnboarding({
 
       <div className={styles.componentFrame}>
         {stripeConnectInstance ? (
-          <ConnectComponentsProvider
-            connectInstance={stripeConnectInstance}
-          >
+          <ConnectComponentsProvider connectInstance={stripeConnectInstance}>
             {connectedAndReady ? (
               <ConnectAccountManagement />
             ) : (
@@ -280,10 +369,7 @@ export function EmbeddedStripeOnboarding({
                   try {
                     await refreshStripeStatus();
                   } catch (error) {
-                    console.error(
-                      "[stripe connect] status refresh failed",
-                      error,
-                    );
+                    console.error("[stripe connect] status refresh failed", error);
                   }
 
                   window.location.reload();
