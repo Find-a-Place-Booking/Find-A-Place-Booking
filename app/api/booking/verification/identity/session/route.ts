@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 import {
   canonicalIdentityStatus,
+  guestIdentityVerificationRequired,
   syncIdentityVerification,
 } from "@/lib/bookings/guest-verification";
 import {
@@ -21,6 +22,17 @@ export async function POST(request: NextRequest) {
 
     if (!sameOrigin(request)) {
       return NextResponse.json({ error: "Invalid request origin." }, { status: 403 });
+    }
+
+    if (!guestIdentityVerificationRequired()) {
+      return NextResponse.json(
+        {
+          error:
+            "Government ID verification is not required for this booking.",
+          identityRequired: false,
+        },
+        { status: 409 },
+      );
     }
 
     const body = (await request.json()) as {
@@ -115,7 +127,10 @@ export async function POST(request: NextRequest) {
     }
 
     const stripe = getStripeClient();
-    const nextAttempt = Math.max(1, Number(reservation.identity_verification_attempt_count || 0) + 1);
+    const nextAttempt = Math.max(
+      1,
+      Number(reservation.identity_verification_attempt_count || 0) + 1,
+    );
     const session = await stripe.identity.verificationSessions.create(
       {
         type: "document",

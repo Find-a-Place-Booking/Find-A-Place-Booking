@@ -24,6 +24,14 @@ function verificationSecret() {
   return value;
 }
 
+export function guestIdentityVerificationRequired() {
+  const value =
+    process.env.BOOKING_IDENTITY_VERIFICATION_REQUIRED?.trim().toLowerCase() ||
+    "";
+
+  return ["1", "true", "yes", "on"].includes(value);
+}
+
 export function normalizeGuestEmail(value: string | null | undefined) {
   return (value || "").trim().toLowerCase();
 }
@@ -194,15 +202,21 @@ export async function reservationVerificationReadiness(
 ) {
   const phonePresent = Boolean(reservation.guest_phone?.trim());
   const emailVerified = Boolean(reservation.guest_email_verified_at);
+  const identityRequired = guestIdentityVerificationRequired();
+  const storedIdentityStatus =
+    reservation.identity_verification_status || "NOT_STARTED";
+  const storedIdentityVerified =
+    Boolean(reservation.identity_verified_at) ||
+    storedIdentityStatus === "VERIFIED";
 
   if (!phonePresent) {
     return {
       ready: false as const,
       phonePresent,
       emailVerified,
-      identityVerified: false,
-      identityStatus:
-        reservation.identity_verification_status || "NOT_STARTED",
+      identityRequired,
+      identityVerified: storedIdentityVerified,
+      identityStatus: storedIdentityStatus,
       error: "A phone number is required before payment.",
     };
   }
@@ -212,10 +226,25 @@ export async function reservationVerificationReadiness(
       ready: false as const,
       phonePresent,
       emailVerified,
-      identityVerified: false,
-      identityStatus:
-        reservation.identity_verification_status || "NOT_STARTED",
+      identityRequired,
+      identityVerified: storedIdentityVerified,
+      identityStatus: storedIdentityStatus,
       error: "Verify the booking email before payment.",
+    };
+  }
+
+  // Identity infrastructure is intentionally preserved, but it is no longer a
+  // booking gate by default. Set BOOKING_IDENTITY_VERIFICATION_REQUIRED=true
+  // to restore the previous ID + selfie requirement without a schema change.
+  if (!identityRequired) {
+    return {
+      ready: true as const,
+      phonePresent,
+      emailVerified,
+      identityRequired,
+      identityVerified: storedIdentityVerified,
+      identityStatus: storedIdentityStatus,
+      error: null,
     };
   }
 
@@ -224,6 +253,7 @@ export async function reservationVerificationReadiness(
       ready: false as const,
       phonePresent,
       emailVerified,
+      identityRequired,
       identityVerified: false,
       identityStatus: "NOT_STARTED",
       error: "Complete identity verification before payment.",
@@ -236,6 +266,7 @@ export async function reservationVerificationReadiness(
     ready: identity.ready,
     phonePresent,
     emailVerified,
+    identityRequired,
     identityVerified: identity.ready,
     identityStatus: identity.status,
     error: identity.error,

@@ -20,6 +20,7 @@ type VerificationStatus = {
   emailVerified: boolean;
   emailVerificationSent: boolean;
   maskedEmail: string;
+  identityRequired: boolean;
   identityVerified: boolean;
   identityStatus: string;
   message?: string | null;
@@ -181,8 +182,12 @@ export function GuestVerification({
 
       setCode("");
       setTestCode(null);
-      setMessage("Email verified. Next, verify your identity.");
-      await loadStatus();
+      const current = await loadStatus();
+      setMessage(
+        current.identityRequired
+          ? "Email verified. Next, verify your identity."
+          : "Email verified. Continuing to the booking policies…",
+      );
     } catch (verifyError) {
       setError(
         verifyError instanceof Error
@@ -281,14 +286,19 @@ export function GuestVerification({
       <div className={styles.heading}>
         <div>
           <p className="eyebrow dark">Guest verification</p>
-          <h2>Verify before payment</h2>
+          <h2>
+            {status.identityRequired
+              ? "Verify before payment"
+              : "Verify your email before payment"}
+          </h2>
         </div>
         <span className={styles.secure}>Secure</span>
       </div>
 
       <p className={styles.intro}>
-        A phone number is required for the reservation. We verify your email and
-        identity before payment so hosts know who is renting their stay.
+        {status.identityRequired
+          ? "A phone number is required for the reservation. We verify your email and identity before payment."
+          : "A phone number is required for the reservation. We verify your email before payment so booking confirmations and important reservation messages go to the right address."}
       </p>
 
       <div className={styles.steps}>
@@ -304,13 +314,15 @@ export function GuestVerification({
           </div>
         </div>
 
-        <div className={status.identityVerified ? styles.done : ""}>
-          <span>2</span>
-          <div>
-            <strong>Identity</strong>
-            <small>{friendlyIdentityStatus(status.identityStatus)}</small>
+        {status.identityRequired ? (
+          <div className={status.identityVerified ? styles.done : ""}>
+            <span>2</span>
+            <div>
+              <strong>Identity</strong>
+              <small>{friendlyIdentityStatus(status.identityStatus)}</small>
+            </div>
           </div>
-        </div>
+        ) : null}
       </div>
 
       {!status.emailVerified ? (
@@ -354,7 +366,7 @@ export function GuestVerification({
             </button>
           </div>
         </div>
-      ) : !status.identityVerified ? (
+      ) : status.identityRequired && !status.identityVerified ? (
         <div className={styles.actionBox}>
           <p>
             Stripe Identity will ask for a government-issued photo ID and a
@@ -388,8 +400,12 @@ export function GuestVerification({
         </div>
       ) : (
         <div className={styles.ready}>
-          <strong>Verification complete</strong>
-          <span>Loading secure payment…</span>
+          <strong>
+            {status.identityRequired
+              ? "Verification complete"
+              : "Email verified"}
+          </strong>
+          <span>Loading booking policies…</span>
         </div>
       )}
 

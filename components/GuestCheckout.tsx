@@ -238,8 +238,9 @@ export function GuestCheckout({
   }, []);
 
   useEffect(() => {
-    // Identity is a Find A Place platform service. The actual booking payment
-    // gets its own Stripe.js instance after the host account is known.
+    // Keep the platform Stripe.js instance available for the optional
+    // identity-verification feature. With the default feature flag off,
+    // no Identity session is created and it is not a booking gate.
     setIdentityStripePromise(loadStripe(publishableKey));
   }, [publishableKey]);
 
@@ -622,9 +623,8 @@ export function GuestCheckout({
             </div>
 
             <small>
-              Email verification and identity verification are required before
-              payment. Your phone number is required for the reservation but is
-              not verified by text message.
+              Email verification is required before payment. Your phone number
+              is required for the reservation but is not verified by text message.
             </small>
 
             {error ? <div className={styles.error}>{error}</div> : null}

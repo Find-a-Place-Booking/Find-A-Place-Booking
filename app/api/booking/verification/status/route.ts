@@ -84,6 +84,7 @@ export async function POST(request: NextRequest) {
       emailVerified: readiness.emailVerified,
       emailVerificationSent: codeStillActive,
       maskedEmail: maskedEmail(reservation.guest_email),
+      identityRequired: readiness.identityRequired,
       identityVerified: readiness.identityVerified,
       identityStatus: readiness.identityStatus,
       message: readiness.error,

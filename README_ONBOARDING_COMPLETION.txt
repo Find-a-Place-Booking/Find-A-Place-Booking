@@ -1,3 +1,7 @@
+CUMULATIVE BUILD NOTE
+This package also removes government-ID/selfie verification as the default guest booking gate.
+See README_IDENTITY_GATE_DISABLED.txt.
+
 Find A Place Booking — Host Onboarding Completion Pass
 
 This overlay fixes the two onboarding gaps that were forcing hosts to repeat work.
