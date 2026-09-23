@@ -10,39 +10,75 @@ function field(formData: FormData, key: string, max: number) {
   return String(formData.get(key) ?? "").trim().slice(0, max);
 }
 
+const REVALIDATE_PATHS = [
+  "/",
+  "/about",
+  "/hosts",
+  "/help",
+  "/contact",
+  "/stays",
+  "/property-policies",
+  "/terms",
+  "/host-agreement",
+  "/cancellation-policy",
+  "/privacy",
+  "/host/onboarding",
+  "/admin/content",
+];
+
 export async function saveSiteContentBlock(formData: FormData) {
   const context = await getAdminContext();
-
   if (!hasAnyAdminRole(context, ["SUPER_ADMIN", "OPERATIONS_ADMIN"])) {
     redirect("/admin/content?error=Your+admin+role+cannot+edit+public+site+content.");
   }
 
   const key = field(formData, "key", 120);
-  const title = field(formData, "title", 500);
-
-  if (!key || !title) {
-    redirect("/admin/content?error=Content+key+and+title+are+required.");
-  }
+  if (!key) redirect("/admin/content?error=Content+key+is+required.");
 
   const supabase = await createClient();
-  const { error } = await supabase.rpc("admin_update_site_content", {
+  const { data: current, error: currentError } = await supabase
+    .from("site_content_blocks")
+    .select("key,eyebrow,title,body,admin_editable,editable_fields,content_group,policy_key")
+    .eq("key", key)
+    .maybeSingle();
+
+  if (currentError || !current || !current.admin_editable) {
+    redirect(`/admin/content?error=${encodeURIComponent("That content block is not available for admin editing.")}`);
+  }
+
+  const editableFields = new Set(
+    Array.isArray(current.editable_fields)
+      ? current.editable_fields.map(String)
+      : ["eyebrow", "title", "body"],
+  );
+
+  const nextEyebrow = editableFields.has("eyebrow")
+    ? field(formData, "eyebrow", 200) || null
+    : current.eyebrow;
+  const nextTitle = editableFields.has("title")
+    ? field(formData, "title", 500)
+    : current.title;
+  const nextBody = editableFields.has("body")
+    ? field(formData, "body", 20000) || null
+    : current.body;
+
+  if (!nextTitle) {
+    redirect(`/admin/content?error=${encodeURIComponent("A heading is required for this content block.")}#${encodeURIComponent(key)}`);
+  }
+
+  const { error } = await supabase.rpc("admin_update_managed_copy", {
     content_key: key,
-    content_eyebrow: field(formData, "eyebrow", 200) || null,
-    content_title: title,
-    content_body: field(formData, "body", 12000) || null,
-    content_cta_label: field(formData, "cta_label", 240) || null,
-    content_cta_href: field(formData, "cta_href", 500) || null,
-    content_image_url: field(formData, "image_url", 1200) || null,
+    content_eyebrow: nextEyebrow,
+    content_title: nextTitle,
+    content_body: nextBody,
   });
 
   if (error) {
     console.error("[saveSiteContentBlock]", error);
-    redirect(`/admin/content?error=${encodeURIComponent(error.message)}`);
+    redirect(`/admin/content?error=${encodeURIComponent(error.message)}#${encodeURIComponent(key)}`);
   }
 
-  revalidatePath("/");
-  revalidatePath("/about");
-  revalidatePath("/admin/content");
-
-  redirect(`/admin/content?saved=${encodeURIComponent(`${key} saved.`)}#${encodeURIComponent(key)}`);
+  for (const path of REVALIDATE_PATHS) revalidatePath(path);
+  const policyNote = current.policy_key ? " Policy version advanced automatically." : "";
+  redirect(`/admin/content?saved=${encodeURIComponent(`${current.content_group || "Content"} copy saved.${policyNote}`)}#${encodeURIComponent(key)}`);
 }

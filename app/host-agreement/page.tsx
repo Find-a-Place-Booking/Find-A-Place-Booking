@@ -1,138 +1,24 @@
 import { LegalDocument } from "@/components/LegalDocument";
-import { HOST_AGREEMENT_VERSION } from "@/lib/policies/versions";
+import { copyBlock, loadManagedCopy } from "@/lib/public/managed-copy";
+import { getCurrentPolicyVersions } from "@/lib/policies/current";
 
-export default function HostAgreementPage() {
-  return (
-    <LegalDocument
-      eyebrow="For hosts"
-      title="Find A Place Host Agreement"
-      version={HOST_AGREEMENT_VERSION}
-    >
-      <p>
-        This agreement applies to hosts and property managers who create
-        a host account or list a stay with Find A Place Booking.
-      </p>
+const defaults = {
+  "policy.host.intro": { eyebrow: "For hosts", title: "Find A Place Host Agreement", body: "This agreement applies to hosts and property managers who create a host account or list a stay with Find A Place Booking." },
+  "policy.host.authority": { title: "Authority to list", body: "The host represents that they own the property or have authority to market, rent and receive proceeds for it. The host is responsible for licenses, permits, permissions, insurance and compliance obligations that apply to the property or hosting activity." },
+  "policy.host.accuracy": { title: "Accurate listings and safe stays", body: "Hosts must keep listing details, availability, rates, fees, amenities, occupancy limits, photos, address information and property rules accurate. Hosts are responsible for the physical property, maintenance, access, habitability, safety equipment and services promised in the listing." },
+  "policy.host.relationship": { title: "Guest relationship and communication", body: "Confirmed reservations are between the host and the booking guest. Find A Place provides booking and communication software, while the host is responsible for the stay and booking-specific decisions." },
+  "policy.host.property_policies": { title: "Property policies", body: "Hosts may publish property policies and upload a policy PDF. Find A Place snapshots the policies associated with a reservation so the guest can review and accept the version presented at booking." },
+  "policy.host.payments": { title: "Payment processing and Find A Place commission", body: "Guest booking charges are processed directly on the host's connected merchant account. The standard Find A Place commission is 7% of the commissionable lodging amount. Find A Place may assign selected host organizations a 5% partner commission rate. The partner rate is an internal account assignment and is not a host enrollment option; it applies only when Find A Place has expressly assigned it to the host account. The applicable rate shown in the host account at the time a reservation is created is snapshotted to that reservation.\n\nFind A Place does not retain guest tax dollars in its application fee. Stripe or another processor separately charges processing fees to the host's connected account." },
+  "policy.host.taxes": { title: "Taxes", body: "Find A Place may calculate applicable guest-facing lodging taxes as part of checkout. Those tax dollars remain in the host's connected-account payment proceeds. The host is responsible for reporting, remitting and otherwise handling taxes associated with the host's rental activity except to the extent applicable law or a separate written arrangement expressly provides otherwise." },
+  "policy.host.deposits": { title: "Host balance and bank deposits", body: "Find A Place does not hold or manually schedule ordinary host booking proceeds. The payment processor controls balance availability and bank deposit timing for the host's connected account." },
+  "policy.host.cancellations": { title: "Cancellations, refunds and platform commission", body: "Guest cancellation and refund requests are decided by the host under the property policy accepted for the reservation, subject to applicable law. A host may decline a refund, approve a partial refund, or approve a full guest refund where permitted by the applicable property terms. Find A Place's platform commission is earned when a paid reservation connects the host and guest and is non-refundable. A cancellation, guest refund, host refund decision, date change, shortened stay or other reservation adjustment does not return, reduce or reverse the Find A Place commission.\n\nWhen a host authorizes a guest refund, that refund is created against the host-owned payment charge and is the host's financial responsibility. Guest taxes included in the refunded charge are returned through that host-owned charge as applicable. Processor fees are controlled by the processor and may also be non-refundable." },
+  "policy.host.changes": { title: "Reservation changes", body: "Hosts may approve or decline guest change requests. Applying new dates updates the reservation and Find A Place calendar together, but it does not automatically alter the amount already charged. Any additional charge or guest refund must be separately authorized. Find A Place's original platform commission remains non-refundable even when the host approves a refund related to a reservation change." },
+  "policy.host.damage": { title: "Damage and disputes", body: "Find A Place is not an insurer or damage-guarantee program. Hosts remain responsible for documenting and pursuing guest-caused damage claims." },
+  "policy.host.enforcement": { title: "Account and enforcement", body: "Find A Place may request verification, pause or remove listings, investigate complaints, restrict access or take other reasonable action to protect guests, hosts, the platform or legal compliance." },
+};
 
-      <h2>Authority to list</h2>
-      <p>
-        The host represents that they own the property or have authority
-        to market, rent and receive proceeds for it. The host is
-        responsible for licenses, permits, permissions, insurance and
-        compliance obligations that apply to the property or hosting
-        activity.
-      </p>
-
-      <h2>Accurate listings and safe stays</h2>
-      <p>
-        Hosts must keep listing details, availability, rates, fees,
-        amenities, occupancy limits, photos, address information and
-        property rules accurate. Hosts are responsible for the physical
-        property, maintenance, access, habitability, safety equipment and
-        services promised in the listing.
-      </p>
-
-      <h2>Guest relationship and communication</h2>
-      <p>
-        Confirmed reservations are between the host and the booking
-        guest. Find A Place provides booking and communication software,
-        while the host is responsible for the stay and booking-specific
-        decisions.
-      </p>
-
-      <h2>Property policies</h2>
-      <p>
-        Hosts may publish property policies and upload a policy PDF.
-        Find A Place snapshots the policies associated with a
-        reservation so the guest can review and accept the version
-        presented at booking.
-      </p>
-
-      <h2>Payment processing and Find A Place commission</h2>
-      <p>
-        Guest booking charges are processed directly on the host&apos;s
-        connected merchant account. The standard Find A Place commission
-        is 7% of the commissionable lodging amount. Find A Place may
-        assign selected host organizations a 5% partner commission rate.
-        The partner rate is an internal account assignment and is not a
-        host enrollment option; it applies only when Find A Place has
-        expressly assigned it to the host account. The applicable rate
-        shown in the host account at the time a reservation is created is
-        snapshotted to that reservation.
-      </p>
-
-      <p>
-        Find A Place does not retain guest tax dollars in its application
-        fee. Stripe or another processor separately charges processing
-        fees to the host&apos;s connected account.
-      </p>
-
-      <h2>Taxes</h2>
-      <p>
-        Find A Place may calculate applicable guest-facing lodging taxes
-        as part of checkout. Those tax dollars remain in the host&apos;s
-        connected-account payment proceeds. The host is responsible for
-        reporting, remitting and otherwise handling taxes associated with
-        the host&apos;s rental activity except to the extent applicable
-        law or a separate written arrangement expressly provides
-        otherwise.
-      </p>
-
-      <h2>Host balance and bank deposits</h2>
-      <p>
-        Find A Place does not hold or manually schedule ordinary host
-        booking proceeds. The payment processor controls balance
-        availability and bank deposit timing for the host&apos;s
-        connected account.
-      </p>
-
-      <h2>Cancellations, refunds and platform commission</h2>
-      <p>
-        Guest cancellation and refund requests are decided by the host
-        under the property policy accepted for the reservation, subject
-        to applicable law. A host may decline a refund, approve a partial
-        refund, or approve a full guest refund where permitted by the
-        applicable property terms. Find A Place&apos;s platform
-        commission is earned when a paid reservation connects the host
-        and guest and is non-refundable. A cancellation, guest refund,
-        host refund decision, date change, shortened stay or other
-        reservation adjustment does not return, reduce or reverse the
-        Find A Place commission.
-      </p>
-
-      <p>
-        When a host authorizes a guest refund, that refund is created
-        against the host-owned payment charge and is the host&apos;s
-        financial responsibility. Guest taxes included in the refunded
-        charge are returned through that host-owned charge as applicable.
-        Processor fees are controlled by the processor and may also be
-        non-refundable.
-      </p>
-
-      <h2>Reservation changes</h2>
-      <p>
-        Hosts may approve or decline guest change requests. Applying new
-        dates updates the reservation and Find A Place calendar together,
-        but it does not automatically alter the amount already charged.
-        Any additional charge or guest refund must be separately
-        authorized. Find A Place&apos;s original platform commission
-        remains non-refundable even when the host approves a refund
-        related to a reservation change.
-      </p>
-
-      <h2>Damage and disputes</h2>
-      <p>
-        Find A Place is not an insurer or damage-guarantee program.
-        Hosts remain responsible for documenting and pursuing
-        guest-caused damage claims.
-      </p>
-
-      <h2>Account and enforcement</h2>
-      <p>
-        Find A Place may request verification, pause or remove listings,
-        investigate complaints, restrict access or take other reasonable
-        action to protect guests, hosts, the platform or legal
-        compliance.
-      </p>
-    </LegalDocument>
-  );
+export default async function HostAgreementPage() {
+  const [content, versions] = await Promise.all([loadManagedCopy(defaults), getCurrentPolicyVersions()]);
+  const get = (key: keyof typeof defaults) => copyBlock(content, key); const intro = get("policy.host.intro");
+  return <LegalDocument eyebrow={intro.eyebrow || "For hosts"} title={intro.title} version={versions.hostAgreement.version} effectiveAt={versions.hostAgreement.effectiveAt}><p>{intro.body}</p>{(["policy.host.authority", "policy.host.accuracy", "policy.host.relationship", "policy.host.property_policies", "policy.host.payments", "policy.host.taxes", "policy.host.deposits", "policy.host.cancellations", "policy.host.changes", "policy.host.damage", "policy.host.enforcement"] as const).map((key) => { const block = get(key); return <section key={key}><h2>{block.title}</h2>{String(block.body || "").split(/\n\s*\n/).filter(Boolean).map((p, i) => <p key={i}>{p}</p>)}</section>; })}</LegalDocument>;
 }
