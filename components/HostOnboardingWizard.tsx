@@ -2,13 +2,15 @@
 
 import {
   useEffect,
-  useMemo,
   useState,
   type Dispatch,
   type SetStateAction,
 } from "react";
+import { useRouter } from "next/navigation";
 
 import { saveHostOnboarding } from "@/app/host/onboarding/actions";
+import { OnboardingPhotoManager } from "@/components/OnboardingPhotoManager";
+import { OnboardingStripeSetup } from "@/components/payments/OnboardingStripeSetup";
 import type { HostOnboardingRecord } from "@/lib/host/onboarding";
 import {
   amenityGroups,
@@ -97,6 +99,7 @@ export function HostOnboardingWizard({
 }: {
   initial: HostOnboardingRecord;
 }) {
+  const router = useRouter();
   const [step, setStep] = useState(clampStep(initial.currentStep));
   const [form, setForm] = useState({
     ...initialForm,
@@ -108,12 +111,10 @@ export function HostOnboardingWizard({
   const [policies, setPolicies] = useState<string[]>(
     initial.policies ?? [],
   );
-  const [photos, setPhotos] = useState<
-    { name: string; url: string }[]
-  >([]);
   const [photoNames, setPhotoNames] = useState<string[]>(
     initial.photoNames ?? [],
   );
+  const [stripeReady, setStripeReady] = useState(false);
   const [authorityConfirmed, setAuthorityConfirmed] = useState(
     Boolean(initial.authorityConfirmed),
   );
@@ -129,7 +130,7 @@ export function HostOnboardingWizard({
         : "saved",
     message:
       initial.onboardingStatus === "READY_FOR_PROPERTY"
-        ? "Host setup saved — ready to create the property."
+        ? "Host setup saved. Finish the required setup below to create the listing."
         : formatSavedAt(initial.savedAt),
   });
 
@@ -158,14 +159,7 @@ export function HostOnboardingWizard({
     markDirty();
   };
 
-  const propertyLabel = form.propertyName || "Your property draft";
-  const effectivePhotoNames = useMemo(
-    () =>
-      photos.length
-        ? photos.map((photo) => photo.name)
-        : photoNames,
-    [photos, photoNames],
-  );
+  const propertyLabel = form.propertyName || "your property";
 
   useEffect(() => {
     if (!dirty) return;
@@ -182,7 +176,7 @@ export function HostOnboardingWizard({
 
   async function persist(
     targetStep: number,
-    confirm = authorityConfirmed,
+    confirm = false,
   ) {
     if (saving) return false;
 
@@ -198,7 +192,7 @@ export function HostOnboardingWizard({
       form,
       amenities,
       policies,
-      photoNames: effectivePhotoNames,
+      photoNames,
       authorityConfirmed: confirm,
     });
 
@@ -212,9 +206,6 @@ export function HostOnboardingWizard({
     setDirty(false);
     if (result.onboardingStatus) {
       setOnboardingStatus(result.onboardingStatus);
-    }
-    if (effectivePhotoNames.length) {
-      setPhotoNames(effectivePhotoNames);
     }
 
     setSaveState({
@@ -231,17 +222,35 @@ export function HostOnboardingWizard({
   async function goToStep(targetStep: number) {
     const safeStep = clampStep(targetStep);
     if (safeStep === step || saving) return;
-    if (await persist(safeStep)) setStep(safeStep);
+    if (await persist(safeStep, false)) setStep(safeStep);
   }
 
   async function next() {
+    if (step === 4 && photoNames.length < 1) {
+      setSaveState({
+        tone: "error",
+        message:
+          "Upload at least one property photo before continuing. Photos save to the real listing immediately.",
+      });
+      return;
+    }
+
+    if (step === 8 && !stripeReady) {
+      setSaveState({
+        tone: "error",
+        message:
+          "Finish Stripe Connect before continuing to Review. This keeps hosts from having to come back after onboarding.",
+      });
+      return;
+    }
+
     const target = clampStep(step + 1);
-    if (await persist(target)) setStep(target);
+    if (await persist(target, false)) setStep(target);
   }
 
   async function previous() {
     const target = clampStep(step - 1);
-    if (await persist(target)) setStep(target);
+    if (await persist(target, false)) setStep(target);
   }
 
   async function finishHostSetup() {
@@ -267,7 +276,60 @@ export function HostOnboardingWizard({
       return;
     }
 
-    await persist(9, true);
+    const saved = await persist(9, true);
+    if (!saved) return;
+
+    setSaving(true);
+    setSaveState({
+      tone: "saving",
+      message:
+        "Finalizing the listing, photos, payment connection and property record…",
+    });
+
+    try {
+      const response = await fetch("/api/host/onboarding/complete", {
+        method: "POST",
+        credentials: "same-origin",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+        body: JSON.stringify({
+          organizationId: initial.organizationId,
+        }),
+      });
+      const payload = await response.json().catch(() => null);
+
+      if (!response.ok || !payload?.slug) {
+        throw new Error(
+          payload?.error || "Unable to finish host setup.",
+        );
+      }
+
+      setDirty(false);
+      setOnboardingStatus("READY_FOR_PROPERTY");
+      setSaveState({
+        tone: "ready",
+        message:
+          "Host setup complete. Opening the finished property record…",
+      });
+
+      router.push(
+        `/host/properties/${encodeURIComponent(
+          payload.slug,
+        )}?onboarding=complete`,
+      );
+      router.refresh();
+    } catch (error) {
+      setSaving(false);
+      setSaveState({
+        tone: "error",
+        message:
+          error instanceof Error
+            ? error.message
+            : "Unable to finish host setup.",
+      });
+    }
   }
 
   return (
@@ -331,11 +393,11 @@ export function HostOnboardingWizard({
           <div>
             <strong>
               {saveState.tone === "error"
-                ? "Not saved"
+                ? "Needs attention"
                 : saveState.tone === "dirty"
                   ? "Unsaved changes"
                   : saveState.tone === "ready"
-                    ? "Host setup ready"
+                    ? "Setup ready"
                     : saveState.tone === "saving"
                       ? "Saving"
                       : "Saved to your account"}
@@ -602,58 +664,19 @@ export function HostOnboardingWizard({
         {step === 4 && (
           <>
             <p className="eyebrow dark">Photos</p>
-            <h2>Show the property before you explain it.</h2>
-            <label className="upload-drop">
-              <span>＋</span>
-              <strong>Add property photos</strong>
-              <p>
-                Choose multiple JPG, PNG or WebP images. Upload the
-                actual files from Properties after creating the listing.
-              </p>
-              <span className="button button-small button-quiet">
-                Choose photos
-              </span>
-              <input
-                className="visually-hidden"
-                type="file"
-                accept="image/png,image/jpeg,image/webp"
-                multiple
-                onChange={(event) => {
-                  const files = Array.from(
-                    event.target.files || [],
-                  ).slice(0, 12);
-                  setPhotos(
-                    files.map((file) => ({
-                      name: file.name,
-                      url: URL.createObjectURL(file),
-                    })),
-                  );
-                  setPhotoNames(files.map((file) => file.name));
-                  markDirty();
-                }}
-              />
-            </label>
-            {photos.length ? (
-              <div className="photo-preview-grid">
-                {photos.map((photo, index) => (
-                  <div key={`${photo.name}-${index}`}>
-                    <img
-                      src={photo.url}
-                      alt="Local property preview"
-                    />
-                    <span>
-                      {index === 0 ? "Cover" : `Photo ${index + 1}`}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            ) : photoNames.length ? (
-              <div className="saved-photo-names">
-                {photoNames.map((name) => (
-                  <span key={name}>{name}</span>
-                ))}
-              </div>
-            ) : null}
+            <h2>Upload the actual listing photos now.</h2>
+            <p>
+              These photos save directly to the real draft property, so
+              you will not have to upload them again after onboarding.
+            </p>
+            <OnboardingPhotoManager
+              organizationId={initial.organizationId}
+              propertyName={form.propertyName}
+              onPhotoNamesChange={(names) => {
+                setPhotoNames(names);
+                markDirty();
+              }}
+            />
           </>
         )}
 
@@ -926,9 +949,9 @@ export function HostOnboardingWizard({
             <p className="eyebrow dark">Calendar</p>
             <h2>Choose the source of truth for availability.</h2>
             <p>
-              Save the preferred calendar approach here, then connect
-              the actual iCal feed from Calendar after the property is
-              created.
+              Save the preferred calendar approach here. Calendar
+              connections can be added after the listing is created;
+              your choice here is carried into the real property record.
             </p>
             <div className="calendar-preference-grid">
               {calendarPreferences.map((option) => (
@@ -955,45 +978,23 @@ export function HostOnboardingWizard({
         {step === 8 && (
           <>
             <p className="eyebrow dark">Payments</p>
-            <h2>
-              Connect the account that will own guest payments.
-            </h2>
+            <h2>Connect Stripe before you finish onboarding.</h2>
             <p>
-              After property setup, open Payments &amp; taxes and
-              connect Stripe. Guest charges are created directly on the
-              host&apos;s connected Stripe account.
+              Complete the same secure Stripe Connect flow used by
+              Payments &amp; taxes here. Once Stripe is ready, you will
+              not need to repeat this setup after onboarding.
             </p>
-            <div className="connection-card payout-card">
-              <div className="connection-icon">$</div>
-              <div>
-                <strong>Host-owned Stripe payments</strong>
-                <span>
-                  Stripe charges its processing fee to the host account.
-                  Find A Place receives the platform commission assigned
-                  to the account. Guest taxes remain with the host.
-                </span>
-              </div>
-            </div>
-            <div className="inline-note">
-              <strong>
-                Stripe handles balances and bank deposits.
-              </strong>
-              <span>
-                Find A Place stores the connected account reference and
-                payment status, not raw bank-account data, identity
-                documents or SSNs. TEST and LIVE accounts remain
-                separate.
-              </span>
-            </div>
+            <OnboardingStripeSetup
+              organizationId={initial.organizationId}
+              onReadyChange={setStripeReady}
+            />
           </>
         )}
 
         {step === 9 && (
           <>
             <p className="eyebrow dark">Review</p>
-            <h2>
-              Save the host setup before we create {propertyLabel}.
-            </h2>
+            <h2>Finish setup and create {propertyLabel}.</h2>
             <div className="review-groups">
               <div>
                 <span>Host</span>
@@ -1014,6 +1015,29 @@ export function HostOnboardingWizard({
                     .filter(Boolean)
                     .join(" · ") ||
                     "Type and public area not provided"}
+                </small>
+              </div>
+              <div>
+                <span>Property photos</span>
+                <strong>
+                  {photoNames.length
+                    ? `${photoNames.length} saved`
+                    : "At least one required"}
+                </strong>
+                <small>
+                  Photos are already attached to the real listing draft.
+                </small>
+              </div>
+              <div>
+                <span>Stripe payments</span>
+                <strong>
+                  {stripeReady
+                    ? "Connected and ready"
+                    : "Will be checked before completion"}
+                </strong>
+                <small>
+                  Guest payments use the host-owned connected Stripe
+                  account.
                 </small>
               </div>
               <div>
@@ -1095,10 +1119,10 @@ export function HostOnboardingWizard({
               onClick={finishHostSetup}
             >
               {saving
-                ? "Saving…"
+                ? "Finishing setup…"
                 : onboardingStatus === "READY_FOR_PROPERTY"
-                  ? "Save changes"
-                  : "Finish host setup"}
+                  ? "Finish setup & open listing"
+                  : "Finish setup & create listing"}
             </button>
           )}
         </div>
@@ -1106,19 +1130,19 @@ export function HostOnboardingWizard({
 
       <aside className="onboarding-plan">
         <small>Find A Place host setup</small>
-        <strong>Direct</strong>
-        <span>host-owned booking payments</span>
+        <strong>Complete once</strong>
+        <span>listing + photos + payments</span>
         <hr />
         <p>
-          Guest payments belong to the connected host processor
-          account. Find A Place provides booking, messaging,
-          calendar and cancellation-request tools.
+          The first listing, its property photos and Stripe payment
+          connection are completed in this setup instead of sending
+          hosts back through the dashboard afterward.
         </p>
         <div className="plan-points">
+          <span>✓ Real listing photos saved now</span>
+          <span>✓ Stripe Connect completed now</span>
           <span>✓ Host-owned direct payments</span>
-          <span>✓ Commission uses lodging only</span>
-          <span>✓ Guest policies saved with each booking</span>
-          <span>✓ Cancellation decisions stay with the host</span>
+          <span>✓ Listing data carries into the property record</span>
         </div>
       </aside>
     </div>
