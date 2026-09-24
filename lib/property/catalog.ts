@@ -1,22 +1,182 @@
+export const propertyTypes = [
+  "Cabin",
+  "House",
+  "Condo",
+  "Townhome",
+  "Apartment",
+  "Tiny home",
+  "Cottage",
+  "Villa",
+  "Lodge",
+  "A-frame",
+  "Bungalow",
+  "Farm stay",
+  "Guest suite",
+  "Treehouse",
+  "RV / Camper",
+  "Yurt",
+  "Other",
+] as const;
+
 export const amenityGroups = [
-  { title: "Popular", items: ["Wi-Fi", "Hot tub", "Pet friendly", "Fire pit", "Waterfront", "Full kitchen"] },
-  { title: "Kitchen & dining", items: ["Refrigerator", "Oven / stove", "Dishwasher", "Microwave", "Coffee maker", "Grill", "Dining table"] },
-  { title: "Comfort & entertainment", items: ["Air conditioning", "Heating", "Fireplace", "Washer / dryer", "TV", "Game room", "Workspace"] },
-  { title: "Outdoor & location", items: ["Outdoor seating", "Private deck / patio", "Dock", "Lake access", "River access", "Mountain view", "Private acreage"] },
-  { title: "Parking & access", items: ["Free parking", "Boat parking", "EV charging", "Self check-in", "Smart lock", "Step-free entrance", "Accessible parking"] },
+  {
+    title: "Essentials",
+    items: [
+      "Wi-Fi",
+      "Air conditioning",
+      "Heating",
+      "Full kitchen",
+      "Kitchenette",
+      "Washer",
+      "Dryer",
+      "Dedicated workspace",
+      "TV",
+      "Smart TV / streaming",
+      "Hair dryer",
+      "Iron",
+      "Linens provided",
+      "Towels provided",
+    ],
+  },
+  {
+    title: "Outdoor & property",
+    items: [
+      "Hot tub",
+      "Pool",
+      "Private pool",
+      "Shared pool",
+      "Fire pit",
+      "Outdoor dining area",
+      "Patio / deck",
+      "Balcony",
+      "Porch",
+      "BBQ grill",
+      "Outdoor kitchen",
+      "Fenced yard",
+      "Garden / yard",
+      "Mountain view",
+      "Lake view",
+      "River view",
+      "Waterfront",
+      "Private entrance",
+      "Self check-in",
+    ],
+  },
+  {
+    title: "Water access & recreation",
+    items: [
+      "Private dock",
+      "Shared dock",
+      "Boat slip",
+      "Lake access",
+      "River access",
+      "Beach access",
+      "Fishing access",
+      "Boat ramp nearby",
+      "Kayaks provided",
+      "Canoes provided",
+      "Paddleboards provided",
+      "Trail access",
+    ],
+  },
+  {
+    title: "Parking & access",
+    items: [
+      "Free parking",
+      "Covered parking",
+      "RV / trailer parking",
+      "EV charger",
+      "Step-free access",
+      "Wheelchair accessible",
+    ],
+  },
+  {
+    title: "Family & pet friendly",
+    items: [
+      "Pets allowed",
+      "Pack 'n play / crib",
+      "High chair",
+      "Children's books / toys",
+      "Game room",
+      "Board games",
+    ],
+  },
+  {
+    title: "Safety",
+    items: [
+      "Smoke detector",
+      "Carbon monoxide detector",
+      "Fire extinguisher",
+      "First aid kit",
+      "Security cameras on exterior",
+    ],
+  },
 ] as const;
 
 export const policyGroups = [
-  { title: "House rules", items: ["No smoking indoors", "No parties or unauthorized events", "Registered guests only", "Parking limited to designated areas"] },
-  { title: "Noise, safety & property", items: ["Quiet hours apply", "No fireworks", "No glass near pool / hot tub", "Exterior security cameras disclosed", "Guests responsible for excessive damage"] },
-  { title: "Guests & pets", items: ["Pets allowed", "Children must be supervised", "Minimum booking age applies"] },
+  {
+    title: "Common policies",
+    items: [
+      "No smoking",
+      "No parties or events",
+      "Quiet hours apply",
+      "Pets allowed",
+      "Minimum booking age applies",
+      "No unregistered guests",
+    ],
+  },
+  {
+    title: "Property care",
+    items: [
+      "Treat the home with care",
+      "Report damage promptly",
+      "Follow checkout instructions",
+      "Do not move furniture",
+      "Do not tamper with safety devices",
+    ],
+  },
+  {
+    title: "Waterfront / outdoor safety",
+    items: [
+      "Children must be supervised outdoors",
+      "Use hot tub at your own risk",
+      "Pool use at your own risk",
+      "Dock / waterfront use at your own risk",
+      "Life jackets recommended for water activities",
+      "Fire pit use must follow posted instructions",
+    ],
+  },
 ] as const;
 
-export const propertyTypes = ["Cabin", "House", "Cottage", "Lodge", "Condo", "RV Site", "Glamping", "Tiny Home", "Other"] as const;
-
 export const calendarPreferences = [
-  { value: "UNSET", label: "Decide later", detail: "Save the property now and choose the connection when calendar setup begins." },
-  { value: "ICAL", label: "iCal / ICS", detail: "Universal import/export fallback for Airbnb, Vrbo and many booking systems." },
-  { value: "PMS", label: "PMS / channel manager", detail: "Use the system you already manage as the source of truth where a direct integration is available." },
-  { value: "NONE", label: "Find A Place only", detail: "No outside calendar source selected yet. Availability connections will be managed from the Calendar workspace." },
+  {
+    value: "UNSET",
+    label: "Decide later",
+    detail:
+      "You can finish the listing now and choose your calendar setup after onboarding.",
+  },
+  {
+    value: "PLATFORM_ONLY",
+    label: "Use Find A Place only",
+    detail:
+      "Manage availability directly inside the Find A Place host dashboard.",
+  },
+  {
+    value: "ICAL_IMPORT",
+    label: "Import another calendar",
+    detail:
+      "Use an iCal feed from another platform or PMS to keep dates in sync.",
+  },
+  {
+    value: "ICAL_EXPORT",
+    label: "Export my Find A Place calendar",
+    detail:
+      "Use Find A Place as the source calendar and export it to another system.",
+  },
+  {
+    value: "TWO_WAY_SYNC",
+    label: "Two-way sync / PMS",
+    detail:
+      "You plan to sync with an external booking or property-management system.",
+  },
 ] as const;
