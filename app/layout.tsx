@@ -76,8 +76,26 @@ export const metadata: Metadata = {
     },
   },
   icons: {
-    icon: "/brand/find-a-place-seal.png",
-    apple: "/brand/find-a-place-seal.png",
+    icon: [
+      {
+        url: "/favicon.ico",
+        type: "image/png",
+        sizes: "720x720",
+      },
+      {
+        url: "/brand/find-a-place-seal.png",
+        type: "image/png",
+        sizes: "720x720",
+      },
+    ],
+    shortcut: "/favicon.ico",
+    apple: [
+      {
+        url: "/brand/find-a-place-seal.png",
+        type: "image/png",
+        sizes: "720x720",
+      },
+    ],
   },
 };
 
