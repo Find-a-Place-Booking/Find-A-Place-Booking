@@ -7,6 +7,7 @@ import "./accessibility-fixes.css";
 import "./hero-video.css";
 import "./mobile-ui-fixes.css";
 import "./mobile-public-width-fix.css";
+import "./photo-gallery-fixes.css";
 
 import { JsonLd } from "@/components/JsonLd";
 import { VercelInsights } from "@/components/VercelInsights";

@@ -7,6 +7,7 @@ import { Footer } from "@/components/Footer";
 import { Header } from "@/components/Header";
 import { JsonLd } from "@/components/JsonLd";
 import { PropertyActions } from "@/components/PropertyActions";
+import { PropertyGallery } from "@/components/PropertyGallery";
 import { PropertyReviews } from "@/components/PropertyReviews";
 import { PublicHostCard } from "@/components/PublicHostCard";
 import { getPublishedListingBySlug } from "@/lib/public/listings";
@@ -107,11 +108,6 @@ export default async function PropertyPage({
       : {}),
   };
 
-  const images = property.images;
-  const mainImage = images[0];
-  const secondImage = images[1] ?? mainImage;
-  const thirdImage = images[2] ?? mainImage;
-
   const checkoutEnabled =
     process.env.BOOKING_CHECKOUT_ENABLED === "true";
   const testMode = (
@@ -145,56 +141,10 @@ export default async function PropertyPage({
           <PropertyActions />
         </div>
 
-        <div className="shell gallery">
-          {mainImage ? (
-            <img
-              className="gallery-main"
-              src={mainImage}
-              alt={`${property.name} exterior`}
-              loading="eager"
-              decoding="async"
-              fetchPriority="high"
-            />
-          ) : (
-            <div
-              className="gallery-main gallery-placeholder gallery-brand-placeholder"
-              aria-label="Property photo unavailable"
-            />
-          )}
-
-          {secondImage ? (
-            <img
-              src={secondImage}
-              alt={`${property.name} surroundings`}
-              loading="lazy"
-              decoding="async"
-            />
-          ) : (
-            <div
-              className="gallery-placeholder gallery-brand-placeholder"
-              aria-label="Property photo unavailable"
-            />
-          )}
-
-          {thirdImage ? (
-            <img
-              src={thirdImage}
-              alt={`${property.name} detail`}
-              loading="lazy"
-              decoding="async"
-            />
-          ) : (
-            <div
-              className="gallery-placeholder gallery-brand-placeholder"
-              aria-label="Property photo unavailable"
-            />
-          )}
-
-          <div className="gallery-detail">
-            <span>{images.length}</span>
-            <strong>photos</strong>
-          </div>
-        </div>
+        <PropertyGallery
+          propertyName={property.name}
+          images={property.images}
+        />
 
         <div className="shell property-content">
           <article className="property-copy">
