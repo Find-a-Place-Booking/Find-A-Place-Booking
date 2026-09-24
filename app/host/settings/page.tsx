@@ -1,7 +1,9 @@
 import Link from "next/link";
 
 import { DashboardShell } from "@/components/DashboardShell";
+import financeStyles from "@/components/HostFinancePanels.module.css";
 import { getHostAccountProfile, initialsForHost } from "@/lib/host/profile";
+import { createClient } from "@/lib/supabase/server";
 import {
   removeHostAvatar,
   removeHostGalleryImage,
@@ -29,6 +31,21 @@ export default async function SettingsPage({
     searchParams,
   ]);
   const initials = initialsForHost(profile);
+
+  const supabase = await createClient();
+  const { data: commissionOrganization } = profile.organizationId
+    ? await supabase
+        .from("organizations")
+        .select("partner_status,commission_tier")
+        .eq("id", profile.organizationId)
+        .maybeSingle()
+    : { data: null };
+
+  const isPartner =
+    commissionOrganization?.commission_tier === "PARTNER_5" &&
+    commissionOrganization?.partner_status === "VERIFIED";
+  const commissionRate = isPartner ? 5 : 7;
+  const commissionAssigned = Boolean(profile.organizationId);
 
   return (
     <DashboardShell active="Settings" title="Settings">
@@ -230,11 +247,19 @@ export default async function SettingsPage({
       </section>
 
       <div className="dash-two">
-        <section className="panel plan-panel">
+        <section className={`panel plan-panel ${financeStyles.commissionPanel}`}>
           <p className="eyebrow dark">Commission tier</p>
-          <h2>Assigned when the host is approved</h2>
-          <strong className="plan-price">5–7%</strong>
-          <p>Existing Find A Place partner properties use 5%. Other hosts use 7%.</p>
+          <h2>Your assigned Find A Place rate</h2>
+          <strong className="plan-price">
+            {commissionAssigned ? `${commissionRate}%` : "Pending"}
+          </strong>
+          <p>
+            {commissionAssigned
+              ? isPartner
+                ? "Verified Find A Place partner rate."
+                : "Standard Find A Place host rate."
+              : "Your commission rate will appear here after the host account is created."}
+          </p>
           <small>
             The commission base is nightly lodging after host discounts and
             excludes legitimate cleaning/pet fees, taxes, refundable deposits and

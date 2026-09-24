@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { DashboardShell } from "@/components/DashboardShell";
+import financeStyles from "@/components/HostFinancePanels.module.css";
 import { EmbeddedStripeOnboarding } from "@/components/payments/EmbeddedStripeOnboarding";
 import { getHostPaymentWorkspace } from "@/lib/host/payments";
 import { createClient } from "@/lib/supabase/server";
@@ -175,37 +176,22 @@ export default async function PaymentsPage() {
                   </small>
                   <small>
                     Guest paid{" "}
-                    {money(
-                      transaction.amountCents,
-                      transaction.currency,
-                    )}
+                    {money(transaction.amountCents, transaction.currency)}
                     {" · "}Find A Place{" "}
-                    {money(
-                      transaction.commissionCents,
-                      transaction.currency,
-                    )}
+                    {money(transaction.commissionCents, transaction.currency)}
                     {" · "}Guest tax{" "}
-                    {money(
-                      transaction.taxCents,
-                      transaction.currency,
-                    )}{" "}
+                    {money(transaction.taxCents, transaction.currency)}{" "}
                     stays with host
                   </small>
                   <small>
                     Stripe processing{" "}
-                    {money(
-                      transaction.processorFeeActualCents,
-                      transaction.currency,
-                    )}
+                    {money(transaction.processorFeeActualCents, transaction.currency)}
                   </small>
                 </span>
                 <span>
                   <em>
                     Host net{" "}
-                    {money(
-                      transaction.hostProceedsCents,
-                      transaction.currency,
-                    )}
+                    {money(transaction.hostProceedsCents, transaction.currency)}
                   </em>
                   <small>{readable(transaction.status)}</small>
                   <b>View breakdown →</b>
@@ -217,8 +203,7 @@ export default async function PaymentsPage() {
           <div className="panel-empty">
             <strong>No booking transactions yet.</strong>
             <span>
-              Completed and in-progress Stripe booking payments will
-              appear here.
+              Completed and in-progress Stripe booking payments will appear here.
             </span>
           </div>
         )}
@@ -231,20 +216,14 @@ export default async function PaymentsPage() {
           {workspace.accounts.length ? (
             <div className="admin-list compact">
               {workspace.accounts.map((account) => (
-                <div
-                  className="admin-list-row static"
-                  key={account.id}
-                >
+                <div className="admin-list-row static" key={account.id}>
                   <span>
                     <strong>
-                      {readable(account.provider)} ·{" "}
-                      {readable(account.status)}
+                      {readable(account.provider)} · {readable(account.status)}
                     </strong>
                     <small>
                       {account.currency}
-                      {account.is_default
-                        ? " · Default payment account"
-                        : ""}
+                      {account.is_default ? " · Default payment account" : ""}
                     </small>
                   </span>
                   <span>
@@ -259,19 +238,16 @@ export default async function PaymentsPage() {
             </div>
           ) : (
             <div className="panel-empty">
-              <strong>
-                No Stripe payment account connected yet.
-              </strong>
-              <span>
-                Use Connect Stripe above to complete payment setup.
-              </span>
+              <strong>No Stripe payment account connected yet.</strong>
+              <span>Use Connect Stripe above to complete payment setup.</span>
             </div>
           )}
         </section>
 
-        <section className="panel">
+        <section className={`panel ${financeStyles.moneyFlowPanel}`}>
           <p className="eyebrow dark">How money moves</p>
           <h2>Your booking money stays with your processor.</h2>
+
           <div className="tax-rule">
             <span>Guest charge</span>
             <strong>Created on your Stripe account</strong>
@@ -286,27 +262,22 @@ export default async function PaymentsPage() {
           </div>
           <div className="tax-rule">
             <span>Find A Place</span>
-            <strong>
-              Receives the assigned {commissionRate}% application fee
-            </strong>
+            <strong>Receives {commissionRate}% of the lodging subtotal</strong>
           </div>
           <div className="tax-rule">
             <span>Refunds</span>
             <strong>
-              Host-approved guest refunds do not return the Find A
-              Place commission
+              Host-approved guest refunds do not return the Find A Place commission
             </strong>
           </div>
           <div className="tax-rule">
             <span>Bank deposit</span>
-            <strong>
-              Handled by Stripe under your bank-deposit settings
-            </strong>
+            <strong>Handled by Stripe under your bank-deposit settings</strong>
           </div>
+
           <p className="muted">
-            Find A Place does not hold or manually release your booking
-            proceeds. Stripe controls settlement, balance availability
-            and bank deposits.
+            Find A Place does not hold or manually release your booking proceeds.
+            Stripe controls settlement, balance availability and bank deposits.
           </p>
         </section>
       </div>
