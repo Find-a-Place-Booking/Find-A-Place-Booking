@@ -30,8 +30,11 @@ export function DeferredBackgroundVideo({ className, src, poster }: Props) {
       "(prefers-reduced-motion: reduce)",
     ).matches;
     const saveData = (navigator as ConnectionNavigator).connection?.saveData;
+    const mobileViewport = window.matchMedia("(max-width: 700px)").matches;
 
-    if (prefersReducedMotion || saveData) return;
+    // Desktop behavior stays exactly as it was. Phones keep the existing
+    // poster instead of downloading the multi-megabyte background video.
+    if (prefersReducedMotion || saveData || mobileViewport) return;
 
     const idleWindow = window as IdleWindow;
     let timeoutId: number | null = null;

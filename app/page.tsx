@@ -163,13 +163,21 @@ export default async function HomePage() {
                 }}
               >
                 {featuredStay.image ? (
-                  <img
-                    src={featuredStay.image}
-                    alt={`${featuredStay.name} in ${featuredStay.location}`}
-                    loading="eager"
-                    decoding="async"
-                    fetchPriority="high"
-                  />
+                  <picture style={{ display: "contents" }}>
+                    <source
+                      media="(max-width: 700px)"
+                      srcSet={`/api/public/stay-cover/${encodeURIComponent(
+                        featuredStay.slug,
+                      )}`}
+                    />
+                    <img
+                      src={featuredStay.image}
+                      alt={`${featuredStay.name} in ${featuredStay.location}`}
+                      loading="eager"
+                      decoding="async"
+                      fetchPriority="high"
+                    />
+                  </picture>
                 ) : (
                   <div
                     className="hero-featured-photo-placeholder"

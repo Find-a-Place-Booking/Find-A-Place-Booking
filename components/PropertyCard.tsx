@@ -27,13 +27,21 @@ export function PropertyCard({
         }}
       >
         {property.image ? (
-          <img
-            className="property-image"
-            src={property.image}
-            alt={`${property.name} in ${property.location}`}
-            loading="lazy"
-            decoding="async"
-          />
+          <picture style={{ display: "contents" }}>
+            <source
+              media="(max-width: 700px)"
+              srcSet={`/api/public/stay-cover/${encodeURIComponent(
+                property.slug,
+              )}`}
+            />
+            <img
+              className="property-image"
+              src={property.image}
+              alt={`${property.name} in ${property.location}`}
+              loading="lazy"
+              decoding="async"
+            />
+          </picture>
         ) : (
           <div
             className="property-image property-image-empty"
