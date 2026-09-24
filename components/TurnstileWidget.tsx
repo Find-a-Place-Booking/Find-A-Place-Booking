@@ -21,6 +21,18 @@ declare global {
   }
 }
 
+function reportTurnstileClientEvent(event: "expired" | "error") {
+  void fetch("/api/booking/security-event", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ event }),
+    keepalive: true,
+  }).catch(() => {
+    // If the browser is offline or the request itself is blocked, there is
+    // nothing useful to surface to the guest here.
+  });
+}
+
 export function TurnstileWidget({
   siteKey,
   resetSignal,
@@ -41,8 +53,14 @@ export function TurnstileWidget({
       sitekey: siteKey,
       action: "booking_hold",
       callback: onToken,
-      "expired-callback": () => onToken(""),
-      "error-callback": () => onToken(""),
+      "expired-callback": () => {
+        onToken("");
+        reportTurnstileClientEvent("expired");
+      },
+      "error-callback": () => {
+        onToken("");
+        reportTurnstileClientEvent("error");
+      },
     });
 
     return () => {
