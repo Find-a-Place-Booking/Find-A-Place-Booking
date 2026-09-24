@@ -1,0 +1,171 @@
+.wrapper {
+  display: grid;
+  gap: 12px;
+}
+
+.heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.heading > div {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+
+.heading strong {
+  font-size: .78rem;
+  color: #27322e;
+}
+
+.heading span {
+  color: #747971;
+  font-size: .66rem;
+  line-height: 1.5;
+}
+
+.heading button,
+.removeButton {
+  border: 1px solid #d4cdc1;
+  background: #fff;
+  color: #284e41;
+  border-radius: 999px;
+  min-height: 34px;
+  padding: 7px 11px;
+  font: inherit;
+  font-size: .65rem;
+  font-weight: 850;
+  cursor: pointer;
+}
+
+.heading button:disabled {
+  opacity: .5;
+  cursor: default;
+}
+
+.lines {
+  display: grid;
+  gap: 8px;
+}
+
+.line {
+  display: grid;
+  grid-template-columns: 130px minmax(170px, 1.4fr) 100px minmax(170px, 1fr) auto;
+  gap: 8px;
+  align-items: end;
+  padding: 11px;
+  border: 1px solid #e0d9ce;
+  border-radius: 12px;
+  background: #fff;
+}
+
+.line label {
+  min-width: 0;
+  display: grid;
+  gap: 5px;
+}
+
+.line label > span {
+  color: #7b7f79;
+  font-size: .58rem;
+  font-weight: 850;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+}
+
+.line input,
+.line select {
+  width: 100%;
+  min-width: 0;
+  min-height: 38px;
+  border: 1px solid #d1c9bd;
+  border-radius: 9px;
+  background: #fff;
+  padding: 8px 9px;
+  color: #27302d;
+  font: inherit;
+  font-size: .72rem;
+}
+
+.rateInput {
+  position: relative;
+}
+
+.rateInput input {
+  padding-right: 26px;
+}
+
+.rateInput b {
+  position: absolute;
+  right: 9px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #7b7f79;
+  font-size: .68rem;
+}
+
+.removeButton {
+  margin-bottom: 2px;
+  color: #7c5547;
+}
+
+.empty {
+  padding: 13px;
+  border: 1px dashed #d7d0c5;
+  border-radius: 10px;
+  color: #777a75;
+  font-size: .68rem;
+  line-height: 1.5;
+}
+
+@media (max-width: 1050px) {
+  .line {
+    grid-template-columns: 120px minmax(160px, 1fr) 90px minmax(160px, 1fr);
+  }
+
+  .removeButton {
+    grid-column: 4;
+    justify-self: end;
+  }
+}
+
+@media (max-width: 700px) {
+  .heading {
+    display: grid;
+  }
+
+  .heading button {
+    width: fit-content;
+  }
+
+  .line {
+    grid-template-columns: 1fr 92px;
+    padding: 12px;
+  }
+
+  .typeField,
+  .baseField {
+    grid-column: 1 / -1;
+  }
+
+  .nameField {
+    grid-column: 1;
+  }
+
+  .rateField {
+    grid-column: 2;
+  }
+
+  .removeButton {
+    grid-column: 1 / -1;
+    justify-self: start;
+  }
+
+  .line input,
+  .line select {
+    font-size: 16px;
+  }
+}

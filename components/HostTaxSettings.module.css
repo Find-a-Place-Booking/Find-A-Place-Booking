@@ -1,1 +1,348 @@
-.taxSection{display:grid;gap:18px}.taxSectionHeader{display:flex;justify-content:space-between;gap:22px;align-items:flex-start}.taxSectionHeader h2{margin-bottom:8px!important}.taxSectionHeader p:last-child{margin:0;max-width:780px;color:#686d68;font-size:.82rem;line-height:1.65}.responsibilityBadge{flex:0 0 auto;display:inline-flex;align-items:center;min-height:31px;border-radius:999px;background:#eef3ef;color:#315f4b;padding:7px 11px;font-size:.66rem;font-weight:900;text-transform:uppercase;letter-spacing:.07em}.statewideNote{display:grid;grid-template-columns:165px minmax(0,1fr);gap:16px;padding:15px 17px;border:1px solid #ddd6ca;border-radius:14px;background:#f8f6f1}.statewideNote strong{color:#1d3834;font-size:.8rem}.statewideNote span{color:#676b66;font-size:.76rem;line-height:1.55}.propertyTaxList{display:grid;gap:10px}.propertyTaxCard{overflow:hidden;border:1px solid #dcd5c9;border-radius:16px;background:#fff}.propertyTaxCard>summary{list-style:none;cursor:pointer;min-height:72px;display:flex;align-items:center;justify-content:space-between;gap:14px;padding:15px 17px}.propertyTaxCard>summary::-webkit-details-marker{display:none}.propertyTaxCard>summary>span:first-child{min-width:0;display:grid;gap:3px}.propertyTaxCard>summary strong{color:#202b27;font-size:.87rem}.propertyTaxCard>summary small{color:#777a75;font-size:.68rem}.statusArea{flex:0 0 auto;display:flex;align-items:center;gap:10px}.statusArea b{border-radius:999px;padding:6px 9px;font-size:.61rem;text-transform:uppercase;letter-spacing:.06em}.configured{background:#e9f2ec;color:#2f684d}.needsSetup{background:#f6ead9;color:#865d2f}.legacy{background:#eee9df;color:#6f614c}.propertyTaxBody{display:grid;gap:16px;padding:18px;border-top:1px solid #e8e2d8;background:#fcfbf8}.automaticTaxes{display:grid;grid-template-columns:150px minmax(0,1fr);gap:16px;padding-bottom:15px;border-bottom:1px solid #e6e0d7}.automaticTaxes>span{color:#777b76;font-size:.68rem;font-weight:800;text-transform:uppercase;letter-spacing:.07em}.automaticTaxes>div{display:flex;flex-wrap:wrap;gap:7px}.automaticTaxes strong{display:inline-flex;align-items:center;min-height:28px;border-radius:999px;background:#edf2ee;color:#315f4b;padding:6px 10px;font-size:.68rem}.legacyNotice{padding:12px 14px;border:1px solid #ddd2c1;border-radius:12px;background:#faf3e8;color:#735d3e;font-size:.73rem;line-height:1.55}.taxForm{display:grid;gap:14px}.taxForm label{display:grid;gap:6px}.taxForm label>span{color:#303632;font-size:.72rem;font-weight:800}.taxForm input:not([type="checkbox"]){width:100%;min-width:0;min-height:44px;border:1px solid #cec7bb;border-radius:10px;background:#fff;padding:10px 11px;font:inherit;font-size:.82rem}.taxForm label small{color:#7a7d78;font-size:.64rem;line-height:1.5}.twoColumns{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:13px}.certification{grid-template-columns:auto minmax(0,1fr);align-items:flex-start;gap:10px!important;padding:14px;border:1px solid #d8d1c5;border-radius:12px;background:#fff}.certification input{margin-top:3px}.certification span{font-size:.72rem!important;font-weight:650!important;line-height:1.55}.formFooter{display:flex;justify-content:space-between;align-items:center;gap:14px}.formFooter small{color:#777b76;font-size:.65rem}.supportNote{margin:0;color:#747871;font-size:.7rem;line-height:1.55}@media(max-width:700px){.taxSection{padding:17px!important}.taxSectionHeader{display:grid;gap:10px}.responsibilityBadge{width:fit-content}.statewideNote,.automaticTaxes,.twoColumns{grid-template-columns:1fr}.statewideNote,.automaticTaxes{gap:7px}.propertyTaxCard>summary{align-items:flex-start;padding:14px}.statusArea{gap:6px}.propertyTaxBody{padding:14px}.formFooter{display:grid}.formFooter :global(.button){width:100%;justify-content:center}.taxForm input:not([type="checkbox"]){font-size:16px}}
+.taxSection {
+  display: grid;
+  gap: 18px;
+}
+
+.taxSectionHeader {
+  display: flex;
+  justify-content: space-between;
+  gap: 22px;
+  align-items: flex-start;
+}
+
+.taxSectionHeader h2 {
+  margin-bottom: 8px !important;
+}
+
+.taxSectionHeader p:last-child {
+  margin: 0;
+  max-width: 780px;
+  color: #686d68;
+  font-size: .82rem;
+  line-height: 1.65;
+}
+
+.responsibilityBadge {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  min-height: 31px;
+  border-radius: 999px;
+  background: #eef3ef;
+  color: #315f4b;
+  padding: 7px 11px;
+  font-size: .66rem;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: .07em;
+}
+
+.stateGroups {
+  display: grid;
+  gap: 18px;
+}
+
+.stateGroup {
+  display: grid;
+  gap: 9px;
+}
+
+.stateHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: end;
+  gap: 14px;
+  padding: 0 2px;
+}
+
+.stateHeader > div {
+  min-width: 0;
+}
+
+.stateHeader h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.stateHeader p {
+  margin: 4px 0 0;
+  color: #777b75;
+  font-size: .68rem;
+  line-height: 1.45;
+}
+
+.stateHeader > span {
+  flex: 0 0 auto;
+  color: #777b75;
+  font-size: .64rem;
+  font-weight: 800;
+}
+
+.stateNotice {
+  padding: 12px 14px;
+  border: 1px solid #ded7cb;
+  border-radius: 12px;
+  background: #f8f6f1;
+  color: #5f655f;
+  font-size: .7rem;
+  line-height: 1.55;
+}
+
+.reviewNotice {
+  border-color: #e2ccb0;
+  background: #fbf3e8;
+  color: #76532f;
+}
+
+.propertyTaxList {
+  display: grid;
+  gap: 8px;
+}
+
+.propertyTaxCard {
+  overflow: hidden;
+  border: 1px solid #dcd5c9;
+  border-radius: 14px;
+  background: #fff;
+}
+
+.propertyTaxCard > summary {
+  list-style: none;
+  cursor: pointer;
+  min-height: 66px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 13px 15px;
+}
+
+.propertyTaxCard > summary::-webkit-details-marker {
+  display: none;
+}
+
+.propertyTaxCard > summary > span:first-child {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+
+.propertyTaxCard > summary strong {
+  color: #202b27;
+  font-size: .84rem;
+}
+
+.propertyTaxCard > summary small {
+  color: #777a75;
+  font-size: .65rem;
+}
+
+.statusArea {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.statusArea b {
+  border-radius: 999px;
+  padding: 6px 9px;
+  font-size: .59rem;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+}
+
+.configured {
+  background: #e9f2ec;
+  color: #2f684d;
+}
+
+.needsSetup {
+  background: #f6ead9;
+  color: #865d2f;
+}
+
+.legacy {
+  background: #eee9df;
+  color: #6f614c;
+}
+
+.propertyTaxBody {
+  display: grid;
+  gap: 15px;
+  padding: 16px;
+  border-top: 1px solid #e8e2d8;
+  background: #fcfbf8;
+}
+
+.automaticTaxes {
+  display: grid;
+  grid-template-columns: 145px minmax(0, 1fr);
+  gap: 14px;
+  align-items: start;
+  padding-bottom: 14px;
+  border-bottom: 1px solid #e6e0d7;
+}
+
+.automaticTaxes > span {
+  color: #777b76;
+  font-size: .64rem;
+  font-weight: 850;
+  text-transform: uppercase;
+  letter-spacing: .07em;
+}
+
+.automaticTaxes > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.automaticTaxes strong {
+  display: inline-flex;
+  align-items: center;
+  min-height: 27px;
+  border-radius: 999px;
+  background: #edf2ee;
+  color: #315f4b;
+  padding: 5px 9px;
+  font-size: .65rem;
+}
+
+.legacyNotice {
+  padding: 11px 13px;
+  border: 1px solid #ddd2c1;
+  border-radius: 11px;
+  background: #faf3e8;
+  color: #735d3e;
+  font-size: .69rem;
+  line-height: 1.5;
+}
+
+.taxForm {
+  display: grid;
+  gap: 14px;
+}
+
+.taxForm label {
+  display: grid;
+  gap: 6px;
+}
+
+.taxForm label > span {
+  color: #303632;
+  font-size: .7rem;
+  font-weight: 800;
+}
+
+.taxForm input:not([type="checkbox"]) {
+  width: 100%;
+  min-width: 0;
+  min-height: 42px;
+  border: 1px solid #cec7bb;
+  border-radius: 10px;
+  background: #fff;
+  padding: 9px 10px;
+  font: inherit;
+  font-size: .78rem;
+}
+
+.twoColumns {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.certification {
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: flex-start;
+  gap: 10px !important;
+  padding: 13px;
+  border: 1px solid #d8d1c5;
+  border-radius: 11px;
+  background: #fff;
+}
+
+.certification input {
+  margin-top: 3px;
+}
+
+.certification span {
+  font-size: .7rem !important;
+  font-weight: 650 !important;
+  line-height: 1.55;
+}
+
+.formFooter {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 14px;
+}
+
+.formFooter small {
+  color: #777b76;
+  font-size: .64rem;
+}
+
+.supportNote {
+  margin: 0;
+  color: #747871;
+  font-size: .68rem;
+  line-height: 1.55;
+}
+
+@media (max-width: 700px) {
+  .taxSection {
+    padding: 16px !important;
+  }
+
+  .taxSectionHeader,
+  .stateHeader {
+    display: grid;
+    gap: 8px;
+  }
+
+  .responsibilityBadge {
+    width: fit-content;
+  }
+
+  .stateHeader > span {
+    justify-self: start;
+  }
+
+  .automaticTaxes,
+  .twoColumns {
+    grid-template-columns: 1fr;
+  }
+
+  .automaticTaxes {
+    gap: 6px;
+  }
+
+  .propertyTaxCard > summary {
+    align-items: flex-start;
+    padding: 13px;
+  }
+
+  .statusArea {
+    gap: 6px;
+  }
+
+  .propertyTaxBody {
+    padding: 13px;
+  }
+
+  .formFooter {
+    display: grid;
+  }
+
+  .formFooter :global(.button) {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .taxForm input:not([type="checkbox"]) {
+    font-size: 16px;
+  }
+}
