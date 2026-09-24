@@ -27,6 +27,38 @@
 }
 
 /*
+ * Make the public mobile menu control obvious against the cream header.
+ * This lives in the Header CSS module so it is guaranteed to load anywhere
+ * Header.tsx renders, without needing another global stylesheet import.
+ */
+:global(.mobile-menu-toggle) {
+  background: #1d2e28 !important;
+  border: 1px solid #1d2e28 !important;
+  color: #ffffff !important;
+  box-shadow: 0 5px 14px rgba(17, 28, 24, 0.18) !important;
+  opacity: 1 !important;
+}
+
+:global(.mobile-menu-toggle span) {
+  background: #ffffff !important;
+  color: #ffffff !important;
+  opacity: 1;
+}
+
+:global(.mobile-menu-toggle:hover),
+:global(.mobile-menu-toggle:active),
+:global(.mobile-menu-toggle.is-open) {
+  background: #14251f !important;
+  border-color: #14251f !important;
+  color: #ffffff !important;
+}
+
+:global(.mobile-menu-toggle:focus-visible) {
+  outline: 3px solid rgba(198, 165, 104, 0.65) !important;
+  outline-offset: 3px !important;
+}
+
+/*
  * On phones the navigation becomes a full-width sheet directly below the
  * site header. This keeps every link and action inside the visible viewport
  * regardless of browser chrome / dynamic viewport width.
@@ -38,5 +70,16 @@
     border-left: 0 !important;
     border-right: 0 !important;
     border-radius: 0 !important;
+  }
+
+  :global(.mobile-menu-toggle) {
+    width: 42px !important;
+    height: 42px !important;
+    border-radius: 10px !important;
+  }
+
+  :global(.mobile-menu-toggle span) {
+    width: 19px !important;
+    height: 2px !important;
   }
 }

@@ -1,15 +1,6 @@
-Find A Place About Partner Map
+Add this stylesheet import anywhere your app already imports global/mobile fix CSS
+(for example app/layout.tsx or app/globals.css):
 
-Files included:
-- app/about/page.tsx
-- app/about/about-map.module.css
+import "./mobile-menu-button-fix.css";
 
-Adds the existing Find A Place Google My Maps partner map to /about in a compact,
-responsive branded section.
-
-No booking, Stripe, tax, host, admin, database, or global CSS files are touched.
-No migration is required.
-
-Extract directly over the project root and replace app/about/page.tsx, then run:
-npm run typecheck
-npm run build
+This only changes the mobile header menu toggle appearance and keeps the drawer behavior intact.

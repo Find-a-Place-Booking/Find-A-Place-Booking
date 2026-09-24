@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import "mapbox-gl/dist/mapbox-gl.css";
 import "./globals.css";
 import "./find-a-place-theme.css";
@@ -6,6 +6,7 @@ import "./contact-social-pass.css";
 import "./accessibility-fixes.css";
 import "./hero-video.css";
 import "./mobile-ui-fixes.css";
+import "./mobile-public-width-fix.css";
 
 import { JsonLd } from "@/components/JsonLd";
 import { VercelInsights } from "@/components/VercelInsights";
@@ -15,6 +16,12 @@ import {
   SITE_NAME,
   absoluteUrl,
 } from "@/lib/seo";
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+};
 
 export const metadata: Metadata = {
   metadataBase: new URL(CANONICAL_SITE_URL),

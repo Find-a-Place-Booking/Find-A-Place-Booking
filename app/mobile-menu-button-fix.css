@@ -1,0 +1,109 @@
+
+/* Find A Place – mobile header menu button visibility fix
+   Make the mobile nav toggle obvious and high-contrast on small screens. */
+
+@media (max-width: 900px) {
+  /* Common mobile menu toggle targets */
+  header button[aria-label*="menu" i],
+  header button[aria-controls*="menu" i],
+  header button[aria-expanded],
+  .site-header button[aria-label*="menu" i],
+  .site-header button[aria-controls*="menu" i],
+  .site-header button[aria-expanded],
+  .header button[aria-label*="menu" i],
+  .header button[aria-controls*="menu" i],
+  .header button[aria-expanded],
+  .mobile-nav-toggle,
+  .mobileMenuToggle,
+  .menuToggle,
+  .menuButton {
+    background: #16332d !important;
+    color: #ffffff !important;
+    border: 1px solid rgba(16, 34, 29, 0.95) !important;
+    border-radius: 14px !important;
+    box-shadow:
+      0 10px 24px rgba(10, 24, 20, 0.22),
+      0 0 0 1px rgba(255, 255, 255, 0.06) inset !important;
+    opacity: 1 !important;
+  }
+
+  header button[aria-label*="menu" i]:hover,
+  header button[aria-controls*="menu" i]:hover,
+  header button[aria-expanded]:hover,
+  .site-header button[aria-label*="menu" i]:hover,
+  .site-header button[aria-controls*="menu" i]:hover,
+  .site-header button[aria-expanded]:hover,
+  .header button[aria-label*="menu" i]:hover,
+  .header button[aria-controls*="menu" i]:hover,
+  .header button[aria-expanded]:hover,
+  .mobile-nav-toggle:hover,
+  .mobileMenuToggle:hover,
+  .menuToggle:hover,
+  .menuButton:hover {
+    background: #102721 !important;
+    color: #ffffff !important;
+    border-color: #102721 !important;
+  }
+
+  header button[aria-label*="menu" i] svg,
+  header button[aria-controls*="menu" i] svg,
+  .site-header button[aria-label*="menu" i] svg,
+  .site-header button[aria-controls*="menu" i] svg,
+  .header button[aria-label*="menu" i] svg,
+  .header button[aria-controls*="menu" i] svg,
+  .mobile-nav-toggle svg,
+  .mobileMenuToggle svg,
+  .menuToggle svg,
+  .menuButton svg,
+  header button[aria-label*="menu" i] span,
+  header button[aria-controls*="menu" i] span,
+  .site-header button[aria-label*="menu" i] span,
+  .site-header button[aria-controls*="menu" i] span,
+  .header button[aria-label*="menu" i] span,
+  .header button[aria-controls*="menu" i] span,
+  .mobile-nav-toggle span,
+  .mobileMenuToggle span,
+  .menuToggle span,
+  .menuButton span {
+    color: #ffffff !important;
+    stroke: #ffffff !important;
+    fill: #ffffff !important;
+    opacity: 1 !important;
+  }
+
+  /* If the toggle is using 3 horizontal bars rendered as spans/divs */
+  header button[aria-label*="menu" i] > span,
+  header button[aria-controls*="menu" i] > span,
+  .site-header button[aria-label*="menu" i] > span,
+  .site-header button[aria-controls*="menu" i] > span,
+  .header button[aria-label*="menu" i] > span,
+  .header button[aria-controls*="menu" i] > span,
+  .mobile-nav-toggle > span,
+  .mobileMenuToggle > span,
+  .menuToggle > span,
+  .menuButton > span,
+  .mobile-nav-toggle .bar,
+  .mobileMenuToggle .bar,
+  .menuToggle .bar,
+  .menuButton .bar {
+    background: #ffffff !important;
+  }
+
+  /* Stronger focus ring for accessibility and easier discovery */
+  header button[aria-label*="menu" i]:focus-visible,
+  header button[aria-controls*="menu" i]:focus-visible,
+  header button[aria-expanded]:focus-visible,
+  .site-header button[aria-label*="menu" i]:focus-visible,
+  .site-header button[aria-controls*="menu" i]:focus-visible,
+  .site-header button[aria-expanded]:focus-visible,
+  .header button[aria-label*="menu" i]:focus-visible,
+  .header button[aria-controls*="menu" i]:focus-visible,
+  .header button[aria-expanded]:focus-visible,
+  .mobile-nav-toggle:focus-visible,
+  .mobileMenuToggle:focus-visible,
+  .menuToggle:focus-visible,
+  .menuButton:focus-visible {
+    outline: 3px solid rgba(255, 255, 255, 0.45) !important;
+    outline-offset: 3px !important;
+  }
+}

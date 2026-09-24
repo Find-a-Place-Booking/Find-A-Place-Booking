@@ -1,0 +1,116 @@
+/*
+ * Public mobile viewport-width hardening.
+ *
+ * iOS/Safari was rendering the public marketplace as a narrow page inside the
+ * browser viewport. Keep the document and public booking surfaces tied to the
+ * device viewport and prevent wide result controls/maps from establishing a
+ * wider layout canvas.
+ */
+
+html,
+body {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+}
+
+html {
+  overflow-x: clip;
+}
+
+body {
+  position: relative;
+  overflow-x: clip;
+}
+
+.site-header,
+.results-main,
+.results-search-band,
+.results-summary-band,
+.home-search-band,
+.marketplace-band,
+.footer {
+  width: 100%;
+  max-width: 100%;
+}
+
+.site-header,
+.site-header .header-inner,
+.results-main,
+.results-main > *,
+.results-search-band > *,
+.results-summary-band,
+.results-controls,
+.results-layout,
+.results-layout > *,
+.search-panel {
+  min-width: 0;
+}
+
+@media (max-width: 1000px) {
+  .results-layout {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  .results-layout > section,
+  .results-layout > aside,
+  .map-shell {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+  }
+}
+
+@media (max-width: 700px) {
+  .shell,
+  .shell-wide,
+  .results-search-band > .shell,
+  .results-summary-band,
+  .results-controls,
+  .results-layout {
+    width: calc(100% - 24px) !important;
+    max-width: calc(100% - 24px) !important;
+    margin-left: auto !important;
+    margin-right: auto !important;
+  }
+
+  .results-controls {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    align-items: stretch;
+    gap: 10px;
+  }
+
+  .results-controls .chip-row {
+    width: calc(100% + 24px);
+    max-width: none;
+    margin-left: -12px;
+    margin-right: -12px;
+    padding-left: 12px;
+    padding-right: 12px;
+    overflow-x: auto;
+    overscroll-behavior-inline: contain;
+  }
+
+  .result-sort {
+    width: 100%;
+    max-width: 100%;
+    flex-wrap: wrap;
+    white-space: normal;
+  }
+
+  .result-sort label {
+    min-width: 0;
+    flex: 1 1 190px;
+  }
+
+  .result-sort select {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .map-shell {
+    position: relative;
+    height: min(360px, 58vh);
+  }
+}
