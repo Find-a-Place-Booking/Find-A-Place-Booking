@@ -18,7 +18,7 @@ const links: MobileLink[] = [
   ["Reservations", "/admin/reservations", "reservations"],
   ["Reports", "/admin/reports", "reports"],
   [
-    "Taxes",
+    "Property taxes",
     "/admin/taxes",
     "taxes",
     ["SUPER_ADMIN", "FINANCE_ADMIN"],
@@ -81,7 +81,10 @@ export function AdminMobileNav({
         </Link>
 
         <form action={signOutAdmin}>
-          <button className="internal-mobile-signout" type="submit">
+          <button
+            className="internal-mobile-signout"
+            type="submit"
+          >
             Sign out
             <span>›</span>
           </button>

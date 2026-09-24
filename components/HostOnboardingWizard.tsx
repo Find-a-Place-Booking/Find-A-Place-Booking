@@ -10,6 +10,7 @@ import { useRouter } from "next/navigation";
 
 import { saveHostOnboarding } from "@/app/host/onboarding/actions";
 import { OnboardingPhotoManager } from "@/components/OnboardingPhotoManager";
+import { OnboardingTaxSetup } from "@/components/onboarding/OnboardingTaxSetup";
 import { OnboardingStripeSetup } from "@/components/payments/OnboardingStripeSetup";
 import type { HostOnboardingRecord } from "@/lib/host/onboarding";
 import {
@@ -18,6 +19,7 @@ import {
   policyGroups,
   propertyTypes,
 } from "@/lib/property/catalog";
+import { getStateTaxSetup } from "@/lib/taxes/state-config";
 
 const steps = [
   "Host profile",
@@ -26,6 +28,7 @@ const steps = [
   "Amenities",
   "Photos",
   "Rates & fees",
+  "Taxes",
   "Policies",
   "Calendar",
   "Payments",
@@ -58,6 +61,10 @@ const initialForm = {
   pet: "",
   includedGuests: "",
   extraGuest: "",
+  taxCounty: "",
+  taxLocality: "",
+  taxLinesJson: "",
+  taxResponsibilityAccepted: "false",
   checkIn: "15:00",
   checkout: "11:00",
   cancellation: "",
@@ -70,6 +77,7 @@ const initialForm = {
 };
 
 type FormKey = keyof typeof initialForm;
+
 type SaveState = {
   tone: "saved" | "dirty" | "saving" | "error" | "ready";
   message: string;
@@ -94,6 +102,25 @@ function formatSavedAt(value: string | null | undefined) {
   })}`;
 }
 
+function positiveNumber(value: string) {
+  return Number.parseFloat(value || "0") > 0;
+}
+
+function taxLineCount(raw: string) {
+  try {
+    const parsed = JSON.parse(raw || "[]");
+    return Array.isArray(parsed)
+      ? parsed.filter(
+          (line) =>
+            Number(line?.rate_bps || 0) > 0 &&
+            String(line?.label || "").trim(),
+        ).length
+      : 0;
+  } catch {
+    return 0;
+  }
+}
+
 export function HostOnboardingWizard({
   initial,
 }: {
@@ -114,7 +141,9 @@ export function HostOnboardingWizard({
   const [photoNames, setPhotoNames] = useState<string[]>(
     initial.photoNames ?? [],
   );
-  const [stripeReady, setStripeReady] = useState(false);
+  const [stripeReady, setStripeReady] = useState(
+    Boolean(initial.stripeReady),
+  );
   const [authorityConfirmed, setAuthorityConfirmed] = useState(
     Boolean(initial.authorityConfirmed),
   );
@@ -147,6 +176,25 @@ export function HostOnboardingWizard({
     markDirty();
   };
 
+  const updateState = (value: string) => {
+    const nextState = value.toUpperCase().slice(0, 2);
+    setForm((current) => {
+      if (current.state === nextState) {
+        return { ...current, state: nextState };
+      }
+
+      return {
+        ...current,
+        state: nextState,
+        taxCounty: "",
+        taxLocality: "",
+        taxLinesJson: "",
+        taxResponsibilityAccepted: "false",
+      };
+    });
+    markDirty();
+  };
+
   const toggle = (
     item: string,
     setter: Dispatch<SetStateAction<string[]>>,
@@ -160,6 +208,8 @@ export function HostOnboardingWizard({
   };
 
   const propertyLabel = form.propertyName || "your property";
+  const taxSetup = getStateTaxSetup(form.state);
+  const configuredLocalTaxLines = taxLineCount(form.taxLinesJson);
 
   useEffect(() => {
     if (!dirty) return;
@@ -173,6 +223,88 @@ export function HostOnboardingWizard({
     return () =>
       window.removeEventListener("beforeunload", warnBeforeUnload);
   }, [dirty]);
+
+  function setAttention(message: string) {
+    setSaveState({
+      tone: "error",
+      message,
+    });
+  }
+
+  function validateCurrentStep() {
+    if (step === 0) {
+      if (
+        !form.hostName.trim() ||
+        !form.contactName.trim() ||
+        !form.email.trim()
+      ) {
+        return "Add the host/business name, primary contact and business email before continuing.";
+      }
+      if (!form.email.includes("@")) {
+        return "Enter a valid business email before continuing.";
+      }
+    }
+
+    if (step === 1) {
+      if (
+        !form.propertyName.trim() ||
+        !form.propertyType.trim() ||
+        !form.description.trim()
+      ) {
+        return "Add the property name, property type and a short description before continuing.";
+      }
+    }
+
+    if (step === 2) {
+      if (
+        !form.street.trim() ||
+        !form.city.trim() ||
+        !form.state.trim() ||
+        !form.postal.trim()
+      ) {
+        return "Add the complete property address before continuing. It is needed for mapping and tax setup.";
+      }
+      if (!positiveNumber(form.maxGuests)) {
+        return "Set the maximum guest capacity before continuing.";
+      }
+    }
+
+    if (step === 4 && photoNames.length < 1) {
+      return "Upload at least one property photo before continuing. Photos save to the real listing immediately.";
+    }
+
+    if (step === 5) {
+      if (!positiveNumber(form.weeknight)) {
+        return "Add a weeknight rate greater than $0 before continuing.";
+      }
+      if (
+        positiveNumber(form.extraGuest) &&
+        !positiveNumber(form.includedGuests)
+      ) {
+        return "If you charge an extra-guest fee, enter how many guests are included in the nightly rate.";
+      }
+    }
+
+    if (
+      step === 6 &&
+      form.taxResponsibilityAccepted !== "true"
+    ) {
+      return "Review the property tax setup and confirm the host tax responsibility before continuing.";
+    }
+
+    if (
+      step === 7 &&
+      form.cancellation.trim().length < 20
+    ) {
+      return "Add specific guest-facing cancellation/refund terms before continuing.";
+    }
+
+    if (step === 9 && !stripeReady) {
+      return "Finish Stripe Connect before continuing to Review. This keeps you from having to come back after onboarding.";
+    }
+
+    return null;
+  }
 
   async function persist(
     targetStep: number,
@@ -199,7 +331,10 @@ export function HostOnboardingWizard({
     setSaving(false);
 
     if (!result.ok) {
-      setSaveState({ tone: "error", message: result.message });
+      setSaveState({
+        tone: "error",
+        message: result.message,
+      });
       return false;
     }
 
@@ -213,7 +348,8 @@ export function HostOnboardingWizard({
         result.onboardingStatus === "READY_FOR_PROPERTY"
           ? "ready"
           : "saved",
-      message: result.message || formatSavedAt(result.savedAt),
+      message:
+        result.message || formatSavedAt(result.savedAt),
     });
 
     return true;
@@ -222,25 +358,22 @@ export function HostOnboardingWizard({
   async function goToStep(targetStep: number) {
     const safeStep = clampStep(targetStep);
     if (safeStep === step || saving) return;
+
+    if (safeStep > step) {
+      const problem = validateCurrentStep();
+      if (problem) {
+        setAttention(problem);
+        return;
+      }
+    }
+
     if (await persist(safeStep, false)) setStep(safeStep);
   }
 
   async function next() {
-    if (step === 4 && photoNames.length < 1) {
-      setSaveState({
-        tone: "error",
-        message:
-          "Upload at least one property photo before continuing. Photos save to the real listing immediately.",
-      });
-      return;
-    }
-
-    if (step === 8 && !stripeReady) {
-      setSaveState({
-        tone: "error",
-        message:
-          "Finish Stripe Connect before continuing to Review. This keeps hosts from having to come back after onboarding.",
-      });
+    const problem = validateCurrentStep();
+    if (problem) {
+      setAttention(problem);
       return;
     }
 
@@ -257,47 +390,62 @@ export function HostOnboardingWizard({
     const missing = [
       !form.hostName.trim() && "business or host name",
       !form.contactName.trim() && "primary contact",
-      !form.propertyName.trim() && "first property name",
       !form.email.trim() && "business email",
-      !form.cancellation.trim() && "cancellation / refund terms",
-      Number.parseFloat(form.extraGuest || "0") > 0 &&
-        !form.includedGuests.trim() &&
+      !form.propertyName.trim() && "first property name",
+      !form.propertyType.trim() && "property type",
+      !form.description.trim() && "property description",
+      !form.street.trim() && "property street address",
+      !form.city.trim() && "property city",
+      !form.state.trim() && "property state",
+      !form.postal.trim() && "property ZIP code",
+      !positiveNumber(form.maxGuests) && "maximum guests",
+      !positiveNumber(form.weeknight) && "weeknight rate",
+      photoNames.length < 1 && "at least one property photo",
+      form.taxResponsibilityAccepted !== "true" &&
+        "property tax responsibility confirmation",
+      form.cancellation.trim().length < 20 &&
+        "specific cancellation / refund terms",
+      positiveNumber(form.extraGuest) &&
+        !positiveNumber(form.includedGuests) &&
         "guests included in the nightly rate",
+      !stripeReady && "completed Stripe Connect",
       !authorityConfirmed && "authority confirmation",
       !initial.policyAccepted &&
         "Find A Place Host Agreement and policy acceptance",
     ].filter(Boolean) as string[];
 
     if (missing.length) {
-      setSaveState({
-        tone: "error",
-        message: `Before finishing host setup, add: ${missing.join(", ")}.`,
-      });
+      setAttention(
+        `Before finishing host setup, add: ${missing.join(", ")}.`,
+      );
       return;
     }
 
-    const saved = await persist(9, true);
+    const saved = await persist(10, true);
     if (!saved) return;
 
     setSaving(true);
     setSaveState({
       tone: "saving",
       message:
-        "Finalizing the listing, photos, payment connection and property record…",
+        "Finalizing the listing, taxes, photos, payment connection and property record…",
     });
 
     try {
-      const response = await fetch("/api/host/onboarding/complete", {
-        method: "POST",
-        credentials: "same-origin",
-        headers: {
-          "Content-Type": "application/json",
-          Accept: "application/json",
+      const response = await fetch(
+        "/api/host/onboarding/complete",
+        {
+          method: "POST",
+          credentials: "same-origin",
+          headers: {
+            "Content-Type": "application/json",
+            Accept: "application/json",
+          },
+          body: JSON.stringify({
+            organizationId: initial.organizationId,
+          }),
         },
-        body: JSON.stringify({
-          organizationId: initial.organizationId,
-        }),
-      });
+      );
       const payload = await response.json().catch(() => null);
 
       if (!response.ok || !payload?.slug) {
@@ -344,7 +492,10 @@ export function HostOnboardingWizard({
 
   return (
     <div className="wizard near-production-wizard">
-      <aside className="wizard-steps" aria-label="Listing setup steps">
+      <aside
+        className="wizard-steps"
+        aria-label="Listing setup steps"
+      >
         {steps.map((label, index) => (
           <button
             type="button"
@@ -375,13 +526,17 @@ export function HostOnboardingWizard({
 
         <div className="wizard-progress">
           <span>
-            {Math.round(((step + 1) / steps.length) * 100)}% through
-            setup
+            {Math.round(
+              ((step + 1) / steps.length) * 100,
+            )}
+            % through setup
           </span>
           <i>
             <b
               style={{
-                width: `${((step + 1) / steps.length) * 100}%`,
+                width: `${
+                  ((step + 1) / steps.length) * 100
+                }%`,
               }}
             />
           </i>
@@ -421,16 +576,16 @@ export function HostOnboardingWizard({
             <p className="eyebrow dark">Host profile</p>
             <h2>Who manages the stay?</h2>
             <p>
-              This creates the host organization used by the dashboard,
-              guest contact details and admin team.
+              This creates the host organization used by the
+              dashboard, guest contact details and admin team.
             </p>
             <div className="field-grid onboarding-fields">
               <label className="full">
                 <span>Business or host name</span>
                 <input
                   value={form.hostName}
-                  onChange={(e) =>
-                    update("hostName", e.target.value)
+                  onChange={(event) =>
+                    update("hostName", event.target.value)
                   }
                   placeholder="Business name or individual host"
                 />
@@ -439,8 +594,8 @@ export function HostOnboardingWizard({
                 <span>Primary contact</span>
                 <input
                   value={form.contactName}
-                  onChange={(e) =>
-                    update("contactName", e.target.value)
+                  onChange={(event) =>
+                    update("contactName", event.target.value)
                   }
                   placeholder="Full name"
                 />
@@ -449,7 +604,9 @@ export function HostOnboardingWizard({
                 <span>Phone</span>
                 <input
                   value={form.phone}
-                  onChange={(e) => update("phone", e.target.value)}
+                  onChange={(event) =>
+                    update("phone", event.target.value)
+                  }
                   type="tel"
                   placeholder="Phone number"
                 />
@@ -458,7 +615,9 @@ export function HostOnboardingWizard({
                 <span>Business email</span>
                 <input
                   value={form.email}
-                  onChange={(e) => update("email", e.target.value)}
+                  onChange={(event) =>
+                    update("email", event.target.value)
+                  }
                   type="email"
                   placeholder="Email address"
                 />
@@ -467,8 +626,11 @@ export function HostOnboardingWizard({
                 <span>Business location</span>
                 <input
                   value={form.businessLocation}
-                  onChange={(e) =>
-                    update("businessLocation", e.target.value)
+                  onChange={(event) =>
+                    update(
+                      "businessLocation",
+                      event.target.value,
+                    )
                   }
                   placeholder="City, state"
                 />
@@ -486,8 +648,8 @@ export function HostOnboardingWizard({
                 <span>Property name</span>
                 <input
                   value={form.propertyName}
-                  onChange={(e) =>
-                    update("propertyName", e.target.value)
+                  onChange={(event) =>
+                    update("propertyName", event.target.value)
                   }
                   placeholder="Public listing name"
                 />
@@ -496,8 +658,8 @@ export function HostOnboardingWizard({
                 <span>Property type</span>
                 <select
                   value={form.propertyType}
-                  onChange={(e) =>
-                    update("propertyType", e.target.value)
+                  onChange={(event) =>
+                    update("propertyType", event.target.value)
                   }
                 >
                   <option value="">Select type</option>
@@ -510,8 +672,8 @@ export function HostOnboardingWizard({
                 <span>Public area</span>
                 <input
                   value={form.publicArea}
-                  onChange={(e) =>
-                    update("publicArea", e.target.value)
+                  onChange={(event) =>
+                    update("publicArea", event.target.value)
                   }
                   placeholder="Hot Springs, Lake Ouachita, Branson…"
                 />
@@ -520,8 +682,8 @@ export function HostOnboardingWizard({
                 <span>Short description</span>
                 <textarea
                   value={form.description}
-                  onChange={(e) =>
-                    update("description", e.target.value)
+                  onChange={(event) =>
+                    update("description", event.target.value)
                   }
                   placeholder="What makes this stay worth the trip?"
                 />
@@ -532,14 +694,23 @@ export function HostOnboardingWizard({
 
         {step === 2 && (
           <>
-            <p className="eyebrow dark">Location & capacity</p>
+            <p className="eyebrow dark">
+              Location &amp; capacity
+            </p>
             <h2>Where is it, and who does it fit?</h2>
+            <p>
+              The complete address is used for mapping and the
+              property-specific tax setup. Guests still only see the
+              address according to the listing privacy settings.
+            </p>
             <div className="field-grid onboarding-fields">
               <label className="full">
                 <span>Street address</span>
                 <input
                   value={form.street}
-                  onChange={(e) => update("street", e.target.value)}
+                  onChange={(event) =>
+                    update("street", event.target.value)
+                  }
                   autoComplete="street-address"
                 />
               </label>
@@ -547,29 +718,47 @@ export function HostOnboardingWizard({
                 <span>City</span>
                 <input
                   value={form.city}
-                  onChange={(e) => update("city", e.target.value)}
+                  onChange={(event) =>
+                    update("city", event.target.value)
+                  }
+                  autoComplete="address-level2"
                 />
               </label>
               <label>
                 <span>State</span>
                 <input
                   value={form.state}
-                  onChange={(e) => update("state", e.target.value)}
+                  onChange={(event) =>
+                    updateState(event.target.value)
+                  }
+                  list="find-a-place-supported-states"
+                  autoComplete="address-level1"
+                  maxLength={2}
+                  placeholder="AR"
                 />
+                <datalist id="find-a-place-supported-states">
+                  <option value="AR">Arkansas</option>
+                  <option value="MO">Missouri</option>
+                  <option value="TX">Texas</option>
+                  <option value="TN">Tennessee</option>
+                </datalist>
               </label>
               <label>
                 <span>ZIP / postal code</span>
                 <input
                   value={form.postal}
-                  onChange={(e) => update("postal", e.target.value)}
+                  onChange={(event) =>
+                    update("postal", event.target.value)
+                  }
+                  autoComplete="postal-code"
                 />
               </label>
               <label>
                 <span>Maximum guests</span>
                 <input
                   value={form.maxGuests}
-                  onChange={(e) =>
-                    update("maxGuests", e.target.value)
+                  onChange={(event) =>
+                    update("maxGuests", event.target.value)
                   }
                   type="number"
                   min="1"
@@ -579,8 +768,8 @@ export function HostOnboardingWizard({
                 <span>Bedrooms</span>
                 <input
                   value={form.bedrooms}
-                  onChange={(e) =>
-                    update("bedrooms", e.target.value)
+                  onChange={(event) =>
+                    update("bedrooms", event.target.value)
                   }
                   type="number"
                   min="0"
@@ -590,7 +779,9 @@ export function HostOnboardingWizard({
                 <span>Beds</span>
                 <input
                   value={form.beds}
-                  onChange={(e) => update("beds", e.target.value)}
+                  onChange={(event) =>
+                    update("beds", event.target.value)
+                  }
                   type="number"
                   min="0"
                 />
@@ -599,8 +790,8 @@ export function HostOnboardingWizard({
                 <span>Bathrooms</span>
                 <input
                   value={form.bathrooms}
-                  onChange={(e) =>
-                    update("bathrooms", e.target.value)
+                  onChange={(event) =>
+                    update("bathrooms", event.target.value)
                   }
                   type="number"
                   min="0"
@@ -611,8 +802,8 @@ export function HostOnboardingWizard({
                 <span>Default minimum stay</span>
                 <input
                   value={form.minStay}
-                  onChange={(e) =>
-                    update("minStay", e.target.value)
+                  onChange={(event) =>
+                    update("minStay", event.target.value)
                   }
                   type="number"
                   min="1"
@@ -641,7 +832,9 @@ export function HostOnboardingWizard({
                     {group.items.map((item) => (
                       <label
                         className={
-                          amenities.includes(item) ? "selected" : ""
+                          amenities.includes(item)
+                            ? "selected"
+                            : ""
                         }
                         key={item}
                       >
@@ -663,8 +856,11 @@ export function HostOnboardingWizard({
               <span>Other amenities</span>
               <textarea
                 value={form.customAmenities}
-                onChange={(e) =>
-                  update("customAmenities", e.target.value)
+                onChange={(event) =>
+                  update(
+                    "customAmenities",
+                    event.target.value,
+                  )
                 }
               />
             </label>
@@ -676,8 +872,9 @@ export function HostOnboardingWizard({
             <p className="eyebrow dark">Photos</p>
             <h2>Upload the actual listing photos now.</h2>
             <p>
-              These photos save directly to the real draft property, so
-              you will not have to upload them again after onboarding.
+              These photos save directly to the real draft property,
+              so you will not have to upload them again after
+              onboarding.
             </p>
             <OnboardingPhotoManager
               organizationId={initial.organizationId}
@@ -692,7 +889,7 @@ export function HostOnboardingWizard({
 
         {step === 5 && (
           <>
-            <p className="eyebrow dark">Rates & fees</p>
+            <p className="eyebrow dark">Rates &amp; fees</p>
             <h2>Keep the nightly stay separate from host fees.</h2>
             <div className="field-grid onboarding-fields">
               <label>
@@ -701,8 +898,8 @@ export function HostOnboardingWizard({
                   <b>$</b>
                   <input
                     value={form.weeknight}
-                    onChange={(e) =>
-                      update("weeknight", e.target.value)
+                    onChange={(event) =>
+                      update("weeknight", event.target.value)
                     }
                     type="number"
                     min="0"
@@ -715,8 +912,8 @@ export function HostOnboardingWizard({
                   <b>$</b>
                   <input
                     value={form.weekend}
-                    onChange={(e) =>
-                      update("weekend", e.target.value)
+                    onChange={(event) =>
+                      update("weekend", event.target.value)
                     }
                     type="number"
                     min="0"
@@ -729,8 +926,8 @@ export function HostOnboardingWizard({
                   <b>$</b>
                   <input
                     value={form.cleaning}
-                    onChange={(e) =>
-                      update("cleaning", e.target.value)
+                    onChange={(event) =>
+                      update("cleaning", event.target.value)
                     }
                     type="number"
                     min="0"
@@ -743,8 +940,8 @@ export function HostOnboardingWizard({
                   <b>$</b>
                   <input
                     value={form.pet}
-                    onChange={(e) =>
-                      update("pet", e.target.value)
+                    onChange={(event) =>
+                      update("pet", event.target.value)
                     }
                     type="number"
                     min="0"
@@ -755,8 +952,11 @@ export function HostOnboardingWizard({
                 <span>Guests included</span>
                 <input
                   value={form.includedGuests}
-                  onChange={(e) =>
-                    update("includedGuests", e.target.value)
+                  onChange={(event) =>
+                    update(
+                      "includedGuests",
+                      event.target.value,
+                    )
                   }
                   type="number"
                   min="1"
@@ -768,8 +968,8 @@ export function HostOnboardingWizard({
                   <b>$</b>
                   <input
                     value={form.extraGuest}
-                    onChange={(e) =>
-                      update("extraGuest", e.target.value)
+                    onChange={(event) =>
+                      update("extraGuest", event.target.value)
                     }
                     type="number"
                     min="0"
@@ -777,14 +977,16 @@ export function HostOnboardingWizard({
                 </div>
               </label>
             </div>
+
             <div className="inline-note commission-note">
               <strong>
                 Find A Place commission is based on lodging only.
               </strong>
               <span>
-                The commission rate assigned to your account is applied
-                to the nightly lodging subtotal after host discounts,
-                not legitimate host fees, taxes or optional add-ons.
+                The commission rate assigned to your account is
+                applied to the nightly lodging subtotal after host
+                discounts, not legitimate host fees, taxes or
+                optional add-ons.
               </span>
             </div>
           </>
@@ -792,15 +994,55 @@ export function HostOnboardingWizard({
 
         {step === 6 && (
           <>
+            <p className="eyebrow dark">Property taxes</p>
+            <h2>
+              Confirm the taxes that apply to {propertyLabel}.
+            </h2>
+            <p>
+              The setup follows the property's state. Find A Place
+              automatically applies the active statewide rules for
+              supported states, while the host enters and confirms
+              the local taxes for this property.
+            </p>
+
+            <OnboardingTaxSetup
+              stateCode={form.state}
+              city={form.city}
+              county={form.taxCounty}
+              locality={form.taxLocality}
+              linesJson={form.taxLinesJson}
+              accepted={
+                form.taxResponsibilityAccepted === "true"
+              }
+              onCountyChange={(value) =>
+                update("taxCounty", value)
+              }
+              onLocalityChange={(value) =>
+                update("taxLocality", value)
+              }
+              onLinesChange={(value) =>
+                update("taxLinesJson", value)
+              }
+              onAcceptedChange={(value) =>
+                update(
+                  "taxResponsibilityAccepted",
+                  value ? "true" : "false",
+                )
+              }
+            />
+          </>
+        )}
+
+        {step === 7 && (
+          <>
             <p className="eyebrow dark">Policies</p>
             <h2>Set the rules guests will agree to.</h2>
             <p>
               Your cancellation/refund terms are required before a
-              listing can be approved. Guests see and accept the saved
-              property policy before payment. Find A Place&apos;s
+              listing can be published. Guests see and accept the
+              saved property policy before payment. Find A Place&apos;s
               platform commission is governed separately by the Host
-              Agreement and is not refundable when a guest reservation
-              is cancelled or refunded.
+              Agreement.
             </p>
 
             <div className="field-grid onboarding-fields policy-time-grid">
@@ -808,8 +1050,8 @@ export function HostOnboardingWizard({
                 <span>Check-in after</span>
                 <input
                   value={form.checkIn}
-                  onChange={(e) =>
-                    update("checkIn", e.target.value)
+                  onChange={(event) =>
+                    update("checkIn", event.target.value)
                   }
                   type="time"
                 />
@@ -818,8 +1060,8 @@ export function HostOnboardingWizard({
                 <span>Checkout by</span>
                 <input
                   value={form.checkout}
-                  onChange={(e) =>
-                    update("checkout", e.target.value)
+                  onChange={(event) =>
+                    update("checkout", event.target.value)
                   }
                   type="time"
                 />
@@ -829,16 +1071,19 @@ export function HostOnboardingWizard({
                 <textarea
                   rows={5}
                   value={form.cancellation}
-                  onChange={(e) =>
-                    update("cancellation", e.target.value)
+                  onChange={(event) =>
+                    update(
+                      "cancellation",
+                      event.target.value,
+                    )
                   }
                   placeholder="State exactly when and how much you refund guests. Find A Place's platform commission remains non-refundable."
                   required
                 />
                 <small>
                   Write the exact guest-facing terms you intend to
-                  apply. Cancellation and refund requests are decided by
-                  you under those terms, subject to applicable law.
+                  apply. Cancellation and refund requests are decided
+                  by you under those terms, subject to applicable law.
                 </small>
               </label>
             </div>
@@ -858,13 +1103,17 @@ export function HostOnboardingWizard({
                     {group.items.map((item) => (
                       <label
                         className={
-                          policies.includes(item) ? "selected" : ""
+                          policies.includes(item)
+                            ? "selected"
+                            : ""
                         }
                         key={item}
                       >
                         <input
                           checked={policies.includes(item)}
-                          onChange={() => toggle(item, setPolicies)}
+                          onChange={() =>
+                            toggle(item, setPolicies)
+                          }
                           type="checkbox"
                         />
                         <span>{item}</span>
@@ -883,8 +1132,11 @@ export function HostOnboardingWizard({
                     <span>Start</span>
                     <input
                       value={form.quietStart}
-                      onChange={(e) =>
-                        update("quietStart", e.target.value)
+                      onChange={(event) =>
+                        update(
+                          "quietStart",
+                          event.target.value,
+                        )
                       }
                       type="time"
                     />
@@ -893,8 +1145,11 @@ export function HostOnboardingWizard({
                     <span>End</span>
                     <input
                       value={form.quietEnd}
-                      onChange={(e) =>
-                        update("quietEnd", e.target.value)
+                      onChange={(event) =>
+                        update(
+                          "quietEnd",
+                          event.target.value,
+                        )
                       }
                       type="time"
                     />
@@ -910,8 +1165,8 @@ export function HostOnboardingWizard({
                   <span>Maximum pets</span>
                   <input
                     value={form.maxPets}
-                    onChange={(e) =>
-                      update("maxPets", e.target.value)
+                    onChange={(event) =>
+                      update("maxPets", event.target.value)
                     }
                     type="number"
                     min="1"
@@ -922,15 +1177,20 @@ export function HostOnboardingWizard({
               </div>
             )}
 
-            {policies.includes("Minimum booking age applies") && (
+            {policies.includes(
+              "Minimum booking age applies",
+            ) && (
               <div className="conditional-fields">
                 <strong>Minimum booking age</strong>
                 <label>
                   <span>Age</span>
                   <input
                     value={form.minimumAge}
-                    onChange={(e) =>
-                      update("minimumAge", e.target.value)
+                    onChange={(event) =>
+                      update(
+                        "minimumAge",
+                        event.target.value,
+                      )
                     }
                     type="number"
                     min="18"
@@ -945,8 +1205,11 @@ export function HostOnboardingWizard({
               <span>Custom policies</span>
               <textarea
                 value={form.customPolicies}
-                onChange={(e) =>
-                  update("customPolicies", e.target.value)
+                onChange={(event) =>
+                  update(
+                    "customPolicies",
+                    event.target.value,
+                  )
                 }
                 placeholder="One uncommon or property-specific rule per line works best."
               />
@@ -954,14 +1217,17 @@ export function HostOnboardingWizard({
           </>
         )}
 
-        {step === 7 && (
+        {step === 8 && (
           <>
             <p className="eyebrow dark">Calendar</p>
-            <h2>Choose the source of truth for availability.</h2>
+            <h2>
+              Choose the source of truth for availability.
+            </h2>
             <p>
               Save the preferred calendar approach here. Calendar
               connections can be added after the listing is created;
-              your choice here is carried into the real property record.
+              your choice here is carried into the real property
+              record.
             </p>
             <div className="calendar-preference-grid">
               {calendarPreferences.map((option) => (
@@ -974,7 +1240,10 @@ export function HostOnboardingWizard({
                       : ""
                   }
                   onClick={() =>
-                    update("calendarPreference", option.value)
+                    update(
+                      "calendarPreference",
+                      option.value,
+                    )
                   }
                 >
                   <strong>{option.label}</strong>
@@ -985,14 +1254,17 @@ export function HostOnboardingWizard({
           </>
         )}
 
-        {step === 8 && (
+        {step === 9 && (
           <>
             <p className="eyebrow dark">Payments</p>
-            <h2>Connect Stripe before you finish onboarding.</h2>
+            <h2>
+              Connect Stripe before you finish onboarding.
+            </h2>
             <p>
-              Complete the same secure Stripe Connect flow used by
-              Payments &amp; taxes here. Once Stripe is ready, you will
-              not need to repeat this setup after onboarding.
+              Guest payments are direct charges on the host&apos;s
+              connected Stripe account. Find A Place receives only its
+              commission; booking proceeds and guest tax funds remain
+              with the host account.
             </p>
             <OnboardingStripeSetup
               organizationId={initial.organizationId}
@@ -1001,10 +1273,11 @@ export function HostOnboardingWizard({
           </>
         )}
 
-        {step === 9 && (
+        {step === 10 && (
           <>
             <p className="eyebrow dark">Review</p>
             <h2>Finish setup and create {propertyLabel}.</h2>
+
             <div className="review-groups">
               <div>
                 <span>Host</span>
@@ -1012,9 +1285,11 @@ export function HostOnboardingWizard({
                   {form.hostName || "Not provided yet"}
                 </strong>
                 <small>
-                  {form.email || "Business email not provided"}
+                  {form.email ||
+                    "Business email not provided"}
                 </small>
               </div>
+
               <div>
                 <span>Property draft</span>
                 <strong>
@@ -1027,6 +1302,7 @@ export function HostOnboardingWizard({
                     "Type and public area not provided"}
                 </small>
               </div>
+
               <div>
                 <span>Property photos</span>
                 <strong>
@@ -1035,31 +1311,53 @@ export function HostOnboardingWizard({
                     : "At least one required"}
                 </strong>
                 <small>
-                  Photos are already attached to the real listing draft.
+                  Photos are already attached to the real listing
+                  draft.
                 </small>
               </div>
+
+              <div>
+                <span>Property taxes</span>
+                <strong>
+                  {form.taxResponsibilityAccepted === "true"
+                    ? "Configured"
+                    : "Required"}
+                </strong>
+                <small>
+                  {taxSetup.name} · statewide rules automatic ·{" "}
+                  {configuredLocalTaxLines} local tax{" "}
+                  {configuredLocalTaxLines === 1
+                    ? "line"
+                    : "lines"}
+                </small>
+              </div>
+
               <div>
                 <span>Stripe payments</span>
                 <strong>
                   {stripeReady
                     ? "Connected and ready"
-                    : "Will be checked before completion"}
+                    : "Required before completion"}
                 </strong>
                 <small>
                   Guest payments use the host-owned connected Stripe
                   account.
                 </small>
               </div>
+
               <div>
                 <span>Cancellation terms</span>
                 <strong>
-                  {form.cancellation ? "Added" : "Required"}
+                  {form.cancellation.trim().length >= 20
+                    ? "Added"
+                    : "Required"}
                 </strong>
                 <small>
                   {form.cancellation ||
                     "Add exact guest-facing cancellation/refund terms"}
                 </small>
               </div>
+
               <div>
                 <span>Find A Place policies</span>
                 <strong>
@@ -1074,19 +1372,35 @@ export function HostOnboardingWizard({
               </div>
             </div>
 
+            <div className="onboarding-tax-review">
+              <strong>
+                Ready means the listing has the essentials for live
+                booking.
+              </strong>
+              <span>
+                The completion check verifies required listing data,
+                at least one real photo, the host-certified tax setup,
+                Stripe charge/payout readiness and the host policy
+                acceptance before publication is attempted.
+              </span>
+            </div>
+
             <label className="checkline review-confirm">
               <input
                 type="checkbox"
                 checked={authorityConfirmed}
                 onChange={(event) => {
-                  setAuthorityConfirmed(event.target.checked);
+                  setAuthorityConfirmed(
+                    event.target.checked,
+                  );
                   markDirty();
                 }}
               />
               <span>
                 I confirm that I have authority to manage/list the
                 property information entered here and that the host
-                information and property policies are accurate.
+                information, property policies and tax setup are
+                accurate.
               </span>
             </label>
           </>
@@ -1113,7 +1427,7 @@ export function HostOnboardingWizard({
                 "Saving…"
               ) : (
                 <>
-                  Save & continue{" "}
+                  Save &amp; continue{" "}
                   <span className="desktop-button-copy">
                     to {steps[step + 1]}
                   </span>{" "}
@@ -1130,7 +1444,8 @@ export function HostOnboardingWizard({
             >
               {saving
                 ? "Finishing setup…"
-                : onboardingStatus === "READY_FOR_PROPERTY"
+                : onboardingStatus ===
+                    "READY_FOR_PROPERTY"
                   ? "Finish setup & open listing"
                   : "Finish setup & create listing"}
             </button>
@@ -1141,15 +1456,16 @@ export function HostOnboardingWizard({
       <aside className="onboarding-plan">
         <small>Find A Place host setup</small>
         <strong>Complete once</strong>
-        <span>listing + photos + payments</span>
+        <span>listing + taxes + payments</span>
         <hr />
         <p>
-          The first listing, its property photos and Stripe payment
-          connection are completed in this setup instead of sending
-          hosts back through the dashboard afterward.
+          The first listing is built to be booking-ready here instead
+          of sending the host back through multiple dashboard screens
+          after onboarding.
         </p>
         <div className="plan-points">
           <span>✓ Real listing photos saved now</span>
+          <span>✓ Property tax setup confirmed now</span>
           <span>✓ Stripe Connect completed now</span>
           <span>✓ Host-owned direct payments</span>
           <span>✓ Listing data carries into the property record</span>

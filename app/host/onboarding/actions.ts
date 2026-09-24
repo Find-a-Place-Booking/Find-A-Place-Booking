@@ -55,7 +55,8 @@ export async function saveHostOnboarding(
   if (!payload?.organizationId) {
     return {
       ok: false,
-      message: "Host organization is missing. Refresh and try again.",
+      message:
+        "Host organization is missing. Refresh and try again.",
     };
   }
 
@@ -65,27 +66,48 @@ export async function saveHostOnboarding(
   if (!claimsData?.claims?.sub) {
     return {
       ok: false,
-      message: "Your session expired. Sign in again before saving.",
+      message:
+        "Your session expired. Sign in again before saving.",
     };
   }
 
-  const { data, error } = await supabase.rpc("save_host_onboarding", {
-    target_organization_id: payload.organizationId,
-    target_step: Math.max(0, Math.min(Number(payload.step) || 0, 9)),
-    draft_form: sanitizeForm(payload.form ?? {}),
-    selected_amenities: sanitizeSelection(payload.amenities ?? [], 100),
-    selected_policies: sanitizeSelection(payload.policies ?? [], 100),
-    selected_photo_names: sanitizeSelection(payload.photoNames ?? [], 24),
-    confirmed_authority: Boolean(payload.authorityConfirmed),
-  });
+  const { data, error } = await supabase.rpc(
+    "save_host_onboarding",
+    {
+      target_organization_id: payload.organizationId,
+      target_step: Math.max(
+        0,
+        Math.min(Number(payload.step) || 0, 10),
+      ),
+      draft_form: sanitizeForm(payload.form ?? {}),
+      selected_amenities: sanitizeSelection(
+        payload.amenities ?? [],
+        100,
+      ),
+      selected_policies: sanitizeSelection(
+        payload.policies ?? [],
+        100,
+      ),
+      selected_photo_names: sanitizeSelection(
+        payload.photoNames ?? [],
+        24,
+      ),
+      confirmed_authority: Boolean(
+        payload.authorityConfirmed,
+      ),
+    },
+  );
 
   if (error) {
-    console.error("[saveHostOnboarding] Supabase RPC failed", {
-      code: error.code,
-      message: error.message,
-      details: error.details,
-      hint: error.hint,
-    });
+    console.error(
+      "[saveHostOnboarding] Supabase RPC failed",
+      {
+        code: error.code,
+        message: error.message,
+        details: error.details,
+        hint: error.hint,
+      },
+    );
 
     const partnerIdentityMissing = error.message?.includes(
       "Partner claim requires identifying information",
@@ -115,7 +137,7 @@ export async function saveHostOnboarding(
   return {
     ok: true,
     message: payload.authorityConfirmed
-      ? "Host setup saved. You can create the real property from the Properties screen."
+      ? "Host setup saved. The listing is ready for the final completion check."
       : "Progress saved.",
     savedAt: row?.saved_at,
     partnerStatus: row?.partner_status,

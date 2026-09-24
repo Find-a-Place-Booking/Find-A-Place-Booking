@@ -1,0 +1,423 @@
+.portalShell {
+  --portal-radius: 14px;
+  --portal-soft-shadow: 0 8px 24px rgba(32, 37, 37, 0.045);
+}
+
+/* Overall rhythm: keep the existing design, just give the work areas room. */
+.portalShell :global(.dash-main),
+.portalShell :global(.admin-main) {
+  min-width: 0;
+}
+
+.portalShell :global(.dash-main > .panel),
+.portalShell :global(.admin-main > .panel),
+.portalShell :global(.dash-two > .panel) {
+  border-radius: var(--portal-radius);
+  box-shadow: var(--portal-soft-shadow);
+}
+
+.portalShell :global(.dash-main > .panel),
+.portalShell :global(.admin-main > .panel) {
+  margin-bottom: 18px;
+}
+
+.portalShell :global(.panel-head) {
+  gap: 18px;
+  align-items: flex-start;
+}
+
+.portalShell :global(.panel-head > div) {
+  min-width: 0;
+}
+
+.portalShell :global(.panel-head h2),
+.portalShell :global(.panel > h2) {
+  line-height: 1.2;
+}
+
+.portalShell :global(.dash-two),
+.portalShell :global(.dash-grid),
+.portalShell :global(.metrics) {
+  gap: 14px;
+}
+
+.portalShell :global(.settings-form),
+.portalShell :global(.pricing-inline-form) {
+  gap: 15px;
+}
+
+.portalShell :global(.settings-form .form-row) {
+  gap: 13px;
+}
+
+.portalShell :global(.settings-form > label),
+.portalShell :global(.settings-form .form-row > label) {
+  gap: 7px;
+}
+
+.portalShell :global(.admin-list),
+.portalShell :global(.admin-list.compact) {
+  gap: 8px;
+}
+
+.portalShell :global(.admin-list-row) {
+  border-radius: 11px;
+}
+
+.portalShell :global(.panel-empty) {
+  padding: 22px 18px;
+  border-radius: 11px;
+}
+
+/* Buttons should feel pressed, focused and busy. */
+.portalShell :global(.button),
+.portalShell :global(.portal-signout),
+.portalShell :global(.text-danger-button),
+.portalShell :global(.internal-mobile-signout),
+.portalShell :global(.wizard-steps button),
+.portalShell :global(.calendar-preference-grid button) {
+  transition:
+    transform 100ms ease,
+    box-shadow 140ms ease,
+    border-color 140ms ease,
+    background 140ms ease,
+    opacity 140ms ease;
+  touch-action: manipulation;
+}
+
+.portalShell :global(.button:not([aria-disabled="true"]):not(:disabled):active),
+.portalShell :global(.portal-signout:not(:disabled):active),
+.portalShell :global(.text-danger-button:not(:disabled):active),
+.portalShell :global(.internal-mobile-signout:not(:disabled):active),
+.portalShell :global(.wizard-steps button:not(:disabled):active),
+.portalShell :global(.calendar-preference-grid button:not(:disabled):active) {
+  transform: translateY(1px) scale(0.985);
+}
+
+.portalShell :global(button:focus-visible),
+.portalShell :global(a:focus-visible),
+.portalShell :global(summary:focus-visible),
+.portalShell :global(input:focus-visible),
+.portalShell :global(select:focus-visible),
+.portalShell :global(textarea:focus-visible) {
+  outline: 3px solid rgba(49, 95, 75, 0.2);
+  outline-offset: 2px;
+}
+
+.portalShell :global(form[data-portal-submitting="true"] button[type="submit"]) {
+  pointer-events: none;
+}
+
+.portalShell :global(button[data-portal-pending="true"]),
+.portalShell :global(.button[data-portal-pending="true"]) {
+  position: relative;
+  padding-right: 36px !important;
+  opacity: 0.78;
+}
+
+.portalShell :global(button[data-portal-pending="true"]::after),
+.portalShell :global(.button[data-portal-pending="true"]::after) {
+  content: "";
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  width: 13px;
+  height: 13px;
+  margin-top: -7px;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: portalSpin 700ms linear infinite;
+}
+
+@keyframes portalSpin {
+  to { transform: rotate(360deg); }
+}
+
+/* Result toast lets an action stay at the same scroll position without hiding feedback. */
+.portalShell :global(.portal-action-toast) {
+  position: fixed;
+  z-index: 1200;
+  right: 22px;
+  bottom: 22px;
+  max-width: min(420px, calc(100vw - 32px));
+  display: grid;
+  grid-template-columns: 26px minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+  padding: 13px 15px;
+  border: 1px solid #cfd9d2;
+  border-radius: 12px;
+  background: #f7fbf8;
+  color: #294d3f;
+  box-shadow: 0 14px 40px rgba(25, 34, 31, 0.16);
+}
+
+.portalShell :global(.portal-action-toast.error) {
+  border-color: #e0c8c0;
+  background: #fff8f5;
+  color: #7b4739;
+}
+
+.portalShell :global(.portal-action-toast > span) {
+  width: 24px;
+  height: 24px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: rgba(49, 95, 75, 0.1);
+  font-size: .72rem;
+  font-weight: 900;
+}
+
+.portalShell :global(.portal-action-toast.error > span) {
+  background: rgba(123, 71, 57, 0.1);
+}
+
+.portalShell :global(.portal-action-toast strong) {
+  font-size: .72rem;
+  line-height: 1.45;
+}
+
+/* Native details are used as real accordions for secondary configuration. */
+.portalShell :global(details.panel.portal-accordion) {
+  padding: 0;
+  overflow: hidden;
+}
+
+.portalShell :global(.portal-accordion-summary) {
+  list-style: none;
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  padding: 18px 20px;
+}
+
+.portalShell :global(.portal-accordion-summary::-webkit-details-marker) {
+  display: none;
+}
+
+.portalShell :global(.portal-accordion-summary > div) {
+  min-width: 0;
+}
+
+.portalShell :global(.portal-accordion-summary h2) {
+  margin: 2px 0 0;
+}
+
+.portalShell :global(.portal-accordion-summary::after) {
+  content: "⌄";
+  flex: 0 0 auto;
+  color: #718078;
+  font-size: .86rem;
+  transition: transform 150ms ease;
+}
+
+.portalShell :global(details[open] > .portal-accordion-summary::after) {
+  transform: rotate(180deg);
+}
+
+.portalShell :global(.portal-accordion-body) {
+  display: grid;
+  gap: 15px;
+  padding: 0 20px 20px;
+  border-top: 1px solid #ece7df;
+}
+
+.portalShell :global(.portal-accordion-body > .muted:first-child) {
+  margin-top: 16px;
+}
+
+/* Details used as list rows (tax/property helpers) should look intentional. */
+.portalShell :global(details.admin-list-row.static) {
+  display: block;
+  padding: 0 !important;
+  overflow: hidden;
+}
+
+.portalShell :global(details.admin-list-row.static > summary) {
+  list-style: none;
+  cursor: pointer;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 14px;
+  align-items: center;
+  padding: 14px 16px;
+}
+
+.portalShell :global(details.admin-list-row.static > summary::-webkit-details-marker) {
+  display: none;
+}
+
+.portalShell :global(details.admin-list-row.static[open] > summary) {
+  background: #f8f6f1;
+  border-bottom: 1px solid #ece6dd;
+}
+
+.portalShell :global(details.admin-list-row.static > .panel) {
+  margin: 14px;
+  box-shadow: none;
+}
+
+/* Keep long admin reference/configuration areas out of the way until requested. */
+.portalShell :global(details.panel > summary) {
+  cursor: pointer;
+}
+
+.portalShell :global(.pricing-create) {
+  border-radius: 11px;
+  overflow: hidden;
+}
+
+/* Onboarding: clearer steps, generous panel spacing, stronger controls. */
+.portalShell :global(.near-production-wizard) {
+  gap: 18px;
+  align-items: start;
+}
+
+.portalShell :global(.wizard-panel) {
+  padding: clamp(20px, 2.4vw, 30px);
+  border-radius: 15px;
+}
+
+.portalShell :global(.wizard-panel > h2) {
+  margin-bottom: 8px;
+}
+
+.portalShell :global(.wizard-panel > p:not(.eyebrow)) {
+  max-width: 780px;
+  line-height: 1.6;
+}
+
+.portalShell :global(.wizard-steps) {
+  gap: 6px;
+}
+
+.portalShell :global(.wizard-steps button) {
+  min-height: 45px;
+  border-radius: 10px;
+}
+
+.portalShell :global(.wizard-steps button.active) {
+  box-shadow: 0 7px 20px rgba(35, 55, 48, 0.1);
+}
+
+.portalShell :global(.onboarding-save-state) {
+  border-radius: 11px;
+  margin-bottom: 22px;
+}
+
+.portalShell :global(.onboarding-fields) {
+  gap: 13px;
+}
+
+.portalShell :global(.selection-groups) {
+  gap: 9px;
+}
+
+.portalShell :global(.selection-groups details) {
+  border-radius: 11px;
+  overflow: hidden;
+}
+
+.portalShell :global(.selection-groups details > summary) {
+  min-height: 46px;
+}
+
+.portalShell :global(.conditional-fields),
+.portalShell :global(.inline-note),
+.portalShell :global(.privacy-note) {
+  border-radius: 11px;
+}
+
+.portalShell :global(.wizard-actions) {
+  margin-top: 26px;
+  padding-top: 17px;
+  border-top: 1px solid #e8e2d8;
+}
+
+.portalShell :global(.wizard-actions .button) {
+  min-height: 42px;
+}
+
+.portalShell :global(.onboarding-plan) {
+  border-radius: 14px;
+  box-shadow: var(--portal-soft-shadow);
+}
+
+.portalShell :global(.onboarding-tax-review) {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid #ded7cc;
+  border-radius: 12px;
+  background: #f8f6f1;
+}
+
+.portalShell :global(.onboarding-tax-review > strong) {
+  font-size: .74rem;
+}
+
+.portalShell :global(.onboarding-tax-review > span) {
+  color: #6e736d;
+  font-size: .68rem;
+  line-height: 1.55;
+}
+
+/* Top bars stay compact even when action buttons wrap. */
+.portalShell :global(.dash-topbar),
+.portalShell :global(.admin-main > header) {
+  gap: 18px;
+}
+
+.portalShell :global(.dash-actions),
+.portalShell :global(.admin-head-actions) {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+/* Mobile keeps the same hierarchy without squeezing fields/buttons. */
+@media (max-width: 760px) {
+  .portalShell :global(.dash-main > .panel),
+  .portalShell :global(.admin-main > .panel) {
+    margin-bottom: 14px;
+  }
+
+  .portalShell :global(.portal-accordion-summary) {
+    align-items: flex-start;
+    padding: 15px 16px;
+  }
+
+  .portalShell :global(.portal-accordion-body) {
+    padding: 0 16px 16px;
+  }
+
+  .portalShell :global(.wizard-panel) {
+    padding: 17px;
+  }
+
+  .portalShell :global(.wizard-actions) {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .portalShell :global(.wizard-actions .button) {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .portalShell :global(.portal-action-toast) {
+    left: 16px;
+    right: 16px;
+    bottom: 16px;
+    max-width: none;
+  }
+
+  .portalShell :global(.dash-actions .button),
+  .portalShell :global(.admin-head-actions .button) {
+    min-height: 36px;
+  }
+}

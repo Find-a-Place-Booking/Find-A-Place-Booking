@@ -22,7 +22,7 @@ const nav: NavItem[] = [
   },
   { label: "Reports", href: "/admin/reports", key: "reports" },
   {
-    label: "Taxes & remittance",
+    label: "Property taxes",
     href: "/admin/taxes",
     key: "taxes",
     roles: ["SUPER_ADMIN", "FINANCE_ADMIN"],
@@ -39,7 +39,11 @@ const nav: NavItem[] = [
     key: "partners",
     roles: ["SUPER_ADMIN", "PARTNER_ADMIN"],
   },
-  { label: "Activity log", href: "/admin/audit", key: "audit" },
+  {
+    label: "Activity log",
+    href: "/admin/audit",
+    key: "audit",
+  },
 ];
 
 export function AdminSidebar({
