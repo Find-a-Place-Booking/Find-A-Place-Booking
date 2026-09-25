@@ -43,6 +43,8 @@ function providerLabel(value: string) {
     LODGIFY: "Lodgify",
     OWNEREZ: "OwnerRez",
     RESNEXUS: "ResNexus",
+    GUESTY: "Guesty",
+    THINKRESERVATIONS: "ThinkReservations",
     OTHER_ICAL: "Other iCal",
   };
   return labels[value] ?? cleanStatus(value);
@@ -97,7 +99,7 @@ export default async function AdminCalendarsPage() {
           <div className="panel-head">
             <div>
               <p className="eyebrow dark">Testing tools</p>
-              <h2>Need a fake Airbnb, Vrbo or ResNexus feed?</h2>
+              <h2>Need a fake iCal feed?</h2>
             </div>
             <Link
               className="button button-small"
@@ -116,7 +118,7 @@ export default async function AdminCalendarsPage() {
 
       <section className="panel">
         <div className="panel-head"><div><p className="eyebrow dark">Calendar operations</p><h2>Connected availability sources</h2></div><span className="status-pill status-muted">Read only</span></div>
-        <p className="muted">This view exposes source ownership and sync health without transferring private feed URLs to the Admin screen or allowing silent calendar rewrites.</p>
+        <p className="muted">This view exposes source ownership and sync health without transferring private feed URLs or PMS credentials to the Admin screen or allowing silent calendar rewrites.</p>
         {connections.length ? <div className="admin-list compact">{connections.map((connection) => (
           <div className="admin-list-row static" key={connection.id}>
             <span>
@@ -130,7 +132,7 @@ export default async function AdminCalendarsPage() {
               <Link href={`/admin/properties/${connection.property_id}`}>Open property →</Link>
             </span>
           </div>
-        ))}</div> : <div className="panel-empty"><strong>No external calendars connected yet.</strong><span>Host iCal sources will appear here after calendar connections are created.</span></div>}
+        ))}</div> : <div className="panel-empty"><strong>No external availability sources connected yet.</strong><span>Host calendar and PMS integrations will appear here after connections are created.</span></div>}
       </section>
     </AdminShell>
   );

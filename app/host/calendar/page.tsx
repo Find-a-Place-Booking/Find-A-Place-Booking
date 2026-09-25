@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import { CalendarCopyButton } from "@/components/CalendarCopyButton";
 import { CalendarIntegrationPanel } from "@/components/CalendarIntegrationPanel";
+import { getThinkReservationsIntegrationState } from "@/lib/host/thinkreservations";
 import { DashboardShell } from "@/components/DashboardShell";
 import {
   calendarExportUrl,
@@ -114,6 +115,11 @@ export default async function CalendarPage({
   const conflictCurrentDays = currentMonthDays.filter((day) => (blocksByDate.get(day.date)?.length ?? 0) > 1).length;
   const ownerBlocks = activeBlocks.filter((block) => block.block_type === "OWNER_BLOCK");
   const genericToken = workspace.exportTokens.find((token) => token.exclude_connection_id === null) ?? null;
+  const icalConnections = workspace.connections.filter((connection) => connection.connection_kind === "ICAL");
+  const thinkReservationsState = await getThinkReservationsIntegrationState(
+    selected.organizationId,
+    selected.unitId,
+  );
 
   return (
     <DashboardShell active="Calendar" title="Calendar" eyebrow="Availability operations">
@@ -179,7 +185,13 @@ export default async function CalendarPage({
           </div>
         </section>
 
-        <CalendarIntegrationPanel />
+        <CalendarIntegrationPanel
+          organizationId={selected.organizationId}
+          unitId={selected.unitId}
+          unitLabel={targetLabel(selected)}
+          month={workspace.month}
+          state={thinkReservationsState}
+        />
 
         <aside className={styles.side}>
           <section className={styles.sidePanel}>
@@ -227,7 +239,7 @@ export default async function CalendarPage({
             <p className={styles.help}><strong>Guesty:</strong> copy the listing&apos;s private iCal export URL from Guesty, choose Guesty above, and paste it here. This syncs unavailable dates only; the full Guesty channel/API integration is coming later.</p>
 
             <div className={styles.connections}>
-              {workspace.connections.map((connection) => {
+              {icalConnections.map((connection) => {
                 const exportToken = workspace.exportTokens.find((token) => token.exclude_connection_id === connection.id) ?? null;
                 const outboundUrl = exportToken ? calendarExportUrl(exportToken.token) : null;
                 const statusClass = connection.sync_status === "ERROR" ? `${styles.status} ${styles.statusError}` : connection.sync_status === "NEVER_SYNCED" ? `${styles.status} ${styles.statusNever}` : styles.status;
@@ -245,7 +257,7 @@ export default async function CalendarPage({
                   </div>
                 );
               })}
-              {!workspace.connections.length ? <p className="muted">No external calendars connected yet.</p> : null}
+              {!icalConnections.length ? <p className="muted">No iCal calendars connected yet.</p> : null}
             </div>
           </section>
 

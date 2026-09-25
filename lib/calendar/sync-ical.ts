@@ -2,6 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { fetchIcalFeed } from "@/lib/calendar/fetch-ical";
 import { parseIcalAvailability } from "@/lib/calendar/ical";
+import { syncThinkReservationsConnection } from "@/lib/calendar/sync-thinkreservations";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export type IcalConnection = {
@@ -81,6 +82,7 @@ export async function syncIcalConnection(
       .eq("id", connection.unit_id)
       .single();
     if (unitError || !unit) throw new Error("Calendar property could not be loaded.");
+
     const { data: property, error: propertyError } = await admin
       .from("properties")
       .select("time_zone")
@@ -181,28 +183,46 @@ export async function runWithConcurrency<T, R>(
 
 export async function refreshUnitCalendarsOrThrow(unitId: string) {
   const admin = createAdminClient();
-  const { data, error } = await admin
-    .from("calendar_connections")
-    .select("id,unit_id,provider,feed_url,last_sync_attempt_at,last_success_at")
-    .eq("unit_id", unitId)
-    .eq("connection_kind", "ICAL")
-    .eq("is_active", true);
 
-  if (error) {
+  const [icalResult, pmsResult] = await Promise.all([
+    admin
+      .from("calendar_connections")
+      .select("id,unit_id,provider,feed_url,last_sync_attempt_at,last_success_at")
+      .eq("unit_id", unitId)
+      .eq("connection_kind", "ICAL")
+      .eq("is_active", true),
+    admin
+      .from("calendar_connections")
+      .select("id")
+      .eq("unit_id", unitId)
+      .eq("connection_kind", "PMS_API")
+      .eq("provider", "THINKRESERVATIONS")
+      .eq("is_active", true),
+  ]);
+
+  if (icalResult.error || pmsResult.error) {
     throw new Error("Connected calendars could not be checked.");
   }
 
-  const connections = (data ?? []) as IcalConnection[];
-  if (!connections.length) return;
-
-  const results = await runWithConcurrency(connections, 3, (connection) =>
-    syncIcalConnection(connection, admin),
+  const icalConnections = (icalResult.data ?? []) as IcalConnection[];
+  const pmsConnectionIds = (pmsResult.data ?? []).map(
+    (connection: { id: string }) => connection.id,
   );
-  const failure = results.find((result) => !result.ok);
+
+  const [icalSyncs, pmsSyncs] = await Promise.all([
+    runWithConcurrency(icalConnections, 3, (connection) =>
+      syncIcalConnection(connection, admin),
+    ),
+    runWithConcurrency(pmsConnectionIds, 2, (connectionId) =>
+      syncThinkReservationsConnection(connectionId, admin),
+    ),
+  ]);
+
+  const failure = [...icalSyncs, ...pmsSyncs].find((result) => !result.ok);
 
   if (failure && !failure.ok) {
     throw new Error(
-      `We could not verify the ${failure.provider} calendar. Please try booking again in a moment.`,
+      `We could not verify the ${failure.provider} availability source. Please try booking again in a moment.`,
     );
   }
 }

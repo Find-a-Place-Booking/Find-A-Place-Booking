@@ -44,7 +44,7 @@
 
 .grid{
   display:grid;
-  grid-template-columns:repeat(4,minmax(0,1fr));
+  grid-template-columns:repeat(3,minmax(0,1fr));
   gap:10px;
   min-width:0;
 }
@@ -57,6 +57,11 @@
   display:grid;
   gap:10px;
   align-content:start;
+}
+
+.primaryCard{
+  grid-column:span 2;
+  background:#fbfaf7;
 }
 
 .cardHead{
@@ -140,10 +145,110 @@
   line-height:1.45;
 }
 
+.guide code{
+  font-size:.64rem;
+}
+
+.connectForm,
+.mappingForm{
+  display:grid;
+  gap:10px;
+  border-top:1px solid #e5dfd5;
+  padding-top:10px;
+}
+
+.connectForm label,
+.mappingForm label{
+  display:grid;
+  gap:5px;
+  min-width:0;
+}
+
+.connectForm label>span,
+.mappingForm label>span{
+  font-size:.6rem;
+  text-transform:uppercase;
+  letter-spacing:.07em;
+  font-weight:900;
+  color:#71756f;
+}
+
+.connectForm input,
+.mappingForm select{
+  width:100%;
+  min-width:0;
+  border:1px solid #d5cec3;
+  background:#fff;
+  padding:10px 11px;
+  border-radius:6px;
+  min-height:42px;
+}
+
+.connectedSummary{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:8px;
+}
+
+.connectedSummary>div{
+  min-width:0;
+  border:1px solid #e2ddd4;
+  background:#fff;
+  padding:9px 10px;
+}
+
+.connectedSummary span{
+  display:block;
+  color:#777;
+  font-size:.56rem;
+  text-transform:uppercase;
+  letter-spacing:.06em;
+  font-weight:850;
+}
+
+.connectedSummary strong{
+  display:block;
+  margin-top:2px;
+  font-size:.7rem;
+  overflow-wrap:anywhere;
+}
+
 .actions{
   display:flex;
   gap:7px;
   flex-wrap:wrap;
+  align-items:center;
+}
+
+.actions form{
+  margin:0;
+}
+
+.note,
+.warningText{
+  font-size:.64rem!important;
+  color:#737770!important;
+}
+
+.warningText{
+  padding:8px;
+  background:#fff8e8;
+  border:1px solid #e6d7aa;
+}
+
+.errorBox{
+  padding:9px 10px;
+  border:1px solid #e0b8a9;
+  background:#fbefea;
+  color:#8e402d;
+  font-size:.66rem;
+  line-height:1.45;
+  overflow-wrap:anywhere;
+}
+
+.danger{
+  color:#8e402d!important;
+  border-color:#dab8ad!important;
 }
 
 @media(max-width:1180px){
@@ -161,6 +266,10 @@
     grid-template-columns:minmax(0,1fr);
   }
 
+  .primaryCard{
+    grid-column:auto;
+  }
+
   .cardHead{
     display:grid;
     grid-template-columns:minmax(0,1fr);
@@ -170,8 +279,14 @@
     justify-self:start;
   }
 
+  .connectedSummary{
+    grid-template-columns:minmax(0,1fr);
+  }
+
   .actions,
-  .actions a{
+  .actions form,
+  .actions a,
+  .actions button{
     width:100%;
   }
 }
