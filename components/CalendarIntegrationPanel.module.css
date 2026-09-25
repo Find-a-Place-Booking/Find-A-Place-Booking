@@ -1,0 +1,177 @@
+.panel{
+  width:100%;
+  min-width:0;
+  background:#fff;
+  border:1px solid #ddd6cb;
+  padding:18px;
+}
+
+.heading{
+  display:grid;
+  grid-template-columns:minmax(0,.9fr) minmax(280px,1.1fr);
+  gap:18px;
+  align-items:end;
+  margin-bottom:14px;
+}
+
+.heading>div,
+.heading>p{
+  min-width:0;
+}
+
+.eyebrow{
+  margin:0 0 5px;
+  color:#68716b;
+  font-size:.62rem;
+  font-weight:900;
+  letter-spacing:.1em;
+  text-transform:uppercase;
+}
+
+.heading h2{
+  margin:0;
+  font-family:Georgia,serif;
+  font-size:1.45rem;
+  font-weight:500;
+}
+
+.heading>p{
+  margin:0;
+  color:#70736d;
+  font-size:.74rem;
+  line-height:1.55;
+}
+
+.grid{
+  display:grid;
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:10px;
+  min-width:0;
+}
+
+.card{
+  min-width:0;
+  border:1px solid #e2ddd4;
+  background:#faf8f4;
+  padding:14px;
+  display:grid;
+  gap:10px;
+  align-content:start;
+}
+
+.cardHead{
+  display:flex;
+  justify-content:space-between;
+  align-items:flex-start;
+  gap:10px;
+  min-width:0;
+}
+
+.cardHead>div{
+  min-width:0;
+}
+
+.cardHead strong{
+  display:block;
+  font-size:.86rem;
+  overflow-wrap:anywhere;
+}
+
+.cardHead div>span{
+  display:block;
+  margin-top:2px;
+  color:#777;
+  font-size:.64rem;
+  overflow-wrap:anywhere;
+}
+
+.badge{
+  flex:0 0 auto;
+  border-radius:999px;
+  padding:5px 8px;
+  font-size:.54rem;
+  line-height:1;
+  font-weight:900;
+  letter-spacing:.06em;
+  text-transform:uppercase;
+  white-space:nowrap;
+}
+
+.live{
+  background:#e9f3ed;
+  color:#2f6748;
+}
+
+.next{
+  background:#eef0f7;
+  color:#445b7d;
+}
+
+.coming{
+  background:#f1ede6;
+  color:#75664f;
+}
+
+.card>p{
+  margin:0;
+  color:#686d67;
+  font-size:.68rem;
+  line-height:1.5;
+}
+
+.guide{
+  border-top:1px solid #e5dfd5;
+  padding-top:9px;
+  font-size:.66rem;
+  color:#60655f;
+}
+
+.guide summary{
+  cursor:pointer;
+  font-weight:800;
+  color:#33443b;
+}
+
+.guide ol{
+  margin:8px 0 0;
+  padding-left:18px;
+  display:grid;
+  gap:5px;
+  line-height:1.45;
+}
+
+.actions{
+  display:flex;
+  gap:7px;
+  flex-wrap:wrap;
+}
+
+@media(max-width:1180px){
+  .grid{
+    grid-template-columns:repeat(2,minmax(0,1fr));
+  }
+}
+
+@media(max-width:760px){
+  .heading{
+    grid-template-columns:minmax(0,1fr);
+  }
+
+  .grid{
+    grid-template-columns:minmax(0,1fr);
+  }
+
+  .cardHead{
+    display:grid;
+    grid-template-columns:minmax(0,1fr);
+  }
+
+  .badge{
+    justify-self:start;
+  }
+
+  .actions,
+  .actions a{
+    width:100%;
+  }
+}

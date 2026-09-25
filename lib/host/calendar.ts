@@ -180,6 +180,7 @@ export function calendarProviderLabel(provider: string) {
     LODGIFY: "Lodgify",
     OWNEREZ: "OwnerRez",
     RESNEXUS: "ResNexus",
+    GUESTY: "Guesty",
     OTHER_ICAL: "Other iCal",
   };
   return labels[provider] ?? provider.replaceAll("_", " ");
