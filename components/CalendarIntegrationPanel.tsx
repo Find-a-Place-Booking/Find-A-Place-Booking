@@ -274,14 +274,37 @@ export function CalendarIntegrationPanel({
           <div className={styles.cardHead}>
             <div>
               <strong>Hostify</strong>
-              <span>Direct PMS API + webhooks</span>
+              <span>iCal now · direct API/webhooks later</span>
             </div>
-            <span className={`${styles.badge} ${styles.coming}`}>Coming soon</span>
+            <span className={`${styles.badge} ${styles.live}`}>iCal available</span>
           </div>
           <p>
-            Planned direct integration for availability and reservation
-            synchronization. No Hostify credentials are needed yet.
+            Hostify can be connected now through its per-listing iCal export for
+            booked and blocked dates. A richer direct API/webhook connector will
+            be added after Hostify API access and its account-only API documentation
+            are available for live validation.
           </p>
+          <details className={styles.guide}>
+            <summary>Connect Hostify now</summary>
+            <ol>
+              <li>Open the listing in Hostify.</li>
+              <li>
+                Open Calendar → iCal. Some Hostify accounts using Calendar
+                Service v2 may show a separate iCal Import/Export page instead.
+              </li>
+              <li>Copy the listing&apos;s private iCal export URL.</li>
+              <li>Choose Hostify in the iCal provider list below and paste the URL.</li>
+              <li>
+                After it connects, copy the Find A Place source-specific export
+                URL back into Hostify if you want two-way availability blocking.
+              </li>
+            </ol>
+          </details>
+          <div className={styles.actions}>
+            <a className="button button-small button-quiet" href="#ical-connections">
+              Connect Hostify iCal
+            </a>
+          </div>
         </article>
 
         <article className={styles.card}>

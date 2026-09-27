@@ -269,10 +269,6 @@ export function HostOnboardingWizard({
       }
     }
 
-    if (step === 4 && photoNames.length < 1) {
-      return "Upload at least one property photo before continuing. Photos save to the real listing immediately.";
-    }
-
     if (step === 5) {
       if (!positiveNumber(form.weeknight)) {
         return "Add a weeknight rate greater than $0 before continuing.";
@@ -874,7 +870,9 @@ export function HostOnboardingWizard({
             <p>
               These photos save directly to the real draft property,
               so you will not have to upload them again after
-              onboarding.
+              onboarding. You can continue without photos for now,
+              but at least one photo is required before final setup
+              and publication.
             </p>
             <OnboardingPhotoManager
               organizationId={initial.organizationId}

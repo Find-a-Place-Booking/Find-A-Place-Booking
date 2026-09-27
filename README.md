@@ -1,18 +1,20 @@
-# Turnstile checkout logging patch
+# Find A Place Booking — Photo Step Skip Overlay
 
-Adds searchable Vercel runtime logging for Cloudflare Turnstile without logging tokens, secrets, guest PII, or IP addresses.
+Overlay contains one replacement file:
 
-Search Vercel runtime logs for:
+`components/HostOnboardingWizard.tsx`
 
-    [checkout security]
+Changes:
+- Hosts may continue past the Photos step without uploading a photo yet.
+- The final Review/Finish validation still requires at least one real property photo.
+- Photos-step text explains that photos can be added later before final setup/publication.
 
-You will see events such as:
-- Turnstile verified
-- Turnstile verification rejected
-- Turnstile token missing or invalid
-- Turnstile Siteverify request failed
-- Turnstile Siteverify returned HTTP error
-- Turnstile client event { event: "expired" }
-- Turnstile client event { event: "error" }
+Not changed:
+- `prepare_onboarding_property()`
+- Supabase functions or migrations
+- `/api/host/onboarding/photos`
+- photo upload/storage logic
+- Stripe or any payment code
+- booking flow
 
-The server rejection log includes Cloudflare error codes, returned action, hostname, expected hostname, and challenge timestamp when Cloudflare provides them.
+Apply by copying this overlay over the repository root, preserving folders, then run your normal typecheck/build/deploy.

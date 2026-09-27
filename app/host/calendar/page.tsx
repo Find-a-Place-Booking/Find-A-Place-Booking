@@ -220,7 +220,7 @@ export default async function CalendarPage({
 
           <section id="ical-connections" className={styles.sidePanel}>
             <h2>iCal / ICS calendar connections</h2>
-            <p>Import an availability-only iCal/ICS feed from Airbnb, Vrbo, Guesty or another channel. Each source stays tied to this unit and can only update its own imported blocks.</p>
+            <p>Import an availability-only iCal/ICS feed from Airbnb, Vrbo, Guesty, Hostify or another channel. Each source stays tied to this unit and can only update its own imported blocks.</p>
 
             <div className={diagnosticStyles.availabilityOnly}>
               <strong>Availability only</strong>
@@ -230,13 +230,14 @@ export default async function CalendarPage({
             <form action={connectIcalCalendar} className={styles.connectForm}>
               <input type="hidden" name="unitId" value={selected.unitId} />
               <input type="hidden" name="month" value={workspace.month} />
-              <label><span>Provider</span><select name="provider" defaultValue="AIRBNB"><option value="AIRBNB">Airbnb</option><option value="VRBO">Vrbo</option><option value="GUESTY">Guesty</option><option value="BOOKING_COM">Booking.com</option><option value="LODGIFY">Lodgify</option><option value="OWNEREZ">OwnerRez</option><option value="GOOGLE">Google Calendar</option><option value="OTHER_ICAL">Other iCal / ICS</option></select></label>
+              <label><span>Provider</span><select name="provider" defaultValue="AIRBNB"><option value="AIRBNB">Airbnb</option><option value="VRBO">Vrbo</option><option value="GUESTY">Guesty</option><option value="HOSTIFY">Hostify</option><option value="BOOKING_COM">Booking.com</option><option value="LODGIFY">Lodgify</option><option value="OWNEREZ">OwnerRez</option><option value="GOOGLE">Google Calendar</option><option value="OTHER_ICAL">Other iCal / ICS</option></select></label>
               <label><span>Connection label</span><input name="label" required maxLength={120} placeholder="Guesty main calendar" /></label>
               <label><span>Private iCal feed URL</span><input type="text" inputMode="url" name="feedUrl" required placeholder="https://…/calendar.ics or webcal://…" autoComplete="off" /></label>
               <button className="button button-small" type="submit">Test, connect & sync</button>
             </form>
             <p className={styles.help}>Before a new source is saved, Find A Place performs a read-only compatibility test. Unsafe recurring/time-based events are rejected instead of guessing at blocked nights.</p>
             <p className={styles.help}><strong>Guesty:</strong> copy the listing&apos;s private iCal export URL from Guesty, choose Guesty above, and paste it here. This syncs unavailable dates only; the full Guesty channel/API integration is coming later.</p>
+            <p className={styles.help}><strong>Hostify:</strong> copy the listing&apos;s iCal export URL from Hostify, choose Hostify above, and paste it here. After connecting, use the source-specific Find A Place export URL shown on the connection if you also want Hostify to receive Find A Place blocked/booked dates.</p>
 
             <div className={styles.connections}>
               {icalConnections.map((connection) => {

@@ -44,6 +44,7 @@ function providerLabel(value: string) {
     OWNEREZ: "OwnerRez",
     RESNEXUS: "ResNexus",
     GUESTY: "Guesty",
+    HOSTIFY: "Hostify",
     THINKRESERVATIONS: "ThinkReservations",
     OTHER_ICAL: "Other iCal",
   };
