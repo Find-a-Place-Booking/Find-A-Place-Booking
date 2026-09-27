@@ -1,20 +1,35 @@
-# Find A Place Booking — Photo Step Skip Overlay
+# Find A Place Booking — Mobile Hero Video Fix
 
-Overlay contains one replacement file:
+This overlay changes only:
 
-`components/HostOnboardingWizard.tsx`
+`components/DeferredBackgroundVideo.tsx`
 
-Changes:
-- Hosts may continue past the Photos step without uploading a photo yet.
-- The final Review/Finish validation still requires at least one real property photo.
-- Photos-step text explains that photos can be added later before final setup/publication.
+## Cause
 
-Not changed:
-- `prepare_onboarding_property()`
-- Supabase functions or migrations
-- `/api/host/onboarding/photos`
-- photo upload/storage logic
-- Stripe or any payment code
-- booking flow
+The Sep 24 "Mobile cleanup and Tax Fixes" change added an explicit mobile cutoff:
 
-Apply by copying this overlay over the repository root, preserving folders, then run your normal typecheck/build/deploy.
+- detect `(max-width: 700px)`
+- return before rendering the `<video>`
+
+That made every hero using `DeferredBackgroundVideo` show only its poster on phones.
+
+Affected hero videos:
+- Homepage: `/media/find-a-place-hero-loop.mp4`
+- About: `/media/find-a-place-about-fall-remix.mp4`
+- Hosts: `/media/find-a-place-host-fall-loop.mp4`
+
+## Fix
+
+The mobile viewport block is removed.
+
+Muted inline autoplay remains configured with:
+- `autoPlay`
+- `muted`
+- `loop`
+- `playsInline`
+
+The poster fallback is still respected when the visitor explicitly uses:
+- reduced-motion accessibility settings
+- browser/device data-saver mode
+
+No hero CSS, payment code, booking code, Supabase code, or onboarding code is changed.
