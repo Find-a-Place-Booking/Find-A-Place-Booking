@@ -1,21 +1,37 @@
-# Find A Place Booking — Primary Photo Selector UI Fix
+# Find A Place Booking — Hospitable iCal Connection Fix
 
-This overlay replaces the earlier basic primary-photo control with a real selector.
+This overlay replaces only:
 
-Files:
-- `components/PrimaryPhotoSelector.tsx`
-- `components/PrimaryPhotoSelector.module.css`
+- `app/host/calendar/actions.ts`
+- `lib/calendar/diagnostics.ts`
 
-Behavior:
-- Shows every property photo as a selectable thumbnail.
-- The current primary image is clearly labeled.
-- Tapping/clicking another thumbnail selects it.
-- A separate **Set selected as primary** button saves the choice.
-- The database change is still only one `sort_order` update on the selected image.
-- Nothing is deleted, re-uploaded, renamed, or moved in storage.
-- The public listing already orders images by `sort_order, created_at`, so the chosen image becomes first/hero.
+## Problem found
 
-No database migration is required.
-No Stripe, booking, calendar, tax, onboarding, payout, or property-upload logic is changed.
+The pre-connect iCal compatibility test called `parseIcalAvailability()` without
+the property's timezone.
 
-This overlay assumes the previous primary-photo overlay is already present, which it is on the current `main` branch.
+That is stricter than the real sync path, which already loads the property's
+timezone before parsing. Reservation feeds that use timed DTSTART/DTEND values
+can therefore fail the pre-connect test even though the real sync knows how to
+normalize them safely.
+
+Hospitable reservation iCal feeds include reservation dates/times, so this
+mismatch can prevent the connection from ever being created.
+
+The connect action also performed `redirect()` inside the diagnostic `try`
+block. Next.js redirects throw internally, so an incompatible-feed redirect
+could be caught as though it were a fetch/parser error. This overlay moves the
+compatibility redirect outside that `try` block.
+
+## Fix
+
+- Loads the selected unit's property's `time_zone`.
+- Passes that exact timezone to `inspectIcalFeed()` during:
+  - first-time connect/test
+  - later "Test connection" checks
+- Keeps the actual sync path unchanged.
+- Keeps SSRF checks, HTTPS-only checks, recurrence safety, feed size limits,
+  source-scoped availability blocks, and empty-feed protection unchanged.
+- Does not change bookings, Stripe, rates, taxes, payouts, or calendar exports.
+
+No Supabase migration is required.

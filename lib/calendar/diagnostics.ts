@@ -182,9 +182,13 @@ function compatibilityMessage(
 export async function inspectIcalFeed(
   rawUrl: string,
   provider: string,
+  propertyTimeZone?: string | null,
 ): Promise<IcalFeedDiagnostic> {
   const fetched = await fetchIcalFeed(rawUrl);
-  const parsed = parseIcalAvailability(fetched.body);
+  const parsed = parseIcalAvailability(
+    fetched.body,
+    propertyTimeZone,
+  );
   const stats = calendarStats(fetched.body);
 
   return {

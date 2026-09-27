@@ -41,6 +41,32 @@ function errorMessage(error: unknown) {
     : "Calendar synchronization failed.";
 }
 
+async function calendarUnitTimeZone(unitId: string) {
+  const supabase = await createClient();
+
+  const { data: unit, error: unitError } = await supabase
+    .from("property_units")
+    .select("property_id")
+    .eq("id", unitId)
+    .maybeSingle();
+
+  if (unitError || !unit?.property_id) {
+    throw new Error("Calendar property could not be loaded.");
+  }
+
+  const { data: property, error: propertyError } = await supabase
+    .from("properties")
+    .select("time_zone")
+    .eq("id", unit.property_id)
+    .maybeSingle();
+
+  if (propertyError || !property) {
+    throw new Error("Calendar property timezone could not be loaded.");
+  }
+
+  return property.time_zone || null;
+}
+
 async function inspectConnectedCalendar(connectionId: string, unitId: string) {
   const supabase = await createClient();
   const { data: connection, error: connectionError } = await supabase
@@ -64,9 +90,11 @@ async function inspectConnectedCalendar(connectionId: string, unitId: string) {
   }
 
   try {
+    const propertyTimeZone = await calendarUnitTimeZone(unitId);
     const diagnostic = await inspectIcalFeed(
       connection.feed_url,
       connection.provider,
+      propertyTimeZone,
     );
 
     return {
@@ -176,19 +204,32 @@ export async function connectIcalCalendar(formData: FormData) {
   const label = field(formData, "label", 120);
   const normalizedUrl = normalizeIcalUrl(field(formData, "feedUrl", 2000));
 
+  let diagnostic: Awaited<ReturnType<typeof inspectIcalFeed>>;
+
   try {
     await assertSafeCalendarUrl(normalizedUrl);
-    const diagnostic = await inspectIcalFeed(normalizedUrl, provider);
-    if (!diagnostic.compatible) {
-      calendarRedirect(
-        unitId,
-        month,
-        "calendar-test-error",
-        diagnostic.message,
-      );
-    }
+    const propertyTimeZone = await calendarUnitTimeZone(unitId);
+    diagnostic = await inspectIcalFeed(
+      normalizedUrl,
+      provider,
+      propertyTimeZone,
+    );
   } catch (error) {
-    calendarRedirect(unitId, month, "calendar-test-error", errorMessage(error));
+    calendarRedirect(
+      unitId,
+      month,
+      "calendar-test-error",
+      errorMessage(error),
+    );
+  }
+
+  if (!diagnostic.compatible) {
+    calendarRedirect(
+      unitId,
+      month,
+      "calendar-test-error",
+      diagnostic.message,
+    );
   }
 
   const supabase = await createClient();
