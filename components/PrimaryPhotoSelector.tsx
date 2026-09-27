@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 
 import type { PropertyImageRecord } from "@/lib/host/properties";
 import { createClient } from "@/lib/supabase/client";
+import styles from "./PrimaryPhotoSelector.module.css";
 
 export function PrimaryPhotoSelector({
   unitId,
@@ -17,7 +18,14 @@ export function PrimaryPhotoSelector({
 }) {
   const router = useRouter();
   const [images, setImages] = useState(initialImages);
-  const [savingId, setSavingId] = useState<string | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(
+    initialImages.length
+      ? [...initialImages].sort(
+          (a, b) => a.sortOrder - b.sortOrder,
+        )[0]?.id ?? null
+      : null,
+  );
+  const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -31,10 +39,16 @@ export function PrimaryPhotoSelector({
 
   if (!sortedImages.length) return null;
 
-  async function setPrimary(image: PropertyImageRecord) {
-    if (!editable || savingId || sortedImages[0]?.id === image.id) return;
+  const currentPrimary = sortedImages[0];
+  const selectedImage =
+    sortedImages.find((image) => image.id === selectedId) ??
+    currentPrimary;
+  const selectionChanged = selectedImage.id !== currentPrimary.id;
 
-    setSavingId(image.id);
+  async function savePrimary() {
+    if (!editable || saving || !selectionChanged) return;
+
+    setSaving(true);
     setError(null);
     setMessage("Updating the primary photo…");
 
@@ -47,13 +61,14 @@ export function PrimaryPhotoSelector({
     const { data, error: updateError } = await supabase
       .from("property_images")
       .update({ sort_order: nextSortOrder })
-      .eq("id", image.id)
+      .eq("id", selectedImage.id)
       .eq("unit_id", unitId)
       .select("id")
       .single();
 
     if (updateError || !data) {
-      setSavingId(null);
+      console.error("[set primary property image]", updateError);
+      setSaving(false);
       setMessage(null);
       setError("Couldn't change the primary photo. Try again.");
       return;
@@ -61,73 +76,132 @@ export function PrimaryPhotoSelector({
 
     setImages((current) =>
       current.map((item) =>
-        item.id === image.id
+        item.id === selectedImage.id
           ? { ...item, sortOrder: nextSortOrder }
           : item,
       ),
     );
-    setSavingId(null);
-    setMessage("Primary photo updated.");
+    setSaving(false);
+    setMessage("Primary photo updated. This is now the first image guests see.");
     router.refresh();
   }
 
   return (
-    <section className="panel property-review-submit">
-      <div>
-        <p className="eyebrow dark">Primary / hero photo</p>
-        <h2>Choose the first photo guests see</h2>
-        <p>
-          The primary photo is used first on the listing, property cards and
-          other marketplace surfaces. Changing it does not delete or re-upload
-          any photos.
-        </p>
+    <section className={`panel ${styles.panel}`}>
+      <div className={styles.heading}>
+        <div>
+          <p className="eyebrow dark">Primary / hero photo</p>
+          <h2>Choose the first photo guests see</h2>
+          <p>
+            Tap any photo below, then choose <strong>Set selected as primary</strong>.
+            This changes only the photo order — nothing is deleted or re-uploaded.
+          </p>
+        </div>
 
-        {message ? (
-          <div className="admin-message success">{message}</div>
-        ) : null}
+        <div className={styles.summary}>
+          <strong>{sortedImages.length}</strong>
+          <span>photo{sortedImages.length === 1 ? "" : "s"}</span>
+        </div>
+      </div>
 
-        {error ? (
-          <div className="admin-message error">{error}</div>
-        ) : null}
+      {message ? (
+        <div className="admin-message success">{message}</div>
+      ) : null}
 
-        <div className="property-image-grid">
-          {sortedImages.map((image, index) => (
-            <figure key={image.id}>
-              {image.signedUrl ? (
-                <img
-                  src={image.signedUrl}
-                  alt={image.altText || "Property photo"}
-                />
-              ) : (
-                <div className="property-image-missing">
-                  Preview unavailable
-                </div>
-              )}
+      {error ? (
+        <div className="admin-message error">{error}</div>
+      ) : null}
 
-              <figcaption>
-                <span>
-                  {index === 0
-                    ? "Primary photo"
-                    : image.originalName || `Photo ${index + 1}`}
+      <div
+        className={styles.grid}
+        role="radiogroup"
+        aria-label="Choose the primary property photo"
+      >
+        {sortedImages.map((image, index) => {
+          const selected = selectedImage.id === image.id;
+          const primary = index === 0;
+
+          return (
+            <label
+              key={image.id}
+              className={`${styles.card} ${
+                selected ? styles.selected : ""
+              } ${primary ? styles.primary : ""}`}
+            >
+              <input
+                className={styles.radio}
+                type="radio"
+                name={`primary-photo-${unitId}`}
+                value={image.id}
+                checked={selected}
+                disabled={!editable || saving}
+                onChange={() => {
+                  setSelectedId(image.id);
+                  setMessage(null);
+                  setError(null);
+                }}
+              />
+
+              <div className={styles.imageWrap}>
+                {image.signedUrl ? (
+                  <img
+                    src={image.signedUrl}
+                    alt={image.altText || image.originalName || "Property photo"}
+                  />
+                ) : (
+                  <div className={styles.missing}>Preview unavailable</div>
+                )}
+
+                <span className={styles.check}>
+                  {selected ? "✓" : ""}
                 </span>
 
-                {index === 0 ? (
-                  <span aria-label="Current primary photo">✓ Primary</span>
-                ) : (
-                  <button
-                    type="button"
-                    disabled={!editable || savingId !== null}
-                    onClick={() => void setPrimary(image)}
-                  >
-                    {savingId === image.id
-                      ? "Setting…"
-                      : "Set as primary"}
-                  </button>
-                )}
-              </figcaption>
-            </figure>
-          ))}
+                {primary ? (
+                  <span className={styles.primaryBadge}>
+                    Current primary
+                  </span>
+                ) : null}
+              </div>
+
+              <div className={styles.caption}>
+                <strong>
+                  {image.originalName || `Photo ${index + 1}`}
+                </strong>
+                <span>
+                  {primary
+                    ? "Currently shown first"
+                    : selected
+                      ? "Selected to become primary"
+                      : "Tap to select"}
+                </span>
+              </div>
+            </label>
+          );
+        })}
+      </div>
+
+      <div className={styles.actions}>
+        <div>
+          <strong>
+            {selectionChanged
+              ? "Ready to change the hero photo"
+              : "Current primary photo selected"}
+          </strong>
+          <span>
+            {selectionChanged
+              ? "Save the selection to make this the first image across the listing."
+              : "Choose a different photo above to change it."}
+          </span>
         </div>
+
+        <button
+          type="button"
+          className="button"
+          disabled={!editable || saving || !selectionChanged}
+          onClick={() => void savePrimary()}
+        >
+          {saving ? "Updating…" : "Set selected as primary"}
+        </button>
       </div>
     </section>
   );

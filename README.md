@@ -1,19 +1,21 @@
-# Find A Place Booking — Set Primary Photo Overlay
+# Find A Place Booking — Primary Photo Selector UI Fix
+
+This overlay replaces the earlier basic primary-photo control with a real selector.
 
 Files:
-- `app/host/properties/[slug]/page.tsx`
 - `components/PrimaryPhotoSelector.tsx`
+- `components/PrimaryPhotoSelector.module.css`
 
-What it does:
-- Adds a host-facing **Set as primary** option for every non-primary property photo.
-- The selected photo becomes first by changing only that image's `sort_order`.
-- No photo is deleted, moved in storage, or re-uploaded.
-- Works for editable draft, published and paused listings.
-- Public listing functions already order images by `sort_order, created_at`, so the new primary photo becomes the hero/cover everywhere that uses the normal listing image order.
+Behavior:
+- Shows every property photo as a selectable thumbnail.
+- The current primary image is clearly labeled.
+- Tapping/clicking another thumbnail selects it.
+- A separate **Set selected as primary** button saves the choice.
+- The database change is still only one `sort_order` update on the selected image.
+- Nothing is deleted, re-uploaded, renamed, or moved in storage.
+- The public listing already orders images by `sort_order, created_at`, so the chosen image becomes first/hero.
 
-Safety:
-- No Stripe, booking, tax, calendar, payout, onboarding, or storage code is changed.
-- No database migration is needed.
-- Existing `property_images` UPDATE RLS still controls whether the host may change the row.
-- The update targets both the image ID and the current unit ID.
-- The current property page source was verified against GitHub blob `772e876faa441878a0dcef1c3b8403b151857f0b` before the overlay was produced.
+No database migration is required.
+No Stripe, booking, calendar, tax, onboarding, payout, or property-upload logic is changed.
+
+This overlay assumes the previous primary-photo overlay is already present, which it is on the current `main` branch.
