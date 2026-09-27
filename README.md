@@ -1,35 +1,19 @@
-# Find A Place Booking — Mobile Hero Video Fix
+# Find A Place Booking — Set Primary Photo Overlay
 
-This overlay changes only:
+Files:
+- `app/host/properties/[slug]/page.tsx`
+- `components/PrimaryPhotoSelector.tsx`
 
-`components/DeferredBackgroundVideo.tsx`
+What it does:
+- Adds a host-facing **Set as primary** option for every non-primary property photo.
+- The selected photo becomes first by changing only that image's `sort_order`.
+- No photo is deleted, moved in storage, or re-uploaded.
+- Works for editable draft, published and paused listings.
+- Public listing functions already order images by `sort_order, created_at`, so the new primary photo becomes the hero/cover everywhere that uses the normal listing image order.
 
-## Cause
-
-The Sep 24 "Mobile cleanup and Tax Fixes" change added an explicit mobile cutoff:
-
-- detect `(max-width: 700px)`
-- return before rendering the `<video>`
-
-That made every hero using `DeferredBackgroundVideo` show only its poster on phones.
-
-Affected hero videos:
-- Homepage: `/media/find-a-place-hero-loop.mp4`
-- About: `/media/find-a-place-about-fall-remix.mp4`
-- Hosts: `/media/find-a-place-host-fall-loop.mp4`
-
-## Fix
-
-The mobile viewport block is removed.
-
-Muted inline autoplay remains configured with:
-- `autoPlay`
-- `muted`
-- `loop`
-- `playsInline`
-
-The poster fallback is still respected when the visitor explicitly uses:
-- reduced-motion accessibility settings
-- browser/device data-saver mode
-
-No hero CSS, payment code, booking code, Supabase code, or onboarding code is changed.
+Safety:
+- No Stripe, booking, tax, calendar, payout, onboarding, or storage code is changed.
+- No database migration is needed.
+- Existing `property_images` UPDATE RLS still controls whether the host may change the row.
+- The update targets both the image ID and the current unit ID.
+- The current property page source was verified against GitHub blob `772e876faa441878a0dcef1c3b8403b151857f0b` before the overlay was produced.

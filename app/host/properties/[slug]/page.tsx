@@ -7,6 +7,7 @@ import {
 } from "@/app/host/properties/actions";
 import { DashboardShell } from "@/components/DashboardShell";
 import { PropertyEditor } from "@/components/PropertyEditor";
+import { PrimaryPhotoSelector } from "@/components/PrimaryPhotoSelector";
 import { PropertyPolicyDocument } from "@/components/PropertyPolicyDocument";
 import { PropertyPublicationControl } from "@/components/PropertyPublicationControl";
 import { getCurrentPropertyPolicyDocument } from "@/lib/host/policy-documents";
@@ -114,6 +115,14 @@ export default async function ManagePropertyPage({
       ) : null}
 
       <PropertyEditor initial={property} />
+
+      <PrimaryPhotoSelector
+        unitId={property.unitId}
+        images={property.images}
+        editable={["DRAFT", "CHANGES_REQUESTED", "REJECTED", "PUBLISHED", "PAUSED"].includes(
+          property.status,
+        )}
+      />
 
       <PropertyPolicyDocument
         propertyId={property.propertyId}
