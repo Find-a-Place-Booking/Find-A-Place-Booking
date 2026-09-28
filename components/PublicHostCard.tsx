@@ -22,7 +22,10 @@ export async function PublicHostCard({
 
   return (
     <div className="host-block">
-      <div className="host-avatar">
+      <div
+        className="host-avatar"
+        style={{ flex: "0 0 54px", minWidth: "54px" }}
+      >
         {host?.avatarUrl ? (
           <img
             src={host.avatarUrl}
@@ -34,6 +37,7 @@ export async function PublicHostCard({
               height: "100%",
               objectFit: "cover",
               borderRadius: "999px",
+              display: "block",
             }}
           />
         ) : (
