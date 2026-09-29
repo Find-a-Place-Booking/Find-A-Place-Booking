@@ -9,6 +9,8 @@ const links = [
   ["Properties", "/host/properties"],
   ["Calendar", "/host/calendar"],
   ["Reservations", "/host/reservations"],
+  ["Guest emails", "/host/guest-emails"],
+  ["Integrations", "/host/integrations/resnexus"],
   ["Rates & fees", "/host/rates"],
   ["Payments & taxes", "/host/payments"],
   ["Messages", "/host/messages"],
@@ -80,9 +82,7 @@ export async function HostSidebar({
                   className={alertStyles.badge}
                   aria-label={`${messageAlertCount} message alerts`}
                 >
-                  {messageAlertCount > 10
-                    ? "10+"
-                    : messageAlertCount}
+                  {messageAlertCount > 10 ? "10+" : messageAlertCount}
                 </b>
               ) : null}
               <span aria-hidden="true">›</span>

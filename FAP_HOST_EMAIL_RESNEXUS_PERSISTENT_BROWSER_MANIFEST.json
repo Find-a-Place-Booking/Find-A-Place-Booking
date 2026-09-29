@@ -1,0 +1,40 @@
+{
+  "base_commit": "863cec704b7f3dbc434c31d01e526bdf9588b404",
+  "base_message": "mobile fix",
+  "existing_files_replaced": [
+    "components/HostSidebar.tsx",
+    "components/HostMobileNav.tsx",
+    "vercel.json"
+  ],
+  "new_application_files": [
+    "app/host/guest-emails/page.tsx",
+    "app/host/guest-emails/actions.ts",
+    "app/api/cron/host-automation/route.ts",
+    "lib/notifications/host-guest-automations.ts",
+    "app/host/integrations/resnexus/page.tsx",
+    "app/host/integrations/resnexus/actions.ts",
+    "lib/host/resnexus-browser.ts"
+  ],
+  "migrations": [
+    "supabase/migrations/20260928143000_host_guest_email_automations.sql",
+    "supabase/migrations/20260928143100_resnexus_browser_connection_kind.sql",
+    "supabase/migrations/20260928143200_resnexus_persistent_browser_connector.sql"
+  ],
+  "worker_files": [
+    "resnexus-worker/package.json",
+    "resnexus-worker/Dockerfile",
+    "resnexus-worker/railway.toml",
+    "resnexus-worker/.env.example",
+    "resnexus-worker/src/index.mjs",
+    "resnexus-worker/src/crypto.mjs",
+    "resnexus-worker/src/resnexus.mjs"
+  ],
+  "resnexus_email_bridge_included": false,
+  "resnexus_inbound_email_webhook_included": false,
+  "resnexus_writeback_included": false,
+  "resnexus_browser_mode": "read_only_availability",
+  "requires_first_live_resnexus_calibration": true,
+  "notes": [
+    "Existing /api/cron/notifications retry route is intentionally untouched; it already retries persisted HOST_AUTO failures."
+  ]
+}

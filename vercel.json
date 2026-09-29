@@ -10,6 +10,10 @@
       "schedule": "5,20,35,50 * * * *"
     },
     {
+      "path": "/api/cron/host-automation",
+      "schedule": "*/5 * * * *"
+    },
+    {
       "path": "/api/cron/refunds",
       "schedule": "10,25,40,55 * * * *"
     }

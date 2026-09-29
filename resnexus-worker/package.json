@@ -1,0 +1,14 @@
+{
+  "name": "find-a-place-resnexus-worker",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node src/index.mjs",
+    "check": "node --check src/index.mjs && node --check src/crypto.mjs && node --check src/resnexus.mjs"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "2.114.0",
+    "playwright": "1.55.0"
+  }
+}

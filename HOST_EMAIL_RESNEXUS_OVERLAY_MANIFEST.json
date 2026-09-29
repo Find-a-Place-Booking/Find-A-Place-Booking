@@ -1,0 +1,18 @@
+{
+  "project": "Find-a-Place-Booking/Find-A-Place-Booking",
+  "base_commit": "863cec704b7f3dbc434c31d01e526bdf9588b404",
+  "base_commit_message": "mobile fix",
+  "existing_files_replaced": {
+    ".env.example": "aa7cf902ca21ec8d26d321f1e23cdbe5e7fc23a7",
+    "vercel.json": "714a10ab1f71d01cc831b10e37a75d7b344eb425",
+    "components/HostSidebar.tsx": "3eb179c21d4e4688196db181eb3d8208ab380bf1",
+    "components/HostMobileNav.tsx": "297ce7aab604eb681a2426ce15216fd48f4fd9a3"
+  },
+  "notes": [
+    "The repository root README.md is intentionally not replaced.",
+    "No GitHub or Supabase write was performed while building or auditing this overlay.",
+    "Apply the two included database migrations in filename order before deploying the application code.",
+    "Re-audited after generation; host-email retry/versioning and ResNexus out-of-order cancellation edge cases were corrected.",
+    "TypeScript/TSX syntax parser checks pass for all generated application files."
+  ]
+}
