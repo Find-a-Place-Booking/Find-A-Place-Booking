@@ -113,4 +113,62 @@ body {
     position: relative;
     height: min(360px, 58vh);
   }
+
+  /*
+   * Mobile property-card correction.
+   *
+   * The themed homepage previously switched .home-property-grid to a horizontal
+   * flex rail at <=700px. Older/featured layouts can also retain the desktop
+   * multi-column composition, producing one large card with tiny cards squeezed
+   * beside it. On phones, always reflow public homepage stay cards into one
+   * readable full-width column.
+   */
+  .home-property-grid,
+  .featured-grid {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) !important;
+    grid-auto-flow: row !important;
+    gap: 24px !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin-right: 0 !important;
+    padding-right: 0 !important;
+    padding-bottom: 0 !important;
+    overflow: visible !important;
+    scroll-snap-type: none !important;
+  }
+
+  .home-property-grid .property-card,
+  .featured-grid .property-card,
+  .featured-grid .property-wide {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    flex: none !important;
+    grid-column: auto !important;
+    grid-row: auto !important;
+  }
+
+  .home-property-grid .property-image-wrap,
+  .featured-grid .property-image-wrap,
+  .featured-grid .property-wide .property-image-wrap {
+    width: 100% !important;
+    height: auto !important;
+    min-height: 0 !important;
+    aspect-ratio: 4 / 3;
+  }
+
+  .home-property-grid .property-body,
+  .featured-grid .property-body {
+    width: 100%;
+    min-width: 0;
+    padding: 13px 2px 0;
+  }
+
+  .home-property-grid .property-kicker,
+  .featured-grid .property-kicker,
+  .home-property-grid .price-line,
+  .featured-grid .price-line {
+    min-width: 0;
+  }
 }

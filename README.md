@@ -1,23 +1,16 @@
-# Find A Place Booking — Mobile Calendar + Host Logo Fix
+# Find A Place Booking — Mobile property-card layout fix
 
 This overlay changes only:
 
-- `app/host/calendar/calendar.module.css`
-- `components/PublicHostCard.tsx`
+- `app/mobile-public-width-fix.css`
 
-## Mobile calendar
+On screens 700px wide and under, homepage/featured stay cards now reflow to a
+single full-width column instead of preserving or inheriting a compressed
+desktop composition.
 
-The calendar dates were not transposed. Existing mobile CSS forced the seven-day
-calendar to a 640px minimum width, which pushed Thu-Sat offscreen on phones.
+It explicitly covers both the current `.home-property-grid` and the older
+`.featured-grid` layout so the first/wide card cannot remain large while the
+other cards get squeezed beside it.
 
-This overlay keeps all seven weekday columns visible on mobile and reduces only
-the mobile cell/text sizing enough to fit.
-
-## Host logo
-
-The public host avatar could shrink horizontally inside the flex row, which made
-a circular logo appear as a skinny vertical pill. The avatar is now locked to
-54x54 and the image remains cropped with `object-fit: cover`.
-
-No iCal/calendar sync logic, bookings, Stripe, Supabase, pricing, taxes, host
-profile data, or image-storage logic is changed.
+Desktop/tablet layouts above 700px are unchanged. No listing data, booking,
+Stripe, calendars, ResNexus, host tools, or database logic is changed.
