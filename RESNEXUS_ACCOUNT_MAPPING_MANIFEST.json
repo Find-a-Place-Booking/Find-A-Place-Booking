@@ -1,0 +1,22 @@
+{
+  "base_commit": "51c037940aeecdc06d36d58de8802286ec127cd8",
+  "base_message": "Resnexus Workaraound",
+  "purpose": "Refactor ResNexus persistent browser from per-property login to one account login with multi-property resource mapping.",
+  "existing_files_replaced": [
+    "app/host/integrations/resnexus/page.tsx",
+    "app/host/integrations/resnexus/actions.ts",
+    "lib/host/resnexus-browser.ts",
+    "resnexus-worker/src/index.mjs",
+    "resnexus-worker/src/resnexus.mjs"
+  ],
+  "new_migration": "supabase/migrations/20260929090000_resnexus_account_multi_property_mapping.sql",
+  "new_tables": [
+    "resnexus_browser_accounts",
+    "resnexus_resource_mappings",
+    "resnexus_account_runs"
+  ],
+  "old_connection_rows_at_build_time": 0,
+  "resnexus_email_bridge_included": false,
+  "resnexus_writeback_included": false,
+  "worker_mode": "account_level_multi_property_read_only_availability"
+}

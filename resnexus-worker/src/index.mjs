@@ -11,7 +11,7 @@ import {
 import {
   ensureResNexusSession,
   NeedsAttentionError,
-  readResNexusAvailability,
+  readResNexusAccountAvailability,
   UnsafeExtractionError,
 } from "./resnexus.mjs";
 
@@ -41,7 +41,7 @@ const pollSeconds = Math.max(
 );
 const leaseSeconds = Math.max(
   60,
-  Math.min(900, Number(process.env.RESNEXUS_LEASE_SECONDS || 600)),
+  Math.min(1800, Number(process.env.RESNEXUS_LEASE_SECONDS || 600)),
 );
 const lookaheadDays = Math.max(
   30,
@@ -111,8 +111,7 @@ function parseStorageState(ciphertext) {
   if (!ciphertext) return undefined;
 
   try {
-    const raw = decryptCredential(ciphertext);
-    const parsed = JSON.parse(raw);
+    const parsed = JSON.parse(decryptCredential(ciphertext));
 
     if (
       parsed &&
@@ -123,35 +122,49 @@ function parseStorageState(ciphertext) {
       return parsed;
     }
   } catch {
-    // A bad/expired browser session is disposable. The stored login can
-    // reauthenticate and produce a fresh session.
+    // A stale/bad browser session is disposable. Saved credentials can log in
+    // again and replace it.
   }
 
   return undefined;
 }
 
-function activeChallenge(connection) {
+function activeChallenge(account) {
   if (
-    !connection.challenge_ciphertext ||
-    !connection.challenge_expires_at
+    !account.challenge_ciphertext ||
+    !account.challenge_expires_at
   ) {
     return null;
   }
 
-  const expires = new Date(connection.challenge_expires_at).getTime();
+  const expires = new Date(account.challenge_expires_at).getTime();
   if (!Number.isFinite(expires) || expires <= Date.now()) {
     return null;
   }
 
   try {
-    return decryptCredential(connection.challenge_ciphertext);
+    return decryptCredential(account.challenge_ciphertext);
   } catch {
     return null;
   }
 }
 
+function resourceCatalogFromDiagnostic(diagnostic) {
+  if (!diagnostic || !Array.isArray(diagnostic.resourceCatalog)) {
+    return [];
+  }
+
+  return diagnostic.resourceCatalog.filter(
+    (item) =>
+      item &&
+      typeof item === "object" &&
+      typeof item.key === "string" &&
+      typeof item.label === "string",
+  );
+}
+
 async function markFailure(
-  connection,
+  account,
   error,
   sessionCiphertext = null,
 ) {
@@ -162,17 +175,10 @@ async function markFailure(
       ? error.diagnostic || {}
       : {};
 
-  const resources = Array.isArray(diagnostic.discoveredResources)
-    ? diagnostic.discoveredResources.filter(
-        (value) => typeof value === "string",
-      )
-    : [];
-
   const { error: rpcError } = await supabase.rpc(
-    "service_finish_resnexus_browser_attempt",
+    "service_finish_resnexus_browser_account_attempt",
     {
-      target_browser_connection_id:
-        connection.browser_connection_id,
+      target_account_id: account.browser_account_id,
       worker_id: workerId,
       result_status: needsAttention ? "NEEDS_ATTENTION" : "ERROR",
       error_message: safeMessage(error),
@@ -181,33 +187,31 @@ async function markFailure(
         ? safeMessage(error)
         : null,
       encrypted_session: sessionCiphertext,
-      resource_names: resources,
+      resource_catalog: resourceCatalogFromDiagnostic(diagnostic),
       run_diagnostic: diagnostic,
     },
   );
 
   if (rpcError) {
     console.error(
-      "[resnexus worker] unable to record failed attempt",
+      "[resnexus worker] unable to record failed account attempt",
       rpcError.message,
     );
   }
 }
 
-async function processConnection(connection) {
-  const login = decryptCredential(connection.login_ciphertext);
-  const password = decryptCredential(connection.password_ciphertext);
-  const challengeCode = activeChallenge(connection);
-  const storageState = parseStorageState(
-    connection.session_ciphertext,
-  );
+async function processAccount(account) {
+  const login = decryptCredential(account.login_ciphertext);
+  const password = decryptCredential(account.password_ciphertext);
+  const challengeCode = activeChallenge(account);
+  const storageState = parseStorageState(account.session_ciphertext);
 
   const currentBrowser = await getBrowser();
   const context = await currentBrowser.newContext({
     storageState,
     viewport: { width: 1440, height: 1000 },
     locale: "en-US",
-    timezoneId: validTimeZone(connection.property_time_zone),
+    timezoneId: validTimeZone(account.browser_time_zone),
   });
 
   let page = null;
@@ -221,30 +225,27 @@ async function processConnection(connection) {
       challengeCode,
     });
 
-    const storageAfterLogin = await context.storageState();
     sessionCiphertext = encryptCredential(
-      JSON.stringify(storageAfterLogin),
+      JSON.stringify(await context.storageState()),
     );
 
-    const snapshot = await readResNexusAvailability({
+    const snapshot = await readResNexusAccountAvailability({
       context,
       page,
-      resourceMatch: connection.resource_match,
       lookbackDays,
       lookaheadDays,
       maxCalendarPages,
     });
 
     const { data, error } = await supabase.rpc(
-      "service_apply_resnexus_browser_sync",
+      "service_apply_resnexus_browser_account_sync",
       {
-        target_browser_connection_id:
-          connection.browser_connection_id,
+        target_account_id: account.browser_account_id,
         source_blocks: snapshot.blocks,
+        resource_catalog: snapshot.resources,
         sync_window_start: snapshot.windowStart,
         sync_window_end: snapshot.windowEnd,
         encrypted_session: sessionCiphertext,
-        resource_names: snapshot.resources,
         worker_id: workerId,
         run_diagnostic: snapshot.diagnostic,
       },
@@ -255,39 +256,38 @@ async function processConnection(connection) {
     lastSuccessAt = new Date().toISOString();
     lastError = null;
 
-    console.log("[resnexus worker] availability sync complete", {
-      browserConnectionId: connection.browser_connection_id,
-      unitId: connection.unit_id,
+    console.log("[resnexus worker] account sync complete", {
+      browserAccountId: account.browser_account_id,
+      organizationId: account.organization_id,
+      resources: snapshot.resources.length,
       blocks: snapshot.blocks.length,
       result: data,
     });
   } catch (error) {
     lastError = safeMessage(error);
 
-    // Login verification challenges are often tied to cookies/session state
-    // created immediately before the challenge page. Preserve that state even
-    // though the availability read did not succeed, so a host-entered one-time
-    // code can continue the same ResNexus login challenge on the next attempt.
+    // Verification challenges can depend on cookies created during the failed
+    // sign-in attempt. Preserve that session so a host-entered code can resume
+    // the same challenge instead of restarting login from scratch.
     if (!sessionCiphertext) {
       try {
-        const storageOnFailure = await context.storageState();
         sessionCiphertext = encryptCredential(
-          JSON.stringify(storageOnFailure),
+          JSON.stringify(await context.storageState()),
         );
       } catch {
         sessionCiphertext = null;
       }
     }
 
-    console.error("[resnexus worker] availability sync failed", {
-      browserConnectionId: connection.browser_connection_id,
-      unitId: connection.unit_id,
+    console.error("[resnexus worker] account sync failed", {
+      browserAccountId: account.browser_account_id,
+      organizationId: account.organization_id,
       error: lastError,
       attention:
         error instanceof NeedsAttentionError ? error.code : null,
     });
 
-    await markFailure(connection, error, sessionCiphertext);
+    await markFailure(account, error, sessionCiphertext);
   } finally {
     await page?.close().catch(() => null);
     await context.close().catch(() => null);
@@ -296,7 +296,7 @@ async function processConnection(connection) {
 
 async function claimOne() {
   const { data, error } = await supabase.rpc(
-    "service_claim_resnexus_browser_connection",
+    "service_claim_resnexus_browser_account",
     {
       worker_id: workerId,
       lease_seconds: leaseSeconds,
@@ -315,15 +315,14 @@ async function loop() {
     try {
       let claimed = 0;
 
-      // One Chromium process is shared, but every host gets a separate
-      // BrowserContext/storage state. Processing sequentially keeps memory use
-      // predictable on a small Railway worker.
+      // One browser process, separate browser context/session per ResNexus
+      // account. Each account scan covers every mapped room/cabin.
       while (!stopping && claimed < 20) {
-        const connection = await claimOne();
-        if (!connection) break;
+        const account = await claimOne();
+        if (!account) break;
 
         claimed += 1;
-        await processConnection(connection);
+        await processAccount(account);
       }
     } catch (error) {
       lastError = safeMessage(error);
@@ -346,6 +345,7 @@ const server = http.createServer((request, response) => {
     response.end(
       JSON.stringify({
         ok: true,
+        mode: "resnexus-account-mapping-v2",
         workerId,
         lastLoopAt,
         lastSuccessAt,
@@ -381,7 +381,7 @@ async function shutdown(signal) {
 process.on("SIGTERM", () => void shutdown("SIGTERM"));
 process.on("SIGINT", () => void shutdown("SIGINT"));
 
-console.log("[resnexus worker] starting", {
+console.log("[resnexus worker] starting account-mapping v2", {
   workerId,
   pollSeconds,
   leaseSeconds,

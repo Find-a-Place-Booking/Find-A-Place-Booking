@@ -12,7 +12,10 @@ function field(formData: FormData, key: string, max = 4096) {
 
 function go(kind: "saved" | "error", message?: string): never {
   const params = new URLSearchParams();
-  params.set(kind, kind === "saved" ? "1" : message || "Unable to update ResNexus.");
+  params.set(
+    kind,
+    kind === "saved" ? "1" : message || "Unable to update ResNexus.",
+  );
   redirect(`/host/integrations/resnexus?${params.toString()}`);
 }
 
@@ -28,18 +31,21 @@ function refresh() {
   revalidatePath("/host/calendar");
 }
 
-export async function saveResNexusBrowserConnection(formData: FormData) {
-  const unitId = field(formData, "unit_id", 100);
-  const label = field(formData, "label", 120) || "ResNexus browser sync";
+export async function saveResNexusBrowserAccount(formData: FormData) {
+  const organizationId = field(formData, "organization_id", 100);
+  const accountId = field(formData, "account_id", 100) || null;
+  const label = field(formData, "label", 120) || "ResNexus";
   const login = field(formData, "login", 320);
   const password = field(formData, "password", 4096);
-  const resourceMatch = field(formData, "resource_match", 240) || null;
   const syncIntervalMinutes = Number(
     field(formData, "sync_interval_minutes", 4) || "60",
   );
 
-  if (!unitId || !login || !password) {
-    go("error", "Choose a property and enter the ResNexus login and password.");
+  if (!organizationId || !login || !password) {
+    go(
+      "error",
+      "Choose a host account and enter the ResNexus login and password.",
+    );
   }
 
   if (
@@ -67,17 +73,17 @@ export async function saveResNexusBrowserConnection(formData: FormData) {
     );
   }
 
-  const { error } = await supabase.rpc("save_resnexus_browser_connection", {
-    target_unit_id: unitId,
-    connection_label: label,
+  const { error } = await supabase.rpc("save_resnexus_browser_account", {
+    target_organization_id: organizationId,
+    account_label: label,
     encrypted_login: encryptedLogin,
     encrypted_password: encryptedPassword,
-    requested_resource_match: resourceMatch,
     requested_sync_interval: syncIntervalMinutes,
+    target_account_id: accountId,
   });
 
   if (error) {
-    console.error("[saveResNexusBrowserConnection]", error);
+    console.error("[saveResNexusBrowserAccount]", error);
     go("error", error.message);
   }
 
@@ -85,13 +91,47 @@ export async function saveResNexusBrowserConnection(formData: FormData) {
   go("saved");
 }
 
-export async function retryResNexusBrowserConnection(formData: FormData) {
-  const browserConnectionId = field(formData, "browser_connection_id", 100);
-  if (!browserConnectionId) go("error", "Missing ResNexus connection.");
+export async function saveResNexusResourceMappings(formData: FormData) {
+  const accountId = field(formData, "account_id", 100);
+  if (!accountId) go("error", "Missing ResNexus account connection.");
+
+  const mappings: Array<{ unit_id: string; resource_key: string }> = [];
+
+  for (const [key, value] of formData.entries()) {
+    if (!key.startsWith("mapping:")) continue;
+
+    const unitId = key.slice("mapping:".length).trim().slice(0, 100);
+    const resourceKey = String(value ?? "").trim().slice(0, 160);
+
+    if (!unitId || !resourceKey) continue;
+    mappings.push({ unit_id: unitId, resource_key: resourceKey });
+  }
 
   const supabase = await hostClient();
-  const { error } = await supabase.rpc("retry_resnexus_browser_connection", {
-    target_browser_connection_id: browserConnectionId,
+  const { error } = await supabase.rpc(
+    "replace_resnexus_resource_mappings",
+    {
+      target_account_id: accountId,
+      requested_mappings: mappings,
+    },
+  );
+
+  if (error) {
+    console.error("[saveResNexusResourceMappings]", error);
+    go("error", error.message);
+  }
+
+  refresh();
+  go("saved");
+}
+
+export async function retryResNexusBrowserAccount(formData: FormData) {
+  const accountId = field(formData, "account_id", 100);
+  if (!accountId) go("error", "Missing ResNexus account connection.");
+
+  const supabase = await hostClient();
+  const { error } = await supabase.rpc("retry_resnexus_browser_account", {
+    target_account_id: accountId,
   });
 
   if (error) go("error", error.message);
@@ -101,10 +141,10 @@ export async function retryResNexusBrowserConnection(formData: FormData) {
 }
 
 export async function submitResNexusVerificationCode(formData: FormData) {
-  const browserConnectionId = field(formData, "browser_connection_id", 100);
+  const accountId = field(formData, "account_id", 100);
   const code = field(formData, "verification_code", 120);
 
-  if (!browserConnectionId || !code) {
+  if (!accountId || !code) {
     go("error", "Enter the ResNexus verification code.");
   }
 
@@ -122,10 +162,13 @@ export async function submitResNexusVerificationCode(formData: FormData) {
     );
   }
 
-  const { error } = await supabase.rpc("submit_resnexus_browser_challenge", {
-    target_browser_connection_id: browserConnectionId,
-    encrypted_challenge: encryptedChallenge,
-  });
+  const { error } = await supabase.rpc(
+    "submit_resnexus_browser_account_challenge",
+    {
+      target_account_id: accountId,
+      encrypted_challenge: encryptedChallenge,
+    },
+  );
 
   if (error) go("error", error.message);
 
@@ -133,14 +176,17 @@ export async function submitResNexusVerificationCode(formData: FormData) {
   go("saved");
 }
 
-export async function disableResNexusBrowserConnection(formData: FormData) {
-  const browserConnectionId = field(formData, "browser_connection_id", 100);
-  if (!browserConnectionId) go("error", "Missing ResNexus connection.");
+export async function disconnectResNexusBrowserAccount(formData: FormData) {
+  const accountId = field(formData, "account_id", 100);
+  if (!accountId) go("error", "Missing ResNexus account connection.");
 
   const supabase = await hostClient();
-  const { error } = await supabase.rpc("disable_resnexus_browser_connection", {
-    target_browser_connection_id: browserConnectionId,
-  });
+  const { error } = await supabase.rpc(
+    "disconnect_resnexus_browser_account",
+    {
+      target_account_id: accountId,
+    },
+  );
 
   if (error) go("error", error.message);
 

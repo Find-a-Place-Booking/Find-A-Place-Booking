@@ -29,12 +29,24 @@ function clean(value) {
   return String(value ?? "").replace(/\s+/g, " ").trim();
 }
 
-function normalizeResource(value) {
-  return clean(value).toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+function normalizedResource(value) {
+  return clean(value)
+    .toLowerCase()
+    .replace(/&amp;/g, "&")
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
 }
 
-function sameResource(left, right) {
-  return normalizeResource(left) === normalizeResource(right);
+function stableHash(value, length = 48) {
+  return createHash("sha256")
+    .update(String(value))
+    .digest("hex")
+    .slice(0, length);
+}
+
+function resourceKey(label) {
+  const normalized = normalizedResource(label);
+  return normalized ? `RNRES:${stableHash(normalized, 32)}` : null;
 }
 
 function validDate(year, month, day) {
@@ -68,16 +80,36 @@ function isoDate(value) {
   }
 
   const months = {
-    january: 1, jan: 1, february: 2, feb: 2, march: 3, mar: 3,
-    april: 4, apr: 4, may: 5, june: 6, jun: 6, july: 7, jul: 7,
-    august: 8, aug: 8, september: 9, sep: 9, sept: 9,
-    october: 10, oct: 10, november: 11, nov: 11,
-    december: 12, dec: 12,
+    january: 1,
+    jan: 1,
+    february: 2,
+    feb: 2,
+    march: 3,
+    mar: 3,
+    april: 4,
+    apr: 4,
+    may: 5,
+    june: 6,
+    jun: 6,
+    july: 7,
+    jul: 7,
+    august: 8,
+    aug: 8,
+    september: 9,
+    sep: 9,
+    sept: 9,
+    october: 10,
+    oct: 10,
+    november: 11,
+    nov: 11,
+    december: 12,
+    dec: 12,
   };
 
   match = raw.match(
     /\b(January|Jan|February|Feb|March|Mar|April|Apr|May|June|Jun|July|Jul|August|Aug|September|Sept?|October|Oct|November|Nov|December|Dec)\s+(\d{1,2})(?:st|nd|rd|th)?(?:,)?\s+(20\d{2})\b/i,
   );
+
   if (match) {
     return validDate(
       Number(match[3]),
@@ -93,13 +125,6 @@ function addDays(value, days) {
   const date = new Date(`${value}T00:00:00Z`);
   date.setUTCDate(date.getUTCDate() + days);
   return date.toISOString().slice(0, 10);
-}
-
-function stableKey(parts) {
-  return createHash("sha256")
-    .update(parts.filter(Boolean).join("|"))
-    .digest("hex")
-    .slice(0, 48);
 }
 
 function stripHtml(html) {
@@ -122,12 +147,13 @@ function stripHtml(html) {
 function labelledValue(text, labels) {
   for (const label of labels) {
     const pattern = new RegExp(
-      `(?:^|\\n)\\s*${label}\\s*(?:date)?\\s*[:#-]?\\s*([^\\n]{2,120})`,
+      `(?:^|\\n)\\s*${label}\\s*(?:date)?\\s*[:#-]?\\s*([^\\n]{2,160})`,
       "i",
     );
     const match = text.match(pattern);
     if (match?.[1]) return clean(match[1]);
   }
+
   return null;
 }
 
@@ -147,18 +173,20 @@ function parseReservationDetail(html, href) {
 
   if (!start || !end || end <= start) return null;
 
-  const resource =
+  const resourceLabel =
     labelledValue(text, [
       "room(?:\\s*\\/\\s*unit)?",
+      "room name",
       "unit",
+      "unit name",
       "accommodation",
       "rental",
     ]) || null;
 
-  const url = new URL(href);
+  const parsedUrl = new URL(href);
   const externalId =
-    url.searchParams.get("ID") ||
-    url.searchParams.get("id") ||
+    parsedUrl.searchParams.get("ID") ||
+    parsedUrl.searchParams.get("id") ||
     labelledValue(text, [
       "confirmation(?:\\s*(?:number|no\\.?|#|id))?",
       "reservation(?:\\s*(?:number|no\\.?|#|id))?",
@@ -166,11 +194,14 @@ function parseReservationDetail(html, href) {
     ]);
 
   return {
-    key: `RESNEXUS:${externalId || stableKey([href, start, end, resource])}`,
-    uid: externalId || stableKey([href]),
+    key: `RESNEXUS:${
+      externalId ||
+      stableHash([href, start, end, resourceLabel].filter(Boolean).join("|"))
+    }`,
+    uid: externalId || stableHash(href),
     start,
     end,
-    resource,
+    resourceLabel,
     source: "reservation_detail",
   };
 }
@@ -325,6 +356,7 @@ async function submitChallengeIfPossible(page, challengeCode) {
   await submit.click();
   await page.waitForLoadState("domcontentloaded").catch(() => null);
   await page.waitForTimeout(700);
+
   return true;
 }
 
@@ -354,10 +386,7 @@ export async function ensureResNexusSession({
     }
 
     if (challenge) {
-      throw new NeedsAttentionError(
-        challenge.code,
-        challenge.message,
-      );
+      throw new NeedsAttentionError(challenge.code, challenge.message);
     }
 
     if (await isLoginPage(page)) {
@@ -410,7 +439,6 @@ export async function ensureResNexusSession({
   }
 }
 
-
 const START_KEYS = new Set([
   "start",
   "startdate",
@@ -457,6 +485,8 @@ const RESOURCE_KEYS = [
   "room",
   "unit",
   "resource",
+  "accommodation",
+  "rental",
 ];
 
 function normalizedKey(value) {
@@ -467,6 +497,7 @@ function valueForKeys(object, keys) {
   for (const [rawKey, value] of Object.entries(object)) {
     if (keys.includes(normalizedKey(rawKey))) return value;
   }
+
   return null;
 }
 
@@ -477,6 +508,7 @@ function dateForSet(object, keySet) {
       if (parsed) return parsed;
     }
   }
+
   return null;
 }
 
@@ -496,7 +528,8 @@ function walkJson(value, path, output, diagnostic) {
 
   if (start && end && end > start) {
     const externalId = clean(valueForKeys(object, ID_KEYS) || "");
-    const resource = clean(valueForKeys(object, RESOURCE_KEYS) || "") || null;
+    const resourceLabel =
+      clean(valueForKeys(object, RESOURCE_KEYS) || "") || null;
     const status = clean(
       valueForKeys(object, ["status", "reservationstatus", "state"]) || "",
     ).toLowerCase();
@@ -504,12 +537,13 @@ function walkJson(value, path, output, diagnostic) {
     if (!/(cancelled|canceled|void)/i.test(status)) {
       output.push({
         key: `RESNEXUS:${
-          externalId || stableKey([path, start, end, resource])
+          externalId ||
+          stableHash([path, start, end, resourceLabel].filter(Boolean).join("|"))
         }`,
-        uid: externalId || stableKey([path]),
+        uid: externalId || stableHash(path),
         start,
         end,
-        resource,
+        resourceLabel,
         source: "json_response",
       });
       diagnostic.schemaPaths.add(path || "root");
@@ -533,8 +567,13 @@ function uniqueBlocks(blocks) {
   const output = [];
 
   for (const block of blocks) {
-    const key =
-      `${block.key}|${block.start}|${block.end}|${block.resource || ""}`;
+    const key = [
+      block.key,
+      block.start,
+      block.end,
+      normalizedResource(block.resourceLabel),
+    ].join("|");
+
     if (seen.has(key)) continue;
     seen.add(key);
     output.push(block);
@@ -593,7 +632,7 @@ async function resourceHintsFromPage(page) {
           );
         })
         .map((value) => String(value).replace(/\s+/g, " ").trim())
-        .filter((value) => value.length >= 2 && value.length <= 120),
+        .filter((value) => value.length >= 2 && value.length <= 160),
     )
     .catch(() => []);
 
@@ -603,10 +642,11 @@ async function resourceHintsFromPage(page) {
         (value) =>
           /[a-z]/i.test(value) &&
           !/^(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)/i.test(value) &&
-          !/^\d+\s*(days?|guests?|rooms?)?$/i.test(value),
+          !/^\d+\s*(days?|guests?|rooms?)?$/i.test(value) &&
+          !/^(next|previous|today|month|week|calendar)$/i.test(value),
       ),
     ),
-  ].slice(0, 100);
+  ].slice(0, 250);
 }
 
 async function clickNextCalendarWindow(page) {
@@ -622,6 +662,7 @@ async function clickNextCalendarWindow(page) {
 
   for (const selector of selectors) {
     const candidate = page.locator(selector).first();
+
     if (await candidate.isVisible().catch(() => false)) {
       const beforeText = await page
         .locator("body")
@@ -638,9 +679,12 @@ async function clickNextCalendarWindow(page) {
         .catch(() => "");
 
       return {
-        advanced: stableKey([beforeText.slice(0, 5000)]) !==
-          stableKey([afterText.slice(0, 5000)]),
-        fingerprint: stableKey([page.url(), afterText.slice(0, 5000)]),
+        advanced:
+          stableHash(beforeText.slice(0, 5000)) !==
+          stableHash(afterText.slice(0, 5000)),
+        fingerprint: stableHash(
+          `${page.url()}|${afterText.slice(0, 5000)}`,
+        ),
       };
     }
   }
@@ -652,10 +696,25 @@ function blockInWindow(block, windowStart, windowEnd) {
   return block.end > windowStart && block.start < windowEnd;
 }
 
-export async function readResNexusAvailability({
+function resourceCatalog(labels) {
+  const byKey = new Map();
+
+  for (const rawLabel of labels) {
+    const label = clean(rawLabel);
+    const key = resourceKey(label);
+
+    if (!key || !label) continue;
+    if (!byKey.has(key)) byKey.set(key, { key, label });
+  }
+
+  return [...byKey.values()].sort((left, right) =>
+    left.label.localeCompare(right.label),
+  );
+}
+
+export async function readResNexusAccountAvailability({
   context,
   page,
-  resourceMatch,
   lookbackDays,
   lookaheadDays,
   maxCalendarPages,
@@ -672,6 +731,7 @@ export async function readResNexusAvailability({
     try {
       const url = response.url();
       const contentType = response.headers()["content-type"] || "";
+
       if (
         !/json/i.test(contentType) ||
         !/(calendar|reservation|availability|grid|booking)/i.test(url)
@@ -688,19 +748,18 @@ export async function readResNexusAvailability({
       networkPaths.add(parsedUrl.pathname);
       walkJson(json, "", networkBlocks, { schemaPaths });
     } catch {
-      // Discovery is best-effort; malformed/unknown responses are ignored.
+      // Best-effort discovery only.
     }
   };
 
   page.on("response", onResponse);
 
-  const discoveredResources = new Set();
+  const discoveredResourceLabels = new Set();
   const detailLinks = new Set();
   const domBlocks = [];
   const pageFingerprints = new Set();
 
   try {
-    // Re-load after the listener is attached so initial calendar XHR is visible.
     await page.reload({
       waitUntil: "domcontentloaded",
       timeout: 30_000,
@@ -709,15 +768,12 @@ export async function readResNexusAvailability({
 
     const challenge = await detectChallenge(page);
     if (challenge) {
-      throw new NeedsAttentionError(
-        challenge.code,
-        challenge.message,
-      );
+      throw new NeedsAttentionError(challenge.code, challenge.message);
     }
 
     for (let pageIndex = 0; pageIndex < maxCalendarPages; pageIndex += 1) {
-      for (const resource of await resourceHintsFromPage(page)) {
-        discoveredResources.add(resource);
+      for (const label of await resourceHintsFromPage(page)) {
+        discoveredResourceLabels.add(label);
       }
 
       for (const href of await collectReservationLinks(page)) {
@@ -727,7 +783,7 @@ export async function readResNexusAvailability({
             detailLinks.add(absolute.toString());
           }
         } catch {
-          // Ignore malformed URLs.
+          // Ignore malformed links.
         }
       }
 
@@ -740,7 +796,8 @@ export async function readResNexusAvailability({
           isoDate(data.end) ||
           isoDate(data.checkout) ||
           isoDate(data.departure);
-        const resource =
+
+        const resourceLabel =
           clean(
             data.roomName ||
               data.unitName ||
@@ -763,12 +820,19 @@ export async function readResNexusAvailability({
           domBlocks.push({
             key: `RESNEXUS:${
               externalId ||
-              stableKey([JSON.stringify(data), start, end, resource])
+              stableHash(
+                [
+                  JSON.stringify(data),
+                  start,
+                  end,
+                  resourceLabel,
+                ].join("|"),
+              )
             }`,
-            uid: externalId || stableKey([JSON.stringify(data)]),
+            uid: externalId || stableHash(JSON.stringify(data)),
             start,
             end,
-            resource,
+            resourceLabel,
             source: "dom_dataset",
           });
         }
@@ -798,8 +862,7 @@ export async function readResNexusAvailability({
         continue;
       }
 
-      const html = await response.text();
-      const parsed = parseReservationDetail(html, href);
+      const parsed = parseReservationDetail(await response.text(), href);
       if (parsed) detailBlocks.push(parsed);
     } catch {
       detailFetchFailures += 1;
@@ -813,74 +876,12 @@ export async function readResNexusAvailability({
   ]);
 
   for (const block of allBlocks) {
-    if (block.resource) discoveredResources.add(block.resource);
-  }
-
-  const resources = [...discoveredResources]
-    .map(clean)
-    .filter(Boolean)
-    .filter((value, index, array) => array.indexOf(value) === index)
-    .slice(0, 100);
-
-  let effectiveResource = clean(resourceMatch || "") || null;
-  const blockResources = [
-    ...new Set(
-      allBlocks
-        .map((block) => clean(block.resource || ""))
-        .filter(Boolean),
-    ),
-  ];
-
-  if (!effectiveResource && blockResources.length === 1) {
-    effectiveResource = blockResources[0];
-  }
-
-  if (!effectiveResource && blockResources.length > 1) {
-    throw new NeedsAttentionError(
-      "RESOURCE_MAPPING_REQUIRED",
-      "This ResNexus account contains multiple rooms/units. Enter the exact ResNexus room/unit name for this Find A Place property.",
-      { discoveredResources: blockResources.slice(0, 30) },
-    );
-  }
-
-  let filtered = allBlocks;
-
-  // Never import a reservation into a unit unless the extractor can prove the
-  // reservation's ResNexus resource. This prevents one multi-unit ResNexus
-  // account from leaking another cabin/room's reservations into this unit.
-  if (allBlocks.some((block) => !block.resource)) {
-    throw new UnsafeExtractionError(
-      "One or more ResNexus reservation records did not expose a room/unit identity. Existing Find A Place availability was preserved until the live-account extractor can prove the mapping safely.",
-      { discoveredResources: blockResources.slice(0, 30) },
-    );
-  }
-
-  if (effectiveResource) {
-    filtered = allBlocks.filter((block) =>
-      sameResource(block.resource, effectiveResource),
-    );
-
-    if (allBlocks.length && !filtered.length) {
-      throw new NeedsAttentionError(
-        "RESOURCE_MAPPING_NOT_FOUND",
-        `The saved room/unit name "${effectiveResource}" did not match the resources found in ResNexus.`,
-        { discoveredResources: blockResources.slice(0, 30) },
-      );
+    if (block.resourceLabel) {
+      discoveredResourceLabels.add(block.resourceLabel);
     }
-  } else if (blockResources.length > 1) {
-    throw new NeedsAttentionError(
-      "RESOURCE_MAPPING_REQUIRED",
-      "This ResNexus account contains multiple rooms/units. Enter the exact ResNexus room/unit name for this Find A Place property.",
-      { discoveredResources: blockResources.slice(0, 30) },
-    );
-  } else if (blockResources.length === 1) {
-    effectiveResource = blockResources[0];
-    filtered = allBlocks;
   }
 
-  filtered = filtered.filter((block) =>
-    blockInWindow(block, windowStart, windowEnd),
-  );
+  const catalog = resourceCatalog(discoveredResourceLabels);
 
   const diagnostic = {
     jsonBlocks: networkBlocks.length,
@@ -890,40 +891,66 @@ export async function readResNexusAvailability({
     schemaPaths: [...schemaPaths].slice(0, 40),
     networkPaths: [...networkPaths].slice(0, 40),
     detailFetchFailures,
-    discoveredResources: resources.slice(0, 30),
-    effectiveResource,
+    resourceCatalog: catalog.slice(0, 250),
   };
 
-  if (
-    filtered.length === 0 &&
-    networkBlocks.length === 0 &&
-    domBlocks.length === 0 &&
-    detailLinks.size > 0
-  ) {
+  // Account-level mapping is only safe if every occupied/block record can be
+  // tied to a concrete ResNexus room/unit.
+  if (allBlocks.some((block) => !block.resourceLabel)) {
     throw new UnsafeExtractionError(
-      "The ResNexus calendar exposed reservation/detail links, but the worker could not prove their check-in/check-out dates. Existing Find A Place availability was preserved.",
+      "One or more ResNexus reservation records did not expose a room/unit identity. Existing Find A Place availability was preserved until the live-account extractor can prove every reservation-to-cabin mapping.",
       diagnostic,
     );
   }
 
-  if (
-    filtered.length === 0 &&
-    networkBlocks.length === 0 &&
-    domBlocks.length === 0 &&
-    detailLinks.size === 0
-  ) {
+  const blocks = allBlocks
+    .filter((block) => blockInWindow(block, windowStart, windowEnd))
+    .map((block) => {
+      const key = resourceKey(block.resourceLabel);
+
+      if (!key) {
+        throw new UnsafeExtractionError(
+          "A ResNexus reservation had an invalid room/unit identity.",
+          diagnostic,
+        );
+      }
+
+      return {
+        key: block.key,
+        uid: block.uid,
+        start: block.start,
+        end: block.end,
+        resource_key: key,
+        resource_label: clean(block.resourceLabel),
+        metadata: {
+          provider: "RESNEXUS",
+          source: "persistent_browser",
+          resource: clean(block.resourceLabel),
+          extractor: block.source,
+        },
+      };
+    });
+
+  if (!catalog.length && blocks.length) {
+    throw new UnsafeExtractionError(
+      "ResNexus reservations were found, but no stable room/unit catalog could be created.",
+      diagnostic,
+    );
+  }
+
+  if (!blocks.length) {
     const body = clean(
       await page.locator("body").innerText().catch(() => ""),
     ).toLowerCase();
 
-    const explicitEmpty =
+    const explicitlyEmpty =
       body.includes("no reservations") ||
       body.includes("no bookings") ||
       body.includes("no results");
 
-    if (!explicitEmpty) {
+    if (!catalog.length && !explicitlyEmpty) {
       throw new UnsafeExtractionError(
-        "The ResNexus calendar loaded, but this account did not expose a reservation/block structure the worker could verify. The first live account needs extractor calibration before availability can be trusted.",
+        "The ResNexus calendar loaded, but the worker could not prove either a room/unit catalog or a safely empty calendar. The first live account needs extractor calibration.",
         diagnostic,
       );
     }
@@ -932,19 +959,8 @@ export async function readResNexusAvailability({
   return {
     windowStart,
     windowEnd,
-    blocks: filtered.map((block) => ({
-      key: block.key,
-      uid: block.uid,
-      start: block.start,
-      end: block.end,
-      metadata: {
-        provider: "RESNEXUS",
-        source: "persistent_browser",
-        resource: block.resource,
-        extractor: block.source,
-      },
-    })),
-    resources,
+    blocks,
+    resources: catalog,
     diagnostic,
   };
 }
