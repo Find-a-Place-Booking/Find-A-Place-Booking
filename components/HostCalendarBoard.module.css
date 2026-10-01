@@ -1,0 +1,90 @@
+.panel{width:100%;min-width:0;overflow:hidden;border:1px solid #ddd6cb;background:#fff}
+.top{display:flex;justify-content:space-between;gap:18px;align-items:center;padding:18px 20px;border-bottom:1px solid #e7e1d8}
+.top>div:first-child{min-width:0}
+.eyebrow{display:block;margin-bottom:4px;color:#6f756f;font-size:.58rem;font-weight:900;letter-spacing:.09em;text-transform:uppercase}
+.top h2{margin:0;font-family:Georgia,serif;font-size:1.45rem;font-weight:500}
+.top p{margin:3px 0 0;color:#737872;font-size:.72rem;overflow-wrap:anywhere}
+.topActions{display:flex;gap:9px;align-items:center;flex:0 0 auto}
+.monthNav{display:flex;gap:6px}
+.monthNav a{display:grid;width:38px;height:38px;place-items:center;border:1px solid #d8d2c8;border-radius:7px;background:#fff;color:#27322e;font-size:1.15rem;font-weight:900}
+.sourceBar{display:grid;grid-template-columns:minmax(180px,.55fr) minmax(0,1.45fr);gap:16px;align-items:start;padding:13px 18px;border-bottom:1px solid #e7e1d8;background:#faf8f4}
+.sourceHeading{display:grid;gap:3px}
+.sourceHeading strong{color:#2e3833;font-size:.72rem}
+.sourceHeading span{color:#737872;font-size:.62rem;line-height:1.45}
+.sourceList{display:flex;flex-wrap:wrap;gap:7px 9px}
+.sourceItem{display:flex;gap:7px;align-items:center;min-width:0;padding:6px 8px;border:1px solid #e1dbd1;border-radius:999px;background:#fff}
+.sourceItem i,.inspectorRow>i{flex:0 0 auto;width:10px;height:10px;border-radius:3px}
+.sourceItem div{min-width:0}
+.sourceItem strong{display:block;font-size:.61rem;line-height:1.15}
+.sourceItem span{display:block;margin-top:1px;color:#7c807a;font-size:.5rem;line-height:1.15}
+.controlDeck{display:grid;grid-template-columns:minmax(0,1.18fr) minmax(280px,.82fr);gap:12px;padding:14px 18px;border-bottom:1px solid #e7e1d8;background:#fff}
+.quickBlock,.dayInspector{min-width:0;border:1px solid #dfd8cd;border-radius:12px;background:#faf8f4;padding:13px}
+.dayInspector{background:#fff}
+.controlHeading{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;margin-bottom:10px}
+.controlHeading>div{min-width:0;display:grid;gap:2px}
+.controlHeading strong{color:#27322e;font-size:.77rem}
+.controlHeading span{color:#737872;font-size:.62rem;line-height:1.45}
+.clearButton{flex:0 0 auto;border:0;background:transparent;color:#6d756f;font:inherit;font-size:.62rem;font-weight:850;cursor:pointer}
+.blockForm{display:grid;gap:9px}
+.dateFields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.dateFields label,.labelField{display:grid;gap:4px;min-width:0}
+.dateFields span,.labelField span{color:#70756f;font-size:.56rem;font-weight:850;letter-spacing:.06em;text-transform:uppercase}
+.dateFields input,.labelField input{width:100%;min-width:0;min-height:40px;border:1px solid #d5cec3;border-radius:8px;background:#fff;padding:8px 10px;font:inherit;font-size:.72rem}
+.presets{display:flex;flex-wrap:wrap;gap:6px}
+.presets button{border:1px solid #d7d0c5;border-radius:999px;background:#fff;color:#3c5147;padding:6px 9px;font:inherit;font-size:.58rem;font-weight:850;cursor:pointer}
+.presets button:hover{border-color:#aabbb1;background:#f1f6f2}
+.directNote{margin:9px 0 0;color:#777c76;font-size:.59rem;line-height:1.45}
+.inspectorList{display:grid;gap:7px}
+.inspectorRow{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:8px;align-items:center;min-width:0;padding:8px;border:1px solid #e5dfd5;border-radius:9px;background:#faf8f4}
+.inspectorRow>div{min-width:0}
+.inspectorRow strong{display:block;font-size:.67rem;overflow-wrap:anywhere}
+.inspectorRow span{display:block;margin-top:2px;color:#767b75;font-size:.56rem;overflow-wrap:anywhere}
+.openDate,.inspectorHint{display:grid;gap:3px;padding:11px;border:1px dashed #d7d0c5;border-radius:9px;color:#70756f;font-size:.64rem;line-height:1.45}
+.openDate strong{color:#315f4b;font-size:.72rem}
+.week{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));border-bottom:1px solid #e7e1d8;background:#f7f4ef}
+.week span{min-width:0;padding:9px 8px;border-right:1px solid #ebe5dc;color:#777;font-size:.58rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase}
+.grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));min-width:0}
+.day{appearance:none;position:relative;min-width:0;min-height:116px;overflow:hidden;border:0;border-right:1px solid #eee9e1;border-bottom:1px solid #eee9e1;background:#fff;padding:7px;color:inherit;text-align:left;font:inherit;cursor:pointer}
+.day:hover{background:#fbfaf7;box-shadow:inset 0 0 0 1px #cfd9d3}
+.outside{background:#f8f6f2;color:#a5a39d}
+.selected{background:#f0f6f2;box-shadow:inset 0 0 0 2px #80a18f}
+.focused:after{content:"";position:absolute;inset:3px;border:1px solid #315f4b;border-radius:5px;pointer-events:none}
+.conflict{box-shadow:inset 0 0 0 2px #c77a58}
+.conflict.selected{box-shadow:inset 0 0 0 2px #c77a58,inset 0 0 0 4px #f0f6f2}
+.dayHead{display:flex;justify-content:space-between;gap:5px;align-items:flex-start;min-width:0}
+.dayHead b{font-size:.72rem}
+.price{min-width:0;color:#435e50;font-size:.62rem;font-weight:800}
+.special{display:block;margin-top:3px;overflow:hidden;color:#9c5b3d;font-size:.54rem;font-weight:800;text-overflow:ellipsis;white-space:nowrap}
+.minStay{display:block;color:#777;font-size:.54rem}
+.chips{display:grid;gap:3px;margin-top:7px;min-width:0}
+.chip{display:block;width:100%;min-width:0;overflow:hidden;border-radius:4px;padding:4px 5px;color:#fff;font-size:.54rem;font-weight:780;line-height:1.2;text-overflow:ellipsis;white-space:nowrap}
+.more{color:#777;font-size:.52rem}
+.manual{background:#a75e3f}.findAPlace{background:#2e506d}.checkoutHold{background:#806a42}.airbnb{background:#c8515f}.vrbo{background:#31679a}.resnexus{background:#286f68}.thinkReservations{background:#70578f}.guesty{background:#487d93}.hostify{background:#4b7458}.booking{background:#315886}.ownerRez{background:#765b42}.lodgify{background:#3f8077}.google{background:#5f6d82}.external{background:#294c41}.neutral{background:#8a8e88}
+.bottomBar{display:flex;justify-content:space-between;gap:15px;align-items:center;padding:11px 18px;border-top:1px solid #e7e1d8;background:#faf8f4}
+.bottomBar>div{min-width:0;display:grid;gap:2px}
+.bottomBar strong{font-size:.67rem}
+.bottomBar span{color:#777c76;font-size:.56rem}
+.bottomBar a{flex:0 0 auto;color:#315f4b;font-size:.62rem;font-weight:850}
+.manualList{border-top:1px solid #e7e1d8;background:#fff}
+.manualList summary{padding:11px 18px;color:#4d5852;font-size:.65rem;font-weight:850;cursor:pointer}
+.manualList>div{display:grid;gap:7px;padding:0 18px 14px}
+.manualRow{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;align-items:center;padding:8px 0;border-top:1px solid #eee9e1}
+.manualRow strong{display:block;font-size:.68rem}
+.manualRow span{display:block;margin-top:2px;color:#777c76;font-size:.58rem}
+@media(max-width:900px){.sourceBar,.controlDeck{grid-template-columns:minmax(0,1fr)}}
+@media(max-width:760px){
+  .top{display:grid;padding:14px}.topActions{width:100%;justify-content:space-between}
+  .sourceBar,.controlDeck{padding-inline:12px}.sourceList{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}.sourceItem{border-radius:8px}
+  .week,.grid{width:100%;min-width:0;grid-template-columns:repeat(7,minmax(0,1fr))}
+  .week span{padding:7px 2px;text-align:center;font-size:.5rem;letter-spacing:.035em}
+  .day{min-height:88px;padding:4px 3px}.dayHead{display:grid;grid-template-columns:minmax(0,1fr);gap:1px}.dayHead b{font-size:.62rem}.price{font-size:.48rem;white-space:nowrap}
+  .special,.minStay{font-size:.43rem;line-height:1.12;white-space:normal}.chips{gap:2px;margin-top:4px}.chip{padding:3px 2px;font-size:.42rem}
+  .dateFields{grid-template-columns:minmax(0,1fr)}.dateFields input,.labelField input{font-size:16px}
+  .inspectorRow{grid-template-columns:auto minmax(0,1fr)}.inspectorRow form{grid-column:2}
+  .bottomBar{display:grid;padding-inline:12px}.bottomBar a{justify-self:start}
+  .manualRow{grid-template-columns:minmax(0,1fr)}.manualRow form,.manualRow button{width:100%}
+}
+@media(max-width:520px){
+  .sourceList{grid-template-columns:minmax(0,1fr)}.topActions{display:grid;grid-template-columns:minmax(0,1fr) auto}.topActions>a{min-width:0}
+  .controlDeck{padding:10px}.quickBlock,.dayInspector{padding:11px}
+}
