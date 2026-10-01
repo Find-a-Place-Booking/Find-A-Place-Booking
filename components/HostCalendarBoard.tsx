@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import {
   cancelOwnerBlock,
@@ -31,13 +31,6 @@ type Props = {
   pricingDays: CalendarPricingDay[];
 };
 
-type SourceDescriptor = {
-  key: string;
-  label: string;
-  detail?: string;
-  tone: string;
-};
-
 function addDays(value: string, days: number) {
   const date = new Date(`${value}T12:00:00Z`);
   date.setUTCDate(date.getUTCDate() + days);
@@ -47,6 +40,7 @@ function addDays(value: string, days: number) {
 function displayDate(value: string) {
   const date = new Date(`${value}T12:00:00Z`);
   return date.toLocaleDateString("en-US", {
+    weekday: "short",
     month: "short",
     day: "numeric",
     year: "numeric",
@@ -62,33 +56,6 @@ function money(cents: number | null | undefined, currency = "USD") {
     currency,
     maximumFractionDigits: cents % 100 ? 2 : 0,
   }).format(cents / 100);
-}
-
-function providerTone(provider: string) {
-  switch (provider) {
-    case "AIRBNB":
-      return styles.airbnb;
-    case "VRBO":
-      return styles.vrbo;
-    case "RESNEXUS":
-      return styles.resnexus;
-    case "THINKRESERVATIONS":
-      return styles.thinkReservations;
-    case "GUESTY":
-      return styles.guesty;
-    case "HOSTIFY":
-      return styles.hostify;
-    case "BOOKING_COM":
-      return styles.booking;
-    case "OWNEREZ":
-      return styles.ownerRez;
-    case "LODGIFY":
-      return styles.lodgify;
-    case "GOOGLE":
-      return styles.google;
-    default:
-      return styles.external;
-  }
 }
 
 function providerLabel(provider: string) {
@@ -109,24 +76,51 @@ function providerLabel(provider: string) {
   return labels[provider] ?? provider.replaceAll("_", " ");
 }
 
+function providerTone(provider: string) {
+  switch (provider) {
+    case "AIRBNB":
+      return styles.airbnb;
+    case "VRBO":
+      return styles.vrbo;
+    case "RESNEXUS":
+      return styles.resnexus;
+    case "THINKRESERVATIONS":
+      return styles.think;
+    case "GUESTY":
+      return styles.guesty;
+    case "HOSTIFY":
+      return styles.hostify;
+    case "BOOKING_COM":
+      return styles.booking;
+    case "OWNEREZ":
+      return styles.ownerRez;
+    case "LODGIFY":
+      return styles.lodgify;
+    case "GOOGLE":
+      return styles.google;
+    default:
+      return styles.external;
+  }
+}
+
 function blockTone(
   block: AvailabilityBlockRecord,
-  connectionById: Map<string, CalendarConnectionRecord>,
+  connections: Map<string, CalendarConnectionRecord>,
 ) {
   if (block.block_type === "OWNER_BLOCK") return styles.manual;
-  if (block.block_type === "INTERNAL_RESERVATION") return styles.findAPlace;
-  if (block.block_type === "INTERNAL_HOLD") return styles.checkoutHold;
+  if (block.block_type === "INTERNAL_RESERVATION") return styles.fap;
+  if (block.block_type === "INTERNAL_HOLD") return styles.hold;
 
   const connection = block.connection_id
-    ? connectionById.get(block.connection_id)
+    ? connections.get(block.connection_id)
     : null;
 
   return providerTone(connection?.provider || "");
 }
 
-function blockSourceLabel(
+function blockLabel(
   block: AvailabilityBlockRecord,
-  connectionById: Map<string, CalendarConnectionRecord>,
+  connections: Map<string, CalendarConnectionRecord>,
 ) {
   if (block.block_type === "OWNER_BLOCK") {
     return block.label || "Manual block";
@@ -141,26 +135,12 @@ function blockSourceLabel(
   }
 
   const connection = block.connection_id
-    ? connectionById.get(block.connection_id)
+    ? connections.get(block.connection_id)
     : null;
 
-  if (!connection) return block.label || "External calendar";
-
-  const provider = providerLabel(connection.provider);
-  const label = block.label?.trim() || connection.label?.trim();
-
-  return label && label !== provider ? `${provider} · ${label}` : provider;
-}
-
-function sourceDetail(connection: CalendarConnectionRecord) {
-  const kind =
-    connection.connection_kind === "PMS_API" ? "API" : "iCal";
-  const status =
-    connection.sync_status === "HEALTHY"
-      ? "synced"
-      : connection.sync_status.replaceAll("_", " ").toLowerCase();
-
-  return `${kind} · ${status}`;
+  return connection
+    ? providerLabel(connection.provider)
+    : block.label || "External calendar";
 }
 
 export function HostCalendarBoard({
@@ -175,11 +155,10 @@ export function HostCalendarBoard({
   connections,
   pricingDays,
 }: Props) {
-  const [start, setStart] = useState("");
-  const [end, setEnd] = useState("");
-  const [rangeAnchor, setRangeAnchor] = useState<string | null>(null);
+  const [openDate, setOpenDate] = useState<string | null>(null);
+  const [blockStart, setBlockStart] = useState("");
+  const [blockEnd, setBlockEnd] = useState("");
   const [label, setLabel] = useState("");
-  const [focusedDate, setFocusedDate] = useState<string | null>(null);
 
   const connectionById = useMemo(
     () =>
@@ -190,7 +169,8 @@ export function HostCalendarBoard({
   );
 
   const pricingByDate = useMemo(
-    () => new Map(pricingDays.map((day) => [day.stay_date, day])),
+    () =>
+      new Map(pricingDays.map((pricing) => [pricing.stay_date, pricing])),
     [pricingDays],
   );
 
@@ -210,470 +190,452 @@ export function HostCalendarBoard({
     return map;
   }, [blocks, days]);
 
-  const ownerBlocks = useMemo(
-    () => blocks.filter((block) => block.block_type === "OWNER_BLOCK"),
-    [blocks],
-  );
+  useEffect(() => {
+    if (!openDate) return;
 
-  const activeSources = useMemo(() => {
-    const sources: SourceDescriptor[] = [];
+    const oldOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
 
-    if (ownerBlocks.length) {
-      sources.push({
-        key: "manual",
-        label: "Manual blocks",
-        detail: `${ownerBlocks.length} on this view`,
-        tone: styles.manual,
-      });
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") setOpenDate(null);
     }
 
-    if (blocks.some((block) => block.block_type === "INTERNAL_RESERVATION")) {
-      sources.push({
-        key: "fap",
-        label: "Find A Place reservations",
-        tone: styles.findAPlace,
-      });
-    }
+    window.addEventListener("keydown", onKeyDown);
 
-    if (blocks.some((block) => block.block_type === "INTERNAL_HOLD")) {
-      sources.push({
-        key: "holds",
-        label: "Checkout holds",
-        tone: styles.checkoutHold,
-      });
-    }
+    return () => {
+      document.body.style.overflow = oldOverflow;
+      window.removeEventListener("keydown", onKeyDown);
+    };
+  }, [openDate]);
 
-    for (const connection of connections) {
-      sources.push({
-        key: connection.id,
-        label: providerLabel(connection.provider),
-        detail: sourceDetail(connection),
-        tone: providerTone(connection.provider),
-      });
-    }
+  function openDay(date: string) {
+    setOpenDate(date);
+    setBlockStart(date);
+    setBlockEnd(addDays(date, 1));
+    setLabel("");
+  }
 
-    if (!sources.length) {
-      sources.push({
-        key: "open",
-        label: "No external sources connected",
-        detail: "Find A Place availability only",
-        tone: styles.neutral,
-      });
-    }
-
-    return sources;
-  }, [blocks, connections, ownerBlocks.length]);
-
-  const focusedBlocks = focusedDate
-    ? blocksByDate.get(focusedDate) ?? []
+  const selectedBlocks = openDate
+    ? blocksByDate.get(openDate) ?? []
     : [];
 
-  function selectDate(date: string) {
-    setFocusedDate(date);
+  const selectedPricing = openDate
+    ? pricingByDate.get(openDate) ?? null
+    : null;
 
-    if (!rangeAnchor) {
-      setRangeAnchor(date);
-      setStart(date);
-      setEnd(addDays(date, 1));
-      return;
-    }
+  const manualCount = blocks.filter(
+    (block) => block.block_type === "OWNER_BLOCK",
+  ).length;
 
-    const first = date < rangeAnchor ? date : rangeAnchor;
-    const last = date < rangeAnchor ? rangeAnchor : date;
-
-    setStart(first);
-    setEnd(addDays(last, 1));
-    setRangeAnchor(null);
-  }
-
-  function clearSelection() {
-    setRangeAnchor(null);
-    setStart("");
-    setEnd("");
-    setFocusedDate(null);
-  }
-
-  function preset(nextLabel: string) {
-    setLabel(nextLabel);
-  }
-
-  function selected(date: string) {
-    return Boolean(start && end && date >= start && date < end);
-  }
+  const legendItems = [
+    { key: "manual", label: "Manual blocks", tone: styles.manual },
+    { key: "fap", label: "Find A Place", tone: styles.fap },
+    { key: "hold", label: "Checkout holds", tone: styles.hold },
+    ...connections.map((connection) => ({
+      key: connection.id,
+      label: providerLabel(connection.provider),
+      tone: providerTone(connection.provider),
+    })),
+  ];
 
   return (
-    <section className={styles.panel}>
-      <div className={styles.top}>
-        <div>
-          <span className={styles.eyebrow}>Availability calendar</span>
-          <h2>{monthLabel}</h2>
-          <p>{unitLabel}</p>
-        </div>
+    <>
+      <section className={styles.panel}>
+        <div className={styles.header}>
+          <div>
+            <span className={styles.eyebrow}>Availability calendar</span>
+            <h2>{monthLabel}</h2>
+            <p>{unitLabel}</p>
+          </div>
 
-        <div className={styles.topActions}>
-          <Link
-            className="button button-small button-quiet"
-            href="/host/reservations"
-          >
-            Manage reservations
-          </Link>
+          <div className={styles.headerActions}>
+            <Link
+              className="button button-small button-quiet"
+              href="/host/reservations"
+            >
+              Reservations
+            </Link>
 
-          <div className={styles.monthNav}>
-            <Link aria-label="Previous month" href={previousMonthHref}>
-              ‹
-            </Link>
-            <Link aria-label="Next month" href={nextMonthHref}>
-              ›
-            </Link>
+            <div className={styles.monthNav}>
+              <Link aria-label="Previous month" href={previousMonthHref}>
+                ‹
+              </Link>
+              <Link aria-label="Next month" href={nextMonthHref}>
+                ›
+              </Link>
+            </div>
           </div>
         </div>
-      </div>
 
-      <div className={styles.sourceBar}>
-        <div className={styles.sourceHeading}>
-          <strong>What the colors mean</strong>
-          <span>
-            Each connected source is labeled so it is clear why a date is
-            unavailable.
-          </span>
+        <div className={styles.legendArea}>
+          <div className={styles.legendIntro}>
+            <strong>Calendar sources</strong>
+            <span>
+              Click any date to open it, see what is there, or block it.
+            </span>
+          </div>
+
+          <div className={styles.legend}>
+            {legendItems.map((item) => (
+              <span key={item.key}>
+                <i className={item.tone} />
+                {item.label}
+              </span>
+            ))}
+          </div>
         </div>
 
-        <div className={styles.sourceList}>
-          {activeSources.map((source) => (
-            <div className={styles.sourceItem} key={source.key}>
-              <i className={source.tone} />
-              <div>
-                <strong>{source.label}</strong>
-                {source.detail ? <span>{source.detail}</span> : null}
-              </div>
-            </div>
+        <div className={styles.statusBar}>
+          <span>
+            <strong>{connections.length}</strong> connected source
+            {connections.length === 1 ? "" : "s"}
+          </span>
+          <span>
+            <strong>{manualCount}</strong> manual block
+            {manualCount === 1 ? "" : "s"} in view
+          </span>
+          <b>Click a day to manage it</b>
+        </div>
+
+        <div className={styles.week}>
+          {weekDays.map((day) => (
+            <span key={day}>{day}</span>
           ))}
         </div>
-      </div>
 
-      <div className={styles.controlDeck}>
-        <div className={styles.quickBlock}>
-          <div className={styles.controlHeading}>
-            <div>
-              <strong>Block dates</strong>
-              <span>
-                Click one date for one night, or click the first and last
-                night to select a range.
-              </span>
-            </div>
+        <div className={styles.grid}>
+          {days.map((day) => {
+            const dayBlocks = blocksByDate.get(day.date) ?? [];
+            const pricing = pricingByDate.get(day.date);
+            const price = money(
+              pricing?.nightly_cents,
+              pricing?.currency || "USD",
+            );
 
-            {start || end ? (
+            return (
               <button
-                className={styles.clearButton}
+                className={[
+                  styles.day,
+                  day.inMonth ? "" : styles.outside,
+                  dayBlocks.length > 1 ? styles.conflict : "",
+                ]
+                  .filter(Boolean)
+                  .join(" ")}
                 type="button"
-                onClick={clearSelection}
+                key={day.date}
+                onClick={() => openDay(day.date)}
+                aria-label={`Open ${displayDate(day.date)}`}
               >
-                Clear
-              </button>
-            ) : null}
-          </div>
+                <div className={styles.dayHead}>
+                  <strong>{day.dayNumber}</strong>
+                  {price ? <span>{price}</span> : null}
+                </div>
 
-          <form action={createOwnerBlock} className={styles.blockForm}>
-            <input type="hidden" name="unitId" value={unitId} />
-            <input type="hidden" name="month" value={month} />
-
-            <div className={styles.dateFields}>
-              <label>
-                <span>Start / check-in</span>
-                <input
-                  type="date"
-                  name="start"
-                  value={start}
-                  onChange={(event) => {
-                    const value = event.target.value;
-                    setStart(value);
-                    setRangeAnchor(null);
-                    if (value && (!end || end <= value)) {
-                      setEnd(addDays(value, 1));
-                    }
-                  }}
-                  required
-                />
-              </label>
-
-              <label>
-                <span>End / checkout</span>
-                <input
-                  type="date"
-                  name="end"
-                  value={end}
-                  min={start ? addDays(start, 1) : undefined}
-                  onChange={(event) => {
-                    setEnd(event.target.value);
-                    setRangeAnchor(null);
-                  }}
-                  required
-                />
-              </label>
-            </div>
-
-            <div className={styles.presets}>
-              <button type="button" onClick={() => preset("Owner stay")}>
-                Owner stay
-              </button>
-              <button type="button" onClick={() => preset("Maintenance")}>
-                Maintenance
-              </button>
-              <button
-                type="button"
-                onClick={() => preset("Direct / offline booking")}
-              >
-                Direct booking
-              </button>
-              <button type="button" onClick={() => preset("Unavailable")}>
-                Other
-              </button>
-            </div>
-
-            <label className={styles.labelField}>
-              <span>Reason / label</span>
-              <input
-                name="label"
-                maxLength={180}
-                value={label}
-                onChange={(event) => setLabel(event.target.value)}
-                placeholder="Owner stay, maintenance, direct booking…"
-              />
-            </label>
-
-            <button
-              className="button button-small"
-              type="submit"
-              disabled={!start || !end || end <= start}
-            >
-              Block selected dates
-            </button>
-          </form>
-
-          <p className={styles.directNote}>
-            <strong>Direct / offline booking:</strong> this marks the dates
-            unavailable on the shared calendar. It does not create a Find A
-            Place guest reservation or payment record.
-          </p>
-        </div>
-
-        <div className={styles.dayInspector}>
-          <div className={styles.controlHeading}>
-            <div>
-              <strong>
-                {focusedDate
-                  ? displayDate(focusedDate)
-                  : "Click any calendar date"}
-              </strong>
-              <span>
-                {focusedDate
-                  ? focusedBlocks.length
-                    ? `${focusedBlocks.length} availability source${
-                        focusedBlocks.length === 1 ? "" : "s"
-                      } on this date`
-                    : "No blocks or reservations on this date"
-                  : "Inspect exactly what is blocking a date."}
-              </span>
-            </div>
-          </div>
-
-          {focusedDate ? (
-            focusedBlocks.length ? (
-              <div className={styles.inspectorList}>
-                {focusedBlocks.map((block) => (
-                  <div className={styles.inspectorRow} key={block.id}>
-                    <i className={blockTone(block, connectionById)} />
-                    <div>
-                      <strong>
-                        {blockSourceLabel(block, connectionById)}
-                      </strong>
-                      <span>
-                        {displayDate(block.start_date)} →{" "}
-                        {displayDate(block.end_date)} checkout
-                      </span>
-                    </div>
-
-                    {block.block_type === "OWNER_BLOCK" ? (
-                      <form action={cancelOwnerBlock}>
-                        <input
-                          type="hidden"
-                          name="unitId"
-                          value={unitId}
-                        />
-                        <input type="hidden" name="month" value={month} />
-                        <input
-                          type="hidden"
-                          name="blockId"
-                          value={block.id}
-                        />
-                        <button
-                          className="button button-small button-quiet"
-                          type="submit"
-                        >
-                          Remove
-                        </button>
-                      </form>
-                    ) : null}
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className={styles.openDate}>
-                <strong>Open</strong>
-                <span>
-                  This date has no active calendar block in Find A Place.
-                </span>
-              </div>
-            )
-          ) : (
-            <div className={styles.inspectorHint}>
-              Click a date below to inspect it. Click a second date to finish
-              a multi-night selection.
-            </div>
-          )}
-        </div>
-      </div>
-
-      <div className={styles.week}>
-        {weekDays.map((day) => (
-          <span key={day}>{day}</span>
-        ))}
-      </div>
-
-      <div className={styles.grid}>
-        {days.map((day) => {
-          const dayBlocks = blocksByDate.get(day.date) ?? [];
-          const pricing = pricingByDate.get(day.date);
-          const price = money(
-            pricing?.nightly_cents,
-            pricing?.currency || "USD",
-          );
-          const isSelected = selected(day.date);
-          const isFocused = focusedDate === day.date;
-
-          return (
-            <button
-              type="button"
-              className={[
-                styles.day,
-                day.inMonth ? "" : styles.outside,
-                dayBlocks.length > 1 ? styles.conflict : "",
-                isSelected ? styles.selected : "",
-                isFocused ? styles.focused : "",
-              ]
-                .filter(Boolean)
-                .join(" ")}
-              key={day.date}
-              onClick={() => selectDate(day.date)}
-              aria-pressed={isSelected}
-              title={
-                dayBlocks.length > 1
-                  ? `${dayBlocks.length} availability sources overlap on this date`
-                  : "Click to inspect or select this date"
-              }
-            >
-              <div className={styles.dayHead}>
-                <b>{day.dayNumber}</b>
-                {price ? <span className={styles.price}>{price}</span> : null}
-              </div>
-
-              {pricing?.special_label ? (
-                <span className={styles.special}>
-                  {pricing.special_label}
-                </span>
-              ) : null}
-
-              {(pricing?.minimum_stay_nights ?? 1) > 1 ? (
-                <span className={styles.minStay}>
-                  min {pricing?.minimum_stay_nights} nights
-                </span>
-              ) : null}
-
-              <div className={styles.chips}>
-                {dayBlocks.slice(0, 3).map((block) => (
-                  <span
-                    className={`${styles.chip} ${blockTone(
-                      block,
-                      connectionById,
-                    )}`}
-                    key={block.id}
-                  >
-                    {blockSourceLabel(block, connectionById)}
-                  </span>
-                ))}
-
-                {dayBlocks.length > 3 ? (
-                  <span className={styles.more}>
-                    +{dayBlocks.length - 3} more
-                  </span>
+                {pricing?.special_label ? (
+                  <em>{pricing.special_label}</em>
                 ) : null}
-              </div>
-            </button>
-          );
-        })}
-      </div>
 
-      <div className={styles.bottomBar}>
-        <div>
-          <strong>
-            {rangeAnchor
-              ? "Choose the last night"
-              : start && end
-                ? `${displayDate(start)} → ${displayDate(end)} checkout`
-                : "Click the calendar to select dates"}
-          </strong>
-          <span>
-            Checkout dates are exclusive: the checkout date itself is not
-            blocked.
-          </span>
+                {(pricing?.minimum_stay_nights ?? 1) > 1 ? (
+                  <small>
+                    min {pricing?.minimum_stay_nights} nights
+                  </small>
+                ) : null}
+
+                <div className={styles.chips}>
+                  {dayBlocks.slice(0, 3).map((block) => (
+                    <span
+                      className={`${styles.chip} ${blockTone(
+                        block,
+                        connectionById,
+                      )}`}
+                      key={block.id}
+                    >
+                      {blockLabel(block, connectionById)}
+                    </span>
+                  ))}
+
+                  {dayBlocks.length > 3 ? (
+                    <span className={styles.more}>
+                      +{dayBlocks.length - 3} more
+                    </span>
+                  ) : null}
+                </div>
+              </button>
+            );
+          })}
         </div>
 
-        <Link href="/host/reservations">
-          Find A Place reservations →
-        </Link>
-      </div>
+        <div className={styles.footer}>
+          <span>
+            Checkout dates are exclusive. A block ending Oct 10 leaves the
+            night of Oct 10 open.
+          </span>
+          <Link href="/host/reservations">
+            Manage Find A Place reservations →
+          </Link>
+        </div>
+      </section>
 
-      {ownerBlocks.length ? (
-        <details className={styles.manualList}>
-          <summary>
-            Manual blocks in this calendar view ({ownerBlocks.length})
-          </summary>
+      {openDate ? (
+        <div
+          className={styles.backdrop}
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) setOpenDate(null);
+          }}
+        >
+          <section
+            className={styles.drawer}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="calendar-day-title"
+          >
+            <div className={styles.drawerHead}>
+              <div>
+                <span className={styles.eyebrow}>Calendar day</span>
+                <h2 id="calendar-day-title">{displayDate(openDate)}</h2>
+                <p>{unitLabel}</p>
+              </div>
 
-          <div>
-            {ownerBlocks.map((block) => (
-              <div className={styles.manualRow} key={block.id}>
-                <div>
-                  <strong>{block.label || "Manual block"}</strong>
+              <button
+                className={styles.close}
+                type="button"
+                aria-label="Close day"
+                onClick={() => setOpenDate(null)}
+              >
+                ×
+              </button>
+            </div>
+
+            <div className={styles.dayStats}>
+              <div>
+                <span>Nightly rate</span>
+                <strong>
+                  {money(
+                    selectedPricing?.nightly_cents,
+                    selectedPricing?.currency || "USD",
+                  ) || "—"}
+                </strong>
+              </div>
+              <div>
+                <span>Minimum stay</span>
+                <strong>
+                  {selectedPricing?.minimum_stay_nights ?? 1} night
+                  {(selectedPricing?.minimum_stay_nights ?? 1) === 1
+                    ? ""
+                    : "s"}
+                </strong>
+              </div>
+              <div>
+                <span>Status</span>
+                <strong>
+                  {selectedBlocks.length ? "Unavailable" : "Open"}
+                </strong>
+              </div>
+            </div>
+
+            <div className={styles.drawerBody}>
+              <section>
+                <div className={styles.sectionHead}>
+                  <h3>What is on this date</h3>
+                  <p>
+                    You can see exactly which source is blocking the date.
+                  </p>
+                </div>
+
+                {selectedBlocks.length ? (
+                  <div className={styles.blockList}>
+                    {selectedBlocks.map((block) => {
+                      const connection = block.connection_id
+                        ? connectionById.get(block.connection_id)
+                        : null;
+
+                      return (
+                        <div className={styles.blockRow} key={block.id}>
+                          <i className={blockTone(block, connectionById)} />
+
+                          <div>
+                            <strong>
+                              {blockLabel(block, connectionById)}
+                            </strong>
+                            <span>
+                              {displayDate(block.start_date)} →{" "}
+                              {displayDate(block.end_date)} checkout
+                            </span>
+                            {connection ? (
+                              <small>
+                                {providerLabel(connection.provider)} ·{" "}
+                                {connection.connection_kind === "PMS_API"
+                                  ? "API"
+                                  : "iCal"}{" "}
+                                ·{" "}
+                                {connection.sync_status
+                                  .replaceAll("_", " ")
+                                  .toLowerCase()}
+                              </small>
+                            ) : null}
+                          </div>
+
+                          {block.block_type === "OWNER_BLOCK" ? (
+                            <form action={cancelOwnerBlock}>
+                              <input
+                                type="hidden"
+                                name="unitId"
+                                value={unitId}
+                              />
+                              <input
+                                type="hidden"
+                                name="month"
+                                value={month}
+                              />
+                              <input
+                                type="hidden"
+                                name="blockId"
+                                value={block.id}
+                              />
+                              <button
+                                className="button button-small button-quiet"
+                                type="submit"
+                              >
+                                Remove
+                              </button>
+                            </form>
+                          ) : null}
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className={styles.openState}>
+                    <strong>This night is open.</strong>
+                    <span>
+                      No active reservation, synced block, checkout hold, or
+                      manual block is on this date.
+                    </span>
+                  </div>
+                )}
+              </section>
+
+              <section>
+                <div className={styles.sectionHead}>
+                  <h3>Block dates / offline booking</h3>
+                  <p>
+                    The clicked date is already filled in. Adjust the range
+                    only if you need more nights.
+                  </p>
+                </div>
+
+                <form action={createOwnerBlock} className={styles.blockForm}>
+                  <input type="hidden" name="unitId" value={unitId} />
+                  <input type="hidden" name="month" value={month} />
+
+                  <div className={styles.two}>
+                    <label>
+                      <span>Start / check-in</span>
+                      <input
+                        type="date"
+                        name="start"
+                        value={blockStart}
+                        onChange={(event) => {
+                          const next = event.target.value;
+                          setBlockStart(next);
+                          if (next && (!blockEnd || blockEnd <= next)) {
+                            setBlockEnd(addDays(next, 1));
+                          }
+                        }}
+                        required
+                      />
+                    </label>
+
+                    <label>
+                      <span>End / checkout</span>
+                      <input
+                        type="date"
+                        name="end"
+                        min={
+                          blockStart ? addDays(blockStart, 1) : undefined
+                        }
+                        value={blockEnd}
+                        onChange={(event) =>
+                          setBlockEnd(event.target.value)
+                        }
+                        required
+                      />
+                    </label>
+                  </div>
+
+                  <div className={styles.presets}>
+                    <button
+                      type="button"
+                      onClick={() => setLabel("Owner stay")}
+                    >
+                      Owner stay
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setLabel("Maintenance")}
+                    >
+                      Maintenance
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setLabel("Direct / offline booking")
+                      }
+                    >
+                      Direct booking
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setLabel("Unavailable")}
+                    >
+                      Other
+                    </button>
+                  </div>
+
+                  <label>
+                    <span>Reason / label</span>
+                    <input
+                      name="label"
+                      maxLength={180}
+                      value={label}
+                      onChange={(event) => setLabel(event.target.value)}
+                      placeholder="Owner stay, maintenance, direct booking…"
+                    />
+                  </label>
+
+                  <button
+                    className="button"
+                    type="submit"
+                    disabled={
+                      !blockStart ||
+                      !blockEnd ||
+                      blockEnd <= blockStart
+                    }
+                  >
+                    Block these dates
+                  </button>
+                </form>
+
+                <div className={styles.offlineNote}>
+                  <strong>Direct / offline booking</strong>
                   <span>
-                    {displayDate(block.start_date)} →{" "}
-                    {displayDate(block.end_date)} checkout
+                    Use this when a guest booked somewhere else and you only
+                    need the dates protected. It blocks availability but does
+                    not create a Find A Place payment or guest reservation.
                   </span>
                 </div>
 
-                <form action={cancelOwnerBlock}>
-                  <input
-                    type="hidden"
-                    name="unitId"
-                    value={unitId}
-                  />
-                  <input type="hidden" name="month" value={month} />
-                  <input
-                    type="hidden"
-                    name="blockId"
-                    value={block.id}
-                  />
-                  <button
-                    className="button button-small button-quiet"
-                    type="submit"
-                  >
-                    Remove
-                  </button>
-                </form>
-              </div>
-            ))}
-          </div>
-        </details>
+                <Link
+                  className={`button button-quiet ${styles.reservationLink}`}
+                  href="/host/reservations"
+                >
+                  Open Find A Place reservations
+                </Link>
+              </section>
+            </div>
+          </section>
+        </div>
       ) : null}
-    </section>
+    </>
   );
 }
