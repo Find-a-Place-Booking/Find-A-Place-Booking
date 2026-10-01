@@ -71,11 +71,53 @@ function canonicalResourceLabel(value) {
   return label;
 }
 
+function resNexusResourceCode(value) {
+  const match = clean(value).match(/^\s*(RV\s*\d{1,3})\)\s*(.+)$/i);
+  if (!match) return null;
+
+  return {
+    code: match[1].replace(/\s+/g, "").toUpperCase(),
+    label: canonicalResourceLabel(match[2]),
+  };
+}
+
 function bestKnownResource(value, labels) {
-  const haystack = normalizedResource(value);
+  const rawValue = clean(value);
+  const haystack = normalizedResource(rawValue);
   if (!haystack || !labels?.length) return null;
 
   const matches = [];
+  const codeAliases = new Map();
+
+  for (const rawLabel of labels) {
+    const alias = resNexusResourceCode(rawLabel);
+    if (alias?.code && alias.label) {
+      codeAliases.set(alias.code, alias.label);
+    }
+  }
+
+  // Some campground records expose only a compact inventory code such as
+  // RV04 instead of the friendly "Site 8" label. Resolve that code only when
+  // exactly one known RV code is present in the inspected value. This avoids
+  // guessing from room/site dropdowns that contain the whole inventory list.
+  const presentCodes = [
+    ...new Set(
+      (rawValue.match(/\bRV\s*\d{1,3}\b/gi) || [])
+        .map((code) => code.replace(/\s+/g, "").toUpperCase())
+        .filter((code) => codeAliases.has(code)),
+    ),
+  ];
+
+  if (presentCodes.length === 1) {
+    const label = codeAliases.get(presentCodes[0]);
+    if (label) {
+      matches.push({
+        label,
+        normalized: presentCodes[0].toLowerCase(),
+        strength: 2,
+      });
+    }
+  }
 
   for (const rawLabel of labels) {
     const cleaned = clean(rawLabel);
@@ -107,13 +149,16 @@ function bestKnownResource(value, labels) {
         matches.push({
           label: canonical,
           normalized,
+          strength: 1,
         });
       }
     }
   }
 
   matches.sort(
-    (left, right) => right.normalized.length - left.normalized.length,
+    (left, right) =>
+      (right.strength || 0) - (left.strength || 0) ||
+      right.normalized.length - left.normalized.length,
   );
 
   return matches[0]?.label || null;
@@ -366,9 +411,20 @@ async function readRenderedDetailResource(
       () => [],
     );
 
+    // Prefer the selected room/site option before looking at the whole page.
+    // Campground detail pages can include a dropdown containing every RV site;
+    // the selected option is the only safe place to use a compact RVxx code.
+    const selectedMatch = bestKnownResource(
+      selectedOptions.join("\n"),
+      knownResources,
+    );
+
+    if (selectedMatch) {
+      return canonicalResourceLabel(selectedMatch);
+    }
+
     const renderedText = [
       bodyText,
-      ...selectedOptions,
       ...resourceHints,
     ].join("\n");
 
@@ -2493,6 +2549,25 @@ export async function readResNexusAccountAvailability({
     ),
   );
 
+  const rvCodeAliases = [
+    ...new Map(
+      [...discoveredResourceLabels]
+        .map((label) => resNexusResourceCode(label))
+        .filter(Boolean)
+        .map((alias) => [alias.code, alias]),
+    ).values(),
+  ].sort((left, right) => left.code.localeCompare(right.code));
+
+  const blockResourceCounts = Object.fromEntries(
+    [...allBlocks.reduce((counts, block) => {
+      const label = canonicalResourceLabel(block.resourceLabel || "");
+      if (!label || resourceHintNoise(label)) return counts;
+      counts.set(label, (counts.get(label) || 0) + 1);
+      return counts;
+    }, new Map())]
+      .sort(([left], [right]) => left.localeCompare(right)),
+  );
+
   const successfulListScans = listScans.filter(
     (scan) => !scan.error,
   );
@@ -2548,6 +2623,8 @@ export async function readResNexusAccountAvailability({
     schemaPaths: [...schemaPaths].slice(0, 40),
     networkPaths: [...networkPaths].slice(0, 40),
     resourceCatalog: catalog.slice(0, 250),
+    rvCodeAliases,
+    blockResourceCounts,
   };
 
   if (!catalog.length) {
