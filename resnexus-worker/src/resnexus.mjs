@@ -945,6 +945,9 @@ export async function readResNexusAccountAvailability({
   const detailLinks = new Set();
   const domBlocks = [];
   const unresolvedDomSamples = [];
+  const ignoredDomRangeSamples = [];
+  const detailLinkPatterns = new Set();
+  const unparsedDetailSignals = [];
   const pageFingerprints = new Set();
 
   try {
@@ -1039,6 +1042,23 @@ export async function readResNexusAccountAvailability({
               "",
           );
 
+          // ResNexus also uses data-start/data-end on calendar/search controls.
+          // A generic date range with no reservation ID and no room/site
+          // identity is not evidence of an occupied stay and must not be
+          // treated as a reservation block.
+          if (!externalId && !resourceLabel) {
+            if (ignoredDomRangeSamples.length < 10) {
+              ignoredDomRangeSamples.push({
+                start,
+                end,
+                datasetKeys: Object.keys(data)
+                  .filter((key) => !key.startsWith("__"))
+                  .slice(0, 24),
+              });
+            }
+            continue;
+          }
+
           domBlocks.push({
             key: `RESNEXUS:${
               externalId ||
@@ -1062,6 +1082,7 @@ export async function readResNexusAccountAvailability({
             unresolvedDomSamples.push({
               start,
               end,
+              externalIdPresent: Boolean(externalId),
               explicitCandidates: explicitCandidates
                 .filter((candidate) => !resourceHintNoise(candidate))
                 .slice(0, 8),
@@ -1090,6 +1111,15 @@ export async function readResNexusAccountAvailability({
 
   for (const href of [...detailLinks].slice(0, 50)) {
     try {
+      const parsedUrl = new URL(href);
+      detailLinkPatterns.add(
+        `${parsedUrl.pathname}?${[
+          ...parsedUrl.searchParams.keys(),
+        ]
+          .sort()
+          .join(",")}`,
+      );
+
       const response = await context.request.get(href, {
         timeout: 8_000,
         failOnStatusCode: false,
@@ -1100,8 +1130,41 @@ export async function readResNexusAccountAvailability({
         continue;
       }
 
-      const parsed = parseReservationDetail(await response.text(), href);
-      if (parsed) detailBlocks.push(parsed);
+      const html = await response.text();
+      const parsed = parseReservationDetail(html, href);
+
+      if (parsed) {
+        detailBlocks.push(parsed);
+      } else if (unparsedDetailSignals.length < 12) {
+        const text = stripHtml(html).toLowerCase();
+
+        unparsedDetailSignals.push({
+          pathname: parsedUrl.pathname,
+          queryKeys: [...parsedUrl.searchParams.keys()]
+            .sort()
+            .slice(0, 20),
+          hasCheckInLabel:
+            text.includes("check in") ||
+            text.includes("check-in") ||
+            text.includes("arrival"),
+          hasCheckOutLabel:
+            text.includes("check out") ||
+            text.includes("check-out") ||
+            text.includes("departure"),
+          hasRoomLabel:
+            text.includes("room") ||
+            text.includes("unit") ||
+            text.includes("site") ||
+            text.includes("accommodation"),
+          hasReservationLabel:
+            text.includes("reservation") ||
+            text.includes("booking") ||
+            text.includes("confirmation"),
+          hasRecognizableDate:
+            /\b20\d{2}-\d{1,2}-\d{1,2}\b/.test(text) ||
+            /\b\d{1,2}\/\d{1,2}\/20\d{2}\b/.test(text),
+        });
+      }
     } catch {
       detailFetchFailures += 1;
     }
@@ -1130,6 +1193,9 @@ export async function readResNexusAccountAvailability({
     networkPaths: [...networkPaths].slice(0, 40),
     detailFetchFailures,
     unresolvedDomSamples,
+    ignoredDomRangeSamples,
+    detailLinkPatterns: [...detailLinkPatterns].slice(0, 30),
+    unparsedDetailSignals,
     resourceCatalog: catalog.slice(0, 250),
   };
 
@@ -1186,6 +1252,22 @@ export async function readResNexusAccountAvailability({
       body.includes("no reservations") ||
       body.includes("no bookings") ||
       body.includes("no results");
+
+    // Do not declare a healthy empty calendar while the page still exposes
+    // reservation-looking links that our parser could not safely turn into
+    // room-specific occupied dates.
+    if (
+      !explicitlyEmpty &&
+      detailLinks.size > 0 &&
+      detailBlocks.length === 0 &&
+      networkBlocks.length === 0 &&
+      domBlocks.length === 0
+    ) {
+      throw new UnsafeExtractionError(
+        "The ResNexus calendar loaded and room/site names were discovered, but reservation-looking links could not yet be parsed into safe room-specific occupied dates. Existing Find A Place availability was preserved for extractor calibration.",
+        diagnostic,
+      );
+    }
 
     if (!catalog.length && !explicitlyEmpty) {
       throw new UnsafeExtractionError(
