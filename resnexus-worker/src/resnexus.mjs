@@ -37,6 +37,12 @@ function normalizedResource(value) {
     .trim();
 }
 
+function canonicalResourceLabel(value) {
+  return clean(value)
+    .replace(/^(?:rv\s*)?\d{1,3}\)\s*/i, "")
+    .trim();
+}
+
 function bestKnownResource(value, labels) {
   const haystack = normalizedResource(value);
   if (!haystack || !labels?.length) return null;
@@ -44,18 +50,37 @@ function bestKnownResource(value, labels) {
   const matches = [];
 
   for (const rawLabel of labels) {
-    const label = clean(rawLabel);
-    const normalized = normalizedResource(label);
-
-    if (!normalized || normalized.length < 3) continue;
+    const cleaned = clean(rawLabel);
+    const canonical = canonicalResourceLabel(cleaned);
 
     if (
-      haystack === normalized ||
-      haystack.includes(` ${normalized} `) ||
-      haystack.startsWith(`${normalized} `) ||
-      haystack.endsWith(` ${normalized}`)
+      !canonical ||
+      resourceHintNoise(cleaned) ||
+      resourceHintNoise(canonical)
     ) {
-      matches.push({ label, normalized });
+      continue;
+    }
+
+    const rawNormalized = normalizedResource(cleaned);
+    const canonicalNormalized = normalizedResource(canonical);
+
+    for (const normalized of new Set([
+      rawNormalized,
+      canonicalNormalized,
+    ])) {
+      if (!normalized || normalized.length < 3) continue;
+
+      if (
+        haystack === normalized ||
+        haystack.includes(` ${normalized} `) ||
+        haystack.startsWith(`${normalized} `) ||
+        haystack.endsWith(` ${normalized}`)
+      ) {
+        matches.push({
+          label: canonical,
+          normalized,
+        });
+      }
     }
   }
 
@@ -74,7 +99,8 @@ function stableHash(value, length = 48) {
 }
 
 function resourceKey(label) {
-  const normalized = normalizedResource(label);
+  const canonical = canonicalResourceLabel(label);
+  const normalized = normalizedResource(canonical);
   return normalized ? `RNRES:${stableHash(normalized, 32)}` : null;
 }
 
@@ -1012,12 +1038,26 @@ function resourceHintNoise(value) {
 
   const exactNoise = new Set([
     "** view all **",
+    "all",
+    "all rooms",
     "all unit types",
+    "any time",
     "cabin",
     "cabins",
+    "cancellations",
+    "current / future stays",
+    "current/future stays",
+    "gift certificates",
+    "past stays",
+    "quotes / waiting list",
+    "quotes/waiting list",
+    "rate + taxes & fees",
+    "retail",
     "rv site [short-term]",
     "rv sites",
-    "rate + taxes & fees",
+    "staying between...",
+    "staying on...",
+    "stays",
     "czech",
     "dutch",
     "english (united states)",
@@ -1034,11 +1074,13 @@ function resourceHintNoise(value) {
 
   if (exactNoise.has(normalized)) return true;
   if (normalized.startsWith("all unit types ")) return true;
+  if (normalized.startsWith("access type:")) return true;
+  if (normalized.startsWith("site amps:")) return true;
   if (normalized.startsWith("site length (ft):")) return true;
+  if (/^show\s+\d+\s+days?$/.test(normalized)) return true;
 
   return false;
 }
-
 function exactKnownResourceCandidate(candidates, knownLabels) {
   const byNormalized = new Map();
 
@@ -1708,11 +1750,16 @@ function resourceCatalog(labels) {
   const byKey = new Map();
 
   for (const rawLabel of labels) {
-    const label = clean(rawLabel);
-    const key = resourceKey(label);
+    const label = canonicalResourceLabel(rawLabel);
+    if (!label || resourceHintNoise(label)) continue;
 
-    if (!key || !label) continue;
-    if (!byKey.has(key)) byKey.set(key, { key, label });
+    const key = resourceKey(label);
+    if (!key) continue;
+
+    const existing = byKey.get(key);
+    if (!existing || label.length < existing.label.length) {
+      byKey.set(key, { key, label });
+    }
   }
 
   return [...byKey.values()].sort((left, right) =>
@@ -2124,11 +2171,17 @@ export async function readResNexusAccountAvailability({
   }
 
   const remainingUnresolvedListRows = [];
+  let ignoredOutOfWindowRows = 0;
+  let ignoredNonDatedListRows = 0;
 
   for (const pending of pendingListRows) {
     const linkedIds = (pending.recordLinks || [])
       .map((href) => recordIdFromUrl(href))
       .filter(Boolean);
+
+    const requiredByCalendar = (pending.recordLinks || []).some((href) =>
+      requiredRecordLinks.has(href),
+    );
 
     if (
       linkedIds.some(
@@ -2140,6 +2193,33 @@ export async function readResNexusAccountAvailability({
       continue;
     }
 
+    // The reservation search pages can contain old history because some
+    // ResNexus layouts do not expose a date-filter control that Playwright can
+    // safely submit. Old rows are irrelevant to the active sync window and
+    // must not make a current/future availability sync fail.
+    if (
+      pending.start &&
+      pending.end &&
+      pending.end > pending.start &&
+      !blockInWindow(pending, windowStart, windowEnd) &&
+      !requiredByCalendar
+    ) {
+      ignoredOutOfWindowRows += 1;
+      continue;
+    }
+
+    // Auxiliary reservation pages also expose links/rows that are navigation,
+    // summaries, quotes or other non-occupancy records without stay dates.
+    // Calendar-linked records remain mandatory; ordinary non-dated list rows
+    // are not treated as occupancy evidence.
+    if (
+      (!pending.start || !pending.end || pending.end <= pending.start) &&
+      !requiredByCalendar
+    ) {
+      ignoredNonDatedListRows += 1;
+      continue;
+    }
+
     let resourceLabel = pending.resourceLabel || null;
     let joinedRecordId = pending.externalId || null;
 
@@ -2147,10 +2227,14 @@ export async function readResNexusAccountAvailability({
       if (!joinedRecordId) joinedRecordId = recordId;
       const fromDetail = detailResourceByRecordId.get(recordId);
       if (fromDetail) {
-        resourceLabel = fromDetail;
+        resourceLabel = canonicalResourceLabel(fromDetail);
         joinedRecordId = recordId;
         break;
       }
+    }
+
+    if (resourceLabel) {
+      resourceLabel = canonicalResourceLabel(resourceLabel);
     }
 
     if (
@@ -2188,6 +2272,7 @@ export async function readResNexusAccountAvailability({
         hasStart: Boolean(pending.start),
         hasEnd: Boolean(pending.end),
         hasRecordLink: linkedIds.length > 0,
+        requiredByCalendar,
       });
     }
   }
@@ -2247,6 +2332,8 @@ export async function readResNexusAccountAvailability({
     reservationListScans: listScans,
     listBlocks: listBlocks.length,
     bridgedListBlocks: bridgedListBlocks.length,
+    ignoredOutOfWindowRows,
+    ignoredNonDatedListRows,
     unresolvedListRows: remainingUnresolvedListRows,
     rawUnresolvedListRows: unresolvedListRows,
     recordSpecificLinks: [...recordLinks].filter((href) =>
