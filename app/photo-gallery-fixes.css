@@ -1,11 +1,4 @@
-/*
- * Photo presentation repair.
- *
- * Keep the featured-stay card compact on phones without cropping the listing
- * cover. The previous mobile override used object-fit: cover, which zoomed and
- * clipped wide property photos. Mobile now fits the entire image inside the
- * existing landscape frame.
- */
+/* Mobile image presentation hardening. Loaded last from app/layout.tsx. */
 
 @media (max-width: 700px) {
   .hero-featured-panel {
@@ -19,19 +12,111 @@
     height: auto;
     min-height: 0;
     aspect-ratio: 4 / 3;
-    background: var(--fap-charcoal);
+    overflow: hidden;
+    background: #ddd6ca;
+  }
+
+  .hero-featured-live,
+  .hero-featured-live picture {
+    width: 100%;
+    height: 100%;
   }
 
   .hero-featured-live img,
   .hero-featured-photo-placeholder {
+    display: block;
     width: 100%;
     height: 100%;
     min-height: 0;
-    object-fit: contain;
-    object-position: center;
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: cover;
+    object-position: center center;
   }
 
   .hero-featured-live:hover img {
     transform: none;
+  }
+
+  .property-image-wrap,
+  .home-property-grid .property-image-wrap,
+  .featured-grid .property-image-wrap,
+  .result-grid .property-image-wrap {
+    width: 100%;
+    height: auto !important;
+    min-height: 0 !important;
+    aspect-ratio: 4 / 3;
+    overflow: hidden;
+    background: #ddd6ca;
+  }
+
+  .property-image-wrap picture {
+    display: contents;
+  }
+
+  .property-image,
+  .property-image-wrap img {
+    display: block;
+    width: 100%;
+    height: 100% !important;
+    min-width: 0;
+    min-height: 0;
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: cover;
+    object-position: center center;
+    transform: none !important;
+  }
+
+  .property-card:hover .property-image {
+    transform: none !important;
+  }
+
+  .destination-card-media {
+    overflow: hidden;
+    transform: none !important;
+  }
+
+  .destination-card-media img {
+    width: 100% !important;
+    height: 100% !important;
+    object-fit: cover !important;
+    object-position: center center !important;
+    transform: none !important;
+  }
+
+  .destination-card:hover .destination-card-media {
+    transform: none !important;
+  }
+
+  .checkout-summary > img {
+    width: 100%;
+    height: auto;
+    aspect-ratio: 16 / 10;
+    object-fit: cover;
+    object-position: center center;
+  }
+
+  .network-photo {
+    height: auto;
+    min-height: 0;
+    aspect-ratio: 4 / 3;
+    overflow: hidden;
+  }
+
+  .find-place-poster img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    object-position: center center;
+    background: #000;
+  }
+}
+
+@media (hover: none) and (pointer: coarse) {
+  .property-card:hover .property-image,
+  .hero-featured-live:hover img,
+  .destination-card:hover .destination-card-media {
+    transform: none !important;
   }
 }
