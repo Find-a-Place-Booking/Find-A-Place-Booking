@@ -293,12 +293,41 @@ async function isLoginPage(page) {
   );
 }
 
+async function waitForAuthTransition(page, previousUrl) {
+  await Promise.race([
+    page
+      .waitForURL((url) => url.toString() !== previousUrl, {
+        timeout: 8_000,
+      })
+      .catch(() => null),
+    page.waitForTimeout(1_500),
+  ]);
+
+  await page
+    .waitForLoadState("domcontentloaded", {
+      timeout: 8_000,
+    })
+    .catch(() => null);
+
+  await page.waitForTimeout(700);
+}
+
 async function fillLogin(page, login, password) {
   const loginInput = page
     .locator(
-      'input[type="email"], input[name*="email" i], input[name*="user" i], input[placeholder*="email" i]',
+      [
+        'input[type="email"]',
+        'input[autocomplete="username"]',
+        'input[name*="email" i]',
+        'input[name*="user" i]',
+        'input[name*="login" i]',
+        'input[placeholder*="email" i]',
+        'input[placeholder*="user" i]',
+        'input[placeholder*="login" i]',
+      ].join(", "),
     )
     .first();
+
   const passwordInput = page.locator('input[type="password"]').first();
 
   if (
@@ -314,22 +343,33 @@ async function fillLogin(page, login, password) {
   await loginInput.fill(login);
   await passwordInput.fill(password);
 
+  const previousUrl = page.url();
   const submit = page
     .locator(
-      'button[type="submit"], input[type="submit"], button:has-text("Login"), button:has-text("Sign in")',
+      [
+        'button[type="submit"]',
+        'input[type="submit"]',
+        'button[name*="login" i]',
+        'input[name*="login" i]',
+        'button[id*="login" i]',
+        'input[id*="login" i]',
+        'button:has-text("Login")',
+        'button:has-text("Log in")',
+        'button:has-text("Sign in")',
+        'input[value*="Login" i]',
+        'input[value*="Log in" i]',
+        'input[value*="Sign in" i]',
+      ].join(", "),
     )
     .first();
 
-  if (!(await submit.isVisible().catch(() => false))) {
-    throw new NeedsAttentionError(
-      "LOGIN_FORM_CHANGED",
-      "The ResNexus login page changed and the worker could not safely identify the sign-in button.",
-    );
+  if (await submit.isVisible().catch(() => false)) {
+    await submit.click();
+  } else {
+    await passwordInput.press("Enter");
   }
 
-  await submit.click();
-  await page.waitForLoadState("domcontentloaded").catch(() => null);
-  await page.waitForTimeout(700);
+  await waitForAuthTransition(page, previousUrl);
 }
 
 async function submitChallengeIfPossible(page, challengeCode) {
@@ -345,18 +385,28 @@ async function submitChallengeIfPossible(page, challengeCode) {
 
   await input.fill(challengeCode);
 
+  const previousUrl = page.url();
   const submit = page
     .locator(
-      'button[type="submit"], input[type="submit"], button:has-text("Verify"), button:has-text("Continue")',
+      [
+        'button[type="submit"]',
+        'input[type="submit"]',
+        'button[name*="verify" i]',
+        'input[name*="verify" i]',
+        'button:has-text("Verify")',
+        'button:has-text("Continue")',
+        'button:has-text("Submit")',
+      ].join(", "),
     )
     .first();
 
-  if (!(await submit.isVisible().catch(() => false))) return false;
+  if (await submit.isVisible().catch(() => false)) {
+    await submit.click();
+  } else {
+    await input.press("Enter");
+  }
 
-  await submit.click();
-  await page.waitForLoadState("domcontentloaded").catch(() => null);
-  await page.waitForTimeout(700);
-
+  await waitForAuthTransition(page, previousUrl);
   return true;
 }
 
