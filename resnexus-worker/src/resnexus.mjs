@@ -37,6 +37,35 @@ function normalizedResource(value) {
     .trim();
 }
 
+function bestKnownResource(value, labels) {
+  const haystack = normalizedResource(value);
+  if (!haystack || !labels?.length) return null;
+
+  const matches = [];
+
+  for (const rawLabel of labels) {
+    const label = clean(rawLabel);
+    const normalized = normalizedResource(label);
+
+    if (!normalized || normalized.length < 3) continue;
+
+    if (
+      haystack === normalized ||
+      haystack.includes(` ${normalized} `) ||
+      haystack.startsWith(`${normalized} `) ||
+      haystack.endsWith(` ${normalized}`)
+    ) {
+      matches.push({ label, normalized });
+    }
+  }
+
+  matches.sort(
+    (left, right) => right.normalized.length - left.normalized.length,
+  );
+
+  return matches[0]?.label || null;
+}
+
 function stableHash(value, length = 48) {
   return createHash("sha256")
     .update(String(value))
@@ -69,14 +98,23 @@ function isoDate(value) {
   if (!value) return null;
   const raw = clean(value);
 
-  let match = raw.match(/\b(20\d{2})-(\d{1,2})-(\d{1,2})\b/);
+  let match = raw.match(/\b(20\d{2})[-/](\d{1,2})[-/](\d{1,2})\b/);
   if (match) {
     return validDate(Number(match[1]), Number(match[2]), Number(match[3]));
   }
 
-  match = raw.match(/\b(\d{1,2})\/(\d{1,2})\/(20\d{2})\b/);
+  match = raw.match(/\b(\d{1,2})[/-](\d{1,2})[/-](20\d{2})\b/);
   if (match) {
     return validDate(Number(match[3]), Number(match[1]), Number(match[2]));
+  }
+
+  match = raw.match(/\b(\d{1,2})[/-](\d{1,2})[/-](\d{2})\b/);
+  if (match) {
+    return validDate(
+      2000 + Number(match[3]),
+      Number(match[1]),
+      Number(match[2]),
+    );
   }
 
   const months = {
@@ -121,6 +159,62 @@ function isoDate(value) {
   return null;
 }
 
+function extractDateTokens(value) {
+  const raw = String(value ?? "");
+  const found = [];
+
+  const collect = (regex) => {
+    for (const match of raw.matchAll(regex)) {
+      const date = isoDate(match[0]);
+      if (date) found.push({ index: match.index ?? 0, date });
+    }
+  };
+
+  collect(/\b20\d{2}[-/]\d{1,2}[-/]\d{1,2}\b/g);
+  collect(/\b\d{1,2}[/-]\d{1,2}[/-]20\d{2}\b/g);
+  collect(/\b\d{1,2}[/-]\d{1,2}[/-]\d{2}\b/g);
+  collect(
+    /\b(?:January|Jan|February|Feb|March|Mar|April|Apr|May|June|Jun|July|Jul|August|Aug|September|Sept?|October|Oct|November|Nov|December|Dec)\s+\d{1,2}(?:st|nd|rd|th)?(?:,)?\s+20\d{2}\b/gi,
+  );
+
+  // ResNexus sometimes renders ranges like "10/3 - 10/6/2026".
+  for (const match of raw.matchAll(
+    /\b(\d{1,2})[/-](\d{1,2})\s*(?:-|–|to)\s*(\d{1,2})[/-](\d{1,2})[/-](20\d{2})\b/gi,
+  )) {
+    const first = validDate(
+      Number(match[5]),
+      Number(match[1]),
+      Number(match[2]),
+    );
+    const second = validDate(
+      Number(match[5]),
+      Number(match[3]),
+      Number(match[4]),
+    );
+
+    if (first) found.push({ index: match.index ?? 0, date: first });
+    if (second) {
+      found.push({
+        index: (match.index ?? 0) + match[0].length - 1,
+        date: second,
+      });
+    }
+  }
+
+  found.sort((left, right) => left.index - right.index);
+
+  const seen = new Set();
+  const output = [];
+
+  for (const item of found) {
+    if (seen.has(item.date)) continue;
+    seen.add(item.date);
+    output.push(item.date);
+  }
+
+  return output;
+}
+
 function addDays(value, days) {
   const date = new Date(`${value}T00:00:00Z`);
   date.setUTCDate(date.getUTCDate() + days);
@@ -147,7 +241,7 @@ function stripHtml(html) {
 function labelledValue(text, labels) {
   for (const label of labels) {
     const pattern = new RegExp(
-      `(?:^|\\n)\\s*${label}\\s*(?:date)?\\s*[:#-]?\\s*([^\\n]{2,160})`,
+      `(?:^|\\n)[ \\t]*${label}[ \\t]*(?:date)?[ \\t]*[:#-]?[ \\t]*(?:\\n[ \\t]*)?([^\\n]{1,180})`,
       "i",
     );
     const match = text.match(pattern);
@@ -157,48 +251,133 @@ function labelledValue(text, labels) {
   return null;
 }
 
-function parseReservationDetail(html, href) {
+function recordIdFromUrl(href) {
+  try {
+    const parsed = new URL(href, CALENDAR_URL);
+    for (const [key, rawValue] of parsed.searchParams.entries()) {
+      if (
+        /^(id|reservationid|reservation_id|bookingid|booking_id|confirmationnumber|confirmation_number)$/i.test(
+          key,
+        )
+      ) {
+        const value = clean(rawValue);
+        if (value) return value.slice(0, 240);
+      }
+    }
+  } catch {
+    // Ignore malformed record URLs.
+  }
+
+  return null;
+}
+
+function parseReservationDetail(html, href, knownResources = []) {
   const text = stripHtml(html);
 
-  if (/\bstatus\s*[:#-]?\s*(?:cancelled|canceled|void)\b/i.test(text)) {
+  if (
+    /\bstatus\s*[:#-]?\s*(?:cancelled|canceled|void|deleted)\b/i.test(text)
+  ) {
     return null;
   }
 
-  const start = isoDate(
-    labelledValue(text, ["check[ -]?in", "arrival", "arrive"]),
+  let start = isoDate(
+    labelledValue(text, [
+      "check[ -]?in",
+      "arrival",
+      "arrive",
+      "start",
+      "begin",
+      "from",
+    ]),
   );
-  const end = isoDate(
-    labelledValue(text, ["check[ -]?out", "departure", "depart"]),
+  let end = isoDate(
+    labelledValue(text, [
+      "check[ -]?out",
+      "departure",
+      "depart",
+      "end",
+      "through",
+      "to",
+    ]),
   );
+
+  if (!start || !end) {
+    const rangeText = labelledValue(text, [
+      "date range",
+      "stay dates?",
+      "reservation dates?",
+      "booking dates?",
+      "blocked dates?",
+    ]);
+    const rangeDates = extractDateTokens(rangeText);
+
+    if (rangeDates.length === 2) {
+      start ||= rangeDates[0];
+      end ||= rangeDates[1];
+    }
+  }
+
+  if (!start || !end) {
+    const dates = extractDateTokens(text);
+    if (dates.length === 2) {
+      start ||= dates[0];
+      end ||= dates[1];
+    }
+  }
 
   if (!start || !end || end <= start) return null;
 
-  const resourceLabel =
+  let resourceLabel =
     labelledValue(text, [
       "room(?:\\s*\\/\\s*unit)?",
+      "rooms?",
       "room name",
-      "unit",
+      "units?",
       "unit name",
+      "sites?",
+      "site name",
+      "resource",
       "accommodation",
       "rental",
     ]) || null;
 
-  const parsedUrl = new URL(href);
+  if (
+    resourceLabel &&
+    knownResources.length &&
+    !bestKnownResource(resourceLabel, knownResources)
+  ) {
+    resourceLabel = null;
+  }
+
+  resourceLabel =
+    bestKnownResource(resourceLabel || text, knownResources) ||
+    resourceLabel;
+
+  if (!resourceLabel) return null;
+
   const externalId =
-    parsedUrl.searchParams.get("ID") ||
-    parsedUrl.searchParams.get("id") ||
+    recordIdFromUrl(href) ||
     labelledValue(text, [
       "confirmation(?:\\s*(?:number|no\\.?|#|id))?",
       "reservation(?:\\s*(?:number|no\\.?|#|id))?",
       "booking(?:\\s*(?:number|no\\.?|#|id))?",
+      "block(?:\\s*(?:number|no\\.?|#|id))?",
     ]);
 
+  const stableId =
+    externalId ||
+    stableHash(
+      [
+        normalizedResource(resourceLabel),
+        start,
+        end,
+        stripHtml(text).slice(0, 1000),
+      ].join("|"),
+    );
+
   return {
-    key: `RESNEXUS:${
-      externalId ||
-      stableHash([href, start, end, resourceLabel].filter(Boolean).join("|"))
-    }`,
-    uid: externalId || stableHash(href),
+    key: `RESNEXUS:${stableId}`,
+    uid: stableId,
     start,
     end,
     resourceLabel,
@@ -530,10 +709,15 @@ const RESOURCE_KEYS = [
   "room_name",
   "unitname",
   "unit_name",
+  "sitename",
+  "site_name",
   "resourcename",
   "resource_name",
+  "unittypename",
+  "unit_type_name",
   "room",
   "unit",
+  "site",
   "resource",
   "accommodation",
   "rental",
@@ -613,7 +797,8 @@ function walkJson(value, path, output, diagnostic) {
 }
 
 function uniqueBlocks(blocks) {
-  const seen = new Set();
+  const seenKeys = new Set();
+  const seenOccupancy = new Set();
   const output = [];
 
   for (const block of blocks) {
@@ -624,23 +809,99 @@ function uniqueBlocks(blocks) {
       normalizedResource(block.resourceLabel),
     ].join("|");
 
-    if (seen.has(key)) continue;
-    seen.add(key);
+    const occupancy = [
+      block.start,
+      block.end,
+      normalizedResource(block.resourceLabel),
+    ].join("|");
+
+    if (seenKeys.has(key) || seenOccupancy.has(occupancy)) continue;
+
+    seenKeys.add(key);
+    seenOccupancy.add(occupancy);
     output.push(block);
   }
 
   return output;
 }
 
-async function collectReservationLinks(page) {
+function recordSpecificReservationHref(href) {
+  try {
+    const parsed = new URL(href, CALENDAR_URL);
+    const pathname = parsed.pathname.toLowerCase();
+
+    if (!parsed.hostname.toLowerCase().endsWith("resnexus.com")) {
+      return false;
+    }
+
+    if (
+      pathname.includes("/guests/") ||
+      pathname.includes("/houseaccounts/") ||
+      pathname.includes("/reservations/book/")
+    ) {
+      return false;
+    }
+
+    const hasRecordId = [...parsed.searchParams.entries()].some(
+      ([key, value]) =>
+        /^(id|reservationid|reservation_id|bookingid|booking_id|confirmationnumber|confirmation_number)$/i.test(
+          key,
+        ) && clean(value),
+    );
+
+    if (
+      hasRecordId &&
+      (pathname.includes("/reservations/") ||
+        pathname.includes("/blocked/") ||
+        pathname.includes("/booking/"))
+    ) {
+      return true;
+    }
+
+    return false;
+  } catch {
+    return false;
+  }
+}
+
+function reservationListHref(href) {
+  try {
+    const parsed = new URL(href, CALENDAR_URL);
+    if (!parsed.hostname.toLowerCase().endsWith("resnexus.com")) {
+      return false;
+    }
+
+    const pathname = parsed.pathname.toLowerCase();
+
+    return (
+      pathname.endsWith("/manage/reservations/search.aspx") ||
+      pathname.endsWith("/manage/reservations/reservations.aspx") ||
+      pathname.endsWith("/manage/reservations/reservationsv6.aspx") ||
+      pathname.endsWith("/v6/backoffice/reservations/search/index")
+    );
+  } catch {
+    return false;
+  }
+}
+
+function navigationKey(href) {
+  try {
+    const parsed = new URL(href, CALENDAR_URL);
+    return parsed.pathname.toLowerCase();
+  } catch {
+    return String(href);
+  }
+}
+
+async function collectReservationHrefs(page) {
   return page
     .locator(
-      'a[href*="reservation" i], a[href*="info.aspx" i], a[href*="booking" i], a[href*="maintenance" i], a[href*="block" i]',
+      'a[href*="reservation" i], a[href*="booking" i], a[href*="blocked" i], a[href*="block" i]',
     )
     .evaluateAll((anchors) => [
       ...new Set(
         anchors
-          .map((anchor) => anchor.getAttribute("href"))
+          .map((anchor) => anchor.href || anchor.getAttribute("href"))
           .filter((value) => Boolean(value)),
       ),
     ])
@@ -655,7 +916,8 @@ async function collectDomDataBlocks(page) {
     .evaluateAll((elements) =>
       elements.map((element) => {
         const data = {};
-        for (const [key, value] of Object.entries(element.dataset)) {
+
+        for (const [key, value] of Object.entries(element.dataset || {})) {
           data[key] = value;
         }
 
@@ -803,7 +1065,7 @@ function exactKnownResourceCandidate(candidates, knownLabels) {
 async function resourceHintsFromPage(page) {
   const values = await page
     .locator(
-      '[data-room-name], [data-unit-name], [data-resource-name], select option, [class*="room" i], [class*="unit" i]',
+      '[data-room-name], [data-unit-name], [data-resource-name], [data-site-name], select[name*="room" i] option, select[id*="room" i] option, select[name*="unit" i] option, select[id*="unit" i] option, select[name*="site" i] option, select[id*="site" i] option, select[name*="resource" i] option, select[id*="resource" i] option, [class*="room-name" i], [class*="unit-name" i], [class*="site-name" i]',
     )
     .evaluateAll((elements) =>
       elements
@@ -813,6 +1075,7 @@ async function resourceHintsFromPage(page) {
             dataset.roomName ||
             dataset.unitName ||
             dataset.resourceName ||
+            dataset.siteName ||
             element.textContent ||
             ""
           );
@@ -843,40 +1106,584 @@ async function clickNextCalendarWindow(page) {
     '[data-action*="next" i][data-action*="month" i]',
     'button:has-text("Next Month")',
     'a:has-text("Next Month")',
-    '[aria-label="Next"]',
-    '[title="Next"]',
   ];
 
   for (const selector of selectors) {
     const candidate = page.locator(selector).first();
 
     if (await candidate.isVisible().catch(() => false)) {
-      const beforeText = await page
-        .locator("body")
-        .innerText()
-        .catch(() => "");
+      const before = stableHash(
+        `${page.url()}|${await page
+          .locator("body")
+          .innerText()
+          .catch(() => "")}`,
+      );
 
       await candidate.click().catch(() => null);
       await page.waitForLoadState("domcontentloaded").catch(() => null);
-      await page.waitForTimeout(900);
+      await page.waitForTimeout(700);
 
-      const afterText = await page
-        .locator("body")
-        .innerText()
-        .catch(() => "");
+      const after = stableHash(
+        `${page.url()}|${await page
+          .locator("body")
+          .innerText()
+          .catch(() => "")}`,
+      );
 
       return {
-        advanced:
-          stableHash(beforeText.slice(0, 5000)) !==
-          stableHash(afterText.slice(0, 5000)),
-        fingerprint: stableHash(
-          `${page.url()}|${afterText.slice(0, 5000)}`,
-        ),
+        advanced: before !== after,
+        fingerprint: after,
       };
     }
   }
 
   return { advanced: false, fingerprint: null };
+}
+
+async function collectStructuredRows(page) {
+  return page
+    .locator(
+      'table tr, [role="row"], [data-reservation-id], [data-booking-id], [data-confirmation-number], [class*="reservation-row" i], [class*="reservation-item" i], [class*="booking-row" i], [class*="booking-item" i]',
+    )
+    .evaluateAll((rows) =>
+      rows.slice(0, 1500).map((row) => {
+        const text = String(row.innerText || row.textContent || "")
+          .replace(/\s+/g, " ")
+          .trim();
+
+        const cellNodes = [
+          ...row.querySelectorAll(
+            ':scope > td, :scope > th, [role="cell"], [role="gridcell"], [role="rowheader"]',
+          ),
+        ];
+
+        const cells = cellNodes
+          .map((cell) =>
+            String(cell.innerText || cell.textContent || "")
+              .replace(/\s+/g, " ")
+              .trim(),
+          )
+          .filter((value) => value.length > 0);
+
+        const table = row.closest("table");
+        let headerNodes = table
+          ? [...table.querySelectorAll("thead th")]
+          : [];
+
+        if (!headerNodes.length && table) {
+          const firstRow = table.querySelector("tr");
+          headerNodes = firstRow
+            ? [...firstRow.querySelectorAll("th")]
+            : [];
+        }
+
+        const headers = headerNodes
+          .map((header) =>
+            String(header.innerText || header.textContent || "")
+              .replace(/\s+/g, " ")
+              .trim(),
+          )
+          .filter((value) => value.length > 0);
+
+        const links = [
+          ...new Set(
+            [...row.querySelectorAll("a[href]")]
+              .map(
+                (anchor) =>
+                  anchor.href || anchor.getAttribute("href") || "",
+              )
+              .filter(Boolean),
+          ),
+        ];
+
+        const data = {};
+        for (const node of [row, ...cellNodes]) {
+          for (const [key, value] of Object.entries(node.dataset || {})) {
+            if (!(key in data) && value != null) data[key] = value;
+          }
+        }
+
+        const inputs = {};
+        for (const input of row.querySelectorAll(
+          "input[name], select[name]",
+        )) {
+          const name = input.getAttribute("name");
+          if (!name || name in inputs) continue;
+          inputs[name] = String(input.value ?? "").slice(0, 500);
+        }
+
+        return {
+          text,
+          cells,
+          headers,
+          links,
+          data,
+          inputs,
+        };
+      }),
+    )
+    .catch(() => []);
+}
+
+function structuredValue(row, patterns) {
+  const limit = Math.min(row.headers.length, row.cells.length);
+
+  for (let index = 0; index < limit; index += 1) {
+    const header = clean(row.headers[index]).toLowerCase();
+
+    if (patterns.some((pattern) => pattern.test(header))) {
+      const value = clean(row.cells[index]);
+      if (value) return value;
+    }
+  }
+
+  const containers = [row.data || {}, row.inputs || {}];
+
+  for (const container of containers) {
+    for (const [key, value] of Object.entries(container)) {
+      const normalized = String(key)
+        .replace(/([a-z])([A-Z])/g, "$1 $2")
+        .replace(/[_-]+/g, " ")
+        .toLowerCase();
+
+      if (patterns.some((pattern) => pattern.test(normalized))) {
+        const cleaned = clean(value);
+        if (cleaned) return cleaned;
+      }
+    }
+  }
+
+  return null;
+}
+
+function recordIdFromRow(row) {
+  for (const href of row.links || []) {
+    if (!recordSpecificReservationHref(href)) continue;
+    const value = recordIdFromUrl(href);
+    if (value) return value;
+  }
+
+  const value = structuredValue(row, [
+    /^reservation(?: number| no| id| #)?$/,
+    /^booking(?: number| no| id| #)?$/,
+    /^confirmation(?: number| no| id| #)?$/,
+    /^block(?: number| no| id| #)?$/,
+  ]);
+
+  return value ? clean(value).slice(0, 240) : null;
+}
+
+function parseReservationRow(row, knownResources) {
+  const text = clean(row.text);
+  if (!text || text.length < 3) return { block: null, candidate: false };
+
+  if (/\b(cancelled|canceled|void|deleted)\b/i.test(text)) {
+    return { block: null, candidate: false };
+  }
+
+  const recordLinks = (row.links || []).filter((href) =>
+    recordSpecificReservationHref(href),
+  );
+
+  let resourceLabel = structuredValue(row, [
+    /\b(room|unit|site|resource)\b/,
+    /accommodation/,
+    /rental/,
+  ]);
+
+  if (resourceLabel && resourceHintNoise(resourceLabel)) {
+    resourceLabel = null;
+  }
+
+  if (knownResources.length) {
+    resourceLabel =
+      bestKnownResource(resourceLabel || "", knownResources) ||
+      bestKnownResource(text, knownResources) ||
+      null;
+  } else {
+    resourceLabel ||= null;
+  }
+
+  let start = isoDate(
+    structuredValue(row, [
+      /check\s*-?\s*in/,
+      /arrival/,
+      /^start(?: date)?$/,
+      /^from$/,
+    ]),
+  );
+
+  let end = isoDate(
+    structuredValue(row, [
+      /check\s*-?\s*out/,
+      /departure/,
+      /^end(?: date)?$/,
+      /^through$/,
+      /^to$/,
+    ]),
+  );
+
+  if (!start || !end) {
+    const rangeText = structuredValue(row, [
+      /^stay$/,
+      /stay\s*dates?/,
+      /^dates?$/,
+      /reservation\s*dates?/,
+      /booking\s*dates?/,
+    ]);
+
+    const rangeDates = extractDateTokens(rangeText);
+    if (rangeDates.length === 2) {
+      start ||= rangeDates[0];
+      end ||= rangeDates[1];
+    }
+  }
+
+  if (!start) {
+    start = isoDate(
+      labelledValue(text, [
+        "check[ -]?in",
+        "arrival",
+        "start",
+        "from",
+      ]),
+    );
+  }
+
+  if (!end) {
+    end = isoDate(
+      labelledValue(text, [
+        "check[ -]?out",
+        "departure",
+        "end",
+        "through",
+        "to",
+      ]),
+    );
+  }
+
+  const rowDates = extractDateTokens(text);
+  const candidate =
+    recordLinks.length > 0 ||
+    Boolean(
+      resourceLabel &&
+        (start || end || rowDates.length >= 2),
+    );
+
+  if (!candidate) return { block: null, candidate: false };
+
+  if ((!start || !end) && rowDates.length === 2) {
+    start ||= rowDates[0];
+    end ||= rowDates[1];
+  }
+
+  if (!resourceLabel || !start || !end || end <= start) {
+    return {
+      block: null,
+      candidate: true,
+      unresolved: {
+        hasResource: Boolean(resourceLabel),
+        hasStart: Boolean(start),
+        hasEnd: Boolean(end),
+        dateTokenCount: rowDates.length,
+        hasRecordLink: recordLinks.length > 0,
+        headerCount: row.headers?.length || 0,
+        cellCount: row.cells?.length || 0,
+      },
+      recordLinks,
+    };
+  }
+
+  const externalId = recordIdFromRow(row);
+  const stableId =
+    externalId ||
+    stableHash(
+      [
+        normalizedResource(resourceLabel),
+        start,
+        end,
+        text.slice(0, 1200),
+      ].join("|"),
+    );
+
+  return {
+    candidate: true,
+    recordLinks,
+    block: {
+      key: `RESNEXUS:${stableId}`,
+      uid: stableId,
+      start,
+      end,
+      resourceLabel,
+      source: "reservation_list",
+    },
+  };
+}
+
+async function applyReservationSearchWindow(
+  page,
+  windowStart,
+  windowEnd,
+) {
+  const startSelectors = [
+    'input[name*="checkin" i]',
+    'input[id*="checkin" i]',
+    'input[name*="arrival" i]',
+    'input[id*="arrival" i]',
+    'input[name*="startdate" i]',
+    'input[id*="startdate" i]',
+    'input[name*="fromdate" i]',
+    'input[id*="fromdate" i]',
+  ];
+
+  const endSelectors = [
+    'input[name*="checkout" i]',
+    'input[id*="checkout" i]',
+    'input[name*="departure" i]',
+    'input[id*="departure" i]',
+    'input[name*="enddate" i]',
+    'input[id*="enddate" i]',
+    'input[name*="todate" i]',
+    'input[id*="todate" i]',
+  ];
+
+  let startInput = null;
+  let endInput = null;
+
+  for (const selector of startSelectors) {
+    const candidate = page.locator(selector).first();
+    if (await candidate.isVisible().catch(() => false)) {
+      startInput = candidate;
+      break;
+    }
+  }
+
+  for (const selector of endSelectors) {
+    const candidate = page.locator(selector).first();
+    if (await candidate.isVisible().catch(() => false)) {
+      endInput = candidate;
+      break;
+    }
+  }
+
+  if (!startInput || !endInput) return false;
+
+  const display = (value) => {
+    const [year, month, day] = value.split("-");
+    return `${month}/${day}/${year}`;
+  };
+
+  await startInput.fill(display(windowStart));
+  await endInput.fill(display(windowEnd));
+
+  const form = startInput.locator("xpath=ancestor::form[1]");
+  const submit = form
+    .locator(
+      'button[type="submit"], input[type="submit"], button:has-text("Search"), button:has-text("Apply"), button:has-text("Filter")',
+    )
+    .first();
+
+  if (await submit.isVisible().catch(() => false)) {
+    await submit.click();
+  } else {
+    await endInput.press("Enter");
+  }
+
+  await page.waitForLoadState("domcontentloaded").catch(() => null);
+  await page.waitForTimeout(700);
+  return true;
+}
+
+async function clickNextResultPage(page) {
+  const selectors = [
+    'a[rel="next"]',
+    '[aria-label*="next page" i]',
+    '[title*="next page" i]',
+    '.k-pager-wrap a[aria-label*="next" i]',
+    '.k-pager-wrap a[title*="next" i]',
+    '.pagination a[aria-label*="next" i]',
+    '.pagination a[title*="next" i]',
+    '.pager a[aria-label*="next" i]',
+    '.pager a[title*="next" i]',
+  ];
+
+  for (const selector of selectors) {
+    const candidate = page.locator(selector).first();
+
+    if (!(await candidate.isVisible().catch(() => false))) continue;
+
+    const disabled =
+      (await candidate.getAttribute("aria-disabled").catch(() => null)) ===
+        "true" ||
+      ((await candidate.getAttribute("class").catch(() => "")) || "")
+        .toLowerCase()
+        .includes("disabled");
+
+    if (disabled) return { advanced: false, exhausted: true };
+
+    const before = stableHash(
+      `${page.url()}|${await page
+        .locator("body")
+        .innerText()
+        .catch(() => "")}`,
+    );
+
+    await candidate.click().catch(() => null);
+    await page.waitForLoadState("domcontentloaded").catch(() => null);
+    await page.waitForTimeout(700);
+
+    const after = stableHash(
+      `${page.url()}|${await page
+        .locator("body")
+        .innerText()
+        .catch(() => "")}`,
+    );
+
+    return {
+      advanced: before !== after,
+      exhausted: before === after,
+    };
+  }
+
+  return { advanced: false, exhausted: true };
+}
+
+async function scanReservationListPage({
+  context,
+  href,
+  knownResources,
+  discoveredResourceLabels,
+  windowStart,
+  windowEnd,
+  maxPages,
+  onResponse,
+}) {
+  const scanPage = await context.newPage();
+  const blocks = [];
+  const recordLinks = new Set();
+  const unresolved = [];
+  const fingerprints = new Set();
+  let candidateRows = 0;
+  let rowsSeen = 0;
+  let pagesScanned = 0;
+  let explicitEmpty = false;
+  let searchWindowApplied = false;
+  let paginationExhausted = true;
+
+  scanPage.on("response", onResponse);
+
+  try {
+    await scanPage.goto(href, {
+      waitUntil: "domcontentloaded",
+      timeout: 30_000,
+    });
+    await scanPage.waitForTimeout(800);
+
+    if (await isLoginPage(scanPage)) {
+      throw new NeedsAttentionError(
+        "LOGIN_REQUIRED",
+        "ResNexus returned to the login page while reading reservations.",
+      );
+    }
+
+    const challenge = await detectChallenge(scanPage);
+    if (challenge) {
+      throw new NeedsAttentionError(challenge.code, challenge.message);
+    }
+
+    searchWindowApplied = await applyReservationSearchWindow(
+      scanPage,
+      windowStart,
+      windowEnd,
+    ).catch(() => false);
+
+    for (let pageIndex = 0; pageIndex < maxPages; pageIndex += 1) {
+      pagesScanned += 1;
+
+      for (const label of await resourceHintsFromPage(scanPage)) {
+        discoveredResourceLabels.add(label);
+      }
+
+      const labels = [
+        ...new Set([
+          ...knownResources,
+          ...discoveredResourceLabels,
+        ]),
+      ];
+
+      const rows = await collectStructuredRows(scanPage);
+      rowsSeen += rows.length;
+
+      for (const row of rows) {
+        const parsed = parseReservationRow(row, labels);
+
+        for (const link of parsed.recordLinks || []) {
+          recordLinks.add(link);
+        }
+
+        if (!parsed.candidate) continue;
+        candidateRows += 1;
+
+        if (parsed.block) {
+          blocks.push(parsed.block);
+        } else if (parsed.unresolved && unresolved.length < 20) {
+          unresolved.push(parsed.unresolved);
+        }
+      }
+
+      for (const link of await collectReservationHrefs(scanPage)) {
+        if (recordSpecificReservationHref(link)) {
+          recordLinks.add(link);
+        }
+      }
+
+      const body = clean(
+        await scanPage.locator("body").innerText().catch(() => ""),
+      ).toLowerCase();
+
+      if (
+        body.includes("no reservations") ||
+        body.includes("no bookings") ||
+        body.includes("no results") ||
+        body.includes("0 results")
+      ) {
+        explicitEmpty = true;
+      }
+
+      const fingerprint = stableHash(
+        `${scanPage.url()}|${body.slice(0, 12000)}`,
+      );
+      if (fingerprints.has(fingerprint)) {
+        paginationExhausted = true;
+        break;
+      }
+      fingerprints.add(fingerprint);
+
+      const next = await clickNextResultPage(scanPage);
+      paginationExhausted = next.exhausted;
+
+      if (!next.advanced) break;
+
+      if (pageIndex === maxPages - 1) {
+        paginationExhausted = false;
+      }
+    }
+  } finally {
+    scanPage.off("response", onResponse);
+    await scanPage.close().catch(() => null);
+  }
+
+  return {
+    blocks,
+    recordLinks: [...recordLinks],
+    unresolved,
+    candidateRows,
+    rowsSeen,
+    pagesScanned,
+    explicitEmpty,
+    searchWindowApplied,
+    paginationExhausted,
+  };
 }
 
 function blockInWindow(block, windowStart, windowEnd) {
@@ -921,7 +1728,7 @@ export async function readResNexusAccountAvailability({
 
       if (
         !/json/i.test(contentType) ||
-        !/(calendar|reservation|availability|grid|booking)/i.test(url)
+        !/(calendar|reservation|availability|grid|booking|block)/i.test(url)
       ) {
         return;
       }
@@ -935,46 +1742,56 @@ export async function readResNexusAccountAvailability({
       networkPaths.add(parsedUrl.pathname);
       walkJson(json, "", networkBlocks, { schemaPaths });
     } catch {
-      // Best-effort discovery only.
+      // Network extraction is supplemental. DOM/list validation below remains
+      // the fail-closed source of truth.
     }
   };
 
-  page.on("response", onResponse);
-
   const discoveredResourceLabels = new Set();
-  const detailLinks = new Set();
-  const domBlocks = [];
-  const unresolvedDomSamples = [];
-  const ignoredDomRangeSamples = [];
-  const detailLinkPatterns = new Set();
-  const unparsedDetailSignals = [];
-  const pageFingerprints = new Set();
+  const recordLinks = new Set();
+  const requiredRecordLinks = new Set();
+  const reservationListUrls = new Map();
+  const calendarDomBlocks = [];
+  const ignoredCalendarRanges = [];
+  const calendarFingerprints = new Set();
+  let calendarPagesScanned = 0;
+
+  page.on("response", onResponse);
 
   try {
     await page.reload({
       waitUntil: "domcontentloaded",
       timeout: 30_000,
     });
-    await page.waitForTimeout(1200);
+    await page.waitForTimeout(1000);
 
     const challenge = await detectChallenge(page);
     if (challenge) {
       throw new NeedsAttentionError(challenge.code, challenge.message);
     }
 
-    for (let pageIndex = 0; pageIndex < maxCalendarPages; pageIndex += 1) {
+    for (
+      let pageIndex = 0;
+      pageIndex < Math.max(1, maxCalendarPages);
+      pageIndex += 1
+    ) {
+      calendarPagesScanned += 1;
+
       for (const label of await resourceHintsFromPage(page)) {
         discoveredResourceLabels.add(label);
       }
 
-      for (const href of await collectReservationLinks(page)) {
-        try {
-          const absolute = new URL(href, page.url());
-          if (absolute.hostname.toLowerCase().endsWith("resnexus.com")) {
-            detailLinks.add(absolute.toString());
+      for (const href of await collectReservationHrefs(page)) {
+        if (recordSpecificReservationHref(href)) {
+          recordLinks.add(href);
+          requiredRecordLinks.add(href);
+        }
+
+        if (reservationListHref(href)) {
+          const key = navigationKey(href);
+          if (!reservationListUrls.has(key)) {
+            reservationListUrls.set(key, href);
           }
-        } catch {
-          // Ignore malformed links.
         }
       }
 
@@ -988,131 +1805,209 @@ export async function readResNexusAccountAvailability({
           isoDate(data.checkout) ||
           isoDate(data.departure);
 
-        const explicitCandidates = Array.isArray(
-          data.__explicitResourceCandidates,
-        )
-          ? data.__explicitResourceCandidates
-          : [];
+        if (!start || !end || end <= start) continue;
 
-        const contextCandidates = Array.isArray(
-          data.__contextResourceCandidates,
-        )
-          ? data.__contextResourceCandidates
-          : [];
-
-        const directResourceLabel =
-          clean(
-            data.roomName ||
-              data.unitName ||
-              data.resourceName ||
-              data.siteName ||
-              data.room ||
-              data.unit ||
-              data.resource ||
-              data.site ||
-              "",
-          ) || null;
-
-        const explicitResourceLabel =
-          directResourceLabel ||
-          explicitCandidates.find(
-            (candidate) =>
-              clean(candidate) &&
-              !resourceHintNoise(candidate),
-          ) ||
-          null;
-
-        const contextualResourceLabel =
-          exactKnownResourceCandidate(
-            contextCandidates,
-            discoveredResourceLabels,
+        const explicitCandidates = [
+          data.roomName,
+          data.unitName,
+          data.resourceName,
+          data.siteName,
+          data.room,
+          data.unit,
+          data.resource,
+          data.site,
+          ...(Array.isArray(data.__explicitResourceCandidates)
+            ? data.__explicitResourceCandidates
+            : []),
+          ...(Array.isArray(data.__contextResourceCandidates)
+            ? data.__contextResourceCandidates
+            : []),
+        ]
+          .map((value) => clean(value))
+          .filter(
+            (value) =>
+              value &&
+              !resourceHintNoise(value),
           );
 
         const resourceLabel =
-          explicitResourceLabel ||
-          contextualResourceLabel ||
-          null;
+          exactKnownResourceCandidate(
+            explicitCandidates,
+            discoveredResourceLabels,
+          ) ||
+          (discoveredResourceLabels.size
+            ? null
+            : explicitCandidates[0] || null);
 
-        if (start && end && end > start) {
-          const externalId = clean(
-            data.reservationId ||
-              data.bookingId ||
-              data.confirmationNumber ||
-              data.id ||
-              "",
-          );
+        const externalId = clean(
+          data.reservationId ||
+            data.bookingId ||
+            data.confirmationNumber ||
+            data.id ||
+            "",
+        );
 
-          // ResNexus also uses data-start/data-end on calendar/search controls.
-          // A generic date range with no reservation ID and no room/site
-          // identity is not evidence of an occupied stay and must not be
-          // treated as a reservation block.
-          if (!externalId && !resourceLabel) {
-            if (ignoredDomRangeSamples.length < 10) {
-              ignoredDomRangeSamples.push({
-                start,
-                end,
-                datasetKeys: Object.keys(data)
-                  .filter((key) => !key.startsWith("__"))
-                  .slice(0, 24),
-              });
-            }
-            continue;
-          }
-
-          domBlocks.push({
-            key: `RESNEXUS:${
-              externalId ||
-              stableHash(
-                [
-                  JSON.stringify(data),
-                  start,
-                  end,
-                  resourceLabel,
-                ].join("|"),
-              )
-            }`,
-            uid: externalId || stableHash(JSON.stringify(data)),
-            start,
-            end,
-            resourceLabel,
-            source: "dom_dataset",
-          });
-
-          if (!resourceLabel && unresolvedDomSamples.length < 10) {
-            unresolvedDomSamples.push({
+        if (!resourceLabel && !externalId) {
+          if (ignoredCalendarRanges.length < 10) {
+            ignoredCalendarRanges.push({
               start,
               end,
-              externalIdPresent: Boolean(externalId),
-              explicitCandidates: explicitCandidates
-                .filter((candidate) => !resourceHintNoise(candidate))
-                .slice(0, 8),
-              contextCandidates: contextCandidates
-                .filter((candidate) => !resourceHintNoise(candidate))
-                .slice(0, 8),
               datasetKeys: Object.keys(data)
                 .filter((key) => !key.startsWith("__"))
                 .slice(0, 24),
             });
           }
+          continue;
         }
+
+        if (!resourceLabel) {
+          // A calendar element with an ID but no unit identity is not safe to
+          // assign here. Its record/detail page or reservation list is scanned
+          // below, where the unit can be proven.
+          continue;
+        }
+
+        discoveredResourceLabels.add(resourceLabel);
+
+        const stableId =
+          externalId ||
+          stableHash(
+            [
+              normalizedResource(resourceLabel),
+              start,
+              end,
+              JSON.stringify(data).slice(0, 1500),
+            ].join("|"),
+          );
+
+        calendarDomBlocks.push({
+          key: `RESNEXUS:${stableId}`,
+          uid: stableId,
+          start,
+          end,
+          resourceLabel,
+          source: "calendar_dom",
+        });
       }
 
       const next = await clickNextCalendarWindow(page);
       if (!next.advanced) break;
-      if (next.fingerprint && pageFingerprints.has(next.fingerprint)) break;
-      if (next.fingerprint) pageFingerprints.add(next.fingerprint);
+
+      if (
+        next.fingerprint &&
+        calendarFingerprints.has(next.fingerprint)
+      ) {
+        break;
+      }
+
+      if (next.fingerprint) {
+        calendarFingerprints.add(next.fingerprint);
+      }
     }
   } finally {
     page.off("response", onResponse);
   }
 
-  const detailBlocks = [];
-  let detailFetchFailures = 0;
+  // Known ResNexus reservation-list surfaces observed in the authenticated
+  // back office. Actual links discovered in the live account take priority.
+  const fallbackListUrls = [
+    new URL(
+      "/resnexus/manage/reservations/reservationsv6.aspx",
+      CALENDAR_URL,
+    ).toString(),
+    new URL(
+      "/resnexus/manage/reservations/search.aspx",
+      CALENDAR_URL,
+    ).toString(),
+    new URL(
+      "/resnexus/v6/backoffice/reservations/search/Index",
+      CALENDAR_URL,
+    ).toString(),
+  ];
 
-  for (const href of [...detailLinks].slice(0, 50)) {
+  for (const href of fallbackListUrls) {
+    const key = navigationKey(href);
+    if (!reservationListUrls.has(key)) {
+      reservationListUrls.set(key, href);
+    }
+  }
+
+  const listBlocks = [];
+  const listScans = [];
+  const unresolvedListRows = [];
+  const maxResultPages = Math.max(
+    2,
+    Math.min(20, Number(maxCalendarPages || 12)),
+  );
+
+  for (const href of [...reservationListUrls.values()].slice(0, 4)) {
+    try {
+      const scan = await scanReservationListPage({
+        context,
+        href,
+        knownResources: [...discoveredResourceLabels],
+        discoveredResourceLabels,
+        windowStart,
+        windowEnd,
+        maxPages: maxResultPages,
+        onResponse,
+      });
+
+      listBlocks.push(...scan.blocks);
+
+      for (const link of scan.recordLinks) {
+        recordLinks.add(link);
+      }
+
+      for (const item of scan.unresolved) {
+        if (unresolvedListRows.length < 30) {
+          unresolvedListRows.push(item);
+        }
+      }
+
+      listScans.push({
+        pathname: new URL(href).pathname,
+        candidateRows: scan.candidateRows,
+        parsedBlocks: scan.blocks.length,
+        unresolvedRows: scan.unresolved.length,
+        rowsSeen: scan.rowsSeen,
+        pagesScanned: scan.pagesScanned,
+        explicitEmpty: scan.explicitEmpty,
+        searchWindowApplied: scan.searchWindowApplied,
+        paginationExhausted: scan.paginationExhausted,
+      });
+    } catch (error) {
+      if (error instanceof NeedsAttentionError) throw error;
+
+      listScans.push({
+        pathname: (() => {
+          try {
+            return new URL(href).pathname;
+          } catch {
+            return "unknown";
+          }
+        })(),
+        error: clean(
+          error instanceof Error ? error.message : String(error),
+        ).slice(0, 300),
+      });
+    }
+  }
+
+  const knownResources = [...discoveredResourceLabels];
+  const detailBlocks = [];
+  const detailPatterns = new Set();
+  const unparsedRecordDetails = [];
+  const unresolvedRequiredDetails = [];
+  let detailFetchFailures = 0;
+  let requiredDetailFetchFailures = 0;
+
+  for (const href of [...recordLinks].slice(0, 250)) {
+    if (!recordSpecificReservationHref(href)) continue;
+
     try {
       const parsedUrl = new URL(href);
-      detailLinkPatterns.add(
+      detailPatterns.add(
         `${parsedUrl.pathname}?${[
           ...parsedUrl.searchParams.keys(),
         ]
@@ -1121,58 +2016,72 @@ export async function readResNexusAccountAvailability({
       );
 
       const response = await context.request.get(href, {
-        timeout: 8_000,
+        timeout: 10_000,
         failOnStatusCode: false,
       });
 
       if (!response.ok()) {
         detailFetchFailures += 1;
+        if (requiredRecordLinks.has(href)) {
+          requiredDetailFetchFailures += 1;
+        }
         continue;
       }
 
       const html = await response.text();
-      const parsed = parseReservationDetail(html, href);
+      const parsed = parseReservationDetail(
+        html,
+        href,
+        knownResources,
+      );
 
       if (parsed) {
         detailBlocks.push(parsed);
-      } else if (unparsedDetailSignals.length < 12) {
-        const text = stripHtml(html).toLowerCase();
-
-        unparsedDetailSignals.push({
+        discoveredResourceLabels.add(parsed.resourceLabel);
+      } else {
+        const text = stripHtml(html);
+        const signal = {
           pathname: parsedUrl.pathname,
           queryKeys: [...parsedUrl.searchParams.keys()]
             .sort()
             .slice(0, 20),
+          dateTokenCount: extractDateTokens(text).length,
+          hasResourceMatch: Boolean(
+            bestKnownResource(text, knownResources),
+          ),
           hasCheckInLabel:
-            text.includes("check in") ||
-            text.includes("check-in") ||
-            text.includes("arrival"),
+            /check[ -]?in|arrival|start date/i.test(text),
           hasCheckOutLabel:
-            text.includes("check out") ||
-            text.includes("check-out") ||
-            text.includes("departure"),
-          hasRoomLabel:
-            text.includes("room") ||
-            text.includes("unit") ||
-            text.includes("site") ||
-            text.includes("accommodation"),
-          hasReservationLabel:
-            text.includes("reservation") ||
-            text.includes("booking") ||
-            text.includes("confirmation"),
-          hasRecognizableDate:
-            /\b20\d{2}-\d{1,2}-\d{1,2}\b/.test(text) ||
-            /\b\d{1,2}\/\d{1,2}\/20\d{2}\b/.test(text),
-        });
+            /check[ -]?out|departure|end date/i.test(text),
+        };
+
+        if (unparsedRecordDetails.length < 20) {
+          unparsedRecordDetails.push(signal);
+        }
+
+        if (
+          requiredRecordLinks.has(href) &&
+          unresolvedRequiredDetails.length < 20
+        ) {
+          unresolvedRequiredDetails.push(signal);
+        }
       }
     } catch {
       detailFetchFailures += 1;
+      if (requiredRecordLinks.has(href)) {
+        requiredDetailFetchFailures += 1;
+      }
     }
   }
 
+  const safeNetworkBlocks = networkBlocks.filter(
+    (block) => Boolean(block.resourceLabel),
+  );
+
   const allBlocks = uniqueBlocks([
-    ...networkBlocks,
-    ...domBlocks,
+    ...safeNetworkBlocks,
+    ...calendarDomBlocks,
+    ...listBlocks,
     ...detailBlocks,
   ]);
 
@@ -1182,34 +2091,116 @@ export async function readResNexusAccountAvailability({
     }
   }
 
-  const catalog = resourceCatalog(discoveredResourceLabels);
+  const catalog = resourceCatalog(
+    [...discoveredResourceLabels].filter(
+      (label) => !resourceHintNoise(label),
+    ),
+  );
+
+  const successfulListScans = listScans.filter(
+    (scan) => !scan.error,
+  );
+  const listEvidence = successfulListScans.some((scan) => {
+    const pathname = String(scan.pathname || "").toLowerCase();
+    const directList =
+      pathname.endsWith("/reservationsv6.aspx") ||
+      pathname.endsWith("/reservations.aspx");
+
+    return (
+      scan.candidateRows > 0 ||
+      scan.parsedBlocks > 0 ||
+      (scan.explicitEmpty &&
+        (scan.searchWindowApplied || directList))
+    );
+  });
+  const paginationIncomplete = successfulListScans.some(
+    (scan) =>
+      scan.candidateRows > 0 &&
+      scan.paginationExhausted === false,
+  );
 
   const diagnostic = {
-    jsonBlocks: networkBlocks.length,
-    domBlocks: domBlocks.length,
+    strategy: "reservation_list_bridge_v1",
+    calendarPagesScanned,
+    calendarDomBlocks: calendarDomBlocks.length,
+    ignoredCalendarRanges,
+    reservationListScans: listScans,
+    listBlocks: listBlocks.length,
+    unresolvedListRows,
+    recordSpecificLinks: [...recordLinks].filter((href) =>
+      recordSpecificReservationHref(href),
+    ).length,
     detailBlocks: detailBlocks.length,
-    reservationLinks: detailLinks.size,
+    detailFetchFailures,
+    requiredDetailFetchFailures,
+    unparsedRecordDetails,
+    unresolvedRequiredDetails,
+    detailPatterns: [...detailPatterns].slice(0, 40),
+    jsonBlocks: networkBlocks.length,
+    jsonBlocksWithResource: safeNetworkBlocks.length,
+    ignoredJsonDateObjects:
+      networkBlocks.length - safeNetworkBlocks.length,
     schemaPaths: [...schemaPaths].slice(0, 40),
     networkPaths: [...networkPaths].slice(0, 40),
-    detailFetchFailures,
-    unresolvedDomSamples,
-    ignoredDomRangeSamples,
-    detailLinkPatterns: [...detailLinkPatterns].slice(0, 30),
-    unparsedDetailSignals,
     resourceCatalog: catalog.slice(0, 250),
   };
 
-  // Account-level mapping is only safe if every occupied/block record can be
-  // tied to a concrete ResNexus room/unit.
+  if (!catalog.length) {
+    throw new UnsafeExtractionError(
+      "The ResNexus account loaded, but no stable room/unit catalog could be proven.",
+      diagnostic,
+    );
+  }
+
+  if (unresolvedListRows.length) {
+    throw new UnsafeExtractionError(
+      "ResNexus reservation rows were found, but one or more could not be tied to both stay dates and a specific room/unit. Existing Find A Place availability was preserved.",
+      diagnostic,
+    );
+  }
+
+  if (paginationIncomplete) {
+    throw new UnsafeExtractionError(
+      "ResNexus reservation results exceeded the safely scanned result pages. Existing Find A Place availability was preserved instead of applying a partial snapshot.",
+      diagnostic,
+    );
+  }
+
+  if (requiredDetailFetchFailures > 0) {
+    throw new UnsafeExtractionError(
+      "One or more calendar-linked ResNexus reservation/block detail pages could not be read. Existing Find A Place availability was preserved instead of applying a partial snapshot.",
+      diagnostic,
+    );
+  }
+
+  if (unresolvedRequiredDetails.length) {
+    throw new UnsafeExtractionError(
+      "One or more calendar-linked ResNexus reservation/block pages could not be safely mapped to a room/unit and stay dates. Existing Find A Place availability was preserved.",
+      diagnostic,
+    );
+  }
+
   if (allBlocks.some((block) => !block.resourceLabel)) {
     throw new UnsafeExtractionError(
-      "One or more ResNexus reservation records did not expose a room/unit identity. Existing Find A Place availability was preserved until the live-account extractor can prove every reservation-to-cabin mapping.",
+      "One or more ResNexus reservation records did not expose a room/unit identity. Existing Find A Place availability was preserved.",
+      diagnostic,
+    );
+  }
+
+  // A reservation list/search surface is our completeness check. Calendar DOM
+  // and individual detail pages supplement it, but are not enough on their own
+  // to prove that every active reservation was seen.
+  if (!listEvidence) {
+    throw new UnsafeExtractionError(
+      "The ResNexus account and room list loaded, but the worker could not yet prove a complete reservation-list snapshot. Existing Find A Place availability was preserved.",
       diagnostic,
     );
   }
 
   const blocks = allBlocks
-    .filter((block) => blockInWindow(block, windowStart, windowEnd))
+    .filter((block) =>
+      blockInWindow(block, windowStart, windowEnd),
+    )
     .map((block) => {
       const key = resourceKey(block.resourceLabel);
 
@@ -1236,47 +2227,6 @@ export async function readResNexusAccountAvailability({
       };
     });
 
-  if (!catalog.length && blocks.length) {
-    throw new UnsafeExtractionError(
-      "ResNexus reservations were found, but no stable room/unit catalog could be created.",
-      diagnostic,
-    );
-  }
-
-  if (!blocks.length) {
-    const body = clean(
-      await page.locator("body").innerText().catch(() => ""),
-    ).toLowerCase();
-
-    const explicitlyEmpty =
-      body.includes("no reservations") ||
-      body.includes("no bookings") ||
-      body.includes("no results");
-
-    // Do not declare a healthy empty calendar while the page still exposes
-    // reservation-looking links that our parser could not safely turn into
-    // room-specific occupied dates.
-    if (
-      !explicitlyEmpty &&
-      detailLinks.size > 0 &&
-      detailBlocks.length === 0 &&
-      networkBlocks.length === 0 &&
-      domBlocks.length === 0
-    ) {
-      throw new UnsafeExtractionError(
-        "The ResNexus calendar loaded and room/site names were discovered, but reservation-looking links could not yet be parsed into safe room-specific occupied dates. Existing Find A Place availability was preserved for extractor calibration.",
-        diagnostic,
-      );
-    }
-
-    if (!catalog.length && !explicitlyEmpty) {
-      throw new UnsafeExtractionError(
-        "The ResNexus calendar loaded, but the worker could not prove either a room/unit catalog or a safely empty calendar. The first live account needs extractor calibration.",
-        diagnostic,
-      );
-    }
-  }
-
   return {
     windowStart,
     windowEnd,
@@ -1285,3 +2235,4 @@ export async function readResNexusAccountAvailability({
     diagnostic,
   };
 }
+
