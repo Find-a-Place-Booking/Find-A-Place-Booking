@@ -242,6 +242,50 @@ function listPayload(body: unknown, keys: string[]) {
   );
 }
 
+function permissionHint(path: string) {
+  if (path.endsWith("/reservations")) {
+    return "Make sure the Restricted API Key includes read:reservation.";
+  }
+
+  if (path.endsWith("/blackouts")) {
+    return "Make sure the Restricted API Key includes read:availability.";
+  }
+
+  return "Check the permissions on the Restricted API Key.";
+}
+
+async function fetchUnfilteredFallback(input: {
+  apiKey: string;
+  path: string;
+  keys: string[];
+  originalError: unknown;
+}) {
+  try {
+    const body = await thinkRequest(input.apiKey, input.path);
+    return listPayload(body, input.keys);
+  } catch (fallbackError) {
+    if (
+      fallbackError instanceof ThinkReservationsHttpError &&
+      (fallbackError.status === 401 || fallbackError.status === 403)
+    ) {
+      throw new Error(
+        `${fallbackError.message} ${permissionHint(input.path)}`,
+      );
+    }
+
+    if (
+      fallbackError instanceof ThinkReservationsHttpError &&
+      fallbackError.status >= 500
+    ) {
+      throw new Error(
+        `ThinkReservations is returning HTTP ${fallbackError.status} from ${input.path} even without a date filter. ${permissionHint(input.path)} If the permission is already enabled, this is an upstream ThinkReservations API error.`,
+      );
+    }
+
+    throw fallbackError ?? input.originalError;
+  }
+}
+
 async function fetchDateRangedList(input: {
   apiKey: string;
   path: string;
@@ -266,16 +310,24 @@ async function fetchDateRangedList(input: {
       error.status >= 500 &&
       error.status <= 599;
 
-    /*
-      ThinkReservations can return an upstream 500 for a very large date
-      window even though the hotel/key and resource endpoints are healthy.
-      Keep the normal two-request path when it works. If ThinkReservations
-      rejects the window, split only the failing endpoint into smaller
-      windows until it succeeds. We stop at 14 days so a real upstream/API
-      problem still fails closed instead of silently clearing availability.
-    */
-    if (!retryableServerError || spanDays <= 14 || depth >= 8) {
+    if (!retryableServerError) {
       throw error;
+    }
+
+    /*
+      First shrink a large request. If ThinkReservations still returns 5xx
+      on a small range, retry the same endpoint without date parameters.
+      This covers hotels where the reservation endpoint accepts the key but
+      currently errors on its date-range filter. The final block list is
+      clipped back to the requested FAP sync window below.
+    */
+    if (spanDays <= 14 || depth >= 8) {
+      return fetchUnfilteredFallback({
+        apiKey: input.apiKey,
+        path: input.path,
+        keys: input.keys,
+        originalError: error,
+      });
     }
 
     const midpoint = midpointDate(input.startDate, input.endDate);
@@ -284,7 +336,12 @@ async function fetchDateRangedList(input: {
       midpoint === input.startDate ||
       midpoint === input.endDate
     ) {
-      throw error;
+      return fetchUnfilteredFallback({
+        apiKey: input.apiKey,
+        path: input.path,
+        keys: input.keys,
+        originalError: error,
+      });
     }
 
     const [left, right] = await Promise.all([
@@ -572,6 +629,14 @@ function dedupeSourceBlocks(
   return [...unique.values()];
 }
 
+function overlapsSyncWindow(
+  block: ThinkReservationsSourceBlock,
+  startDate: string,
+  endDate: string,
+) {
+  return block.start < endDate && block.end > startDate;
+}
+
 export async function fetchThinkReservationsAvailabilityBlocks(input: {
   hotelId: string;
   apiKey: string;
@@ -580,13 +645,6 @@ export async function fetchThinkReservationsAvailabilityBlocks(input: {
 }) {
   const encodedHotelId = encodeURIComponent(input.hotelId);
 
-  /*
-    Fetch these independently. If ThinkReservations has trouble with the
-    requested range, fetchDateRangedList automatically bisects only the
-    failing endpoint. This keeps a temporary upstream 500 from killing the
-    entire PMS sync while still failing closed on auth, schema or persistent
-    endpoint errors.
-  */
   const reservations = await fetchDateRangedList({
     apiKey: input.apiKey,
     path: `/v1/hotels/${encodedHotelId}/reservations`,
@@ -606,5 +664,11 @@ export async function fetchThinkReservationsAvailabilityBlocks(input: {
   return dedupeSourceBlocks([
     ...extractReservationBlocks(reservations),
     ...extractBlackoutBlocks(blackouts),
-  ]);
+  ]).filter((block) =>
+    overlapsSyncWindow(
+      block,
+      input.startDate,
+      input.endDate,
+    ),
+  );
 }
