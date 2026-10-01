@@ -38,9 +38,37 @@ function normalizedResource(value) {
 }
 
 function canonicalResourceLabel(value) {
-  return clean(value)
+  let label = clean(value)
     .replace(/^(?:rv\s*)?\d{1,3}\)\s*/i, "")
     .trim();
+
+  // ResNexus exposes the same physical inventory under several display
+  // aliases across its calendar/search/detail surfaces. Collapse only the
+  // account-specific aliases we have proven are the same unit inventory so
+  // one FAP mapping catches every reservation for that physical unit.
+  if (/^lil['’]?\s+rustic\s+with\s+hot\s+tub\d+$/i.test(label)) {
+    label = label.replace(/\d+$/, "").trim();
+  }
+
+  if (/^rv\s+sites\s+\d+\s*-\s*\d+$/i.test(label)) {
+    label = label.replace(/^rv\s+/i, "").trim();
+  }
+
+  if (/^white\s+tail$/i.test(label)) {
+    return "White Tail Cabin at Crystal Ridge";
+  }
+
+  if (
+    /^white\s+tail\s+cabin\s+at\s+crystal\s+ridge\s+(?:with|without)\s+bunkroom$/i.test(
+      label,
+    )
+  ) {
+    return label
+      .replace(/\s+(?:with|without)\s+bunkroom$/i, "")
+      .trim();
+  }
+
+  return label;
 }
 
 function bestKnownResource(value, labels) {
@@ -1106,6 +1134,7 @@ function resourceHintNoise(value) {
     "current / future stays",
     "current/future stays",
     "gift certificates",
+    "lil rustic & rv sites",
     "past stays",
     "quotes / waiting list",
     "quotes/waiting list",
