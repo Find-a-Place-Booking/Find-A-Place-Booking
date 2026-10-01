@@ -318,13 +318,6 @@ function availabilityFrom(object: JsonObject | null) {
 
   if (availableCount !== null) return availableCount > 0;
 
-  /*
-    Some inventory APIs expose the sellable count simply as "inventory".
-    Only use it after all explicit availability fields above have failed.
-  */
-  const inventory = numberValue(object, "inventory");
-  if (inventory !== null) return inventory > 0;
-
   return null;
 }
 
@@ -352,11 +345,51 @@ function listPayload(body: unknown) {
   return [body];
 }
 
+function directRoomTypeId(object: JsonObject | null) {
+  if (!object) return null;
+
+  return (
+    stringValue(
+      object,
+      "roomTypeId",
+      "room_type_id",
+      "roomtypeId",
+      "roomtype_id",
+    ) ||
+    stringValue(
+      objectValue(object.roomType ?? object.room_type),
+      "id",
+      "externalId",
+      "external_id",
+    )
+  );
+}
+
+function directInventoryAvailability(
+  object: JsonObject | null,
+  hasOwnDate: boolean,
+  hasOwnRoomType: boolean,
+) {
+  const explicit = availabilityFrom(object);
+  if (explicit !== null) return explicit;
+
+  /*
+    Only interpret a bare numeric "inventory" value on a leaf that owns its
+    own roomTypeId and date. Never inherit that value from a hotel-level,
+    room-list, or another cabin's container.
+  */
+  if (object && hasOwnDate && hasOwnRoomType) {
+    const inventory = numberValue(object, "inventory");
+    if (inventory !== null) return inventory > 0;
+  }
+
+  return null;
+}
+
 function collectInventorySignals(
   value: unknown,
   inherited: {
     date?: string | null;
-    roomId?: string | null;
     roomTypeId?: string | null;
   } = {},
   depth = 0,
@@ -369,30 +402,13 @@ function collectInventorySignals(
     );
   }
 
-  if (typeof value === "number" || typeof value === "boolean") {
-    if (!inherited.date || (!inherited.roomId && !inherited.roomTypeId)) {
-      return [];
-    }
-
-    return [
-      {
-        date: inherited.date,
-        roomId: inherited.roomId ?? null,
-        roomTypeId: inherited.roomTypeId ?? null,
-        available:
-          typeof value === "boolean" ? value : Number(value) > 0,
-      },
-    ];
-  }
-
   const object = objectValue(value);
   if (!object) return [];
 
-  const roomId = roomIdFrom(object) ?? inherited.roomId ?? null;
-  const roomTypeId =
-    roomTypeIdFrom(object) ?? inherited.roomTypeId ?? null;
+  const ownRoomTypeId = directRoomTypeId(object);
+  const roomTypeId = ownRoomTypeId ?? inherited.roomTypeId ?? null;
 
-  const date =
+  const ownDate =
     normalizedDate(
       stringValue(
         object,
@@ -403,17 +419,26 @@ function collectInventorySignals(
         "stay_date",
         "night",
       ),
-    ) ??
-    inherited.date ??
-    null;
+    ) ?? null;
 
-  const available = availabilityFrom(object);
+  const date = ownDate ?? inherited.date ?? null;
+
+  const available = directInventoryAvailability(
+    object,
+    Boolean(ownDate),
+    Boolean(ownRoomTypeId),
+  );
+
   const output: InventorySignal[] = [];
 
-  if (date && (roomId || roomTypeId) && available !== null) {
+  /*
+    ThinkReservations inventory is treated as room-type scoped. Do not attach
+    a physical roomId discovered somewhere else in the response tree.
+  */
+  if (date && roomTypeId && available !== null) {
     output.push({
       date,
-      roomId,
+      roomId: null,
       roomTypeId,
       available,
     });
@@ -443,7 +468,6 @@ function collectInventorySignals(
         child,
         {
           date: dateKey ?? date,
-          roomId,
           roomTypeId,
         },
         depth + 1,
@@ -754,50 +778,60 @@ export async function syncThinkReservationsConnection(
       endDate: window.endDate,
     });
 
-    const exactRoomSignals = signals.filter(
-      (signal) =>
-        signal.roomId === connection.external_calendar_id,
+    if (!connection.external_room_type_id) {
+      throw new Error(
+        "ThinkReservations room mapping is missing its room-type ID. Re-save the room mapping before syncing.",
+      );
+    }
+
+    const sameTypeRooms = roomsForRoomType(
+      integration.resource_cache,
+      connection.external_room_type_id,
     );
 
-    const roomTypeSignals = connection.external_room_type_id
-      ? signals.filter(
-          (signal) =>
-            !signal.roomId &&
-            signal.roomTypeId === connection.external_room_type_id,
-        )
-      : [];
-
-    let applicableSignals = exactRoomSignals;
-
-    if (!applicableSignals.length && roomTypeSignals.length) {
-      const sameTypeRooms = roomsForRoomType(
-        integration.resource_cache,
-        connection.external_room_type_id,
+    /*
+      ThinkReservations inventory is room-type scoped. Only use it for a
+      single FAP cabin when that room type has exactly one physical room.
+    */
+    if (sameTypeRooms.length !== 1) {
+      throw new Error(
+        `ThinkReservations room type maps to ${sameTypeRooms.length} physical rooms. Find A Place preserved existing dates rather than mixing availability between cabins.`,
       );
-
-      /*
-        Room-type inventory is exact for Lone Cedar because each current room
-        type contains one physical room. If a future hotel has multiple rooms
-        in the same type, do not guess which physical room is occupied.
-      */
-      if (sameTypeRooms.length > 1) {
-        throw new Error(
-          `ThinkReservations inventory is room-type scoped for this mapping (${sameTypeRooms.length} rooms share the type). Find A Place preserved existing dates instead of risking an incorrect room-level calendar.`,
-        );
-      }
-
-      applicableSignals = roomTypeSignals;
     }
+
+    const applicableSignals = signals.filter(
+      (signal) =>
+        signal.roomTypeId === connection.external_room_type_id,
+    );
 
     if (!applicableSignals.length && signals.length) {
       throw new Error(
-        "ThinkReservations inventory returned data, but none matched this mapped room or room type. Recheck the room mapping; existing imported dates were preserved.",
+        "ThinkReservations inventory returned data, but none matched this cabin's exact room type. Existing imported dates were preserved instead of mixing cabins.",
       );
     }
 
     const unavailableDates = applicableSignals
       .filter((signal) => !signal.available)
       .map((signal) => signal.date);
+
+    const uniqueSignalDates = new Set(
+      applicableSignals.map((signal) => signal.date),
+    );
+    const uniqueUnavailableDates = new Set(unavailableDates);
+
+    /*
+      A nearly-solid unavailable calendar is the exact symptom produced by
+      the previous loose parser. Preserve the current calendar instead of
+      replacing it with another obviously bad import.
+    */
+    if (
+      uniqueSignalDates.size >= 30 &&
+      uniqueUnavailableDates.size / uniqueSignalDates.size > 0.92
+    ) {
+      throw new Error(
+        `ThinkReservations inventory looked suspicious for this cabin (${uniqueUnavailableDates.size}/${uniqueSignalDates.size} returned nights unavailable). Existing dates were preserved instead of applying a likely mixed/invalid calendar.`,
+      );
+    }
 
     const mappedBlocks = compressUnavailableDates({
       dates: unavailableDates,
