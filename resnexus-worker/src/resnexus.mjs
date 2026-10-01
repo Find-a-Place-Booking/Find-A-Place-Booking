@@ -658,10 +658,146 @@ async function collectDomDataBlocks(page) {
         for (const [key, value] of Object.entries(element.dataset)) {
           data[key] = value;
         }
-        return data;
+
+        const explicitCandidates = [];
+        const contextCandidates = [];
+
+        const add = (list, value) => {
+          const cleaned = String(value ?? "")
+            .replace(/\s+/g, " ")
+            .trim();
+
+          if (
+            cleaned.length >= 2 &&
+            cleaned.length <= 180 &&
+            !list.includes(cleaned)
+          ) {
+            list.push(cleaned);
+          }
+        };
+
+        const addExplicitResourceAttributes = (node) => {
+          if (!node) return;
+
+          const dataset = node.dataset || {};
+          [
+            dataset.roomName,
+            dataset.unitName,
+            dataset.resourceName,
+            dataset.siteName,
+            dataset.room,
+            dataset.unit,
+            dataset.resource,
+            dataset.site,
+          ].forEach((value) => add(explicitCandidates, value));
+
+          [
+            "data-room-name",
+            "data-unit-name",
+            "data-resource-name",
+            "data-site-name",
+            "data-room",
+            "data-unit",
+            "data-resource",
+            "data-site",
+          ].forEach((attribute) =>
+            add(explicitCandidates, node.getAttribute(attribute)),
+          );
+        };
+
+        let ancestor = element;
+        for (let depth = 0; ancestor && depth < 7; depth += 1) {
+          addExplicitResourceAttributes(ancestor);
+          ancestor = ancestor.parentElement;
+        }
+
+        const row = element.closest('tr, [role="row"]');
+        if (row) {
+          addExplicitResourceAttributes(row);
+
+          const rowHeader = row.querySelector(
+            'th, [role="rowheader"], [data-room-name], [data-unit-name], [data-resource-name], [data-site-name], [class*="room-name" i], [class*="unit-name" i], [class*="site-name" i]',
+          );
+
+          add(contextCandidates, rowHeader?.textContent);
+        }
+
+        const labelledAncestor = element.closest(
+          '[class*="room" i], [class*="unit" i], [class*="resource" i], [class*="site" i]',
+        );
+
+        if (labelledAncestor && labelledAncestor !== element) {
+          const labelNode = labelledAncestor.querySelector(
+            '[data-room-name], [data-unit-name], [data-resource-name], [data-site-name], [class*="room-name" i], [class*="unit-name" i], [class*="site-name" i]',
+          );
+          add(contextCandidates, labelNode?.textContent);
+        }
+
+        return {
+          ...data,
+          __explicitResourceCandidates: explicitCandidates,
+          __contextResourceCandidates: contextCandidates,
+        };
       }),
     )
     .catch(() => []);
+}
+
+function resourceHintNoise(value) {
+  const normalized = clean(value).toLowerCase();
+
+  if (!normalized) return true;
+
+  const exactNoise = new Set([
+    "** view all **",
+    "all unit types",
+    "cabin",
+    "cabins",
+    "rv site [short-term]",
+    "rv sites",
+    "rate + taxes & fees",
+    "czech",
+    "dutch",
+    "english (united states)",
+    "french",
+    "german",
+    "hungarian",
+    "khmer",
+    "polish",
+    "portuguese",
+    "slovak",
+    "slovenian",
+    "spanish",
+  ]);
+
+  if (exactNoise.has(normalized)) return true;
+  if (normalized.startsWith("all unit types ")) return true;
+  if (normalized.startsWith("site length (ft):")) return true;
+
+  return false;
+}
+
+function exactKnownResourceCandidate(candidates, knownLabels) {
+  const byNormalized = new Map();
+
+  for (const label of knownLabels) {
+    const normalized = normalizedResource(label);
+    if (!normalized || resourceHintNoise(label)) continue;
+
+    const existing = byNormalized.get(normalized) ?? [];
+    existing.push(label);
+    byNormalized.set(normalized, existing);
+  }
+
+  for (const candidate of candidates) {
+    const normalized = normalizedResource(candidate);
+    if (!normalized) continue;
+
+    const matches = byNormalized.get(normalized) ?? [];
+    if (matches.length === 1) return matches[0];
+  }
+
+  return null;
 }
 
 async function resourceHintsFromPage(page) {
@@ -691,6 +827,7 @@ async function resourceHintsFromPage(page) {
       values.filter(
         (value) =>
           /[a-z]/i.test(value) &&
+          !resourceHintNoise(value) &&
           !/^(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)/i.test(value) &&
           !/^\d+\s*(days?|guests?|rooms?)?$/i.test(value) &&
           !/^(next|previous|today|month|week|calendar)$/i.test(value),
@@ -807,6 +944,7 @@ export async function readResNexusAccountAvailability({
   const discoveredResourceLabels = new Set();
   const detailLinks = new Set();
   const domBlocks = [];
+  const unresolvedDomSamples = [];
   const pageFingerprints = new Set();
 
   try {
@@ -847,16 +985,50 @@ export async function readResNexusAccountAvailability({
           isoDate(data.checkout) ||
           isoDate(data.departure);
 
-        const resourceLabel =
+        const explicitCandidates = Array.isArray(
+          data.__explicitResourceCandidates,
+        )
+          ? data.__explicitResourceCandidates
+          : [];
+
+        const contextCandidates = Array.isArray(
+          data.__contextResourceCandidates,
+        )
+          ? data.__contextResourceCandidates
+          : [];
+
+        const directResourceLabel =
           clean(
             data.roomName ||
               data.unitName ||
               data.resourceName ||
+              data.siteName ||
               data.room ||
               data.unit ||
               data.resource ||
+              data.site ||
               "",
           ) || null;
+
+        const explicitResourceLabel =
+          directResourceLabel ||
+          explicitCandidates.find(
+            (candidate) =>
+              clean(candidate) &&
+              !resourceHintNoise(candidate),
+          ) ||
+          null;
+
+        const contextualResourceLabel =
+          exactKnownResourceCandidate(
+            contextCandidates,
+            discoveredResourceLabels,
+          );
+
+        const resourceLabel =
+          explicitResourceLabel ||
+          contextualResourceLabel ||
+          null;
 
         if (start && end && end > start) {
           const externalId = clean(
@@ -885,6 +1057,22 @@ export async function readResNexusAccountAvailability({
             resourceLabel,
             source: "dom_dataset",
           });
+
+          if (!resourceLabel && unresolvedDomSamples.length < 10) {
+            unresolvedDomSamples.push({
+              start,
+              end,
+              explicitCandidates: explicitCandidates
+                .filter((candidate) => !resourceHintNoise(candidate))
+                .slice(0, 8),
+              contextCandidates: contextCandidates
+                .filter((candidate) => !resourceHintNoise(candidate))
+                .slice(0, 8),
+              datasetKeys: Object.keys(data)
+                .filter((key) => !key.startsWith("__"))
+                .slice(0, 24),
+            });
+          }
         }
       }
 
@@ -941,6 +1129,7 @@ export async function readResNexusAccountAvailability({
     schemaPaths: [...schemaPaths].slice(0, 40),
     networkPaths: [...networkPaths].slice(0, 40),
     detailFetchFailures,
+    unresolvedDomSamples,
     resourceCatalog: catalog.slice(0, 250),
   };
 
