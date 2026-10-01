@@ -18,9 +18,9 @@ const CONFIGS: Record<string, StateTaxSetupConfig> = {
     code: "AR",
     name: "Arkansas",
     intro:
-      "Arkansas state sales tax and Arkansas tourism tax are added automatically from the active statewide rules.",
+      "Find A Place automatically adds Arkansas state sales tax and Arkansas tourism tax from the active statewide rules. Do not add either statewide rate again below.",
     localHelp:
-      "Add only the city/county sales tax and any local lodging, tourism, hotel or A&P tax that applies at this property address.",
+      "Enter only the remaining local city/county sales tax and any local lodging, tourism, hotel or A&P tax that applies at this address. If you were given one combined total, make sure the statewide taxes above are not included in the number you enter.",
     suggestedLines: [
       {
         category: "LOCAL_SALES",
@@ -38,9 +38,9 @@ const CONFIGS: Record<string, StateTaxSetupConfig> = {
     code: "MO",
     name: "Missouri",
     intro:
-      "Missouri's statewide lodging sales-tax rule is added automatically for Missouri properties.",
+      "Find A Place automatically adds the configured Missouri statewide lodging sales-tax rule. Do not add that statewide rate again below.",
     localHelp:
-      "Add local sales, district, tourism, convention or lodging taxes that apply to this property's location.",
+      "Enter only local sales, district, tourism, convention or lodging taxes that apply at this property address.",
     suggestedLines: [
       {
         category: "LOCAL_SALES",
@@ -58,9 +58,9 @@ const CONFIGS: Record<string, StateTaxSetupConfig> = {
     code: "TX",
     name: "Texas",
     intro:
-      "Texas state hotel occupancy tax is added automatically for Texas properties.",
+      "Find A Place automatically adds the configured Texas state hotel occupancy tax. Do not add that statewide rate again below.",
     localHelp:
-      "Add city, county, special-district or venue hotel-occupancy taxes that apply to this property.",
+      "Enter only city, county, special-district or venue hotel-occupancy taxes that apply to this property.",
     suggestedLines: [
       {
         category: "LOCAL_LODGING",
@@ -78,9 +78,9 @@ const CONFIGS: Record<string, StateTaxSetupConfig> = {
     code: "TN",
     name: "Tennessee",
     intro:
-      "Tennessee state sales tax is added automatically for Tennessee short-term lodging.",
+      "Find A Place automatically adds the configured Tennessee statewide sales-tax rule for short-term lodging. Do not add that statewide rate again below.",
     localHelp:
-      "Add the local sales-tax and local occupancy-tax rates that apply to this property.",
+      "Enter only the remaining local sales-tax and local occupancy-tax rates that apply to this property.",
     suggestedLines: [
       {
         category: "LOCAL_SALES",
@@ -98,8 +98,11 @@ const CONFIGS: Record<string, StateTaxSetupConfig> = {
   },
 };
 
-export function getStateTaxSetup(code: string | null | undefined): StateTaxSetupConfig {
+export function getStateTaxSetup(
+  code: string | null | undefined,
+): StateTaxSetupConfig {
   const normalized = (code || "").trim().toUpperCase();
+
   return (
     CONFIGS[normalized] ?? {
       code: normalized || "OTHER",

@@ -1,0 +1,52 @@
+.wrap {
+  display: grid;
+  gap: 8px;
+  margin: 8px 0 2px;
+}
+
+.status {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-height: 34px;
+  padding: 8px 10px;
+  border: 1px solid #ddd6cb;
+  border-radius: 9px;
+  background: #f8f6f1;
+  color: #646b66;
+  font-size: .68rem;
+  line-height: 1.4;
+}
+
+.verified {
+  border-color: #c9dccf;
+  background: #f0f6f1;
+  color: #315f4b;
+}
+
+.expired,
+.error {
+  border-color: #e0c2b5;
+  background: #fff5f0;
+  color: #7a4637;
+}
+
+.status button {
+  flex: 0 0 auto;
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  background: transparent;
+  color: inherit;
+  padding: 6px 9px;
+  font: inherit;
+  font-weight: 850;
+  cursor: pointer;
+}
+
+@media (max-width: 620px) {
+  .status {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}

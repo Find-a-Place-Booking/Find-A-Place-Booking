@@ -16,6 +16,51 @@ const privatePrefixes = [
   "/api",
 ];
 
+const bookingFunnelPrefixes = [
+  "/checkout",
+  "/booking/confirmed",
+];
+
+function sanitizedAnalyticsEvent(event: BeforeSendEvent) {
+  try {
+    const url = new URL(event.url);
+    const blocked = privatePrefixes.some(
+      (prefix) =>
+        url.pathname === prefix ||
+        url.pathname.startsWith(`${prefix}/`),
+    );
+
+    if (!blocked) {
+      url.search = "";
+      url.hash = "";
+      return { ...event, url: url.toString() };
+    }
+
+    /*
+     * Keep private page views private, but allow the deliberately named custom
+     * booking-funnel events from checkout/confirmation. Rewrite the event URL
+     * to a neutral path so reservation IDs, checkout tokens and private route
+     * details never reach Web Analytics.
+     */
+    const bookingFunnelEvent =
+      event.type === "event" &&
+      bookingFunnelPrefixes.some(
+        (prefix) =>
+          url.pathname === prefix ||
+          url.pathname.startsWith(`${prefix}/`),
+      );
+
+    if (!bookingFunnelEvent) return null;
+
+    url.pathname = "/booking-funnel";
+    url.search = "";
+    url.hash = "";
+    return { ...event, url: url.toString() };
+  } catch {
+    return null;
+  }
+}
+
 function sanitizedPublicUrl(rawUrl: string) {
   try {
     const url = new URL(rawUrl);
@@ -27,7 +72,6 @@ function sanitizedPublicUrl(rawUrl: string) {
 
     if (blocked) return null;
 
-    // Do not send destination/date/filter query strings to analytics.
     url.search = "";
     url.hash = "";
     return url.toString();
@@ -39,12 +83,7 @@ function sanitizedPublicUrl(rawUrl: string) {
 export function VercelInsights() {
   return (
     <>
-      <Analytics
-        beforeSend={(event: BeforeSendEvent) => {
-          const url = sanitizedPublicUrl(event.url);
-          return url ? { ...event, url } : null;
-        }}
-      />
+      <Analytics beforeSend={sanitizedAnalyticsEvent} />
 
       <SpeedInsights
         beforeSend={(data) => {

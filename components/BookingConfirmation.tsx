@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { track } from "@vercel/analytics";
 
 import { BookingReceipt } from "@/components/BookingReceipt";
 import { PrintReceiptButton } from "@/components/PrintReceiptButton";
@@ -46,6 +47,7 @@ export function BookingConfirmation({
 }: Props) {
   const [booking, setBooking] = useState<BookingStatus | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const confirmedTrackedRef = useRef(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -75,6 +77,17 @@ export function BookingConfirmation({
       setBooking(payload);
 
       if (
+        payload.status === "CONFIRMED" &&
+        !confirmedTrackedRef.current
+      ) {
+        confirmedTrackedRef.current = true;
+        track("checkout_confirmed", {
+          stay: payload.propertyName || "unknown",
+          mode: testMode ? "test" : "live",
+        });
+      }
+
+      if (
         payload.confirmationCode === confirmationCode &&
         payload.status !== "CONFIRMED" &&
         attempts < 30
@@ -89,7 +102,12 @@ export function BookingConfirmation({
       cancelled = true;
       if (timer) window.clearTimeout(timer);
     };
-  }, [confirmationCode, reservationId, checkoutToken]);
+  }, [
+    confirmationCode,
+    reservationId,
+    checkoutToken,
+    testMode,
+  ]);
 
   if (error) {
     return (
