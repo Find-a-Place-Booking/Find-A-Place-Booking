@@ -297,6 +297,64 @@ function recordIdFromUrl(href) {
   return null;
 }
 
+async function readRenderedDetailResource(
+  context,
+  href,
+  knownResources,
+) {
+  const detailPage = await context.newPage();
+
+  try {
+    await detailPage.goto(href, {
+      waitUntil: "domcontentloaded",
+      timeout: 20_000,
+    });
+    await detailPage.waitForTimeout(900);
+
+    if (await isLoginPage(detailPage)) return null;
+
+    const challenge = await detectChallenge(detailPage);
+    if (challenge) return null;
+
+    const bodyText = await detailPage
+      .locator("body")
+      .innerText()
+      .catch(() => "");
+
+    const selectedOptions = await detailPage
+      .locator("select option:checked, select option[selected]")
+      .evaluateAll((options) =>
+        options
+          .map((option) =>
+            String(option.textContent || "")
+              .replace(/\s+/g, " ")
+              .trim(),
+          )
+          .filter(Boolean),
+      )
+      .catch(() => []);
+
+    const resourceHints = await resourceHintsFromPage(detailPage).catch(
+      () => [],
+    );
+
+    const renderedText = [
+      bodyText,
+      ...selectedOptions,
+      ...resourceHints,
+    ].join("\n");
+
+    const matched = bestKnownResource(
+      renderedText,
+      knownResources,
+    );
+
+    return matched ? canonicalResourceLabel(matched) : null;
+  } finally {
+    await detailPage.close().catch(() => null);
+  }
+}
+
 function parseReservationDetail(html, href, knownResources = []) {
   const text = stripHtml(html);
 
@@ -2068,6 +2126,8 @@ export async function readResNexusAccountAvailability({
   const cancelledDetailRecordIds = new Set();
   let detailFetchFailures = 0;
   let requiredDetailFetchFailures = 0;
+  let renderedDetailFallbacks = 0;
+  let renderedDetailResolutions = 0;
 
   // Only fetch detail pages that are required by the visible calendar or by a
   // list row that still needs unit/date information. Fully parsed list rows do
@@ -2118,7 +2178,29 @@ export async function readResNexusAccountAvailability({
         continue;
       }
 
-      const detailResource = bestKnownResource(text, knownResources);
+      let detailResource = bestKnownResource(
+        text,
+        knownResources,
+      );
+
+      if (!detailResource && recordId) {
+        renderedDetailFallbacks += 1;
+
+        detailResource = await readRenderedDetailResource(
+          context,
+          href,
+          knownResources,
+        ).catch(() => null);
+
+        if (detailResource) {
+          renderedDetailResolutions += 1;
+        }
+      }
+
+      if (detailResource) {
+        detailResource = canonicalResourceLabel(detailResource);
+      }
+
       if (recordId && detailResource) {
         detailResourceByRecordId.set(recordId, detailResource);
       }
@@ -2267,12 +2349,26 @@ export async function readResNexusAccountAvailability({
     }
 
     if (remainingUnresolvedListRows.length < 30) {
+      const unresolvedPaths = (pending.recordLinks || [])
+        .map((href) => {
+          try {
+            return new URL(href).pathname;
+          } catch {
+            return null;
+          }
+        })
+        .filter(Boolean)
+        .slice(0, 4);
+
       remainingUnresolvedListRows.push({
         hasResource: Boolean(resourceLabel),
         hasStart: Boolean(pending.start),
         hasEnd: Boolean(pending.end),
+        start: pending.start || null,
+        end: pending.end || null,
         hasRecordLink: linkedIds.length > 0,
         requiredByCalendar,
+        recordPaths: unresolvedPaths,
       });
     }
   }
@@ -2342,6 +2438,8 @@ export async function readResNexusAccountAvailability({
     detailBlocks: detailBlocks.length,
     detailFetchFailures,
     requiredDetailFetchFailures,
+    renderedDetailFallbacks,
+    renderedDetailResolutions,
     unparsedRecordDetails,
     unresolvedRequiredDetails,
     detailPatterns: [...detailPatterns].slice(0, 40),
