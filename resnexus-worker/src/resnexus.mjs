@@ -1065,7 +1065,7 @@ function exactKnownResourceCandidate(candidates, knownLabels) {
 async function resourceHintsFromPage(page) {
   const values = await page
     .locator(
-      '[data-room-name], [data-unit-name], [data-resource-name], [data-site-name], select[name*="room" i] option, select[id*="room" i] option, select[name*="unit" i] option, select[id*="unit" i] option, select[name*="site" i] option, select[id*="site" i] option, select[name*="resource" i] option, select[id*="resource" i] option, [class*="room-name" i], [class*="unit-name" i], [class*="site-name" i]',
+      '[data-room-name], [data-unit-name], [data-resource-name], [data-site-name], select option, [class*="room" i], [class*="unit" i], [class*="site" i], [class*="resource" i]',
     )
     .evaluateAll((elements) =>
       elements
@@ -1377,6 +1377,8 @@ function parseReservationRow(row, knownResources) {
     end ||= rowDates[1];
   }
 
+  const externalId = recordIdFromRow(row);
+
   if (!resourceLabel || !start || !end || end <= start) {
     return {
       block: null,
@@ -1390,11 +1392,18 @@ function parseReservationRow(row, knownResources) {
         headerCount: row.headers?.length || 0,
         cellCount: row.cells?.length || 0,
       },
+      pending: {
+        externalId,
+        start,
+        end,
+        resourceLabel,
+        recordLinks,
+        fingerprint: stableHash(text.slice(0, 1400)),
+      },
       recordLinks,
     };
   }
 
-  const externalId = recordIdFromRow(row);
   const stableId =
     externalId ||
     stableHash(
@@ -1561,6 +1570,7 @@ async function scanReservationListPage({
   const scanPage = await context.newPage();
   const blocks = [];
   const recordLinks = new Set();
+  const pendingRows = [];
   const unresolved = [];
   const fingerprints = new Set();
   let candidateRows = 0;
@@ -1626,8 +1636,11 @@ async function scanReservationListPage({
 
         if (parsed.block) {
           blocks.push(parsed.block);
-        } else if (parsed.unresolved && unresolved.length < 20) {
-          unresolved.push(parsed.unresolved);
+        } else {
+          if (parsed.pending) pendingRows.push(parsed.pending);
+          if (parsed.unresolved && unresolved.length < 20) {
+            unresolved.push(parsed.unresolved);
+          }
         }
       }
 
@@ -1676,6 +1689,7 @@ async function scanReservationListPage({
   return {
     blocks,
     recordLinks: [...recordLinks],
+    pendingRows,
     unresolved,
     candidateRows,
     rowsSeen,
@@ -1933,6 +1947,7 @@ export async function readResNexusAccountAvailability({
   }
 
   const listBlocks = [];
+  const pendingListRows = [];
   const listScans = [];
   const unresolvedListRows = [];
   const maxResultPages = Math.max(
@@ -1954,6 +1969,7 @@ export async function readResNexusAccountAvailability({
       });
 
       listBlocks.push(...scan.blocks);
+      pendingListRows.push(...scan.pendingRows);
 
       for (const link of scan.recordLinks) {
         recordLinks.add(link);
@@ -1996,17 +2012,32 @@ export async function readResNexusAccountAvailability({
 
   const knownResources = [...discoveredResourceLabels];
   const detailBlocks = [];
+  const bridgedListBlocks = [];
   const detailPatterns = new Set();
   const unparsedRecordDetails = [];
   const unresolvedRequiredDetails = [];
+  const detailResourceByRecordId = new Map();
+  const resolvedDetailRecordIds = new Set();
+  const cancelledDetailRecordIds = new Set();
   let detailFetchFailures = 0;
   let requiredDetailFetchFailures = 0;
 
-  for (const href of [...recordLinks].slice(0, 250)) {
+  // Only fetch detail pages that are required by the visible calendar or by a
+  // list row that still needs unit/date information. Fully parsed list rows do
+  // not need a second browser request.
+  const detailTargets = new Set(requiredRecordLinks);
+  for (const pending of pendingListRows) {
+    for (const href of pending.recordLinks || []) {
+      if (recordSpecificReservationHref(href)) detailTargets.add(href);
+    }
+  }
+
+  for (const href of [...detailTargets].slice(0, 300)) {
     if (!recordSpecificReservationHref(href)) continue;
 
     try {
       const parsedUrl = new URL(href);
+      const recordId = recordIdFromUrl(href);
       detailPatterns.add(
         `${parsedUrl.pathname}?${[
           ...parsedUrl.searchParams.keys(),
@@ -2029,6 +2060,22 @@ export async function readResNexusAccountAvailability({
       }
 
       const html = await response.text();
+      const text = stripHtml(html);
+      const cancelled =
+        /\bstatus\s*[:#-]?\s*(?:cancelled|canceled|void|deleted)\b/i.test(
+          text,
+        );
+
+      if (cancelled) {
+        if (recordId) cancelledDetailRecordIds.add(recordId);
+        continue;
+      }
+
+      const detailResource = bestKnownResource(text, knownResources);
+      if (recordId && detailResource) {
+        detailResourceByRecordId.set(recordId, detailResource);
+      }
+
       const parsed = parseReservationDetail(
         html,
         href,
@@ -2038,17 +2085,15 @@ export async function readResNexusAccountAvailability({
       if (parsed) {
         detailBlocks.push(parsed);
         discoveredResourceLabels.add(parsed.resourceLabel);
+        if (recordId) resolvedDetailRecordIds.add(recordId);
       } else {
-        const text = stripHtml(html);
         const signal = {
           pathname: parsedUrl.pathname,
           queryKeys: [...parsedUrl.searchParams.keys()]
             .sort()
             .slice(0, 20),
           dateTokenCount: extractDateTokens(text).length,
-          hasResourceMatch: Boolean(
-            bestKnownResource(text, knownResources),
-          ),
+          hasResourceMatch: Boolean(detailResource),
           hasCheckInLabel:
             /check[ -]?in|arrival|start date/i.test(text),
           hasCheckOutLabel:
@@ -2059,8 +2104,12 @@ export async function readResNexusAccountAvailability({
           unparsedRecordDetails.push(signal);
         }
 
+        // Do not mark a calendar-linked detail as unresolved yet when it gave
+        // us a stable unit identity; its dates may be supplied by the matching
+        // reservation-list row below.
         if (
           requiredRecordLinks.has(href) &&
+          !detailResource &&
           unresolvedRequiredDetails.length < 20
         ) {
           unresolvedRequiredDetails.push(signal);
@@ -2074,6 +2123,75 @@ export async function readResNexusAccountAvailability({
     }
   }
 
+  const remainingUnresolvedListRows = [];
+
+  for (const pending of pendingListRows) {
+    const linkedIds = (pending.recordLinks || [])
+      .map((href) => recordIdFromUrl(href))
+      .filter(Boolean);
+
+    if (
+      linkedIds.some(
+        (recordId) =>
+          resolvedDetailRecordIds.has(recordId) ||
+          cancelledDetailRecordIds.has(recordId),
+      )
+    ) {
+      continue;
+    }
+
+    let resourceLabel = pending.resourceLabel || null;
+    let joinedRecordId = pending.externalId || null;
+
+    for (const recordId of linkedIds) {
+      if (!joinedRecordId) joinedRecordId = recordId;
+      const fromDetail = detailResourceByRecordId.get(recordId);
+      if (fromDetail) {
+        resourceLabel = fromDetail;
+        joinedRecordId = recordId;
+        break;
+      }
+    }
+
+    if (
+      resourceLabel &&
+      pending.start &&
+      pending.end &&
+      pending.end > pending.start
+    ) {
+      const stableId =
+        joinedRecordId ||
+        stableHash(
+          [
+            normalizedResource(resourceLabel),
+            pending.start,
+            pending.end,
+            pending.fingerprint,
+          ].join("|"),
+        );
+
+      bridgedListBlocks.push({
+        key: `RESNEXUS:${stableId}`,
+        uid: stableId,
+        start: pending.start,
+        end: pending.end,
+        resourceLabel,
+        source: "reservation_list_detail_join",
+      });
+      discoveredResourceLabels.add(resourceLabel);
+      continue;
+    }
+
+    if (remainingUnresolvedListRows.length < 30) {
+      remainingUnresolvedListRows.push({
+        hasResource: Boolean(resourceLabel),
+        hasStart: Boolean(pending.start),
+        hasEnd: Boolean(pending.end),
+        hasRecordLink: linkedIds.length > 0,
+      });
+    }
+  }
+
   const safeNetworkBlocks = networkBlocks.filter(
     (block) => Boolean(block.resourceLabel),
   );
@@ -2082,6 +2200,7 @@ export async function readResNexusAccountAvailability({
     ...safeNetworkBlocks,
     ...calendarDomBlocks,
     ...listBlocks,
+    ...bridgedListBlocks,
     ...detailBlocks,
   ]);
 
@@ -2109,6 +2228,7 @@ export async function readResNexusAccountAvailability({
     return (
       scan.candidateRows > 0 ||
       scan.parsedBlocks > 0 ||
+      bridgedListBlocks.length > 0 ||
       (scan.explicitEmpty &&
         (scan.searchWindowApplied || directList))
     );
@@ -2120,13 +2240,15 @@ export async function readResNexusAccountAvailability({
   );
 
   const diagnostic = {
-    strategy: "reservation_list_bridge_v1",
+    strategy: "reservation_list_detail_join_v2",
     calendarPagesScanned,
     calendarDomBlocks: calendarDomBlocks.length,
     ignoredCalendarRanges,
     reservationListScans: listScans,
     listBlocks: listBlocks.length,
-    unresolvedListRows,
+    bridgedListBlocks: bridgedListBlocks.length,
+    unresolvedListRows: remainingUnresolvedListRows,
+    rawUnresolvedListRows: unresolvedListRows,
     recordSpecificLinks: [...recordLinks].filter((href) =>
       recordSpecificReservationHref(href),
     ).length,
@@ -2152,9 +2274,9 @@ export async function readResNexusAccountAvailability({
     );
   }
 
-  if (unresolvedListRows.length) {
+  if (remainingUnresolvedListRows.length) {
     throw new UnsafeExtractionError(
-      "ResNexus reservation rows were found, but one or more could not be tied to both stay dates and a specific room/unit. Existing Find A Place availability was preserved.",
+      "ResNexus reservation rows were found, but one or more could not be resolved after joining their stay dates to the linked reservation/block detail page. Existing Find A Place availability was preserved.",
       diagnostic,
     );
   }
