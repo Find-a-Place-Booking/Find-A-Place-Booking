@@ -2253,8 +2253,21 @@ export async function readResNexusAccountAvailability({
   }
 
   const remainingUnresolvedListRows = [];
+  const conservativeAmbiguousBlocks = [];
   let ignoredOutOfWindowRows = 0;
   let ignoredNonDatedListRows = 0;
+  let ambiguousCurrentRows = 0;
+
+  // Build the same cleaned resource set that will later be shown for mapping.
+  // If a current/future reservation has dates but ResNexus withholds its unit
+  // identity on both the list and detail page, the safe temporary behavior is
+  // to block that stay window on every mapped resource for this account rather
+  // than fail the whole sync or risk a double booking.
+  const conservativeResourceLabels = resourceCatalog(
+    [...discoveredResourceLabels].filter(
+      (label) => !resourceHintNoise(label),
+    ),
+  ).map((resource) => resource.label);
 
   for (const pending of pendingListRows) {
     const linkedIds = (pending.recordLinks || [])
@@ -2275,10 +2288,6 @@ export async function readResNexusAccountAvailability({
       continue;
     }
 
-    // The reservation search pages can contain old history because some
-    // ResNexus layouts do not expose a date-filter control that Playwright can
-    // safely submit. Old rows are irrelevant to the active sync window and
-    // must not make a current/future availability sync fail.
     if (
       pending.start &&
       pending.end &&
@@ -2290,10 +2299,6 @@ export async function readResNexusAccountAvailability({
       continue;
     }
 
-    // Auxiliary reservation pages also expose links/rows that are navigation,
-    // summaries, quotes or other non-occupancy records without stay dates.
-    // Calendar-linked records remain mandatory; ordinary non-dated list rows
-    // are not treated as occupancy evidence.
     if (
       (!pending.start || !pending.end || pending.end <= pending.start) &&
       !requiredByCalendar
@@ -2348,27 +2353,88 @@ export async function readResNexusAccountAvailability({
       continue;
     }
 
-    if (remainingUnresolvedListRows.length < 30) {
-      const unresolvedPaths = (pending.recordLinks || [])
-        .map((href) => {
-          try {
-            return new URL(href).pathname;
-          } catch {
-            return null;
-          }
-        })
-        .filter(Boolean)
-        .slice(0, 4);
+    // A calendar-linked occupancy record is authoritative and must still
+    // resolve to one exact resource. Never fan those out.
+    if (
+      requiredByCalendar ||
+      !pending.start ||
+      !pending.end ||
+      pending.end <= pending.start
+    ) {
+      if (remainingUnresolvedListRows.length < 30) {
+        const unresolvedPaths = (pending.recordLinks || [])
+          .map((href) => {
+            try {
+              return new URL(href).pathname;
+            } catch {
+              return null;
+            }
+          })
+          .filter(Boolean)
+          .slice(0, 4);
 
+        remainingUnresolvedListRows.push({
+          hasResource: Boolean(resourceLabel),
+          hasStart: Boolean(pending.start),
+          hasEnd: Boolean(pending.end),
+          start: pending.start || null,
+          end: pending.end || null,
+          hasRecordLink: linkedIds.length > 0,
+          requiredByCalendar,
+          recordPaths: unresolvedPaths,
+        });
+      }
+      continue;
+    }
+
+    // Temporary ResNexus bridge safety fallback. This is intentionally
+    // conservative: one ambiguous current reservation blocks its stay dates
+    // on every mapped ResNexus resource. It can reduce availability for that
+    // short window, but it cannot create a false opening/double-booking risk.
+    if (conservativeResourceLabels.length) {
+      ambiguousCurrentRows += 1;
+
+      const recordSeed =
+        joinedRecordId ||
+        pending.fingerprint ||
+        stableHash(
+          `${pending.start}|${pending.end}|ambiguous`,
+        );
+
+      for (const label of conservativeResourceLabels) {
+        const canonical = canonicalResourceLabel(label);
+        if (!canonical || resourceHintNoise(canonical)) continue;
+
+        const resourceSeed = stableHash(
+          normalizedResource(canonical),
+          16,
+        );
+
+        conservativeAmbiguousBlocks.push({
+          key: `RESNEXUS:AMBIG:${recordSeed}:${resourceSeed}`,
+          uid: `AMBIG:${recordSeed}`,
+          start: pending.start,
+          end: pending.end,
+          resourceLabel: canonical,
+          source: "ambiguous_reservation_safety_block",
+        });
+      }
+
+      continue;
+    }
+
+    // If there is somehow no resource catalog to fan the safety block across,
+    // retain the fail-closed behavior.
+    if (remainingUnresolvedListRows.length < 30) {
       remainingUnresolvedListRows.push({
-        hasResource: Boolean(resourceLabel),
-        hasStart: Boolean(pending.start),
-        hasEnd: Boolean(pending.end),
-        start: pending.start || null,
-        end: pending.end || null,
+        hasResource: false,
+        hasStart: true,
+        hasEnd: true,
+        start: pending.start,
+        end: pending.end,
         hasRecordLink: linkedIds.length > 0,
-        requiredByCalendar,
-        recordPaths: unresolvedPaths,
+        requiredByCalendar: false,
+        reason: "no_resource_catalog_for_safety_fallback",
       });
     }
   }
@@ -2382,6 +2448,7 @@ export async function readResNexusAccountAvailability({
     ...calendarDomBlocks,
     ...listBlocks,
     ...bridgedListBlocks,
+    ...conservativeAmbiguousBlocks,
     ...detailBlocks,
   ]);
 
@@ -2428,6 +2495,8 @@ export async function readResNexusAccountAvailability({
     reservationListScans: listScans,
     listBlocks: listBlocks.length,
     bridgedListBlocks: bridgedListBlocks.length,
+    conservativeAmbiguousBlocks: conservativeAmbiguousBlocks.length,
+    ambiguousCurrentRows,
     ignoredOutOfWindowRows,
     ignoredNonDatedListRows,
     unresolvedListRows: remainingUnresolvedListRows,
