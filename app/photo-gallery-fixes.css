@@ -1,10 +1,10 @@
 /*
  * Photo presentation repair.
  *
- * The tablet breakpoint changed the featured-stay card to a one-row grid.
- * On phones that row definition was still inherited after the card collapsed
- * back to one column, letting portrait source images create an abnormally tall
- * featured card. Keep the mobile media area at a predictable landscape ratio.
+ * Keep the featured-stay card compact on phones without cropping the listing
+ * cover. The previous mobile override used object-fit: cover, which zoomed and
+ * clipped wide property photos. Mobile now fits the entire image inside the
+ * existing landscape frame.
  */
 
 @media (max-width: 700px) {
@@ -19,6 +19,7 @@
     height: auto;
     min-height: 0;
     aspect-ratio: 4 / 3;
+    background: var(--fap-charcoal);
   }
 
   .hero-featured-live img,
@@ -26,7 +27,11 @@
     width: 100%;
     height: 100%;
     min-height: 0;
-    object-fit: cover;
+    object-fit: contain;
     object-position: center;
+  }
+
+  .hero-featured-live:hover img {
+    transform: none;
   }
 }
