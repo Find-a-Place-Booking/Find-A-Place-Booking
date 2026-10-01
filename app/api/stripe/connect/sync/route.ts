@@ -91,6 +91,7 @@ export async function POST(request: Request) {
     return NextResponse.json({
       status: result.status,
       chargesEnabled: result.chargesEnabled,
+      payoutsEnabled: result.payoutsEnabled,
       cardPaymentsStatus: result.cardStatus,
       cardPaymentsStatusDetails: result.cardStatusDetails,
       environment,

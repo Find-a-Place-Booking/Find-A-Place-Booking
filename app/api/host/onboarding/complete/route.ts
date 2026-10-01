@@ -232,10 +232,9 @@ export async function POST(request: NextRequest) {
         .eq("organization_id", organizationId)
         .eq("provider", "STRIPE")
         .eq("environment", environment)
-        .eq("status", "READY")
-        .eq("charges_enabled", true)
-        .eq("payouts_enabled", true)
+        .neq("status", "DISABLED")
         .not("provider_account_id", "is", null)
+        .order("updated_at", { ascending: false })
         .limit(1)
         .maybeSingle(),
       admin
@@ -262,12 +261,17 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         {
           error:
-            "Finish Stripe Connect before completing host setup. The account must be ready to accept guest payments.",
-          code: "STRIPE_NOT_READY",
+            "Connect Stripe before completing host setup.",
+          code: "STRIPE_NOT_CONNECTED",
         },
         { status: 409 },
       );
     }
+
+    const stripeReady =
+      stripeAccount.status === "READY" &&
+      Boolean(stripeAccount.charges_enabled) &&
+      Boolean(stripeAccount.payouts_enabled);
 
     if (imageResult.error) {
       console.error(
@@ -350,19 +354,24 @@ export async function POST(request: NextRequest) {
     let published = false;
     let publicationMessage: string | null = null;
 
-    const { error: publicationError } =
-      await supabase.rpc("host_publish_property", {
-        target_property_id: property.property_id,
-      });
-
-    if (publicationError) {
-      publicationMessage = publicationError.message;
-      console.info(
-        "[complete host onboarding] property remains draft",
-        publicationError.message,
-      );
+    if (!stripeReady) {
+      publicationMessage =
+        "Stripe is connected, but Stripe still needs information before this listing can be published. Finish the remaining Stripe requirements from Payments & taxes.";
     } else {
-      published = true;
+      const { error: publicationError } =
+        await supabase.rpc("host_publish_property", {
+          target_property_id: property.property_id,
+        });
+
+      if (publicationError) {
+        publicationMessage = publicationError.message;
+        console.info(
+          "[complete host onboarding] property remains draft",
+          publicationError.message,
+        );
+      } else {
+        published = true;
+      }
     }
 
     revalidatePath("/");

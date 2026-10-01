@@ -24,6 +24,7 @@ export function OnboardingStripeSetup({
     process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || "";
   const [checking, setChecking] = useState(true);
   const [ready, setReady] = useState(false);
+  const [connected, setConnected] = useState(false);
   const [message, setMessage] = useState(
     "Checking your Stripe connection…",
   );
@@ -32,6 +33,7 @@ export function OnboardingStripeSetup({
     if (!publishableKey) {
       setChecking(false);
       setReady(false);
+      setConnected(false);
       onReadyChange?.(false);
       setMessage(
         "Stripe setup is temporarily unavailable because the publishable key is not configured.",
@@ -57,6 +59,7 @@ export function OnboardingStripeSetup({
 
       if (response.status === 404) {
         setReady(false);
+        setConnected(false);
         onReadyChange?.(false);
         setMessage(
           "No Stripe account is connected yet. Choose one of the options below to finish it here.",
@@ -70,20 +73,28 @@ export function OnboardingStripeSetup({
         );
       }
 
+      const nextConnected = true;
       const nextReady =
         payload?.status === "READY" &&
         Boolean(payload?.chargesEnabled) &&
         Boolean(payload?.payoutsEnabled);
 
+      setConnected(nextConnected);
       setReady(nextReady);
-      onReadyChange?.(nextReady);
+
+      // The onboarding wizard only needs a real Stripe connection to
+      // continue. Publication is still blocked server-side until the
+      // account is actually ready for card payments and payouts.
+      onReadyChange?.(nextConnected);
+
       setMessage(
         nextReady
           ? "Stripe is connected and ready for guest payments. Nothing else is required in Payments & taxes after onboarding."
-          : "Stripe has been started but still needs information before guest payments can be accepted.",
+          : "Stripe is connected. You can continue onboarding now. If Stripe still needs verification information, the listing will stay unpublished until card payments are active.",
       );
     } catch (error) {
       setReady(false);
+      setConnected(false);
       onReadyChange?.(false);
       setMessage(
         error instanceof Error
@@ -111,7 +122,9 @@ export function OnboardingStripeSetup({
             ? "Checking Stripe"
             : ready
               ? "Stripe is ready"
-              : "Complete Stripe before finishing setup"}
+              : connected
+                ? "Stripe is connected"
+                : "Connect Stripe before continuing"}
         </strong>
         <span>{message}</span>
       </div>
