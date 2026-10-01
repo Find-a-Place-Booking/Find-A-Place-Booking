@@ -1,10 +1,19 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { decryptPmsCredential } from "@/lib/integrations/credential-crypto";
-import { fetchThinkReservationsAvailabilityBlocks } from "@/lib/integrations/thinkreservations";
 import { createAdminClient } from "@/lib/supabase/admin";
 
+const THINKRESERVATIONS_BASE_URL = "https://api.thinkreservations.com";
 const EMPTY_CONFIRMATION = "[PMS_EMPTY_CONFIRMATION]";
+
+type JsonObject = Record<string, unknown>;
+
+type InventorySignal = {
+  date: string;
+  roomId: string | null;
+  roomTypeId: string | null;
+  available: boolean;
+};
 
 function isoDate(date: Date) {
   return date.toISOString().slice(0, 10);
@@ -14,6 +23,32 @@ function addDays(date: Date, days: number) {
   const next = new Date(date.getTime());
   next.setUTCDate(next.getUTCDate() + days);
   return next;
+}
+
+function parseDate(value: string) {
+  const match = value.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match) throw new Error(`Invalid calendar date: ${value}`);
+  return new Date(
+    Date.UTC(
+      Number(match[1]),
+      Number(match[2]) - 1,
+      Number(match[3]),
+    ),
+  );
+}
+
+function nextDate(value: string) {
+  return isoDate(addDays(parseDate(value), 1));
+}
+
+function daysBetween(start: string, end: string) {
+  return Math.max(
+    0,
+    Math.round(
+      (parseDate(end).getTime() - parseDate(start).getTime()) /
+        86_400_000,
+    ),
+  );
 }
 
 function defaultWindow() {
@@ -31,6 +66,583 @@ function defaultWindow() {
     startDate: isoDate(addDays(utcToday, -1)),
     endDate: isoDate(addDays(utcToday, lookahead)),
   };
+}
+
+function objectValue(value: unknown): JsonObject | null {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? (value as JsonObject)
+    : null;
+}
+
+function stringValue(
+  object: JsonObject | null,
+  ...keys: string[]
+): string | null {
+  if (!object) return null;
+
+  for (const key of keys) {
+    const value = object[key];
+    if (typeof value === "string" && value.trim()) return value.trim();
+    if (typeof value === "number" && Number.isFinite(value)) {
+      return String(value);
+    }
+  }
+
+  return null;
+}
+
+function booleanValue(
+  object: JsonObject | null,
+  ...keys: string[]
+): boolean | null {
+  if (!object) return null;
+
+  for (const key of keys) {
+    const value = object[key];
+
+    if (typeof value === "boolean") return value;
+
+    if (typeof value === "number") {
+      if (value === 1) return true;
+      if (value === 0) return false;
+    }
+
+    if (typeof value === "string") {
+      const normalized = value.trim().toLowerCase();
+      if (["true", "yes", "open", "available"].includes(normalized)) {
+        return true;
+      }
+      if (
+        ["false", "no", "closed", "unavailable", "sold_out", "sold out"].includes(
+          normalized,
+        )
+      ) {
+        return false;
+      }
+    }
+  }
+
+  return null;
+}
+
+function numberValue(
+  object: JsonObject | null,
+  ...keys: string[]
+): number | null {
+  if (!object) return null;
+
+  for (const key of keys) {
+    const value = object[key];
+
+    if (typeof value === "number" && Number.isFinite(value)) {
+      return value;
+    }
+
+    if (
+      typeof value === "string" &&
+      value.trim() &&
+      Number.isFinite(Number(value))
+    ) {
+      return Number(value);
+    }
+  }
+
+  return null;
+}
+
+function normalizedDate(value: unknown) {
+  if (typeof value !== "string") return null;
+  const match = value.match(/^\d{4}-\d{2}-\d{2}/);
+  return match?.[0] ?? null;
+}
+
+function responseMessage(body: unknown) {
+  if (typeof body === "string" && body.trim()) {
+    return body.trim().slice(0, 400);
+  }
+
+  const object = objectValue(body);
+  return (
+    stringValue(object, "message", "error_description", "error", "detail") ||
+    null
+  );
+}
+
+async function thinkRequest(
+  apiKey: string,
+  path: string,
+  query: Record<string, string>,
+) {
+  const url = new URL(path, THINKRESERVATIONS_BASE_URL);
+
+  for (const [key, value] of Object.entries(query)) {
+    url.searchParams.set(key, value);
+  }
+
+  let response: Response;
+
+  try {
+    response = await fetch(url, {
+      method: "GET",
+      headers: {
+        Accept: "application/json",
+        Authorization: `Bearer ${apiKey}`,
+      },
+      cache: "no-store",
+      signal: AbortSignal.timeout(20_000),
+    });
+  } catch (error) {
+    throw new Error(
+      error instanceof Error
+        ? `ThinkReservations inventory request could not be reached: ${error.message}`
+        : "ThinkReservations inventory request could not be reached.",
+    );
+  }
+
+  const raw = await response.text();
+  let body: unknown = null;
+
+  if (raw) {
+    try {
+      body = JSON.parse(raw);
+    } catch {
+      body = raw.slice(0, 500);
+    }
+  }
+
+  if (!response.ok) {
+    const detail = responseMessage(body);
+    throw new Error(
+      `ThinkReservations ${path} returned HTTP ${response.status}${
+        detail ? `: ${detail}` : "."
+      }`,
+    );
+  }
+
+  return body;
+}
+
+function roomIdFrom(object: JsonObject | null) {
+  if (!object) return null;
+
+  return (
+    stringValue(
+      object,
+      "roomId",
+      "room_id",
+      "assignedRoomId",
+      "assigned_room_id",
+    ) ||
+    stringValue(
+      objectValue(object.room),
+      "id",
+      "externalId",
+      "external_id",
+    )
+  );
+}
+
+function roomTypeIdFrom(object: JsonObject | null) {
+  if (!object) return null;
+
+  return (
+    stringValue(
+      object,
+      "roomTypeId",
+      "room_type_id",
+      "roomtypeId",
+      "roomtype_id",
+    ) ||
+    stringValue(
+      objectValue(object.roomType ?? object.room_type),
+      "id",
+      "externalId",
+      "external_id",
+    )
+  );
+}
+
+function availabilityFrom(object: JsonObject | null) {
+  if (!object) return null;
+
+  const direct = booleanValue(
+    object,
+    "isAvailable",
+    "is_available",
+    "available",
+    "bookable",
+    "isBookable",
+    "is_bookable",
+  );
+
+  if (direct !== null) return direct;
+
+  const unavailable = booleanValue(
+    object,
+    "soldOut",
+    "sold_out",
+    "isSoldOut",
+    "is_sold_out",
+    "blocked",
+    "isBlocked",
+    "is_blocked",
+    "closed",
+    "isClosed",
+    "is_closed",
+    "stopSell",
+    "stop_sell",
+  );
+
+  if (unavailable !== null) return !unavailable;
+
+  const availableCount = numberValue(
+    object,
+    "availableRooms",
+    "available_rooms",
+    "roomsAvailable",
+    "rooms_available",
+    "availableRoomCount",
+    "available_room_count",
+    "availableCount",
+    "available_count",
+    "quantityAvailable",
+    "quantity_available",
+    "availableQuantity",
+    "available_quantity",
+    "remaining",
+    "remainingInventory",
+    "remaining_inventory",
+    "inventoryAvailable",
+    "inventory_available",
+  );
+
+  if (availableCount !== null) return availableCount > 0;
+
+  /*
+    Some inventory APIs expose the sellable count simply as "inventory".
+    Only use it after all explicit availability fields above have failed.
+  */
+  const inventory = numberValue(object, "inventory");
+  if (inventory !== null) return inventory > 0;
+
+  return null;
+}
+
+function listPayload(body: unknown) {
+  if (Array.isArray(body)) return body;
+
+  const object = objectValue(body);
+  if (!object) return [];
+
+  for (const key of [
+    "inventory",
+    "inventories",
+    "dailyInventory",
+    "daily_inventory",
+    "availability",
+    "availabilities",
+    "data",
+    "items",
+    "results",
+  ]) {
+    const candidate = object[key];
+    if (Array.isArray(candidate)) return candidate;
+  }
+
+  return [body];
+}
+
+function collectInventorySignals(
+  value: unknown,
+  inherited: {
+    date?: string | null;
+    roomId?: string | null;
+    roomTypeId?: string | null;
+  } = {},
+  depth = 0,
+): InventorySignal[] {
+  if (depth > 8 || value === null || value === undefined) return [];
+
+  if (Array.isArray(value)) {
+    return value.flatMap((item) =>
+      collectInventorySignals(item, inherited, depth + 1),
+    );
+  }
+
+  if (typeof value === "number" || typeof value === "boolean") {
+    if (!inherited.date || (!inherited.roomId && !inherited.roomTypeId)) {
+      return [];
+    }
+
+    return [
+      {
+        date: inherited.date,
+        roomId: inherited.roomId ?? null,
+        roomTypeId: inherited.roomTypeId ?? null,
+        available:
+          typeof value === "boolean" ? value : Number(value) > 0,
+      },
+    ];
+  }
+
+  const object = objectValue(value);
+  if (!object) return [];
+
+  const roomId = roomIdFrom(object) ?? inherited.roomId ?? null;
+  const roomTypeId =
+    roomTypeIdFrom(object) ?? inherited.roomTypeId ?? null;
+
+  const date =
+    normalizedDate(
+      stringValue(
+        object,
+        "date",
+        "inventoryDate",
+        "inventory_date",
+        "stayDate",
+        "stay_date",
+        "night",
+      ),
+    ) ??
+    inherited.date ??
+    null;
+
+  const available = availabilityFrom(object);
+  const output: InventorySignal[] = [];
+
+  if (date && (roomId || roomTypeId) && available !== null) {
+    output.push({
+      date,
+      roomId,
+      roomTypeId,
+      available,
+    });
+  }
+
+  for (const [key, child] of Object.entries(object)) {
+    if (
+      [
+        "room",
+        "roomType",
+        "room_type",
+        "date",
+        "inventoryDate",
+        "inventory_date",
+        "stayDate",
+        "stay_date",
+        "night",
+      ].includes(key)
+    ) {
+      continue;
+    }
+
+    const dateKey = normalizedDate(key);
+
+    output.push(
+      ...collectInventorySignals(
+        child,
+        {
+          date: dateKey ?? date,
+          roomId,
+          roomTypeId,
+        },
+        depth + 1,
+      ),
+    );
+  }
+
+  return output;
+}
+
+function topLevelShape(body: unknown) {
+  if (Array.isArray(body)) {
+    const sample = objectValue(body[0]);
+    return sample
+      ? `array[${body.length}] keys=${Object.keys(sample)
+          .slice(0, 20)
+          .join(",")}`
+      : `array[${body.length}]`;
+  }
+
+  const object = objectValue(body);
+  if (object) {
+    return `object keys=${Object.keys(object).slice(0, 20).join(",")}`;
+  }
+
+  return typeof body;
+}
+
+function uniqueSignals(signals: InventorySignal[]) {
+  const unique = new Map<string, InventorySignal>();
+
+  for (const signal of signals) {
+    unique.set(
+      [
+        signal.date,
+        signal.roomId || "",
+        signal.roomTypeId || "",
+      ].join("|"),
+      signal,
+    );
+  }
+
+  return [...unique.values()];
+}
+
+async function fetchInventoryWindow(input: {
+  hotelId: string;
+  apiKey: string;
+  startDate: string;
+  endDate: string;
+  depth?: number;
+}): Promise<unknown[]> {
+  const depth = input.depth ?? 0;
+  const path = `/v1/hotels/${encodeURIComponent(input.hotelId)}/inventory`;
+
+  try {
+    const body = await thinkRequest(input.apiKey, path, {
+      start_date: input.startDate,
+      end_date: input.endDate,
+    });
+
+    return listPayload(body);
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : String(error);
+    const serverError = /HTTP 5\d\d/.test(message);
+    const span = daysBetween(input.startDate, input.endDate);
+
+    if (!serverError || span <= 7 || depth >= 8) throw error;
+
+    const midpoint = isoDate(
+      addDays(parseDate(input.startDate), Math.max(1, Math.floor(span / 2))),
+    );
+
+    if (
+      midpoint === input.startDate ||
+      midpoint === input.endDate
+    ) {
+      throw error;
+    }
+
+    const [left, right] = await Promise.all([
+      fetchInventoryWindow({
+        ...input,
+        endDate: midpoint,
+        depth: depth + 1,
+      }),
+      fetchInventoryWindow({
+        ...input,
+        startDate: midpoint,
+        depth: depth + 1,
+      }),
+    ]);
+
+    return [...left, ...right];
+  }
+}
+
+async function fetchThinkInventorySignals(input: {
+  hotelId: string;
+  apiKey: string;
+  startDate: string;
+  endDate: string;
+}) {
+  /*
+    Pull inventory in modest windows. ThinkReservations documents inventory
+    under read:availability. We intentionally do not depend on the reservation
+    endpoint because that endpoint is returning HTTP 500 for the connected
+    Lone Cedar account even though the key/hotel/room endpoints verify.
+  */
+  const rawItems: unknown[] = [];
+  let cursor = input.startDate;
+
+  while (cursor < input.endDate) {
+    const remaining = daysBetween(cursor, input.endDate);
+    const chunkEnd =
+      remaining > 60
+        ? isoDate(addDays(parseDate(cursor), 60))
+        : input.endDate;
+
+    rawItems.push(
+      ...(await fetchInventoryWindow({
+        hotelId: input.hotelId,
+        apiKey: input.apiKey,
+        startDate: cursor,
+        endDate: chunkEnd,
+      })),
+    );
+
+    if (chunkEnd === cursor) break;
+    cursor = chunkEnd;
+  }
+
+  const signals = uniqueSignals(
+    rawItems.flatMap((item) => collectInventorySignals(item)),
+  );
+
+  if (!signals.length && rawItems.length) {
+    throw new Error(
+      `ThinkReservations inventory connected, but Find A Place did not recognize the inventory response shape (${topLevelShape(
+        rawItems[0],
+      )}). Existing imported dates were preserved.`,
+    );
+  }
+
+  return signals.filter(
+    (signal) =>
+      signal.date >= input.startDate &&
+      signal.date < input.endDate,
+  );
+}
+
+function roomsForRoomType(
+  resourceCache: unknown,
+  roomTypeId: string | null,
+) {
+  if (!roomTypeId) return [];
+
+  const cache = objectValue(resourceCache);
+  const rooms = Array.isArray(cache?.rooms) ? cache.rooms : [];
+
+  return rooms
+    .map(objectValue)
+    .filter((room): room is JsonObject => Boolean(room))
+    .filter((room) => roomTypeIdFrom(room) === roomTypeId);
+}
+
+function compressUnavailableDates(input: {
+  dates: string[];
+  roomId: string;
+  roomTypeId: string | null;
+}) {
+  const dates = [...new Set(input.dates)].sort();
+  const ranges: Array<{ start: string; end: string }> = [];
+
+  for (const date of dates) {
+    const previous = ranges[ranges.length - 1];
+
+    if (previous && previous.end === date) {
+      previous.end = nextDate(date);
+    } else {
+      ranges.push({
+        start: date,
+        end: nextDate(date),
+      });
+    }
+  }
+
+  return ranges.map((range) => ({
+    key: `thinkres:inventory:${input.roomId}:${range.start}:${range.end}`,
+    uid: `inventory:${input.roomId}:${range.start}:${range.end}`,
+    start: range.start,
+    end: range.end,
+    metadata: {
+      provider: "THINKRESERVATIONS",
+      source_kind: "inventory",
+      room_type_id: input.roomTypeId,
+    },
+  }));
 }
 
 async function emptyResultMayClear(
@@ -75,7 +687,7 @@ async function emptyResultMayClear(
   if (confirmed) return true;
 
   const message =
-    `${EMPTY_CONFIRMATION} ThinkReservations returned no mapped booked/blocked dates while imported dates still exist. ` +
+    `${EMPTY_CONFIRMATION} ThinkReservations inventory returned no unavailable dates for this mapped room while imported dates still exist. ` +
     "Existing dates were preserved; a second empty result after five minutes is required before clearing them.";
 
   await admin.rpc("service_mark_calendar_sync_error", {
@@ -119,7 +731,7 @@ export async function syncThinkReservationsConnection(
     const { data: integration, error: integrationError } = await admin
       .from("pms_integrations")
       .select(
-        "id,external_account_id,credential_ciphertext,status",
+        "id,external_account_id,credential_ciphertext,status,resource_cache",
       )
       .eq("id", connection.pms_integration_id)
       .eq("provider", "THINKRESERVATIONS")
@@ -135,38 +747,63 @@ export async function syncThinkReservationsConnection(
 
     const apiKey = decryptPmsCredential(integration.credential_ciphertext);
 
-    const sourceBlocks = await fetchThinkReservationsAvailabilityBlocks({
+    const signals = await fetchThinkInventorySignals({
       hotelId: integration.external_account_id,
       apiKey,
       startDate: window.startDate,
       endDate: window.endDate,
     });
 
-    const mappedBlocks = sourceBlocks
-      .filter((block) => {
-        if (block.roomId) {
-          return block.roomId === connection.external_calendar_id;
-        }
+    const exactRoomSignals = signals.filter(
+      (signal) =>
+        signal.roomId === connection.external_calendar_id,
+    );
 
-        // If the upstream record is only room-type scoped, use it only when
-        // the mapping has the same room type. This safely catches a hotel-wide
-        // blackout while still preferring exact room assignments.
-        return Boolean(
-          block.roomTypeId &&
-            connection.external_room_type_id &&
-            block.roomTypeId === connection.external_room_type_id,
+    const roomTypeSignals = connection.external_room_type_id
+      ? signals.filter(
+          (signal) =>
+            !signal.roomId &&
+            signal.roomTypeId === connection.external_room_type_id,
+        )
+      : [];
+
+    let applicableSignals = exactRoomSignals;
+
+    if (!applicableSignals.length && roomTypeSignals.length) {
+      const sameTypeRooms = roomsForRoomType(
+        integration.resource_cache,
+        connection.external_room_type_id,
+      );
+
+      /*
+        Room-type inventory is exact for Lone Cedar because each current room
+        type contains one physical room. If a future hotel has multiple rooms
+        in the same type, do not guess which physical room is occupied.
+      */
+      if (sameTypeRooms.length > 1) {
+        throw new Error(
+          `ThinkReservations inventory is room-type scoped for this mapping (${sameTypeRooms.length} rooms share the type). Find A Place preserved existing dates instead of risking an incorrect room-level calendar.`,
         );
-      })
-      .map((block) => ({
-        key: block.key,
-        uid: block.uid,
-        start: block.start,
-        end: block.end,
-        metadata: {
-          provider: "THINKRESERVATIONS",
-          source_kind: block.sourceKind,
-        },
-      }));
+      }
+
+      applicableSignals = roomTypeSignals;
+    }
+
+    if (!applicableSignals.length && signals.length) {
+      throw new Error(
+        "ThinkReservations inventory returned data, but none matched this mapped room or room type. Recheck the room mapping; existing imported dates were preserved.",
+      );
+    }
+
+    const unavailableDates = applicableSignals
+      .filter((signal) => !signal.available)
+      .map((signal) => signal.date);
+
+    const mappedBlocks = compressUnavailableDates({
+      dates: unavailableDates,
+      roomId: connection.external_calendar_id,
+      roomTypeId: connection.external_room_type_id,
+    });
 
     if (!mappedBlocks.length) {
       const mayClear = await emptyResultMayClear(
@@ -178,7 +815,7 @@ export async function syncThinkReservationsConnection(
       if (!mayClear) {
         errorAlreadyRecorded = true;
         throw new Error(
-          "ThinkReservations returned an unexpected empty result. Existing imported dates were preserved.",
+          "ThinkReservations returned an unexpected empty inventory result. Existing imported dates were preserved.",
         );
       }
     }
@@ -193,6 +830,7 @@ export async function syncThinkReservationsConnection(
     if (error) throw new Error(error.message);
 
     const now = new Date().toISOString();
+
     await admin
       .from("pms_integrations")
       .update({
