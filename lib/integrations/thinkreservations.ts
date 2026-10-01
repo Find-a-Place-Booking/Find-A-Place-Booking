@@ -33,6 +33,18 @@ export type ThinkReservationsSourceBlock = {
   sourceKind: "reservation" | "blackout";
 };
 
+class ThinkReservationsHttpError extends Error {
+  status: number;
+  path: string;
+
+  constructor(status: number, path: string, message: string) {
+    super(message);
+    this.name = "ThinkReservationsHttpError";
+    this.status = status;
+    this.path = path;
+  }
+}
+
 function objectValue(value: unknown): JsonObject | null {
   return value && typeof value === "object" && !Array.isArray(value)
     ? (value as JsonObject)
@@ -76,11 +88,50 @@ function normalizeId(object: JsonObject | null) {
 }
 
 function errorMessage(body: unknown, fallback: string) {
+  if (typeof body === "string" && body.trim()) {
+    return body.trim().slice(0, 500);
+  }
+
   const object = objectValue(body);
   return (
     stringValue(object, "message", "error_description", "error") ||
     fallback
   );
+}
+
+function parseIsoDate(value: string) {
+  const match = value.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match) {
+    throw new Error(`Invalid ThinkReservations sync date: ${value}`);
+  }
+
+  return new Date(
+    Date.UTC(
+      Number(match[1]),
+      Number(match[2]) - 1,
+      Number(match[3]),
+    ),
+  );
+}
+
+function formatIsoDate(value: Date) {
+  return value.toISOString().slice(0, 10);
+}
+
+function dateSpanDays(startDate: string, endDate: string) {
+  const start = parseIsoDate(startDate).getTime();
+  const end = parseIsoDate(endDate).getTime();
+  return Math.max(0, Math.round((end - start) / 86_400_000));
+}
+
+function midpointDate(startDate: string, endDate: string) {
+  const start = parseIsoDate(startDate);
+  const span = dateSpanDays(startDate, endDate);
+  const midpoint = new Date(start.getTime());
+  midpoint.setUTCDate(
+    midpoint.getUTCDate() + Math.max(1, Math.floor(span / 2)),
+  );
+  return formatIsoDate(midpoint);
 }
 
 async function thinkRequest(
@@ -102,13 +153,13 @@ async function thinkRequest(
         Authorization: `Bearer ${apiKey}`,
       },
       cache: "no-store",
-      signal: AbortSignal.timeout(12_000),
+      signal: AbortSignal.timeout(20_000),
     });
   } catch (error) {
     throw new Error(
       error instanceof Error
-        ? `ThinkReservations could not be reached: ${error.message}`
-        : "ThinkReservations could not be reached.",
+        ? `ThinkReservations could not be reached for ${path}: ${error.message}`
+        : `ThinkReservations could not be reached for ${path}.`,
     );
   }
 
@@ -123,18 +174,22 @@ async function thinkRequest(
   }
 
   if (!response.ok) {
-    const message = errorMessage(
-      body,
-      `ThinkReservations returned HTTP ${response.status}.`,
-    );
+    const fallback = `ThinkReservations returned HTTP ${response.status}.`;
+    const message = errorMessage(body, fallback);
 
     if (response.status === 401 || response.status === 403) {
-      throw new Error(
-        `ThinkReservations rejected the credential or required permission: ${message}`,
+      throw new ThinkReservationsHttpError(
+        response.status,
+        path,
+        `ThinkReservations rejected the credential or required permission on ${path}: ${message}`,
       );
     }
 
-    throw new Error(`ThinkReservations request failed: ${message}`);
+    throw new ThinkReservationsHttpError(
+      response.status,
+      path,
+      `ThinkReservations ${path} returned HTTP ${response.status}: ${message}`,
+    );
   }
 
   return body;
@@ -154,8 +209,22 @@ function listPayload(body: unknown, keys: string[]) {
     pagination?.hasMore === true ||
     pagination?.has_more === true;
   const next =
-    stringValue(object, "next", "nextPage", "next_page", "nextCursor", "next_cursor") ||
-    stringValue(pagination, "next", "nextPage", "next_page", "nextCursor", "next_cursor");
+    stringValue(
+      object,
+      "next",
+      "nextPage",
+      "next_page",
+      "nextCursor",
+      "next_cursor",
+    ) ||
+    stringValue(
+      pagination,
+      "next",
+      "nextPage",
+      "next_page",
+      "nextCursor",
+      "next_cursor",
+    );
 
   if (hasMore || next) {
     throw new Error(
@@ -171,6 +240,68 @@ function listPayload(body: unknown, keys: string[]) {
   throw new Error(
     "ThinkReservations returned a list response Find A Place does not recognize.",
   );
+}
+
+async function fetchDateRangedList(input: {
+  apiKey: string;
+  path: string;
+  startDate: string;
+  endDate: string;
+  keys: string[];
+  depth?: number;
+}): Promise<unknown[]> {
+  const depth = input.depth ?? 0;
+
+  try {
+    const body = await thinkRequest(input.apiKey, input.path, {
+      start_date: input.startDate,
+      end_date: input.endDate,
+    });
+
+    return listPayload(body, input.keys);
+  } catch (error) {
+    const spanDays = dateSpanDays(input.startDate, input.endDate);
+    const retryableServerError =
+      error instanceof ThinkReservationsHttpError &&
+      error.status >= 500 &&
+      error.status <= 599;
+
+    /*
+      ThinkReservations can return an upstream 500 for a very large date
+      window even though the hotel/key and resource endpoints are healthy.
+      Keep the normal two-request path when it works. If ThinkReservations
+      rejects the window, split only the failing endpoint into smaller
+      windows until it succeeds. We stop at 14 days so a real upstream/API
+      problem still fails closed instead of silently clearing availability.
+    */
+    if (!retryableServerError || spanDays <= 14 || depth >= 8) {
+      throw error;
+    }
+
+    const midpoint = midpointDate(input.startDate, input.endDate);
+
+    if (
+      midpoint === input.startDate ||
+      midpoint === input.endDate
+    ) {
+      throw error;
+    }
+
+    const [left, right] = await Promise.all([
+      fetchDateRangedList({
+        ...input,
+        endDate: midpoint,
+        depth: depth + 1,
+      }),
+      fetchDateRangedList({
+        ...input,
+        startDate: midpoint,
+        depth: depth + 1,
+      }),
+    ]);
+
+    return [...left, ...right];
+  }
 }
 
 function normalizeRoom(body: unknown): ThinkReservationsRoom | null {
@@ -255,7 +386,10 @@ export async function fetchThinkReservationsResources(
 
 function cancelledStatus(value: string | null) {
   if (!value) return false;
-  const normalized = value.toUpperCase().replaceAll("-", "_").replaceAll(" ", "_");
+  const normalized = value
+    .toUpperCase()
+    .replaceAll("-", "_")
+    .replaceAll(" ", "_");
   return ["CANCELLED", "CANCELED", "VOID", "VOIDED"].includes(normalized);
 }
 
@@ -418,6 +552,26 @@ function extractBlackoutBlocks(items: unknown[]) {
   return output;
 }
 
+function dedupeSourceBlocks(
+  blocks: ThinkReservationsSourceBlock[],
+) {
+  const unique = new Map<string, ThinkReservationsSourceBlock>();
+
+  for (const block of blocks) {
+    const key = [
+      block.key,
+      block.start,
+      block.end,
+      block.roomId || "",
+      block.roomTypeId || "",
+    ].join("|");
+
+    unique.set(key, block);
+  }
+
+  return [...unique.values()];
+}
+
 export async function fetchThinkReservationsAvailabilityBlocks(input: {
   hotelId: string;
   apiKey: string;
@@ -425,39 +579,32 @@ export async function fetchThinkReservationsAvailabilityBlocks(input: {
   endDate: string;
 }) {
   const encodedHotelId = encodeURIComponent(input.hotelId);
-  const query = {
-    start_date: input.startDate,
-    end_date: input.endDate,
-  };
 
-  const [reservationsBody, blackoutsBody] = await Promise.all([
-    thinkRequest(
-      input.apiKey,
-      `/v1/hotels/${encodedHotelId}/reservations`,
-      query,
-    ),
-    thinkRequest(
-      input.apiKey,
-      `/v1/hotels/${encodedHotelId}/blackouts`,
-      query,
-    ),
-  ]);
+  /*
+    Fetch these independently. If ThinkReservations has trouble with the
+    requested range, fetchDateRangedList automatically bisects only the
+    failing endpoint. This keeps a temporary upstream 500 from killing the
+    entire PMS sync while still failing closed on auth, schema or persistent
+    endpoint errors.
+  */
+  const reservations = await fetchDateRangedList({
+    apiKey: input.apiKey,
+    path: `/v1/hotels/${encodedHotelId}/reservations`,
+    startDate: input.startDate,
+    endDate: input.endDate,
+    keys: ["reservations", "data", "items", "results"],
+  });
 
-  const reservations = listPayload(reservationsBody, [
-    "reservations",
-    "data",
-    "items",
-    "results",
-  ]);
-  const blackouts = listPayload(blackoutsBody, [
-    "blackouts",
-    "data",
-    "items",
-    "results",
-  ]);
+  const blackouts = await fetchDateRangedList({
+    apiKey: input.apiKey,
+    path: `/v1/hotels/${encodedHotelId}/blackouts`,
+    startDate: input.startDate,
+    endDate: input.endDate,
+    keys: ["blackouts", "data", "items", "results"],
+  });
 
-  return [
+  return dedupeSourceBlocks([
     ...extractReservationBlocks(reservations),
     ...extractBlackoutBlocks(blackouts),
-  ];
+  ]);
 }
