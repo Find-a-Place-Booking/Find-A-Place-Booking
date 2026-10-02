@@ -358,8 +358,6 @@ async function inspectDetailPage(page, url, resources, expectedBlock) {
     }
   }
 
-  // Only use body-text resource matching when exactly one known mapped resource
-  // appears. A ResNexus dropdown can contain the whole account inventory.
   if (!resource) {
     const bodyMatches = resources.filter((candidate) => {
       const normalized = normalizeResource(canonicalResourceLabel(candidate.label));
@@ -494,7 +492,15 @@ export async function verifyResNexusSnapshot({ context, snapshot }) {
       facts.dates.start !== block.start ||
       facts.dates.end !== block.end;
 
-    if (changed) {
+    // Resolved ambiguous records must always be carried into diagnostics,
+    // even when the first fan-out copy already happens to match the true
+    // resource and dates. Recovery uses this entry to collapse all raw
+    // ambiguous copies down to one verified reservation.
+    if (
+      changed ||
+      ambiguous ||
+      extractor === "ambiguous_reservation_safety_block"
+    ) {
       corrections.push({
         recordId,
         fromResource: block.resource_label,

@@ -1,0 +1,13 @@
+ResNexus v6 persistence fix
+
+5361 resolves to Lil' Rustic with Hot Tub for 2026-10-22 through 2026-10-25.
+The bug was that successful resolution of an ambiguous fan-out record was not
+written into verifier diagnostics when the first fan-out copy already matched
+the resolved resource/dates. If any other reservation failed verification,
+the recovery layer then fell back to the raw fan-out snapshot.
+
+This replacement makes resolved ambiguous records always emit a correction
+diagnostic, allowing the existing recovery layer to collapse all fan-out copies
+to the one verified resource.
+
+No database migration is included.
