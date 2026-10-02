@@ -18,6 +18,9 @@ import {
   SnapshotVerificationError,
   verifyResNexusSnapshot,
 } from "./snapshot-verifier.mjs";
+import {
+  recoverResNexusSnapshotAfterVerificationError,
+} from "./snapshot-recovery.mjs";
 
 const supabaseUrl = process.env.SUPABASE_URL?.trim();
 const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
@@ -242,17 +245,38 @@ async function processAccount(account) {
       maxCalendarPages,
     });
 
-    // The legacy ResNexus list/detail bridge can encounter rows containing
-    // created/modified/payment dates alongside stay dates, and some detail
-    // pages contain a full room dropdown. Before any availability is written,
-    // re-open reservation records and prove the selected room/site plus the
-    // actual stay range. This corrects bad list-row dates and prevents a room
-    // name merely appearing in a dropdown from being treated as the booking's
-    // assigned room.
-    const snapshot = await verifyResNexusSnapshot({
-      context,
-      snapshot: rawSnapshot,
-    });
+    let snapshot;
+
+    try {
+      snapshot = await verifyResNexusSnapshot({
+        context,
+        snapshot: rawSnapshot,
+      });
+    } catch (error) {
+      if (!(error instanceof SnapshotVerificationError)) throw error;
+
+      const recovered = recoverResNexusSnapshotAfterVerificationError({
+        snapshot: rawSnapshot,
+        error,
+      });
+
+      if (!recovered) throw error;
+
+      snapshot = recovered;
+
+      console.warn(
+        "[resnexus worker] detail proof incomplete; using date-window quarantine recovery",
+        {
+          browserAccountId: account.browser_account_id,
+          failures:
+            recovered.diagnostic?.verifier?.failures?.length || 0,
+          quarantined:
+            recovered.diagnostic?.verifier?.quarantinedFailures?.length || 0,
+          rejectedImplausible:
+            recovered.diagnostic?.verifier?.rejectedImplausibleFailures?.length || 0,
+        },
+      );
+    }
 
     const { data, error } = await supabase.rpc(
       "service_apply_resnexus_browser_account_sync",
@@ -362,7 +386,7 @@ const server = http.createServer((request, response) => {
     response.end(
       JSON.stringify({
         ok: true,
-        mode: "resnexus-account-mapping-v3-detail-proof",
+        mode: "resnexus-account-mapping-v4-quarantine-recovery",
         workerId,
         lastLoopAt,
         lastSuccessAt,
@@ -398,7 +422,7 @@ async function shutdown(signal) {
 process.on("SIGTERM", () => void shutdown("SIGTERM"));
 process.on("SIGINT", () => void shutdown("SIGINT"));
 
-console.log("[resnexus worker] starting account-mapping v3 detail-proof", {
+console.log("[resnexus worker] starting account-mapping v4 quarantine recovery", {
   workerId,
   pollSeconds,
   leaseSeconds,
