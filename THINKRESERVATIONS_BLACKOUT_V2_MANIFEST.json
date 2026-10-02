@@ -1,0 +1,22 @@
+{
+  "name": "Find A Place Booking - ThinkReservations Blackout/Reservation Sync v2",
+  "built": "2026-10-02",
+  "base_branch": "main",
+  "base_file": "lib/calendar/sync-thinkreservations.ts",
+  "base_blob_sha": "859cc2cf43750175faa3343f86d173c569e12180",
+  "files_to_overlay": [
+    "lib/calendar/sync-thinkreservations.ts"
+  ],
+  "database_migrations": [],
+  "new_required_secrets": [],
+  "changes": [
+    "recursive blackout response normalization",
+    "known room and room-type scoping",
+    "cancelled/inactive blackout handling",
+    "safe response-shape diagnostics",
+    "best-effort reservation enrichment",
+    "carry-forward of existing reservation blocks on reservation endpoint failure",
+    "preserved fail-closed booking availability checks"
+  ],
+  "production_write_performed": false
+}
