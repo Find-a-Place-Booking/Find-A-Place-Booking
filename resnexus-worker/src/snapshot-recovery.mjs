@@ -48,18 +48,22 @@ function reasonableQuarantineRange(start, end) {
 }
 
 function findResource(resources, block, preferredLabel) {
+  // A verified correction is authoritative. Resolve its target label before
+  // looking at the raw fan-out block's resource_key. Otherwise every raw copy
+  // of one ambiguous reservation can be rewritten as an exact reservation on
+  // every mapped property.
+  const preferred = normalize(preferredLabel);
+  if (preferred) {
+    const byPreferredLabel = resources.find(
+      (resource) => normalize(resource.label) === preferred,
+    );
+    if (byPreferredLabel) return byPreferredLabel;
+  }
+
   const byKey = resources.find(
     (resource) => resource.key === clean(block?.resource_key),
   );
   if (byKey) return byKey;
-
-  const preferred = normalize(preferredLabel);
-  if (preferred) {
-    const byLabel = resources.find(
-      (resource) => normalize(resource.label) === preferred,
-    );
-    if (byLabel) return byLabel;
-  }
 
   const original = normalize(
     block?.resource_label || block?.metadata?.resource,
@@ -371,9 +375,9 @@ export function recoverResNexusSnapshotAfterVerificationError({
       ...(error.diagnostic || snapshot.diagnostic || {}),
       verifier: {
         ...verifier,
-        version: "detail-proof-v3-scoped-quarantine",
+        version: "detail-proof-v4-correction-priority",
         recoveryMode:
-          "quarantine_unresolved_and_conflicting_detail_ranges",
+          "quarantine_unresolved_and_preserve_verified_resource",
         recoveredOutputBlocks: blocks.length,
         quarantinedFailures: quarantined.slice(0, 100),
         rejectedImplausibleFailures:

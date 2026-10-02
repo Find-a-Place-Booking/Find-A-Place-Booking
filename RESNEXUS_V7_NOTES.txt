@@ -1,0 +1,1 @@
+Fixes recovery resource priority so a verified ambiguous reservation collapses to the verifier's toResource instead of being recreated on every raw fan-out resource. No migration.
