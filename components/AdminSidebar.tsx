@@ -20,6 +20,11 @@ const nav: NavItem[] = [
     href: "/admin/reservations",
     key: "reservations",
   },
+  {
+    label: "Booking health",
+    href: "/admin/booking-health",
+    key: "booking-health",
+  },
   { label: "Reports", href: "/admin/reports", key: "reports" },
   {
     label: "Property taxes",
