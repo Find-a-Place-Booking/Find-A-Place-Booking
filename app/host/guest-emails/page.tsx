@@ -11,16 +11,8 @@ type RuleSummary = {
   trigger_event: "BEFORE_CHECKIN" | "AFTER_CHECKOUT";
   is_active: boolean;
   require_access_code: boolean;
-};
-
-type ReservationSummary = {
-  id: string;
-  property_id: string;
-};
-
-type InstructionSummary = {
-  reservation_id: string;
-  access_code: string | null;
+  default_access_code: string | null;
+  default_arrival_notes: string | null;
 };
 
 function statusLabel(status: string) {
@@ -35,41 +27,16 @@ export default async function GuestEmailsPage() {
   const supabase = await createClient();
   const propertyIds = properties.map((property) => property.id);
 
-  const today = new Date().toISOString().slice(0, 10);
-
-  const [rulesResult, reservationsResult] = propertyIds.length
-    ? await Promise.all([
-        supabase
-          .from("host_guest_email_rules")
-          .select("property_id,trigger_event,is_active,require_access_code")
-          .in("property_id", propertyIds),
-        supabase
-          .from("reservations")
-          .select("id,property_id")
-          .in("property_id", propertyIds)
-          .eq("status", "CONFIRMED")
-          .gte("check_out", today),
-      ])
-    : [
-        { data: [] as RuleSummary[] },
-        { data: [] as ReservationSummary[] },
-      ];
-
-  const reservations = (reservationsResult.data ?? []) as ReservationSummary[];
-  const reservationIds = reservations.map((reservation) => reservation.id);
-
-  const { data: instructionData } = reservationIds.length
+  const { data: rulesData } = propertyIds.length
     ? await supabase
-        .from("reservation_guest_instructions")
-        .select("reservation_id,access_code")
-        .in("reservation_id", reservationIds)
-    : { data: [] as InstructionSummary[] };
+        .from("host_guest_email_rules")
+        .select(
+          "property_id,trigger_event,is_active,require_access_code,default_access_code,default_arrival_notes",
+        )
+        .in("property_id", propertyIds)
+    : { data: [] as RuleSummary[] };
 
-  const rules = (rulesResult.data ?? []) as RuleSummary[];
-  const instructions = (instructionData ?? []) as InstructionSummary[];
-  const instructionByReservation = new Map(
-    instructions.map((instruction) => [instruction.reservation_id, instruction]),
-  );
+  const rules = (rulesData ?? []) as RuleSummary[];
 
   const rulesByProperty = new Map<string, RuleSummary[]>();
   for (const rule of rules) {
@@ -79,12 +46,6 @@ export default async function GuestEmailsPage() {
     rulesByProperty.set(rule.property_id, current);
   }
 
-  const reservationsByProperty = new Map<string, ReservationSummary[]>();
-  for (const reservation of reservations) {
-    const current = reservationsByProperty.get(reservation.property_id) ?? [];
-    current.push(reservation);
-    reservationsByProperty.set(reservation.property_id, current);
-  }
 
   return (
     <DashboardShell active="Guest emails" title="Guest emails">
@@ -92,9 +53,9 @@ export default async function GuestEmailsPage() {
         <div>
           <p className={styles.toolbarCopy}>
             Set up automated guest emails one property at a time. Guest names,
-            stay dates, confirmation numbers and trip links fill automatically;
-            you only add the access code and property-specific arrival notes for
-            each stay.
+            stay dates, confirmation numbers and trip links fill automatically.
+            Save each property's normal access code and arrival notes once and
+            the pre-arrival email fills them automatically.
           </p>
         </div>
         <Link className="button button-small button-quiet" href="/host/properties">
@@ -110,15 +71,12 @@ export default async function GuestEmailsPage() {
             const preArrivalRule = propertyRules.find(
               (rule) => rule.trigger_event === "BEFORE_CHECKIN",
             );
-            const upcoming = reservationsByProperty.get(property.id) ?? [];
-            const missingAccess = preArrivalRule?.require_access_code
-              ? upcoming.filter(
-                  (reservation) =>
-                    !instructionByReservation
-                      .get(reservation.id)
-                      ?.access_code?.trim(),
-                ).length
-              : 0;
+            const hasDefaultCode = Boolean(
+              preArrivalRule?.default_access_code?.trim(),
+            );
+            const hasDefaultNotes = Boolean(
+              preArrivalRule?.default_arrival_notes?.trim(),
+            );
 
             return (
               <Link
@@ -162,12 +120,12 @@ export default async function GuestEmailsPage() {
 
                 <div className={styles.metrics}>
                   <div className={styles.metric}>
-                    <b>{upcoming.length}</b>
-                    <span>upcoming stays</span>
+                    <b>{hasDefaultCode ? "Saved" : "—"}</b>
+                    <span>access code</span>
                   </div>
                   <div className={styles.metric}>
-                    <b>{missingAccess}</b>
-                    <span>need access info</span>
+                    <b>{hasDefaultNotes ? "Saved" : "—"}</b>
+                    <span>arrival notes</span>
                   </div>
                   <div className={styles.metric}>
                     <b>{propertyRules.length}</b>
@@ -185,8 +143,8 @@ export default async function GuestEmailsPage() {
           <div className="panel-empty panel-empty-large">
             <strong>Add a property before setting up guest emails.</strong>
             <span>
-              Each property gets its own email template and upcoming guest
-              access instructions.
+              Each property gets its own email templates, access code and
+              arrival notes.
             </span>
             <Link className="button button-small" href="/host/properties/new">
               Add property

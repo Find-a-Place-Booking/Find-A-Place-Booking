@@ -91,6 +91,14 @@ export async function saveGuestEmailRule(formData: FormData) {
   const subjectTemplate = field(formData, "subject_template", 200);
   const bodyTemplate = field(formData, "body_template", 8000);
   const requireAccessCode = formData.get("require_access_code") === "on";
+  const defaultAccessCode =
+    triggerEvent === "BEFORE_CHECKIN"
+      ? field(formData, "default_access_code", 160) || null
+      : null;
+  const defaultArrivalNotes =
+    triggerEvent === "BEFORE_CHECKIN"
+      ? field(formData, "default_arrival_notes", 5000) || null
+      : null;
   const isActive = formData.get("is_active") !== "off";
 
   if (
@@ -142,6 +150,8 @@ export async function saveGuestEmailRule(formData: FormData) {
     subject_template: subjectTemplate,
     body_template: bodyTemplate,
     require_access_code: requireAccessCode,
+    default_access_code: defaultAccessCode,
+    default_arrival_notes: defaultArrivalNotes,
     is_active: isActive,
   };
 

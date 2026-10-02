@@ -10,7 +10,6 @@ import styles from "../guest-emails.module.css";
 import {
   deleteGuestEmailRule,
   saveGuestEmailRule,
-  saveReservationGuestInstructions,
   toggleGuestEmailRule,
 } from "../actions";
 
@@ -25,24 +24,10 @@ type RuleRow = {
   subject_template: string;
   body_template: string;
   require_access_code: boolean;
+  default_access_code: string | null;
+  default_arrival_notes: string | null;
   is_active: boolean;
   created_at: string;
-};
-
-type ReservationRow = {
-  id: string;
-  confirmation_code: string;
-  guest_name: string | null;
-  guest_email: string | null;
-  guest_count: number;
-  check_in: string;
-  check_out: string;
-};
-
-type InstructionRow = {
-  reservation_id: string;
-  access_code: string | null;
-  arrival_notes: string | null;
 };
 
 const defaultArrivalSubject = "Your stay at {{property_name}} is coming up";
@@ -111,6 +96,8 @@ function AutomationEditor({
   const body =
     rule?.body_template ?? (isArrival ? defaultArrivalBody : defaultPostStayBody);
   const requireAccessCode = rule?.require_access_code ?? isArrival;
+  const defaultAccessCode = rule?.default_access_code ?? "";
+  const defaultArrivalNotes = rule?.default_arrival_notes ?? "";
 
   return (
     <section className={`panel ${styles.editorPanel}`}>
@@ -122,7 +109,7 @@ function AutomationEditor({
           <h2>{name}</h2>
           <p className={styles.panelDescription}>
             {isArrival
-              ? "Guest details fill automatically. Add the access code and arrival notes to the upcoming stay below and they drop into this email when it sends."
+              ? "Guest and reservation details fill automatically. Save this property's access code and arrival notes here and they drop into the email when it sends."
               : "A simple automatic thank-you after checkout. Guest and stay information fills automatically."}
           </p>
         </div>
@@ -199,6 +186,45 @@ function AutomationEditor({
 
         {!isArrival && requireAccessCode ? (
           <input type="hidden" name="require_access_code" value="on" />
+        ) : null}
+
+        {isArrival ? (
+          <details
+            className={styles.propertyDefaults}
+            open={!defaultAccessCode && !defaultArrivalNotes}
+          >
+            <summary>Access code & arrival notes</summary>
+            <div className={styles.defaultsBody}>
+              <p className={styles.defaultsIntro}>
+                Save the normal access information for this property. The email
+                automatically inserts these values into {"{{access_code}}"} and
+                {" {{arrival_notes}}"}.
+              </p>
+              <label>
+                <span>Access / door code</span>
+                <input
+                  name="default_access_code"
+                  maxLength={160}
+                  defaultValue={defaultAccessCode}
+                  placeholder="Example: 4821#"
+                />
+              </label>
+              <label>
+                <span>Arrival notes</span>
+                <textarea
+                  name="default_arrival_notes"
+                  rows={5}
+                  maxLength={5000}
+                  defaultValue={defaultArrivalNotes}
+                  placeholder="Parking, gate, lockbox, Wi-Fi, cabin directions, late arrival instructions…"
+                />
+              </label>
+              <small className={styles.overrideNote}>
+                If a specific reservation has its own access code or notes, that
+                reservation-specific information overrides these property defaults.
+              </small>
+            </div>
+          </details>
         ) : null}
 
         <details className={styles.customizer}>
@@ -293,45 +319,15 @@ export default async function PropertyGuestEmailsPage({
   if (!property) notFound();
 
   const supabase = await createClient();
-  const today = new Date().toISOString().slice(0, 10);
+  const { data: rulesData } = await supabase
+    .from("host_guest_email_rules")
+    .select(
+      "id,organization_id,property_id,name,trigger_event,day_offset,send_time_local,subject_template,body_template,require_access_code,default_access_code,default_arrival_notes,is_active,created_at",
+    )
+    .eq("property_id", property.id)
+    .order("created_at", { ascending: true });
 
-  const [rulesResult, reservationsResult] = await Promise.all([
-    supabase
-      .from("host_guest_email_rules")
-      .select(
-        "id,organization_id,property_id,name,trigger_event,day_offset,send_time_local,subject_template,body_template,require_access_code,is_active,created_at",
-      )
-      .eq("property_id", property.id)
-      .order("created_at", { ascending: true }),
-    supabase
-      .from("reservations")
-      .select(
-        "id,confirmation_code,guest_name,guest_email,guest_count,check_in,check_out",
-      )
-      .eq("property_id", property.id)
-      .eq("status", "CONFIRMED")
-      .gte("check_out", today)
-      .order("check_in", { ascending: true })
-      .limit(100),
-  ]);
-
-  const rules = (rulesResult.data ?? []) as RuleRow[];
-  const reservations = (reservationsResult.data ?? []) as ReservationRow[];
-  const reservationIds = reservations.map((reservation) => reservation.id);
-
-  const { data: instructionData } = reservationIds.length
-    ? await supabase
-        .from("reservation_guest_instructions")
-        .select("reservation_id,access_code,arrival_notes")
-        .in("reservation_id", reservationIds)
-    : { data: [] as InstructionRow[] };
-
-  const instructionByReservation = new Map(
-    ((instructionData ?? []) as InstructionRow[]).map((instruction) => [
-      instruction.reservation_id,
-      instruction,
-    ]),
-  );
+  const rules = (rulesData ?? []) as RuleRow[];
 
   const arrivalRule =
     rules.find(
@@ -359,8 +355,8 @@ export default async function PropertyGuestEmailsPage({
         <div className={styles.detailHeadCopy}>
           <p>
             Guest and reservation information fills itself. Keep the template
-            as-is or customize it, then add the access code and arrival notes to
-            each upcoming stay below.
+            as-is or customize it, then save this property's access code and
+            arrival notes right in the pre-arrival email setup.
           </p>
         </div>
         <Link className="button button-small button-quiet" href="/host/guest-emails">
@@ -387,8 +383,8 @@ export default async function PropertyGuestEmailsPage({
           Find A Place automatically inserts the guest name, property name,
           check-in and checkout dates, confirmation number, host contact info
           and the guest&apos;s My Trip link. The access code and arrival notes come
-          from the matching reservation below, so one guest never receives
-          another guest&apos;s code.
+          from the property defaults saved in the pre-arrival email. A
+          reservation-specific value can override the default when needed.
         </p>
       </section>
 
@@ -399,98 +395,6 @@ export default async function PropertyGuestEmailsPage({
         rule={arrivalRule}
         kind="ARRIVAL"
       />
-
-      <section className={`panel ${styles.staysPanel}`}>
-        <div className={styles.panelHead}>
-          <div className={styles.panelHeadCopy}>
-            <p className="eyebrow dark">Upcoming stays</p>
-            <h2>Access codes & arrival notes</h2>
-          </div>
-          <span className={styles.countBadge}>{reservations.length}</span>
-        </div>
-        <p className={styles.stayIntro}>
-          Save the code and notes against the actual reservation. When that
-          guest&apos;s automated email is due, those exact details are inserted into
-          {" {{access_code}}"} and {"{{arrival_notes}}"}.
-        </p>
-
-        {reservations.length ? (
-          <div className={styles.stayList}>
-            {reservations.map((reservation) => {
-              const instructions = instructionByReservation.get(reservation.id);
-              const hasAccessCode = Boolean(instructions?.access_code?.trim());
-
-              return (
-                <div className={styles.stayCard} key={reservation.id}>
-                  <div className={styles.stayHeader}>
-                    <div className={styles.stayIdentity}>
-                      <strong>{reservation.guest_name || "Guest"}</strong>
-                      <p className={styles.stayMeta}>
-                        {reservation.check_in} → {reservation.check_out} ·{" "}
-                        {reservation.confirmation_code} · {reservation.guest_count}{" "}
-                        guest{reservation.guest_count === 1 ? "" : "s"}
-                      </p>
-                      {reservation.guest_email ? (
-                        <p className={styles.stayEmail}>{reservation.guest_email}</p>
-                      ) : null}
-                    </div>
-                    <span
-                      className={`status-pill ${hasAccessCode ? "" : "status-muted"}`}
-                    >
-                      {hasAccessCode ? "Access info ready" : "Needs access info"}
-                    </span>
-                  </div>
-
-                  <form
-                    className={styles.instructionForm}
-                    action={saveReservationGuestInstructions}
-                  >
-                    <input type="hidden" name="return_to" value={returnTo} />
-                    <input
-                      type="hidden"
-                      name="reservation_id"
-                      value={reservation.id}
-                    />
-                    <label>
-                      <span>Access / door code</span>
-                      <input
-                        name="access_code"
-                        maxLength={160}
-                        defaultValue={instructions?.access_code || ""}
-                        placeholder="Example: 4821#"
-                      />
-                      <small>
-                        This is inserted only into this reservation&apos;s email.
-                      </small>
-                    </label>
-                    <label>
-                      <span>Arrival notes</span>
-                      <textarea
-                        name="arrival_notes"
-                        rows={5}
-                        maxLength={5000}
-                        defaultValue={instructions?.arrival_notes || ""}
-                        placeholder="Parking, gate, lockbox, Wi-Fi, cabin directions, late arrival instructions…"
-                      />
-                    </label>
-                    <button className="button button-small" type="submit">
-                      Save guest access info
-                    </button>
-                  </form>
-                </div>
-              );
-            })}
-          </div>
-        ) : (
-          <div className="panel-empty">
-            <strong>No upcoming confirmed stays for this property.</strong>
-            <span>
-              Confirmed Find A Place bookings will appear here automatically so
-              you can add their access code and arrival notes.
-            </span>
-          </div>
-        )}
-      </section>
 
       <AutomationEditor
         propertyId={property.id}

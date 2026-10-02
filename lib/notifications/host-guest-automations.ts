@@ -18,6 +18,8 @@ type Rule = {
   subject_template: string;
   body_template: string;
   require_access_code: boolean;
+  default_access_code: string | null;
+  default_arrival_notes: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -326,7 +328,7 @@ export async function runDueHostGuestAutomations(admin: SupabaseClient) {
   const { data: ruleData, error: ruleError } = await admin
     .from("host_guest_email_rules")
     .select(
-      "id,organization_id,property_id,name,trigger_event,day_offset,send_time_local,subject_template,body_template,require_access_code,created_at,updated_at",
+      "id,organization_id,property_id,name,trigger_event,day_offset,send_time_local,subject_template,body_template,require_access_code,default_access_code,default_arrival_notes,created_at,updated_at",
     )
     .eq("is_active", true)
     .order("created_at", { ascending: true })
@@ -487,7 +489,14 @@ export async function runDueHostGuestAutomations(admin: SupabaseClient) {
       }
 
       const instructions = instructionByReservation.get(reservation.id);
-      const accessCode = instructions?.access_code?.trim() || "";
+      const accessCode =
+        instructions?.access_code?.trim() ||
+        rule.default_access_code?.trim() ||
+        "";
+      const arrivalNotes =
+        instructions?.arrival_notes?.trim() ||
+        rule.default_arrival_notes?.trim() ||
+        "";
 
       if (rule.require_access_code && !accessCode) {
         missingCode += 1;
@@ -513,7 +522,7 @@ export async function runDueHostGuestAutomations(admin: SupabaseClient) {
         check_out: reservation.check_out,
         confirmation_code: reservation.confirmation_code,
         access_code: accessCode,
-        arrival_notes: instructions?.arrival_notes?.trim() || "",
+        arrival_notes: arrivalNotes,
         host_name: hostName,
         host_email:
           property.notification_email ||
