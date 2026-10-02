@@ -6,6 +6,11 @@ import { createAdminClient } from "@/lib/supabase/admin";
 const THINKRESERVATIONS_BASE_URL = "https://api.thinkreservations.com";
 const EMPTY_CONFIRMATION = "[PMS_EMPTY_CONFIRMATION]";
 const MAX_WINDOW_DAYS = 30;
+const DEFAULT_SYNC_LOOKBACK_DAYS = 45;
+const MAX_BLACKOUT_FRAGMENT_GAP_DAYS = 7;
+const MIN_AMBIGUOUS_GAP_DAYS = 2;
+const MAX_AMBIGUOUS_GAP_DAYS = 5;
+const GAP_PROBE_LOOKAHEAD_DAYS = 365;
 
 type JsonObject = Record<string, unknown>;
 
@@ -25,7 +30,7 @@ type ThinkSourceBlock = {
   uid: string;
   start: string;
   end: string;
-  sourceKind: "inventory" | "blackout" | "reservation";
+  sourceKind: "inventory" | "blackout" | "reservation" | "availability";
   roomId: string | null;
   roomTypeId: string | null;
   metadata: Record<string, unknown>;
@@ -188,6 +193,15 @@ function daysBetween(start: string, end: string) {
   );
 }
 
+function utcTodayDate() {
+  const now = new Date();
+  return isoDate(
+    new Date(
+      Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()),
+    ),
+  );
+}
+
 function defaultWindow() {
   const configured = Number(process.env.PMS_SYNC_LOOKAHEAD_DAYS || "730");
   const lookahead =
@@ -195,16 +209,25 @@ function defaultWindow() {
       ? Math.floor(configured)
       : 730;
 
-  const now = new Date();
-  const today = new Date(
-    Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()),
+  const configuredLookback = Number(
+    process.env.PMS_SYNC_LOOKBACK_DAYS || String(DEFAULT_SYNC_LOOKBACK_DAYS),
   );
+  const lookback =
+    Number.isFinite(configuredLookback) &&
+    configuredLookback >= 0 &&
+    configuredLookback <= 120
+      ? Math.floor(configuredLookback)
+      : DEFAULT_SYNC_LOOKBACK_DAYS;
+
+  const today = utcTodayDate();
 
   return {
-    startDate: isoDate(today),
-    endDate: isoDate(
-      new Date(today.getTime() + lookahead * 86_400_000),
-    ),
+    // Think can expose the two ends of an already-active stay as separate
+    // dated fragments. A small lookback keeps enough context to reconstruct
+    // a stay that began before today's cron run and also lets reconciliation
+    // clean stale fragment rows from the current/previous month.
+    startDate: addDays(today, -lookback),
+    endDate: addDays(today, lookahead),
   };
 }
 
@@ -1237,6 +1260,296 @@ function dedupeSourceBlocks(blocks: ThinkSourceBlock[]) {
   return [...unique.values()];
 }
 
+function consolidateFragmentedSourceBlocks(
+  blocks: ThinkSourceBlock[],
+  maxGapDays = MAX_BLACKOUT_FRAGMENT_GAP_DAYS,
+) {
+  const passthrough: ThinkSourceBlock[] = [];
+  const groups = new Map<string, ThinkSourceBlock[]>();
+
+  for (const block of blocks) {
+    if (block.sourceKind !== "blackout") {
+      passthrough.push(block);
+      continue;
+    }
+
+    const identity = [
+      block.sourceKind,
+      block.uid,
+      block.roomId || "",
+      block.roomTypeId || "",
+    ].join("|");
+
+    const group = groups.get(identity) ?? [];
+    group.push(block);
+    groups.set(identity, group);
+  }
+
+  const consolidated: ThinkSourceBlock[] = [];
+
+  for (const group of groups.values()) {
+    const sorted = group
+      .slice()
+      .sort((a, b) =>
+        a.start === b.start
+          ? a.end.localeCompare(b.end)
+          : a.start.localeCompare(b.start),
+      );
+
+    let cluster: ThinkSourceBlock[] = [];
+
+    const flush = () => {
+      if (!cluster.length) return;
+
+      const first = cluster[0];
+      const start = cluster.reduce(
+        (value, block) => (block.start < value ? block.start : value),
+        first.start,
+      );
+      const end = cluster.reduce(
+        (value, block) => (block.end > value ? block.end : value),
+        first.end,
+      );
+      const scope = first.roomId || first.roomTypeId || "hotel";
+
+      consolidated.push({
+        ...first,
+        key: `thinkres:blackout-span:${first.uid}:${start}:${end}:${scope}`,
+        start,
+        end,
+        metadata: {
+          ...first.metadata,
+          normalized_fragment_count: cluster.length,
+        },
+      });
+
+      cluster = [];
+    };
+
+    for (const block of sorted) {
+      const clusterEnd = cluster.reduce<string | null>(
+        (value, current) =>
+          value === null || current.end > value ? current.end : value,
+        null,
+      );
+
+      if (
+        clusterEnd === null ||
+        daysBetween(clusterEnd, block.start) <= maxGapDays
+      ) {
+        cluster.push(block);
+      } else {
+        flush();
+        cluster.push(block);
+      }
+    }
+
+    flush();
+  }
+
+  return dedupeSourceBlocks([...passthrough, ...consolidated]);
+}
+
+type AvailabilityEvidence = Map<string, Set<string>>;
+
+function addEvidenceRange(
+  evidence: AvailabilityEvidence,
+  start: string,
+  end: string,
+  source: string,
+  windowStart: string,
+  windowEnd: string,
+) {
+  let cursor = start < windowStart ? windowStart : start;
+  const clippedEnd = end > windowEnd ? windowEnd : end;
+
+  while (cursor < clippedEnd) {
+    const sources = evidence.get(cursor) ?? new Set<string>();
+    sources.add(source);
+    evidence.set(cursor, sources);
+    cursor = addDays(cursor, 1);
+  }
+}
+
+function evidenceRanges(evidence: AvailabilityEvidence) {
+  const dates = [...evidence.keys()].sort();
+  const ranges: Array<{ start: string; end: string }> = [];
+
+  for (const date of dates) {
+    const previous = ranges[ranges.length - 1];
+
+    if (previous && previous.end === date) {
+      previous.end = addDays(date, 1);
+    } else {
+      ranges.push({ start: date, end: addDays(date, 1) });
+    }
+  }
+
+  return ranges;
+}
+
+function ambiguousGapRanges(
+  evidence: AvailabilityEvidence,
+  windowStart: string,
+  windowEnd: string,
+) {
+  const ranges = evidenceRanges(evidence);
+  if (!ranges.length) return [];
+
+  const today = utcTodayDate();
+  const probeStart = windowStart < today ? today : windowStart;
+  const probeEnd =
+    windowEnd < addDays(today, GAP_PROBE_LOOKAHEAD_DAYS)
+      ? windowEnd
+      : addDays(today, GAP_PROBE_LOOKAHEAD_DAYS);
+
+  const candidates: Array<{ start: string; end: string }> = [];
+
+  const maybeAdd = (start: string, end: string) => {
+    const clippedStart = start < probeStart ? probeStart : start;
+    const clippedEnd = end > probeEnd ? probeEnd : end;
+    const length = daysBetween(clippedStart, clippedEnd);
+
+    if (
+      length >= MIN_AMBIGUOUS_GAP_DAYS &&
+      length <= MAX_AMBIGUOUS_GAP_DAYS
+    ) {
+      candidates.push({ start: clippedStart, end: clippedEnd });
+    }
+  };
+
+  // If today's sync begins inside a stay, the provider may only expose the
+  // departure-side fragment. Probe only a short leading gap; long open spans
+  // remain governed by the normal inventory/blackout sources.
+  maybeAdd(probeStart, ranges[0].start);
+
+  for (let index = 1; index < ranges.length; index += 1) {
+    maybeAdd(ranges[index - 1].end, ranges[index].start);
+  }
+
+  return candidates;
+}
+
+async function mappedStayIsAvailable(input: {
+  hotelId: string;
+  apiKey: string;
+  startDate: string;
+  endDate: string;
+  roomId: string;
+  roomTypeId: string;
+}) {
+  const path = `/v1/hotels/${encodeURIComponent(
+    input.hotelId,
+  )}/availabilities`;
+
+  const response = await thinkRequest(input.apiKey, path, {
+    start_date: input.startDate,
+    end_date: input.endDate,
+    room_type_id: input.roomTypeId,
+  });
+
+  const items = listPayload(response.body, [
+    "availabilities",
+    "availability",
+    "data",
+    "items",
+    "results",
+  ]);
+
+  if (!items.length) return false;
+
+  return thinkAvailabilityResponseHasMappedRoom({
+    body: response.body,
+    roomId: input.roomId,
+    roomTypeId: input.roomTypeId,
+    uniquePhysicalRoom: true,
+  });
+}
+
+async function closeAmbiguousAvailabilityGaps(input: {
+  evidence: AvailabilityEvidence;
+  hotelId: string;
+  apiKey: string;
+  roomId: string;
+  roomTypeId: string;
+  windowStart: string;
+  windowEnd: string;
+}) {
+  const gaps = ambiguousGapRanges(
+    input.evidence,
+    input.windowStart,
+    input.windowEnd,
+  );
+
+  let verifiedUnavailableGaps = 0;
+
+  // These are only short gaps between provider-derived blocked ranges. One
+  // availability search per gap keeps API volume low while resolving the
+  // exact holes the inventory/blackout feeds can leave behind.
+  for (const gap of gaps) {
+    const available = await mappedStayIsAvailable({
+      hotelId: input.hotelId,
+      apiKey: input.apiKey,
+      startDate: gap.start,
+      endDate: gap.end,
+      roomId: input.roomId,
+      roomTypeId: input.roomTypeId,
+    });
+
+    if (!available) {
+      addEvidenceRange(
+        input.evidence,
+        gap.start,
+        gap.end,
+        "live_availability",
+        input.windowStart,
+        input.windowEnd,
+      );
+      verifiedUnavailableGaps += 1;
+    }
+  }
+
+  return {
+    checked: gaps.length,
+    unavailable: verifiedUnavailableGaps,
+  };
+}
+
+function canonicalAvailabilityBlocks(input: {
+  evidence: AvailabilityEvidence;
+  roomId: string;
+  roomTypeId: string;
+}) {
+  return evidenceRanges(input.evidence).map<ThinkSourceBlock>((range) => {
+    const sources = new Set<string>();
+    let cursor = range.start;
+
+    while (cursor < range.end) {
+      for (const source of input.evidence.get(cursor) ?? []) {
+        sources.add(source);
+      }
+      cursor = addDays(cursor, 1);
+    }
+
+    return {
+      key: `thinkres:availability:${input.roomId}:${range.start}:${range.end}`,
+      uid: `availability:${input.roomId}:${range.start}:${range.end}`,
+      start: range.start,
+      end: range.end,
+      sourceKind: "availability",
+      roomId: input.roomId,
+      roomTypeId: input.roomTypeId,
+      metadata: {
+        provider: "THINKRESERVATIONS",
+        source_kind: "availability",
+        evidence_sources: [...sources].sort(),
+        room_id: input.roomId,
+        room_type_id: input.roomTypeId,
+      },
+    };
+  });
+}
+
 function containsActiveDatedBlackoutCandidate(
   value: unknown,
   depth = 0,
@@ -1393,10 +1706,12 @@ async function fetchBlackoutBlocks(input: {
     cursor = chunkEnd;
   }
 
-  return dedupeSourceBlocks(all).filter(
-    (block) =>
-      block.start < input.endDate &&
-      block.end > input.startDate,
+  return consolidateFragmentedSourceBlocks(
+    dedupeSourceBlocks(all).filter(
+      (block) =>
+        block.start < input.endDate &&
+        block.end > input.startDate,
+    ),
   );
 }
 
@@ -2072,28 +2387,77 @@ export async function syncThinkReservationsConnection(
       mappedReservations = [];
     }
 
-    const newBlocks = [
-      ...inventoryBlocks,
-      ...mappedBlackouts,
-      ...mappedReservations,
-    ].map((block) => ({
+    const evidence: AvailabilityEvidence = new Map();
+
+    for (const block of inventoryBlocks) {
+      addEvidenceRange(
+        evidence,
+        block.start,
+        block.end,
+        "inventory",
+        window.startDate,
+        window.endDate,
+      );
+    }
+
+    for (const block of mappedBlackouts) {
+      addEvidenceRange(
+        evidence,
+        block.start,
+        block.end,
+        "blackout",
+        window.startDate,
+        window.endDate,
+      );
+    }
+
+    for (const block of mappedReservations) {
+      addEvidenceRange(
+        evidence,
+        block.start,
+        block.end,
+        "reservation",
+        window.startDate,
+        window.endDate,
+      );
+    }
+
+    for (const block of preservedReservationBlocks) {
+      addEvidenceRange(
+        evidence,
+        block.start,
+        block.end,
+        "reservation_preserved",
+        window.startDate,
+        window.endDate,
+      );
+    }
+
+    const gapVerification = await closeAmbiguousAvailabilityGaps({
+      evidence,
+      hotelId: integration.external_account_id,
+      apiKey,
+      roomId: connection.external_calendar_id,
+      roomTypeId: connection.external_room_type_id,
+      windowStart: window.startDate,
+      windowEnd: window.endDate,
+    });
+
+    // Reconcile one canonical set of unavailable ranges. Inventory, blackout
+    // fragments and live availability are evidence for the same final calendar
+    // state; writing each source separately is what produced duplicate/striped
+    // blocks in the host calendar.
+    const mappedBlocks = canonicalAvailabilityBlocks({
+      evidence,
+      roomId: connection.external_calendar_id,
+      roomTypeId: connection.external_room_type_id,
+    }).map((block) => ({
       key: block.key,
       uid: block.uid,
-      start:
-        block.start < window.startDate
-          ? window.startDate
-          : block.start,
-      end:
-        block.end > window.endDate
-          ? window.endDate
-          : block.end,
+      start: block.start,
+      end: block.end,
       metadata: block.metadata,
     }));
-
-    const mappedBlocks = [
-      ...newBlocks,
-      ...preservedReservationBlocks,
-    ].filter((block) => block.end > block.start);
 
     const mode = syncMode();
 
@@ -2119,7 +2483,9 @@ export async function syncThinkReservationsConnection(
         reservationBlocks: mappedReservations.length,
         preservedReservationBlocks:
           preservedReservationBlocks.length,
-        combinedBlocks: mappedBlocks.length,
+        canonicalBlocks: mappedBlocks.length,
+        gapChecks: gapVerification.checked,
+        gapUnavailable: gapVerification.unavailable,
         reservationWarning: reservationResult.warning,
       });
 
@@ -2186,6 +2552,9 @@ export async function syncThinkReservationsConnection(
       inventoryBlocks: inventoryBlocks.length,
       blackoutBlocks: mappedBlackouts.length,
       reservationBlocks: mappedReservations.length,
+      canonicalBlocks: mappedBlocks.length,
+      gapChecks: gapVerification.checked,
+      gapUnavailable: gapVerification.unavailable,
       reservationWarning: reservationResult.warning,
     };
   } catch (error) {

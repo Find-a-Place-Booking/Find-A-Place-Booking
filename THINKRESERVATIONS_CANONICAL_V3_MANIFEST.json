@@ -1,0 +1,25 @@
+{
+  "name": "Find A Place Booking - ThinkReservations Canonical Availability v3",
+  "built": "2026-10-02",
+  "base_branch": "main",
+  "base_commit_checked": "1e436233ebccbe3042387ea09152fd7e81bcc0a0",
+  "files": [
+    "lib/calendar/sync-thinkreservations.ts",
+    "README.md",
+    "THINKRESERVATIONS_CANONICAL_V3_README.md",
+    "THINKRESERVATIONS_CANONICAL_V3_MANIFEST.json"
+  ],
+  "database_migrations": [],
+  "new_required_secrets": [],
+  "optional_env": {
+    "PMS_SYNC_LOOKBACK_DAYS": "0-120; defaults to 45"
+  },
+  "behavior": {
+    "writes_canonical_ranges": true,
+    "consolidates_repeated_blackout_fragments": true,
+    "live_checks_short_ambiguous_gaps": true,
+    "preserves_checkout_fail_closed_guard": true,
+    "writes_to_thinkreservations": false
+  },
+  "acceptance": "Oak Ridge October 2026: 22/22 unavailable nights; Oct 5-7, 13, 19-22 remain open"
+}
