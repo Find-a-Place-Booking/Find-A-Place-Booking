@@ -649,7 +649,7 @@ export function PropertyEditor({
                         type="number"
                         min="1"
                         max="365"
-                        value={form.minStay || "1"}
+                        value={form.minStay ?? ""}
                         onChange={(event) =>
                           update("minStay", event.target.value)
                         }

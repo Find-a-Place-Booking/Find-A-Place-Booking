@@ -1,0 +1,17 @@
+{
+  "base": "current main reviewed 2026-10-02",
+  "files": [
+    {
+      "path": "components/PropertyEditor.tsx",
+      "change": "allow default minimum stay input to be cleared and replaced"
+    },
+    {
+      "path": "app/host/calendar/page.tsx",
+      "change": "remount calendar/integration state when selected unit changes"
+    }
+  ],
+  "database_migration_required": false,
+  "booking_logic_changed": false,
+  "payment_logic_changed": false,
+  "calendar_sync_logic_changed": false
+}

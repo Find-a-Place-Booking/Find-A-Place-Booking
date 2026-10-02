@@ -231,6 +231,7 @@ export default async function CalendarPage({
 
       <div className={styles.workspaceGrid}>
         <HostCalendarBoard
+          key={`${selected.unitId}:${workspace.month}`}
           unitId={selected.unitId}
           month={workspace.month}
           monthLabel={workspace.monthLabel}
@@ -248,6 +249,7 @@ export default async function CalendarPage({
         />
 
         <CalendarIntegrationPanel
+          key={selected.unitId}
           organizationId={selected.organizationId}
           unitId={selected.unitId}
           unitLabel={targetLabel(selected)}
