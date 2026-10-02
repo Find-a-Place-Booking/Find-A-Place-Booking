@@ -23,10 +23,25 @@ function field(formData: FormData, key: string, max = 8000) {
   return String(formData.get(key) ?? "").trim().slice(0, max);
 }
 
-function go(kind: "saved" | "error", message?: string): never {
+function safeGuestEmailReturnPath(formData: FormData) {
+  const requested = field(formData, "return_to", 500);
+  if (
+    requested.startsWith("/host/guest-emails") &&
+    !requested.startsWith("//")
+  ) {
+    return requested;
+  }
+  return "/host/guest-emails";
+}
+
+function go(
+  returnTo: string,
+  kind: "saved" | "error",
+  message?: string,
+): never {
   const params = new URLSearchParams();
   params.set(kind, kind === "saved" ? "1" : message || "Unable to save.");
-  redirect(`/host/guest-emails?${params.toString()}`);
+  redirect(`${returnTo}?${params.toString()}`);
 }
 
 async function requireHost() {
@@ -65,6 +80,7 @@ function templateError(value: string) {
 }
 
 export async function saveGuestEmailRule(formData: FormData) {
+  const returnTo = safeGuestEmailReturnPath(formData);
   let organizationId = field(formData, "organization_id", 100);
   const propertyId = field(formData, "property_id", 100) || null;
   const ruleId = field(formData, "rule_id", 100) || null;
@@ -87,12 +103,12 @@ export async function saveGuestEmailRule(formData: FormData) {
     !subjectTemplate ||
     !bodyTemplate
   ) {
-    go("error", "Check the automation name, timing, subject and message.");
+    go(returnTo, "error", "Check the automation name, timing, subject and message.");
   }
 
   const invalidVariable =
     templateError(subjectTemplate) || templateError(bodyTemplate);
-  if (invalidVariable) go("error", invalidVariable);
+  if (invalidVariable) go(returnTo, "error", invalidVariable);
 
   const { supabase, profileId } = await requireHost();
 
@@ -104,7 +120,7 @@ export async function saveGuestEmailRule(formData: FormData) {
       .maybeSingle();
 
     if (!property?.organization_id) {
-      go("error", "That property is not available to this host account.");
+      go(returnTo, "error", "That property is not available to this host account.");
     }
     organizationId = property.organization_id;
   }
@@ -113,7 +129,7 @@ export async function saveGuestEmailRule(formData: FormData) {
     !organizationId ||
     !(await canManageOrganization(supabase, profileId, organizationId))
   ) {
-    go("error", "Organization owner or manager access required.");
+    go(returnTo, "error", "Organization owner or manager access required.");
   }
 
   const values = {
@@ -138,7 +154,7 @@ export async function saveGuestEmailRule(formData: FormData) {
 
     if (error) {
       console.error("[saveGuestEmailRule:update]", error);
-      go("error", "The guest email automation could not be updated.");
+      go(returnTo, "error", "The guest email automation could not be updated.");
     }
   } else {
     const { error } = await supabase.from("host_guest_email_rules").insert({
@@ -148,22 +164,24 @@ export async function saveGuestEmailRule(formData: FormData) {
 
     if (error) {
       console.error("[saveGuestEmailRule:insert]", error);
-      go("error", "The guest email automation could not be created.");
+      go(returnTo, "error", "The guest email automation could not be created.");
     }
   }
 
   revalidatePath("/host/guest-emails");
-  go("saved");
+  revalidatePath(returnTo);
+  go(returnTo, "saved");
 }
 
 export async function toggleGuestEmailRule(formData: FormData) {
+  const returnTo = safeGuestEmailReturnPath(formData);
   const ruleId = field(formData, "rule_id", 100);
   const organizationId = field(formData, "organization_id", 100);
   const nextActive = field(formData, "next_active", 10) === "true";
   const { supabase, profileId } = await requireHost();
 
   if (!(await canManageOrganization(supabase, profileId, organizationId))) {
-    go("error", "Organization owner or manager access required.");
+    go(returnTo, "error", "Organization owner or manager access required.");
   }
 
   const { error } = await supabase
@@ -172,18 +190,20 @@ export async function toggleGuestEmailRule(formData: FormData) {
     .eq("id", ruleId)
     .eq("organization_id", organizationId);
 
-  if (error) go("error", "The automation status could not be changed.");
+  if (error) go(returnTo, "error", "The automation status could not be changed.");
   revalidatePath("/host/guest-emails");
-  go("saved");
+  revalidatePath(returnTo);
+  go(returnTo, "saved");
 }
 
 export async function deleteGuestEmailRule(formData: FormData) {
+  const returnTo = safeGuestEmailReturnPath(formData);
   const ruleId = field(formData, "rule_id", 100);
   const organizationId = field(formData, "organization_id", 100);
   const { supabase, profileId } = await requireHost();
 
   if (!(await canManageOrganization(supabase, profileId, organizationId))) {
-    go("error", "Organization owner or manager access required.");
+    go(returnTo, "error", "Organization owner or manager access required.");
   }
 
   const { error } = await supabase
@@ -192,12 +212,14 @@ export async function deleteGuestEmailRule(formData: FormData) {
     .eq("id", ruleId)
     .eq("organization_id", organizationId);
 
-  if (error) go("error", "The automation could not be deleted.");
+  if (error) go(returnTo, "error", "The automation could not be deleted.");
   revalidatePath("/host/guest-emails");
-  go("saved");
+  revalidatePath(returnTo);
+  go(returnTo, "saved");
 }
 
 export async function saveReservationGuestInstructions(formData: FormData) {
+  const returnTo = safeGuestEmailReturnPath(formData);
   const reservationId = field(formData, "reservation_id", 100);
   const accessCode = field(formData, "access_code", 160) || null;
   const arrivalNotes = field(formData, "arrival_notes", 5000) || null;
@@ -210,7 +232,7 @@ export async function saveReservationGuestInstructions(formData: FormData) {
     .maybeSingle();
 
   if (!reservation) {
-    go("error", "That reservation is not available to this host.");
+    go(returnTo, "error", "That reservation is not available to this host.");
   }
 
   const { error } = await supabase
@@ -227,9 +249,10 @@ export async function saveReservationGuestInstructions(formData: FormData) {
 
   if (error) {
     console.error("[saveReservationGuestInstructions]", error);
-    go("error", "Arrival instructions could not be saved.");
+    go(returnTo, "error", "Arrival instructions could not be saved.");
   }
 
   revalidatePath("/host/guest-emails");
-  go("saved");
+  revalidatePath(returnTo);
+  go(returnTo, "saved");
 }
