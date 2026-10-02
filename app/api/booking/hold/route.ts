@@ -9,6 +9,7 @@ import {
   stripeEnvironment,
 } from "@/lib/payments/booking-runtime";
 import { refreshUnitCalendarsOrThrow } from "@/lib/calendar/sync-ical";
+import { assertThinkReservationsUnitAvailable } from "@/lib/calendar/sync-thinkreservations";
 import { verifyBookingTurnstile } from "@/lib/security/turnstile";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -105,10 +106,19 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: turnstile.error }, { status: 403 });
     }
 
-    // Background polling keeps normal availability fresh. Every real booking
-    // attempt also refreshes all active inbound feeds immediately and fails
-    // closed before the canonical database lock is taken.
-    await refreshUnitCalendarsOrThrow(body.unitId);
+    // Refresh all connected inbound calendars first. ThinkReservations now
+    // reconciles both official inventory and blackout sources; neither source
+    // is allowed to clear the other by itself. Then verify the requested stay
+    // against Think's documented live availabilities endpoint before the hold.
+    await refreshUnitCalendarsOrThrow(body.unitId, {
+      startDate: body.checkIn,
+      endDate: body.checkOut,
+    });
+    await assertThinkReservationsUnitAvailable(
+      body.unitId,
+      body.checkIn,
+      body.checkOut,
+    );
 
     const admin = createAdminClient();
 
@@ -175,11 +185,10 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(
       {
-        error:
-          guestFacingBookingError(
-            error,
-            "Unable to create the booking hold. Refresh availability and try again.",
-          ),
+        error: guestFacingBookingError(
+          error,
+          "Unable to create the booking hold. Refresh availability and try again.",
+        ),
       },
       { status: 500 },
     );

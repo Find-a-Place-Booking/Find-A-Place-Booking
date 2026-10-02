@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import { reservationVerificationReadiness } from "@/lib/bookings/guest-verification";
+import { assertThinkReservationsUnitAvailable } from "@/lib/calendar/sync-thinkreservations";
 import { reservationPolicyReadiness } from "@/lib/policies/booking-policy";
 import {
   guestCheckoutTokenMatches,
@@ -54,7 +55,7 @@ export async function POST(request: NextRequest) {
     const { data: reservation, error: reservationError } = await admin
       .from("reservations")
       .select(
-        "id,confirmation_code,status,hold_expires_at,payment_status,guest_phone,guest_email_verified_at,stripe_identity_verification_session_id,identity_verification_status,identity_verified_at,guest_total_cents,tax_total_cents,platform_commission_cents,platform_tax_retained_cents,commission_rate_bps,currency,tax_status,payment_environment,payment_account_id,payment_provider,provider_account_ref",
+        "id,confirmation_code,unit_id,check_in,check_out,status,hold_expires_at,payment_status,guest_phone,guest_email_verified_at,stripe_identity_verification_session_id,identity_verification_status,identity_verified_at,guest_total_cents,tax_total_cents,platform_commission_cents,platform_tax_retained_cents,commission_rate_bps,currency,tax_status,payment_environment,payment_account_id,payment_provider,provider_account_ref",
       )
       .eq("id", reservationId)
       .single();
@@ -160,7 +161,9 @@ export async function POST(request: NextRequest) {
 
     const { data: account, error: accountError } = await admin
       .from("payment_accounts")
-      .select("id,status,environment,charges_enabled,provider_account_id,metadata")
+      .select(
+        "id,status,environment,charges_enabled,provider_account_id,metadata",
+      )
       .eq("id", reservation.payment_account_id)
       .single();
 
@@ -186,6 +189,16 @@ export async function POST(request: NextRequest) {
         { status: 409 },
       );
     }
+
+    // Re-check ThinkReservations immediately before creating or returning a
+    // Stripe PaymentIntent. This is a read-only fail-closed safety gate using
+    // the documented availabilities endpoint; no Think reservation is written.
+    await assertThinkReservationsUnitAvailable(
+      reservation.unit_id,
+      reservation.check_in,
+      reservation.check_out,
+      admin,
+    );
 
     const amountCents = Number(reservation.guest_total_cents);
     const commissionCents = Number(reservation.platform_commission_cents);

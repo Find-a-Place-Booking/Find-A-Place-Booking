@@ -1,0 +1,24 @@
+{
+  "name": "Find A Place Booking - ThinkReservations Current API Fix",
+  "built": "2026-10-01",
+  "base_branch": "main",
+  "base_commit_checked": "5fe2de1139e6c96df28ead6d675303bb882767b1",
+  "files": [
+    "lib/calendar/sync-thinkreservations.ts",
+    "lib/calendar/sync-ical.ts",
+    "app/api/booking/hold/route.ts",
+    "app/api/booking/payment-intent/route.ts"
+  ],
+  "database_migrations": [],
+  "new_required_secrets": [],
+  "optional_env": {
+    "THINK_SYNC_MODE": ["current_api", "current_api_shadow", "freeze_last_good"]
+  },
+  "think_endpoints": [
+    "/v1/hotels/{hotelId}/inventory",
+    "/v1/hotels/{hotelId}/blackouts",
+    "/v1/hotels/{hotelId}/availabilities"
+  ],
+  "write_access_to_thinkreservations": false,
+  "acceptance": "Dawn October 2026: 22/22 unavailable nights, expected open nights preserved"
+}

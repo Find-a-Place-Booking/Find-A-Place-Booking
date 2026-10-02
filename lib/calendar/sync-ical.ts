@@ -81,14 +81,20 @@ export async function syncIcalConnection(
       .select("property_id")
       .eq("id", connection.unit_id)
       .single();
-    if (unitError || !unit) throw new Error("Calendar property could not be loaded.");
+
+    if (unitError || !unit) {
+      throw new Error("Calendar property could not be loaded.");
+    }
 
     const { data: property, error: propertyError } = await admin
       .from("properties")
       .select("time_zone")
       .eq("id", unit.property_id)
       .single();
-    if (propertyError || !property) throw new Error("Calendar property timezone could not be loaded.");
+
+    if (propertyError || !property) {
+      throw new Error("Calendar property timezone could not be loaded.");
+    }
 
     const fetched = await fetchIcalFeed(connection.feed_url);
     const parsed = parseIcalAvailability(fetched.body, property.time_zone);
@@ -181,7 +187,10 @@ export async function runWithConcurrency<T, R>(
   return output;
 }
 
-export async function refreshUnitCalendarsOrThrow(unitId: string) {
+export async function refreshUnitCalendarsOrThrow(
+  unitId: string,
+  thinkWindow?: { startDate: string; endDate: string },
+) {
   const admin = createAdminClient();
 
   const [icalResult, pmsResult] = await Promise.all([
@@ -214,13 +223,17 @@ export async function refreshUnitCalendarsOrThrow(unitId: string) {
       syncIcalConnection(connection, admin),
     ),
     runWithConcurrency(pmsConnectionIds, 2, (connectionId) =>
-      syncThinkReservationsConnection(connectionId, admin),
+      syncThinkReservationsConnection(connectionId, admin, thinkWindow),
     ),
   ]);
 
-  const failure = [...icalSyncs, ...pmsSyncs].find((result) => !result.ok);
+  const allSyncs = [...icalSyncs, ...pmsSyncs] as Array<{
+    ok: boolean;
+    provider: string;
+  }>;
+  const failure = allSyncs.find((result) => !result.ok);
 
-  if (failure && !failure.ok) {
+  if (failure) {
     throw new Error(
       `We could not verify the ${failure.provider} availability source. Please try booking again in a moment.`,
     );
