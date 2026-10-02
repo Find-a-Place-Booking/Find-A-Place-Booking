@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import { reservationVerificationReadiness } from "@/lib/bookings/guest-verification";
-import { assertThinkReservationsUnitAvailable } from "@/lib/calendar/sync-thinkreservations";
+import { refreshUnitCalendarsOrThrow } from "@/lib/calendar/sync-ical";
 import { reservationPolicyReadiness } from "@/lib/policies/booking-policy";
 import {
   guestCheckoutTokenMatches,
@@ -15,9 +15,21 @@ import {
   createDirectPaymentIntent,
   retrievePaymentIntent,
 } from "@/lib/payments/stripe-checkout";
+import { syncStripePaymentAccount } from "@/lib/payments/sync-stripe-account";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export const runtime = "nodejs";
+
+function missingDatabaseFunction(
+  error: { code?: string; message?: string } | null,
+) {
+  if (!error) return false;
+  return (
+    error.code === "PGRST202" ||
+    error.code === "42883" ||
+    /could not find the function|does not exist/i.test(error.message || "")
+  );
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -175,9 +187,7 @@ export async function POST(request: NextRequest) {
     if (
       accountError ||
       !account ||
-      account.status !== "READY" ||
       account.environment !== environment ||
-      !account.charges_enabled ||
       accountMetadata.account_configuration !== "merchant" ||
       accountMetadata.charge_model !== "DIRECT" ||
       !account.provider_account_id ||
@@ -190,15 +200,142 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Re-check ThinkReservations immediately before creating or returning a
-    // Stripe PaymentIntent. This is a read-only fail-closed safety gate using
-    // the documented availabilities endpoint; no Think reservation is written.
-    await assertThinkReservationsUnitAvailable(
-      reservation.unit_id,
-      reservation.check_in,
-      reservation.check_out,
-      admin,
+    let syncedStripe;
+    try {
+      syncedStripe = await syncStripePaymentAccount(
+        admin,
+        account.id,
+        account.provider_account_id,
+      );
+    } catch (stripeSyncError) {
+      console.error(
+        "[booking payment-intent] Stripe readiness sync",
+        stripeSyncError,
+      );
+      return NextResponse.json(
+        {
+          error:
+            "The host payment account could not be verified. No payment was taken. Please try again shortly.",
+        },
+        { status: 409 },
+      );
+    }
+
+    if (
+      syncedStripe.status !== "READY" ||
+      !syncedStripe.chargesEnabled ||
+      !syncedStripe.payoutsEnabled
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "The host payment account is temporarily unavailable. No payment was taken.",
+        },
+        { status: 409 },
+      );
+    }
+
+    try {
+      await refreshUnitCalendarsOrThrow(
+        reservation.unit_id,
+        {
+          startDate: reservation.check_in,
+          endDate: reservation.check_out,
+        },
+      );
+    } catch (calendarError) {
+      return NextResponse.json(
+        {
+          error: guestFacingBookingError(
+            calendarError,
+            "We could not verify the connected calendar. No payment was taken. Please try again in a moment.",
+          ),
+        },
+        { status: 409 },
+      );
+    }
+
+    const { error: resNexusReadinessError } = await admin.rpc(
+      "service_assert_resnexus_unit_availability_ready",
+      {
+        target_unit_id: reservation.unit_id,
+        target_check_in: reservation.check_in,
+        target_check_out: reservation.check_out,
+      },
     );
+
+    if (
+      resNexusReadinessError &&
+      !missingDatabaseFunction(resNexusReadinessError)
+    ) {
+      return NextResponse.json(
+        {
+          error: guestFacingBookingError(
+            resNexusReadinessError,
+            "We could not verify the ResNexus calendar. No payment was taken. Please try again in a moment.",
+          ),
+        },
+        { status: 409 },
+      );
+    }
+
+    if (resNexusReadinessError) {
+      console.info(
+        "[booking payment-intent] dependency migration not visible yet; existing DB guard remains authoritative",
+      );
+    }
+
+    const { data: liveBlocks, error: liveBlockError } = await admin
+      .from("availability_blocks")
+      .select("block_type,reservation_id,expires_at")
+      .eq("unit_id", reservation.unit_id)
+      .eq("state", "ACTIVE")
+      .lt("start_date", reservation.check_out)
+      .gt("end_date", reservation.check_in);
+
+    if (liveBlockError) {
+      throw new Error(
+        "Unable to verify current availability before payment.",
+      );
+    }
+
+    const blockNow = Date.now();
+    const conflictingBlock = (liveBlocks ?? []).find(
+      (block: {
+        block_type: string;
+        reservation_id: string | null;
+        expires_at: string | null;
+      }) => {
+        if (
+          block.block_type === "INTERNAL_HOLD" &&
+          block.reservation_id === reservationId
+        ) {
+          return false;
+        }
+
+        if (
+          block.block_type === "INTERNAL_HOLD" &&
+          block.expires_at
+        ) {
+          const expiresAt = new Date(block.expires_at).getTime();
+          if (!Number.isNaN(expiresAt) && expiresAt <= blockNow) {
+            return false;
+          }
+        }
+
+        return true;
+      },
+    );
+
+    if (conflictingBlock) {
+      return NextResponse.json(
+        {
+          error:
+            "These dates changed while checkout was open. No payment was taken. Choose available dates and try again.",
+        },
+        { status: 409 },
+      );
+    }
 
     const amountCents = Number(reservation.guest_total_cents);
     const commissionCents = Number(reservation.platform_commission_cents);
@@ -254,6 +391,7 @@ export async function POST(request: NextRequest) {
           amountCents: Number(payment.amount_cents),
           applicationFeeCents: Number(payment.application_fee_cents),
           processorFeeRecoveryCents: 0,
+          holdExpiresAt: reservation.hold_expires_at,
         });
       }
 
@@ -356,6 +494,7 @@ export async function POST(request: NextRequest) {
         0,
         amountCents - applicationFeeCents,
       ),
+      holdExpiresAt: extendedHold,
     });
   } catch (error) {
     console.error("[booking payment-intent]", error);

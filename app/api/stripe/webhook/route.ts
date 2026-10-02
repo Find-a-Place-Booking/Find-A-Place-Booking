@@ -16,6 +16,7 @@ import {
   sendRefundNotifications,
 } from "@/lib/notifications/operational-emails";
 import { stripeEnvironment } from "@/lib/payments/booking-runtime";
+import { syncStripePaymentAccount } from "@/lib/payments/sync-stripe-account";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export const runtime = "nodejs";
@@ -154,6 +155,47 @@ export async function POST(request: NextRequest) {
   }
 
   try {
+    if (
+      event.type === "account.updated" ||
+      event.type === "capability.updated"
+    ) {
+      if (!eventAccount) {
+        await markProcessorEvent(admin, event.id, "IGNORED");
+        return NextResponse.json({ received: true, ignored: true });
+      }
+
+      const { data: localAccounts, error: accountLookupError } = await admin
+        .from("payment_accounts")
+        .select("id,provider_account_id")
+        .eq("provider", "STRIPE")
+        .eq("environment", environment)
+        .eq("provider_account_id", eventAccount)
+        .neq("status", "DISABLED");
+
+      if (accountLookupError) {
+        throw new Error(
+          "Unable to locate the connected Stripe payment account.",
+        );
+      }
+
+      if (!localAccounts?.length) {
+        await markProcessorEvent(admin, event.id, "IGNORED");
+        return NextResponse.json({ received: true, ignored: true });
+      }
+
+      for (const localAccount of localAccounts) {
+        if (!localAccount.provider_account_id) continue;
+        await syncStripePaymentAccount(
+          admin,
+          localAccount.id,
+          localAccount.provider_account_id,
+        );
+      }
+
+      await markProcessorEvent(admin, event.id, "PROCESSED");
+      return NextResponse.json({ received: true });
+    }
+
     if (event.type === "payment_intent.succeeded") {
       const intent = event.data.object as Stripe.PaymentIntent;
       const reservationId = intent.metadata?.reservation_id;

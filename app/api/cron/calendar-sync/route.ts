@@ -56,6 +56,17 @@ export async function GET(request: NextRequest) {
 
   const admin = createAdminClient();
 
+  const { data: expiredHolds, error: holdCleanupError } = await admin.rpc(
+    "service_expire_abandoned_holds",
+  );
+
+  if (holdCleanupError) {
+    console.error("[calendar cron] expired hold cleanup failed", {
+      code: holdCleanupError.code,
+      message: holdCleanupError.message,
+    });
+  }
+
   const [icalLookup, pmsLookup] = await Promise.all([
     admin
       .from("calendar_connections")
@@ -128,6 +139,7 @@ export async function GET(request: NextRequest) {
       due: 0,
       synced: 0,
       failed: 0,
+      expiredHolds: Number(expiredHolds || 0),
     });
   }
 
@@ -150,6 +162,7 @@ export async function GET(request: NextRequest) {
     due: tasks.length,
     synced: succeeded,
     failed: results.length - succeeded,
+    expiredHolds: Number(expiredHolds || 0),
     results,
   });
 }

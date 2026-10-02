@@ -89,10 +89,12 @@ export function BookingConfirmation({
 
       if (
         payload.confirmationCode === confirmationCode &&
-        payload.status !== "CONFIRMED" &&
-        attempts < 30
+        ["HOLD", "PAYMENT_PENDING"].includes(payload.status)
       ) {
-        timer = window.setTimeout(load, 1000);
+        timer = window.setTimeout(
+          load,
+          attempts < 30 ? 1000 : 5000,
+        );
       }
     }
 
@@ -135,6 +137,21 @@ export function BookingConfirmation({
     return (
       <div className={styles.errorState}>
         <h1>This confirmation does not match the reservation.</h1>
+      </div>
+    );
+  }
+
+  if (
+    ["EXPIRED", "PAYMENT_FAILED", "CANCELLED"].includes(booking.status)
+  ) {
+    return (
+      <div className={styles.errorState}>
+        <p className="eyebrow dark">Booking status</p>
+        <h1>This reservation is not awaiting confirmation.</h1>
+        <p>
+          Reservation status: {booking.status.replaceAll("_", " ").toLowerCase()}.
+          Payment status: {booking.paymentStatus.replaceAll("_", " ").toLowerCase()}.
+        </p>
       </div>
     );
   }

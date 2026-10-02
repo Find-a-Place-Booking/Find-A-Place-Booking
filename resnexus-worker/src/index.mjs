@@ -14,6 +14,10 @@ import {
   readResNexusAccountAvailability,
   UnsafeExtractionError,
 } from "./resnexus.mjs";
+import {
+  SnapshotVerificationError,
+  verifyResNexusSnapshot,
+} from "./snapshot-verifier.mjs";
 
 const supabaseUrl = process.env.SUPABASE_URL?.trim();
 const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
@@ -171,7 +175,8 @@ async function markFailure(
   const needsAttention = error instanceof NeedsAttentionError;
   const diagnostic =
     error instanceof NeedsAttentionError ||
-    error instanceof UnsafeExtractionError
+    error instanceof UnsafeExtractionError ||
+    error instanceof SnapshotVerificationError
       ? error.diagnostic || {}
       : {};
 
@@ -229,12 +234,24 @@ async function processAccount(account) {
       JSON.stringify(await context.storageState()),
     );
 
-    const snapshot = await readResNexusAccountAvailability({
+    const rawSnapshot = await readResNexusAccountAvailability({
       context,
       page,
       lookbackDays,
       lookaheadDays,
       maxCalendarPages,
+    });
+
+    // The legacy ResNexus list/detail bridge can encounter rows containing
+    // created/modified/payment dates alongside stay dates, and some detail
+    // pages contain a full room dropdown. Before any availability is written,
+    // re-open reservation records and prove the selected room/site plus the
+    // actual stay range. This corrects bad list-row dates and prevents a room
+    // name merely appearing in a dropdown from being treated as the booking's
+    // assigned room.
+    const snapshot = await verifyResNexusSnapshot({
+      context,
+      snapshot: rawSnapshot,
     });
 
     const { data, error } = await supabase.rpc(
@@ -345,7 +362,7 @@ const server = http.createServer((request, response) => {
     response.end(
       JSON.stringify({
         ok: true,
-        mode: "resnexus-account-mapping-v2",
+        mode: "resnexus-account-mapping-v3-detail-proof",
         workerId,
         lastLoopAt,
         lastSuccessAt,
@@ -381,7 +398,7 @@ async function shutdown(signal) {
 process.on("SIGTERM", () => void shutdown("SIGTERM"));
 process.on("SIGINT", () => void shutdown("SIGINT"));
 
-console.log("[resnexus worker] starting account-mapping v2", {
+console.log("[resnexus worker] starting account-mapping v3 detail-proof", {
   workerId,
   pollSeconds,
   leaseSeconds,

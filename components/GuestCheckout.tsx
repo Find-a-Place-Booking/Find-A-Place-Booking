@@ -115,6 +115,13 @@ function persistCheckoutInUrl(
   window.history.replaceState({}, "", url.toString());
 }
 
+function clearCheckoutFromUrl() {
+  const url = new URL(window.location.href);
+  url.searchParams.delete("reservationId");
+  url.searchParams.delete("checkoutToken");
+  window.history.replaceState({}, "", url.toString());
+}
+
 function confirmedUrl(
   reservationId: string,
   checkoutToken: string,
@@ -238,6 +245,22 @@ export function GuestCheckout({
     setTurnstileToken(token);
   }, []);
 
+  const resetExpiredCheckout = useCallback((message?: string) => {
+    clearCheckoutFromUrl();
+    setHold(null);
+    setClientSecret(null);
+    setPaymentStripePromise(null);
+    setVerificationComplete(false);
+    setPolicyComplete(false);
+    setHoldSecondsLeft(null);
+    setTurnstileToken("");
+    setTurnstileReset((value) => value + 1);
+    setError(
+      message ||
+        "Your hold expired. Your details are still here—confirm the dates and continue again.",
+    );
+  }, []);
+
   useEffect(() => {
     // Keep the platform Stripe.js instance available for the optional
     // identity-verification feature. With the default feature flag off,
@@ -276,9 +299,20 @@ export function GuestCheckout({
       }
 
       if (!paymentResponse.ok) {
-        throw new Error(
-          paymentPayload.error || "Unable to start Stripe payment.",
-        );
+        const paymentErrorMessage =
+          paymentPayload.error || "Unable to start Stripe payment.";
+
+        if (
+          paymentResponse.status === 409 &&
+          /hold expired|dates changed/i.test(paymentErrorMessage)
+        ) {
+          resetExpiredCheckout(
+            `${paymentErrorMessage} Your contact details and selections are still here.`,
+          );
+          return;
+        }
+
+        throw new Error(paymentErrorMessage);
       }
 
       if (paymentPayload.paymentIntentStatus === "succeeded") {
@@ -294,6 +328,17 @@ export function GuestCheckout({
 
       if (!paymentPayload.clientSecret || !paymentPayload.connectedAccountId) {
         throw new Error("Stripe payment session is unavailable.");
+      }
+
+      if (paymentPayload.holdExpiresAt) {
+        setHold((current) =>
+          current?.reservationId === targetHold.reservationId
+            ? {
+                ...current,
+                holdExpiresAt: paymentPayload.holdExpiresAt,
+              }
+            : current,
+        );
       }
 
       // Direct-charge PaymentIntents live on the host's connected Stripe
@@ -313,7 +358,7 @@ export function GuestCheckout({
     } finally {
       setBusy(false);
     }
-  }, [publishableKey]);
+  }, [publishableKey, resetExpiredCheckout]);
 
   useEffect(() => {
     if (!initialReservationId || !initialCheckoutToken) return;
@@ -352,6 +397,19 @@ export function GuestCheckout({
               status.confirmationCode,
             ),
           );
+          return;
+        }
+
+        if (
+          status.status === "EXPIRED" ||
+          (status.holdExpiresAt &&
+            new Date(status.holdExpiresAt).getTime() <= Date.now())
+        ) {
+          if (!cancelled) {
+            resetExpiredCheckout(
+              "That checkout hold expired. No payment was taken. Recheck the dates and continue when you are ready.",
+            );
+          }
           return;
         }
 
@@ -394,7 +452,11 @@ export function GuestCheckout({
     return () => {
       cancelled = true;
     };
-  }, [initialReservationId, initialCheckoutToken]);
+  }, [
+    initialReservationId,
+    initialCheckoutToken,
+    resetExpiredCheckout,
+  ]);
 
 
   useEffect(() => {
@@ -508,6 +570,12 @@ export function GuestCheckout({
 
   async function retryHeldPayment() {
     if (!hold) return;
+
+    if (holdSecondsLeft === 0) {
+      resetExpiredCheckout();
+      return;
+    }
+
     setVerificationComplete(true);
     setPolicyComplete(true);
     await startPayment(hold);
@@ -564,7 +632,21 @@ export function GuestCheckout({
               ) : null}
             </div>
 
-            {!verificationComplete && identityStripePromise ? (
+            {holdSecondsLeft === 0 ? (
+              <div className={styles.error}>
+                <p>
+                  This checkout hold expired. No payment was taken. Your
+                  contact details and selections are still here.
+                </p>
+                <button
+                  className="button button-full"
+                  type="button"
+                  onClick={() => resetExpiredCheckout()}
+                >
+                  Recheck dates and continue
+                </button>
+              </div>
+            ) : !verificationComplete && identityStripePromise ? (
               <GuestVerification
                 reservationId={hold.reservationId}
                 checkoutToken={hold.checkoutToken}

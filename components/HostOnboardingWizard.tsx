@@ -282,17 +282,14 @@ export function HostOnboardingWizard({
     }
 
     if (
-      step === 6 &&
-      form.taxResponsibilityAccepted !== "true"
-    ) {
-      return "Review the property tax setup and confirm the host tax responsibility before continuing.";
-    }
-
-    if (
       step === 7 &&
       form.cancellation.trim().length < 20
     ) {
       return "Add specific guest-facing cancellation/refund terms before continuing.";
+    }
+
+    if (step === 8 && form.calendarPreference === "UNSET") {
+      return "Choose how this property will manage availability before continuing.";
     }
 
     if (step === 9 && !stripeReady) {
@@ -397,14 +394,13 @@ export function HostOnboardingWizard({
       !positiveNumber(form.maxGuests) && "maximum guests",
       !positiveNumber(form.weeknight) && "weeknight rate",
       photoNames.length < 1 && "at least one property photo",
-      form.taxResponsibilityAccepted !== "true" &&
-        "property tax responsibility confirmation",
+      form.calendarPreference === "UNSET" && "availability source",
       form.cancellation.trim().length < 20 &&
         "specific cancellation / refund terms",
       positiveNumber(form.extraGuest) &&
         !positiveNumber(form.includedGuests) &&
         "guests included in the nightly rate",
-      !stripeReady && "completed Stripe Connect",
+      !stripeReady && "connected Stripe account",
       !authorityConfirmed && "authority confirmation",
       !initial.policyAccepted &&
         "Find A Place Host Agreement and policy acceptance",
@@ -424,7 +420,7 @@ export function HostOnboardingWizard({
     setSaveState({
       tone: "saving",
       message:
-        "Finalizing the listing, taxes, photos, payment connection and property record…",
+        "Finalizing the listing, photos, payment connection and property record…",
     });
 
     try {
@@ -994,13 +990,13 @@ export function HostOnboardingWizard({
           <>
             <p className="eyebrow dark">Property taxes</p>
             <h2>
-              Confirm the taxes that apply to {propertyLabel}.
+              Choose whether Find A Place should calculate tax at checkout.
             </h2>
             <p>
-              The setup follows the property's state. Find A Place
-              automatically applies the active statewide rules for
-              supported states, while the host enters and confirms
-              the local taxes for this property.
+              This step is optional. Configure it if you want Find A Place to
+              add the supported state and local taxes to the guest total. If
+              you skip it, checkout adds $0 tax and you handle the applicable
+              tax calculation, filing and remittance yourself.
             </p>
 
             <OnboardingTaxSetup
@@ -1222,10 +1218,11 @@ export function HostOnboardingWizard({
               Choose the source of truth for availability.
             </h2>
             <p>
-              Save the preferred calendar approach here. Calendar
-              connections can be added after the listing is created;
-              your choice here is carried into the real property
-              record.
+              Save the preferred calendar approach here. If you choose
+              iCal or a PMS, the listing can be created now but it will
+              stay draft until that source has completed its first
+              successful sync. Manual Find A Place calendars do not need
+              an external connection.
             </p>
             <div className="calendar-preference-grid">
               {calendarPreferences.map((option) => (
@@ -1318,15 +1315,17 @@ export function HostOnboardingWizard({
                 <span>Property taxes</span>
                 <strong>
                   {form.taxResponsibilityAccepted === "true"
-                    ? "Configured"
-                    : "Required"}
+                    ? "Configured for checkout"
+                    : "Optional / host self-remits"}
                 </strong>
                 <small>
-                  {taxSetup.name} · statewide rules automatic ·{" "}
-                  {configuredLocalTaxLines} local tax{" "}
-                  {configuredLocalTaxLines === 1
-                    ? "line"
-                    : "lines"}
+                  {form.taxResponsibilityAccepted === "true"
+                    ? taxSetup.name +
+                      " · statewide rules automatic · " +
+                      configuredLocalTaxLines +
+                      " local tax " +
+                      (configuredLocalTaxLines === 1 ? "line" : "lines")
+                    : "No checkout tax configuration selected. The host remains responsible for filing/remitting applicable taxes."}
                 </small>
               </div>
 
@@ -1377,9 +1376,10 @@ export function HostOnboardingWizard({
               </strong>
               <span>
                 The completion check verifies required listing data,
-                at least one real photo, the host-certified tax setup,
-                Stripe charge/payout readiness and the host policy
-                acceptance before publication is attempted.
+                at least one real photo, the Stripe connection and the
+                host policy acceptance before publication is attempted.
+                Tax setup is optional; without it, Find A Place adds $0
+                tax at checkout and the host self-remits.
               </span>
             </div>
 
@@ -1397,8 +1397,7 @@ export function HostOnboardingWizard({
               <span>
                 I confirm that I have authority to manage/list the
                 property information entered here and that the host
-                information, property policies and tax setup are
-                accurate.
+                information and property policies are accurate.
               </span>
             </label>
           </>
@@ -1454,7 +1453,7 @@ export function HostOnboardingWizard({
       <aside className="onboarding-plan">
         <small>Find A Place host setup</small>
         <strong>Complete once</strong>
-        <span>listing + taxes + payments</span>
+        <span>listing + optional taxes + payments</span>
         <hr />
         <p>
           The first listing is built to be booking-ready here instead
@@ -1463,7 +1462,7 @@ export function HostOnboardingWizard({
         </p>
         <div className="plan-points">
           <span>✓ Real listing photos saved now</span>
-          <span>✓ Property tax setup confirmed now</span>
+          <span>✓ Property tax setup is optional</span>
           <span>✓ Stripe Connect completed now</span>
           <span>✓ Host-owned direct payments</span>
           <span>✓ Listing data carries into the property record</span>

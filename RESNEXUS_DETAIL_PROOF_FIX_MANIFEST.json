@@ -1,0 +1,23 @@
+{
+  "name": "Find A Place Booking - ResNexus Detail Proof Fix",
+  "built": "2026-10-02",
+  "files": [
+    "resnexus-worker/src/index.mjs",
+    "resnexus-worker/src/snapshot-verifier.mjs"
+  ],
+  "database_migrations": [],
+  "new_required_env": [],
+  "worker_mode": "resnexus-account-mapping-v3-detail-proof",
+  "production_findings": {
+    "lil_rustic_sync_status": "ERROR",
+    "whitetail_sync_status": "ERROR",
+    "current_error": "Ambiguous ResNexus reservation cannot change availability until it resolves to one exact room/site",
+    "bad_example": "Lil' Rustic RESNEXUS:12236 was stored as 2026-08-21 through 2027-01-03"
+  },
+  "verification": [
+    "node --check index.mjs passed",
+    "node --check snapshot-verifier.mjs passed",
+    "synthetic bad long-span correction passed",
+    "synthetic ambiguous multi-resource collapse passed"
+  ]
+}

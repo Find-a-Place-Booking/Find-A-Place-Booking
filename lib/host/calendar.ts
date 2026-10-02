@@ -18,7 +18,7 @@ export type CalendarConnectionRecord = {
   id: string;
   unit_id: string;
   provider: string;
-  connection_kind: "ICAL" | "PMS_API";
+  connection_kind: "ICAL" | "PMS_API" | "BROWSER_WORKER";
   label: string;
   feed_url: string | null;
   is_active: boolean;
@@ -33,10 +33,26 @@ export type CalendarConnectionRecord = {
   activeBlockCount: number;
 };
 
+export type CalendarReservationSummary = {
+  id: string;
+  confirmation_code: string;
+  guest_name: string;
+  guest_email: string | null;
+  guest_phone: string | null;
+  guest_count: number;
+  pet_count: number;
+  status: string;
+  payment_status: string;
+  check_in: string;
+  check_out: string;
+};
+
 export type AvailabilityBlockRecord = {
   id: string;
   unit_id: string;
   connection_id: string | null;
+  reservation_id: string | null;
+  reservation?: CalendarReservationSummary | null;
   block_type: "OWNER_BLOCK" | "EXTERNAL_BLOCK" | "INTERNAL_HOLD" | "INTERNAL_RESERVATION";
   state: "ACTIVE" | "CANCELLED";
   start_date: string;
@@ -270,7 +286,7 @@ export async function getCalendarWorkspace(input: { unitId?: string; month?: str
       .order("created_at", { ascending: true }),
     supabase
       .from("availability_blocks")
-      .select("id,unit_id,connection_id,block_type,state,start_date,end_date,label,expires_at,updated_at")
+      .select("id,unit_id,connection_id,reservation_id,block_type,state,start_date,end_date,label,expires_at,updated_at")
       .eq("unit_id", selected.unitId)
       .eq("state", "ACTIVE")
       .lt("start_date", window.gridEndExclusive)
@@ -315,13 +331,49 @@ export async function getCalendarWorkspace(input: { unitId?: string; month?: str
     console.error("[resolve_unit_pricing_days calendar]", { code: pricingResult.error.code, message: pricingResult.error.message });
   }
 
+  const rawBlocks = (blockResult.data ?? []) as AvailabilityBlockRecord[];
+  const reservationIds = [
+    ...new Set(
+      rawBlocks
+        .filter((block) => block.block_type === "INTERNAL_RESERVATION")
+        .map((block) => block.reservation_id)
+        .filter((value): value is string => Boolean(value)),
+    ),
+  ];
+  const reservationById = new Map<string, CalendarReservationSummary>();
+
+  if (reservationIds.length) {
+    const { data: reservationData, error: reservationError } = await supabase
+      .from("reservations")
+      .select(
+        "id,confirmation_code,guest_name,guest_email,guest_phone,guest_count,pet_count,status,payment_status,check_in,check_out",
+      )
+      .in("id", reservationIds);
+
+    if (reservationError) {
+      console.error("[getCalendarWorkspace reservation details]", {
+        code: reservationError.code,
+        message: reservationError.message,
+      });
+    } else {
+      for (const reservation of (reservationData ?? []) as CalendarReservationSummary[]) {
+        reservationById.set(reservation.id, reservation);
+      }
+    }
+  }
+
   return {
     targets,
     selected,
     month,
     ...window,
     connections,
-    blocks: (blockResult.data ?? []) as AvailabilityBlockRecord[],
+    blocks: rawBlocks.map((block) => ({
+      ...block,
+      reservation: block.reservation_id
+        ? reservationById.get(block.reservation_id) ?? null
+        : null,
+    })),
     exportTokens: (exportResult.data ?? []) as CalendarExportTokenRecord[],
     pricingDays: pricingResult.error ? [] : ((pricingResult.data ?? []) as CalendarPricingDay[]),
   };

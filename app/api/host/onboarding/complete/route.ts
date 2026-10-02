@@ -6,6 +6,7 @@ import {
   sameOrigin,
   stripeEnvironment,
 } from "@/lib/payments/booking-runtime";
+import { syncStripePaymentAccount } from "@/lib/payments/sync-stripe-account";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
@@ -146,75 +147,59 @@ export async function POST(request: NextRequest) {
       2,
     ).toUpperCase();
 
-    if (!SUPPORTED_TAX_STATES.has(propertyState)) {
-      return NextResponse.json(
-        {
-          error:
-            "This property's state does not have a live statewide tax setup yet. Contact Find A Place before publishing it.",
-          code: "TAX_STATE_NOT_READY",
-        },
-        { status: 409 },
-      );
-    }
+    const taxSetupRequested =
+      form.taxResponsibilityAccepted === "true" &&
+      SUPPORTED_TAX_STATES.has(propertyState);
 
-    if (form.taxResponsibilityAccepted !== "true") {
-      return NextResponse.json(
-        {
-          error:
-            "Review and confirm the property tax setup before finishing onboarding.",
-          code: "TAX_SETUP_REQUIRED",
-        },
-        { status: 409 },
-      );
-    }
+    if (taxSetupRequested) {
+      let taxLines;
+      try {
+        taxLines = parseOnboardingTaxLines(
+          form.taxLinesJson,
+        );
+      } catch (taxParseError) {
+        return NextResponse.json(
+          {
+            error:
+              taxParseError instanceof Error
+                ? taxParseError.message
+                : "The property tax setup is invalid.",
+            code: "TAX_SETUP_INVALID",
+          },
+          { status: 409 },
+        );
+      }
 
-    let taxLines;
-    try {
-      taxLines = parseOnboardingTaxLines(
-        form.taxLinesJson,
-      );
-    } catch (taxParseError) {
-      return NextResponse.json(
+      const { error: taxSetupError } = await supabase.rpc(
+        "host_save_property_tax_configuration_v2",
         {
-          error:
-            taxParseError instanceof Error
-              ? taxParseError.message
-              : "The property tax setup is invalid.",
-          code: "TAX_SETUP_INVALID",
+          target_property_id: prepared.property_id,
+          county_name_value:
+            cleanText(form.taxCounty, 120) || null,
+          locality_name_value:
+            cleanText(form.taxLocality, 120) ||
+            cleanText(form.city, 120) ||
+            null,
+          tax_lines_value: taxLines,
+          responsibility_ack_value: true,
         },
-        { status: 409 },
       );
-    }
 
-    const { error: taxSetupError } = await supabase.rpc(
-      "host_save_property_tax_configuration_v2",
-      {
-        target_property_id: prepared.property_id,
-        county_name_value:
-          cleanText(form.taxCounty, 120) || null,
-        locality_name_value:
-          cleanText(form.taxLocality, 120) ||
-          cleanText(form.city, 120) ||
-          null,
-        tax_lines_value: taxLines,
-        responsibility_ack_value: true,
-      },
-    );
-
-    if (taxSetupError) {
-      console.error(
-        "[complete host onboarding] tax setup",
-        taxSetupError,
-      );
-      return NextResponse.json(
-        {
-          error:
-            taxSetupError.message ||
-            "Unable to save the property tax setup.",
-          code: "TAX_SETUP_FAILED",
-        },
-        { status: 409 },
-      );
+      if (taxSetupError) {
+        console.error(
+          "[complete host onboarding] tax setup",
+          taxSetupError,
+        );
+        return NextResponse.json(
+          {
+            error:
+              taxSetupError.message ||
+              "Unable to save the property tax setup.",
+            code: "TAX_SETUP_FAILED",
+          },
+          { status: 409 },
+        );
+      }
     }
 
     const admin = createAdminClient();
@@ -257,7 +242,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (!stripeAccount) {
+    if (!stripeAccount?.provider_account_id) {
       return NextResponse.json(
         {
           error:
@@ -268,10 +253,33 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const stripeReady =
+    let stripeReady =
       stripeAccount.status === "READY" &&
       Boolean(stripeAccount.charges_enabled) &&
       Boolean(stripeAccount.payouts_enabled);
+    let stripeSyncIssue: string | null = null;
+
+    try {
+      const syncedStripe = await syncStripePaymentAccount(
+        admin,
+        stripeAccount.id,
+        stripeAccount.provider_account_id,
+      );
+      stripeReady =
+        syncedStripe.status === "READY" &&
+        syncedStripe.chargesEnabled &&
+        syncedStripe.payoutsEnabled;
+    } catch (stripeSyncError) {
+      stripeReady = false;
+      stripeSyncIssue =
+        stripeSyncError instanceof Error
+          ? stripeSyncError.message
+          : "Stripe readiness could not be verified.";
+      console.error(
+        "[complete host onboarding] Stripe sync",
+        stripeSyncError,
+      );
+    }
 
     if (imageResult.error) {
       console.error(
@@ -355,8 +363,9 @@ export async function POST(request: NextRequest) {
     let publicationMessage: string | null = null;
 
     if (!stripeReady) {
-      publicationMessage =
-        "Stripe is connected, but Stripe still needs information before this listing can be published. Finish the remaining Stripe requirements from Payments & taxes.";
+      publicationMessage = stripeSyncIssue
+        ? "Host setup is complete and the listing is saved as a draft. Stripe readiness could not be verified yet; open Payments & taxes before publishing."
+        : "Stripe is connected, but Stripe still needs information before this listing can be published. Finish the remaining Stripe requirements from Payments & taxes.";
     } else {
       const { error: publicationError } =
         await supabase.rpc("host_publish_property", {

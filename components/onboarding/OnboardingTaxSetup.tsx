@@ -165,11 +165,12 @@ export function OnboardingTaxSetup({
   return (
     <div className={styles.taxStep}>
       <div className={styles.stateCard}>
-        <span>{config.name} property</span>
-        <strong>Statewide rules are handled automatically.</strong>
+        <span>{config.name} property · optional checkout tax setup</span>
+        <strong>Set this up only if you want Find A Place to add tax at checkout.</strong>
         <p>
-          {config.intro} You only need to enter the local taxes that
-          apply to this specific property.
+          {config.intro} If you skip this step, Find A Place adds $0 tax to
+          checkout and you remain responsible for calculating, filing and
+          remitting any taxes that apply to the property.
         </p>
       </div>
 
@@ -328,10 +329,10 @@ export function OnboardingTaxSetup({
           }
         />
         <span>
-          I confirm that this tax setup is accurate for this property.
-          I understand that guest tax funds remain in my connected
-          payment account and that I am responsible for the applicable
-          filing and remittance obligations.
+          Use this tax setup at checkout. I confirm that it is accurate for
+          this property and understand that guest tax funds remain in my
+          connected payment account and that I am responsible for filing and
+          remittance obligations.
         </span>
       </label>
     </div>

@@ -103,6 +103,14 @@ function providerTone(provider: string) {
   }
 }
 
+function connectionMethodLabel(
+  kind: CalendarConnectionRecord["connection_kind"],
+) {
+  if (kind === "PMS_API") return "API";
+  if (kind === "BROWSER_WORKER") return "browser sync";
+  return "iCal";
+}
+
 function blockTone(
   block: AvailabilityBlockRecord,
   connections: Map<string, CalendarConnectionRecord>,
@@ -461,12 +469,41 @@ export function HostCalendarBoard({
                               {displayDate(block.start_date)} →{" "}
                               {displayDate(block.end_date)} checkout
                             </span>
+                            {block.block_type === "INTERNAL_RESERVATION" &&
+                            block.reservation ? (
+                              <>
+                                <small>
+                                  {block.reservation.guest_name} ·{" "}
+                                  {block.reservation.confirmation_code} ·{" "}
+                                  {block.reservation.guest_count} guest
+                                  {block.reservation.guest_count === 1 ? "" : "s"}
+                                  {block.reservation.pet_count
+                                    ? ` · ${block.reservation.pet_count} pet${block.reservation.pet_count === 1 ? "" : "s"}`
+                                    : ""}
+                                </small>
+                                <small>
+                                  {block.reservation.status
+                                    .replaceAll("_", " ")
+                                    .toLowerCase()} · payment{" "}
+                                  {block.reservation.payment_status
+                                    .replaceAll("_", " ")
+                                    .toLowerCase()}
+                                </small>
+                                <small>
+                                  {block.reservation.guest_email || "No email"} ·{" "}
+                                  {block.reservation.guest_phone || "No phone"}
+                                </small>
+                                <Link href={`/host/reservations/${block.reservation.id}`}>
+                                  Open reservation →
+                                </Link>
+                              </>
+                            ) : null}
                             {connection ? (
                               <small>
                                 {providerLabel(connection.provider)} ·{" "}
-                                {connection.connection_kind === "PMS_API"
-                                  ? "API"
-                                  : "iCal"}{" "}
+                                {connectionMethodLabel(
+                                  connection.connection_kind,
+                                )}{" "}
                                 ·{" "}
                                 {connection.sync_status
                                   .replaceAll("_", " ")

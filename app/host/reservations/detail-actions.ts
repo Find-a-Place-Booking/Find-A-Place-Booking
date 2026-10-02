@@ -6,6 +6,7 @@ import { redirect } from "next/navigation";
 import {
   sendCancellationDecisionNotification,
 } from "@/lib/notifications/cancellation-request-emails";
+import { refreshUnitCalendarsOrThrow } from "@/lib/calendar/sync-ical";
 import { sendChangeDecisionNotification } from "@/lib/notifications/change-request-emails";
 import { sendReservationMessageNotification } from "@/lib/notifications/message-emails";
 import { sendRefundNotifications } from "@/lib/notifications/operational-emails";
@@ -13,6 +14,15 @@ import { stripeEnvironment } from "@/lib/payments/booking-runtime";
 import { createConnectedRefund } from "@/lib/payments/stripe-checkout";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
+
+function missingDatabaseFunction(error: { code?: string; message?: string } | null) {
+  if (!error) return false;
+  return (
+    error.code === "PGRST202" ||
+    error.code === "42883" ||
+    /could not find the function|does not exist/i.test(error.message || "")
+  );
+}
 
 function field(formData: FormData, key: string, max = 4000) {
   return String(formData.get(key) ?? "").trim().slice(0, max);
@@ -776,7 +786,7 @@ export async function applyChangeRequest(formData: FormData) {
     await Promise.all([
       supabase
         .from("reservations")
-        .select("id,status,guest_count,pet_count")
+        .select("id,status,unit_id,guest_count,pet_count")
         .eq("id", reservationId)
         .maybeSingle(),
       supabase
@@ -822,6 +832,48 @@ export async function applyChangeRequest(formData: FormData) {
     : `The host approved and applied this change. ${summary}`;
 
   const admin = createAdminClient();
+
+  try {
+    await refreshUnitCalendarsOrThrow(
+      reservation.unit_id,
+      { startDate: checkIn, endDate: checkOut },
+    );
+  } catch (calendarError) {
+    redirect(
+      `/host/reservations/${reservationId}/change/${requestId}?error=${encodeURIComponent(
+        calendarError instanceof Error
+          ? calendarError.message
+          : "The connected calendar could not be verified. Try again in a moment.",
+      )}`,
+    );
+  }
+
+  const { error: resNexusReadinessError } = await admin.rpc(
+    "service_assert_resnexus_unit_availability_ready",
+    {
+      target_unit_id: reservation.unit_id,
+      target_check_in: checkIn,
+      target_check_out: checkOut,
+    },
+  );
+
+  if (
+    resNexusReadinessError &&
+    !missingDatabaseFunction(resNexusReadinessError)
+  ) {
+    redirect(
+      `/host/reservations/${reservationId}/change/${requestId}?error=${encodeURIComponent(
+        resNexusReadinessError.message ||
+          "ResNexus availability could not be verified. Try again in a moment.",
+      )}`,
+    );
+  }
+
+  if (resNexusReadinessError) {
+    console.info(
+      "[apply change request] dependency migration not visible yet; existing reservation guard remains authoritative",
+    );
+  }
 
   const { data, error } = await admin.rpc(
     "apply_host_reservation_change",

@@ -20,6 +20,15 @@ function addDays(value: string, days: number) {
   return date.toISOString().slice(0, 10);
 }
 
+function missingDatabaseFunction(error: { code?: string; message?: string } | null) {
+  if (!error) return false;
+  return (
+    error.code === "PGRST202" ||
+    error.code === "42883" ||
+    /could not find the function|does not exist/i.test(error.message || "")
+  );
+}
+
 export async function GET(request: NextRequest) {
   try {
     const unitId = request.nextUrl.searchParams.get("unitId")?.trim() || "";
@@ -72,6 +81,60 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Stay not found." }, { status: 404 });
     }
 
+    const { data: resNexusState, error: resNexusStateError } = await admin.rpc(
+      "service_resnexus_unit_calendar_state",
+      {
+        target_unit_id: unitId,
+        target_check_in: from,
+        target_check_out: to,
+      },
+    );
+
+    if (
+      resNexusStateError &&
+      !missingDatabaseFunction(resNexusStateError)
+    ) {
+      console.error("[public availability] ResNexus state failed", {
+        code: resNexusStateError.code,
+        message: resNexusStateError.message,
+      });
+      return NextResponse.json(
+        { error: "Unable to verify connected calendar availability." },
+        { status: 503 },
+      );
+    }
+
+    if (resNexusStateError) {
+      console.info(
+        "[public availability] dependency migration not visible yet; using existing availability blocks",
+      );
+    }
+
+    const resNexus =
+      !resNexusStateError &&
+      resNexusState && typeof resNexusState === "object"
+        ? (resNexusState as {
+            has_resnexus?: boolean;
+            ready?: boolean;
+            reason?: string | null;
+            unresolved_ranges?: Array<{ start: string; end: string }>;
+          })
+        : null;
+
+    if (resNexus?.has_resnexus && resNexus.ready === false) {
+      return NextResponse.json(
+        {
+          error:
+            resNexus.reason ||
+            "This connected calendar is temporarily unavailable. Please try again shortly.",
+        },
+        {
+          status: 503,
+          headers: { "Cache-Control": "private, no-store, max-age=0" },
+        },
+      );
+    }
+
     const { data: rows, error } = await admin
       .from("availability_blocks")
       .select("start_date,end_date,block_type,expires_at")
@@ -109,6 +172,12 @@ export async function GET(request: NextRequest) {
         start: row.start_date,
         end: row.end_date,
       }));
+
+    for (const range of resNexus?.unresolved_ranges ?? []) {
+      if (range?.start && range?.end) {
+        blockedRanges.push({ start: range.start, end: range.end });
+      }
+    }
 
     return NextResponse.json(
       {
