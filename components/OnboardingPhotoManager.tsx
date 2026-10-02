@@ -118,9 +118,9 @@ export function OnboardingPhotoManager({
   async function uploadFiles(files: FileList | null) {
     if (!files?.length || uploading || !target) return;
 
-    const remaining = Math.max(0, 12 - images.length);
+    const remaining = Math.max(0, 25 - images.length);
     if (!remaining) {
-      setError("A property can have up to 12 photos.");
+      setError("A property can have up to 25 photos.");
       return;
     }
 
@@ -285,7 +285,7 @@ export function OnboardingPhotoManager({
         <span>＋</span>
         <strong>Add property photos</strong>
         <p>
-          JPG, PNG or WebP, up to 10 MB each and 12 photos total. The first
+          JPG, PNG or WebP, up to 10 MB each and 25 photos total. The first
           photo is the cover image.
         </p>
         <span className="button button-small button-quiet">

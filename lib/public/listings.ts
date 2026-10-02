@@ -502,7 +502,7 @@ export async function getPublishedListingBySlug(
     redirect(`/stays/${row.canonical_slug}`);
   }
 
-  const imagePaths = (row.image_paths ?? []).slice(0, 12);
+  const imagePaths = (row.image_paths ?? []).slice(0, 25);
   const signedImages = await createSignedUrlMap(
     supabase,
     "property-images",

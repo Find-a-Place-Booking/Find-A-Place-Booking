@@ -120,10 +120,10 @@ export function PropertyEditor({
   async function uploadFiles(files: FileList | null) {
     if (!files?.length || uploading || !editable) return;
 
-    const remaining = Math.max(0, 12 - images.length);
+    const remaining = Math.max(0, 25 - images.length);
     if (!remaining) {
       setSaveTone("error");
-      setMessage("A property can have up to 12 photos.");
+      setMessage("A property can have up to 25 photos.");
       return;
     }
 
@@ -931,7 +931,7 @@ export function PropertyEditor({
                 <b>6</b>
                 <strong>Photos</strong>
               </span>
-              <small>{images.length}/12 uploaded</small>
+              <small>{images.length}/25 uploaded</small>
             </summary>
             <div className="property-edit-body">
               <label
@@ -943,7 +943,7 @@ export function PropertyEditor({
                   type="file"
                   accept="image/jpeg,image/png,image/webp"
                   multiple
-                  disabled={uploading || images.length >= 12}
+                  disabled={uploading || images.length >= 25}
                   onChange={(event) => {
                     void uploadFiles(event.target.files);
                     event.currentTarget.value = "";

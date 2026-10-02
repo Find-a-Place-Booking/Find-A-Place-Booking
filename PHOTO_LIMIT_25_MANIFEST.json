@@ -1,0 +1,13 @@
+{
+  "name": "Find A Place Booking photo limit 25",
+  "files": [
+    "components/OnboardingPhotoManager.tsx",
+    "components/PropertyEditor.tsx",
+    "lib/public/listings.ts"
+  ],
+  "scope": "photo upload/display limit only",
+  "database_migration_required": false,
+  "booking_logic_changed": false,
+  "calendar_logic_changed": false,
+  "payment_logic_changed": false
+}
