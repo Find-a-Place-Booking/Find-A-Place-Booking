@@ -15,7 +15,8 @@ const filterOptions = [
   "Hot tub",
   "Pet friendly",
   "Waterfront",
-  "Under $250",
+  "ATV access",
+  "Under $150",
   "2+ bedrooms",
 ];
 
@@ -50,7 +51,7 @@ export function StayResults({
       return filters.every((filter) => {
         if (filter === "Cabin") return property.type === "Cabin";
         if (filter === "RV Site") return property.type === "RV Site";
-        if (filter === "Under $250") return property.price < 250;
+        if (filter === "Under $150") return property.price < 150;
         if (filter === "2+ bedrooms") return property.bedrooms >= 2;
         return property.tags.includes(filter);
       });
@@ -141,7 +142,11 @@ export function StayResults({
           {filtered.length > 0 ? (
             <div className="result-grid">
               {filtered.map((property) => (
-                <PropertyCard key={property.slug} property={property} surface="search_results" />
+                <PropertyCard
+                  key={property.slug}
+                  property={property}
+                  surface="search_results"
+                />
               ))}
             </div>
           ) : (

@@ -34,7 +34,8 @@ const collectionHeadings: Record<string, string> = {
   "Hot tub": "Stays with hot tubs",
   "Pet friendly": "Pet-friendly stays",
   Waterfront: "Waterfront stays",
-  "Under $250": "Stays under $250",
+  "ATV access": "Stays with ATV access",
+  "Under $150": "Stays under $150",
   "2+ bedrooms": "Stays with room to spread out",
 };
 

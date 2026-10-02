@@ -4,11 +4,23 @@ export const amenityGroups = [
     items: [
       "Wi-Fi",
       "Hot tub",
+      "Jetted spa tub",
       "Pool",
       "Pet friendly",
       "Fire pit",
       "Waterfront",
       "Full kitchen",
+    ],
+  },
+  {
+    title: "Sleeping arrangements",
+    items: [
+      "King bed",
+      "Queen bed",
+      "Full / double bed",
+      "Twin bed",
+      "Bunk beds",
+      "Sofa bed",
     ],
   },
   {
@@ -40,6 +52,8 @@ export const amenityGroups = [
     items: [
       "Outdoor seating",
       "Private deck / patio",
+      "Outdoor shower",
+      "ATV access",
       "Pool",
       "Private pool",
       "Shared pool",
