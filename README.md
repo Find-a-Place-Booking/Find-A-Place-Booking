@@ -1,16 +1,20 @@
-# Find A Place Booking — Mobile property-card layout fix
+# Calendar cron TypeScript fix
 
-This overlay changes only:
+This overlay replaces only:
 
-- `app/mobile-public-width-fix.css`
+- app/api/cron/calendar-sync/route.ts
 
-On screens 700px wide and under, homepage/featured stay cards now reflow to a
-single full-width column instead of preserving or inheriting a compressed
-desktop composition.
+Why the build failed:
+The generic `runWithConcurrency()` call inferred the richer ThinkReservations
+result type from one callback branch, then rejected the simpler iCal result
+type from the other branch.
 
-It explicitly covers both the current `.home-property-grid` and the older
-`.featured-grid` layout so the first/wide card cannot remain large while the
-other cards get squeezed beside it.
+Fix:
+- adds an explicit `CalendarSyncTask` union
+- adds an explicit `CalendarSyncResult` union derived from the real return
+  types of both sync functions
+- passes both generic types to `runWithConcurrency`
+- makes the callback explicitly return `Promise<CalendarSyncResult>`
 
-Desktop/tablet layouts above 700px are unchanged. No listing data, booking,
-Stripe, calendars, ResNexus, host tools, or database logic is changed.
+No booking, payment, calendar reconciliation, Supabase schema, or Think logic
+is changed by this patch.

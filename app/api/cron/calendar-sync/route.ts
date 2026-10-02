@@ -12,6 +12,22 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
+type CalendarSyncTask =
+  | {
+      kind: "ICAL";
+      id: string;
+      connection: IcalConnection;
+    }
+  | {
+      kind: "PMS";
+      id: string;
+      connection: null;
+    };
+
+type CalendarSyncResult =
+  | Awaited<ReturnType<typeof syncIcalConnection>>
+  | Awaited<ReturnType<typeof syncThinkReservationsConnection>>;
+
 function authorized(request: NextRequest) {
   const secret = process.env.CRON_SECRET;
   if (!secret) return false;
@@ -92,7 +108,7 @@ export async function GET(request: NextRequest) {
       due(connection.last_sync_attempt_at, cutoff),
   );
 
-  const tasks = [
+  const tasks: CalendarSyncTask[] = [
     ...dueIcal.map((connection) => ({
       kind: "ICAL" as const,
       id: connection.id,
@@ -115,11 +131,15 @@ export async function GET(request: NextRequest) {
     });
   }
 
-  const results = await runWithConcurrency(tasks, 4, (task) => {
-    if (task.kind === "ICAL" && task.connection) {
-      return syncIcalConnection(task.connection, admin);
+  const results = await runWithConcurrency<
+    CalendarSyncTask,
+    CalendarSyncResult
+  >(tasks, 4, async (task): Promise<CalendarSyncResult> => {
+    if (task.kind === "ICAL") {
+      return await syncIcalConnection(task.connection, admin);
     }
-    return syncThinkReservationsConnection(task.id, admin);
+
+    return await syncThinkReservationsConnection(task.id, admin);
   });
 
   const succeeded = results.filter((result) => result.ok).length;
