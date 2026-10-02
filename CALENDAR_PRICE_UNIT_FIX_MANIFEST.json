@@ -1,0 +1,12 @@
+{
+  "base": "current main reviewed 2026-10-02",
+  "files": [
+    "lib/host/calendar.ts",
+    "app/host/calendar/page.tsx"
+  ],
+  "database_migration_required": false,
+  "checkout_pricing_changed": false,
+  "availability_logic_changed": false,
+  "calendar_sync_logic_changed": false,
+  "purpose": "hard-isolate host calendar display pricing by selected unit_id"
+}

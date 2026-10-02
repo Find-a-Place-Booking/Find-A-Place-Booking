@@ -121,6 +121,40 @@ type UnitRow = {
   slug: string;
   is_primary: boolean;
   is_active: boolean;
+  minimum_stay_nights: number | null;
+  created_at: string;
+};
+
+type CalendarBaseRateRow = {
+  unit_id: string;
+  currency: string | null;
+  weeknight_cents: number | null;
+  weekend_cents: number | null;
+};
+
+type CalendarRateRuleRow = {
+  id: string;
+  unit_id: string;
+  label: string;
+  start_date: string;
+  end_date: string;
+  nightly_cents: number;
+  weekend_cents: number | null;
+  priority: number;
+  is_public_special: boolean;
+  special_badge: string | null;
+  is_active: boolean;
+  created_at: string;
+};
+
+type CalendarStayRuleRow = {
+  id: string;
+  unit_id: string;
+  start_date: string;
+  end_date: string;
+  minimum_nights: number;
+  priority: number;
+  is_active: boolean;
   created_at: string;
 };
 
@@ -178,6 +212,123 @@ function buildMonthWindow(monthValue: string) {
     gridEndExclusive: iso(gridEndExclusiveDate),
     days,
   };
+}
+
+function inclusiveDateSpan(startDate: string, endDate: string) {
+  const start = Date.parse(`${startDate}T12:00:00Z`);
+  const end = Date.parse(`${endDate}T12:00:00Z`);
+  return Math.max(0, Math.round((end - start) / 86_400_000));
+}
+
+function compareCalendarRules<
+  T extends {
+    priority: number;
+    start_date: string;
+    end_date: string;
+    created_at: string;
+  },
+>(a: T, b: T) {
+  const priority = Number(b.priority || 0) - Number(a.priority || 0);
+  if (priority) return priority;
+
+  const span =
+    inclusiveDateSpan(a.start_date, a.end_date) -
+    inclusiveDateSpan(b.start_date, b.end_date);
+  if (span) return span;
+
+  return (b.created_at || "").localeCompare(a.created_at || "");
+}
+
+function isCalendarWeekend(date: string) {
+  const day = new Date(`${date}T12:00:00Z`).getUTCDay();
+  return day === 5 || day === 6;
+}
+
+function resolveCalendarPricingDays(input: {
+  days: CalendarDay[];
+  unitId: string;
+  minimumStayNights: number | null;
+  base: CalendarBaseRateRow | null;
+  rateRules: CalendarRateRuleRow[];
+  stayRules: CalendarStayRuleRow[];
+}): CalendarPricingDay[] {
+  // This resolver intentionally mirrors resolve_unit_pricing_days, but it uses
+  // rows explicitly filtered to the currently selected unit. That keeps the
+  // host calendar display from ever carrying another property's price array
+  // across a property switch.
+  const rateRules = input.rateRules
+    .filter(
+      (rule) =>
+        rule.unit_id === input.unitId &&
+        rule.is_active,
+    )
+    .sort(compareCalendarRules);
+
+  const stayRules = input.stayRules
+    .filter(
+      (rule) =>
+        rule.unit_id === input.unitId &&
+        rule.is_active,
+    )
+    .sort(compareCalendarRules);
+
+  const base =
+    input.base?.unit_id === input.unitId
+      ? input.base
+      : null;
+
+  return input.days.map((day) => {
+    const weekend = isCalendarWeekend(day.date);
+    const rateRule =
+      rateRules.find(
+        (rule) =>
+          day.date >= rule.start_date &&
+          day.date <= rule.end_date,
+      ) ?? null;
+
+    const stayRule =
+      stayRules.find(
+        (rule) =>
+          day.date >= rule.start_date &&
+          day.date <= rule.end_date,
+      ) ?? null;
+
+    let nightlyCents: number | null = null;
+    let rateSource = weekend && base?.weekend_cents != null
+      ? "BASE_WEEKEND"
+      : "BASE_WEEKDAY";
+
+    if (rateRule) {
+      nightlyCents = weekend
+        ? rateRule.weekend_cents ?? rateRule.nightly_cents
+        : rateRule.nightly_cents;
+      rateSource = "RATE_RULE";
+    } else if (weekend) {
+      nightlyCents =
+        base?.weekend_cents ??
+        base?.weeknight_cents ??
+        null;
+    } else {
+      nightlyCents = base?.weeknight_cents ?? null;
+    }
+
+    return {
+      stay_date: day.date,
+      nightly_cents: nightlyCents,
+      currency: base?.currency || "USD",
+      rate_source: rateSource,
+      rate_rule_id: rateRule?.id ?? null,
+      special_label:
+        rateRule?.is_public_special
+          ? rateRule.special_badge || rateRule.label
+          : null,
+      minimum_stay_nights:
+        stayRule?.minimum_nights ??
+        input.minimumStayNights ??
+        1,
+      stay_rule_id: stayRule?.id ?? null,
+    };
+  });
 }
 
 async function requireHost() {
@@ -246,15 +397,16 @@ export async function getCalendarWorkspace(input: { unitId?: string; month?: str
   const propertyIds = properties.map((property) => property.id);
   const { data: unitData, error: unitError } = await supabase
     .from("property_units")
-    .select("id,property_id,name,slug,is_primary,is_active,created_at")
+    .select("id,property_id,name,slug,is_primary,is_active,minimum_stay_nights,created_at")
     .in("property_id", propertyIds)
     .eq("is_active", true)
     .order("is_primary", { ascending: false })
     .order("created_at", { ascending: true });
   if (unitError) throw new Error("Unable to load rentable units for the calendar.");
 
+  const units = (unitData ?? []) as UnitRow[];
   const propertyById = new Map(properties.map((property) => [property.id, property]));
-  const targets = ((unitData ?? []) as UnitRow[]).flatMap((unit) => {
+  const targets = units.flatMap((unit) => {
     const property = propertyById.get(unit.property_id);
     if (!property) return [];
     return [{
@@ -277,7 +429,18 @@ export async function getCalendarWorkspace(input: { unitId?: string; month?: str
     };
   }
 
-  const [connectionResult, blockResult, exportResult, blockCountResult, pricingResult] = await Promise.all([
+  const selectedUnit =
+    units.find((unit) => unit.id === selected.unitId) ?? null;
+
+  const [
+    connectionResult,
+    blockResult,
+    exportResult,
+    blockCountResult,
+    baseRateResult,
+    rateRuleResult,
+    stayRuleResult,
+  ] = await Promise.all([
     supabase
       .from("calendar_connections")
       .select("id,unit_id,provider,connection_kind,label,feed_url,is_active,sync_status,last_sync_attempt_at,last_synced_at,last_success_at,last_error_at,last_error,created_at")
@@ -301,11 +464,25 @@ export async function getCalendarWorkspace(input: { unitId?: string; month?: str
     supabase.rpc("calendar_connection_active_block_counts", {
       target_unit_id: selected.unitId,
     }),
-    supabase.rpc("resolve_unit_pricing_days", {
-      target_unit_id: selected.unitId,
-      range_start: window.gridStart,
-      range_end: window.gridEnd,
-    }),
+    supabase
+      .from("unit_rate_settings")
+      .select("unit_id,currency,weeknight_cents,weekend_cents")
+      .eq("unit_id", selected.unitId)
+      .maybeSingle(),
+    supabase
+      .from("unit_rate_rules")
+      .select("id,unit_id,label,start_date,end_date,nightly_cents,weekend_cents,priority,is_public_special,special_badge,is_active,created_at")
+      .eq("unit_id", selected.unitId)
+      .eq("is_active", true)
+      .lte("start_date", window.gridEnd)
+      .gte("end_date", window.gridStart),
+    supabase
+      .from("unit_stay_rules")
+      .select("id,unit_id,start_date,end_date,minimum_nights,priority,is_active,created_at")
+      .eq("unit_id", selected.unitId)
+      .eq("is_active", true)
+      .lte("start_date", window.gridEnd)
+      .gte("end_date", window.gridStart),
   ]);
 
   const firstError = connectionResult.error ?? blockResult.error ?? exportResult.error ?? blockCountResult.error;
@@ -313,6 +490,32 @@ export async function getCalendarWorkspace(input: { unitId?: string; month?: str
     console.error("[getCalendarWorkspace]", { code: firstError.code, message: firstError.message, details: firstError.details, hint: firstError.hint });
     throw new Error("Unable to load the calendar workspace. Apply the current Milestone 9B migration and refresh.");
   }
+
+  const pricingError =
+    baseRateResult.error ??
+    rateRuleResult.error ??
+    stayRuleResult.error;
+
+  if (pricingError) {
+    console.error("[calendar unit-scoped pricing]", {
+      unitId: selected.unitId,
+      code: pricingError.code,
+      message: pricingError.message,
+      details: pricingError.details,
+      hint: pricingError.hint,
+    });
+  }
+
+  const pricingDays = pricingError
+    ? []
+    : resolveCalendarPricingDays({
+        days: window.days,
+        unitId: selected.unitId,
+        minimumStayNights: selectedUnit?.minimum_stay_nights ?? 1,
+        base: (baseRateResult.data ?? null) as CalendarBaseRateRow | null,
+        rateRules: (rateRuleResult.data ?? []) as CalendarRateRuleRow[],
+        stayRules: (stayRuleResult.data ?? []) as CalendarStayRuleRow[],
+      });
 
   const blockCounts = new Map<string, number>();
   for (const row of (blockCountResult.data ?? []) as Array<{ connection_id: string; active_block_count: number | string }>) {
@@ -326,10 +529,6 @@ export async function getCalendarWorkspace(input: { unitId?: string; month?: str
     }
     return { ...connection, sourceHost, activeBlockCount: blockCounts.get(connection.id) ?? 0 };
   });
-
-  if (pricingResult.error) {
-    console.error("[resolve_unit_pricing_days calendar]", { code: pricingResult.error.code, message: pricingResult.error.message });
-  }
 
   const rawBlocks = (blockResult.data ?? []) as AvailabilityBlockRecord[];
   const reservationIds = [
@@ -375,6 +574,6 @@ export async function getCalendarWorkspace(input: { unitId?: string; month?: str
         : null,
     })),
     exportTokens: (exportResult.data ?? []) as CalendarExportTokenRecord[],
-    pricingDays: pricingResult.error ? [] : ((pricingResult.data ?? []) as CalendarPricingDay[]),
+    pricingDays,
   };
 }
