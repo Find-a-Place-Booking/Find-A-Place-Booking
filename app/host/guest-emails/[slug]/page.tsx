@@ -5,6 +5,8 @@ import { DashboardShell } from "@/components/DashboardShell";
 import { getHostProperties } from "@/lib/host/properties";
 import { createClient } from "@/lib/supabase/server";
 
+import styles from "../guest-emails.module.css";
+
 import {
   deleteGuestEmailRule,
   saveGuestEmailRule,
@@ -111,14 +113,14 @@ function AutomationEditor({
   const requireAccessCode = rule?.require_access_code ?? isArrival;
 
   return (
-    <section className="panel">
-      <div className="panel-head">
-        <div>
+    <section className={`panel ${styles.editorPanel}`}>
+      <div className={styles.panelHead}>
+        <div className={styles.panelHeadCopy}>
           <p className="eyebrow dark">
             {isArrival ? "Pre-arrival email" : "Optional follow-up"}
           </p>
           <h2>{name}</h2>
-          <p className="muted">
+          <p className={styles.panelDescription}>
             {isArrival
               ? "Guest details fill automatically. Add the access code and arrival notes to the upcoming stay below and they drop into this email when it sends."
               : "A simple automatic thank-you after checkout. Guest and stay information fills automatically."}
@@ -133,7 +135,7 @@ function AutomationEditor({
         </span>
       </div>
 
-      <form className="settings-form" action={saveGuestEmailRule}>
+      <form className={styles.editorForm} action={saveGuestEmailRule}>
         <input type="hidden" name="return_to" value={returnTo} />
         <input type="hidden" name="rule_id" value={rule?.id || ""} />
         <input type="hidden" name="organization_id" value={organizationId} />
@@ -146,7 +148,7 @@ function AutomationEditor({
           value={rule?.is_active === false ? "off" : "on"}
         />
 
-        <div className="field-grid">
+        <div className={styles.timingGrid}>
           <label>
             <span>{isArrival ? "Send before check-in" : "Send after checkout"}</span>
             <select name="day_offset" defaultValue={String(dayOffset)}>
@@ -182,7 +184,7 @@ function AutomationEditor({
         </div>
 
         {isArrival ? (
-          <label className="checkline">
+          <label className={styles.waitForCode}>
             <input
               name="require_access_code"
               type="checkbox"
@@ -199,9 +201,9 @@ function AutomationEditor({
           <input type="hidden" name="require_access_code" value="on" />
         ) : null}
 
-        <details className="pricing-create">
+        <details className={styles.customizer}>
           <summary>Customize email wording</summary>
-          <div className="settings-form" style={{ marginTop: 16 }}>
+          <div className={styles.customizerBody}>
             <label>
               <span>Subject</span>
               <input
@@ -221,7 +223,7 @@ function AutomationEditor({
                 required
               />
             </label>
-            <p className="muted">
+            <p className={styles.variableHelp}>
               Auto-fill fields: {"{{guest_name}}"}, {"{{property_name}}"},{" "}
               {"{{check_in}}"}, {"{{check_out}}"},{" "}
               {"{{confirmation_code}}"}, {"{{access_code}}"},{" "}
@@ -231,13 +233,15 @@ function AutomationEditor({
           </div>
         </details>
 
-        <button className="button button-small" type="submit">
-          {rule ? "Save email setup" : "Turn on this email"}
-        </button>
+        <div className={styles.actionRow}>
+          <button className="button button-small" type="submit">
+            {rule ? "Save email setup" : "Turn on this email"}
+          </button>
+        </div>
       </form>
 
       {rule ? (
-        <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginTop: 14 }}>
+        <div className={styles.secondaryActions}>
           <form action={toggleGuestEmailRule}>
             <input type="hidden" name="return_to" value={returnTo} />
             <input type="hidden" name="rule_id" value={rule.id} />
@@ -351,8 +355,8 @@ export default async function PropertyGuestEmailsPage({
 
   return (
     <DashboardShell active="Guest emails" title={`${property.name} guest emails`}>
-      <div className="dash-toolbar pricing-toolbar">
-        <div>
+      <div className={styles.detailHead}>
+        <div className={styles.detailHeadCopy}>
           <p>
             Guest and reservation information fills itself. Keep the template
             as-is or customize it, then add the access code and arrival notes to
@@ -371,15 +375,15 @@ export default async function PropertyGuestEmailsPage({
         <div className="admin-message error">{query.error}</div>
       ) : null}
 
-      <section className="panel">
-        <div className="panel-head">
-          <div>
+      <section className={`panel ${styles.infoPanel}`}>
+        <div className={styles.panelHead}>
+          <div className={styles.panelHeadCopy}>
             <p className="eyebrow dark">How it works</p>
             <h2>Most of the email is automatic.</h2>
           </div>
           <span className="status-pill">Property specific</span>
         </div>
-        <p className="muted">
+        <p className={styles.panelDescription}>
           Find A Place automatically inserts the guest name, property name,
           check-in and checkout dates, confirmation number, host contact info
           and the guest&apos;s My Trip link. The access code and arrival notes come
@@ -396,38 +400,38 @@ export default async function PropertyGuestEmailsPage({
         kind="ARRIVAL"
       />
 
-      <section className="panel">
-        <div className="panel-head">
-          <div>
+      <section className={`panel ${styles.staysPanel}`}>
+        <div className={styles.panelHead}>
+          <div className={styles.panelHeadCopy}>
             <p className="eyebrow dark">Upcoming stays</p>
             <h2>Access codes & arrival notes</h2>
           </div>
-          <span>{reservations.length}</span>
+          <span className={styles.countBadge}>{reservations.length}</span>
         </div>
-        <p className="muted">
+        <p className={styles.stayIntro}>
           Save the code and notes against the actual reservation. When that
           guest&apos;s automated email is due, those exact details are inserted into
           {" {{access_code}}"} and {"{{arrival_notes}}"}.
         </p>
 
         {reservations.length ? (
-          <div className="review-groups">
+          <div className={styles.stayList}>
             {reservations.map((reservation) => {
               const instructions = instructionByReservation.get(reservation.id);
               const hasAccessCode = Boolean(instructions?.access_code?.trim());
 
               return (
-                <div key={reservation.id}>
-                  <div className="panel-head">
-                    <div>
+                <div className={styles.stayCard} key={reservation.id}>
+                  <div className={styles.stayHeader}>
+                    <div className={styles.stayIdentity}>
                       <strong>{reservation.guest_name || "Guest"}</strong>
-                      <p className="muted">
+                      <p className={styles.stayMeta}>
                         {reservation.check_in} → {reservation.check_out} ·{" "}
                         {reservation.confirmation_code} · {reservation.guest_count}{" "}
                         guest{reservation.guest_count === 1 ? "" : "s"}
                       </p>
                       {reservation.guest_email ? (
-                        <p className="muted">{reservation.guest_email}</p>
+                        <p className={styles.stayEmail}>{reservation.guest_email}</p>
                       ) : null}
                     </div>
                     <span
@@ -438,7 +442,7 @@ export default async function PropertyGuestEmailsPage({
                   </div>
 
                   <form
-                    className="settings-form"
+                    className={styles.instructionForm}
                     action={saveReservationGuestInstructions}
                   >
                     <input type="hidden" name="return_to" value={returnTo} />
@@ -497,21 +501,21 @@ export default async function PropertyGuestEmailsPage({
       />
 
       {extraRules.length ? (
-        <section className="panel">
-          <div className="panel-head">
-            <div>
+        <section className={`panel ${styles.extraPanel}`}>
+          <div className={styles.panelHead}>
+            <div className={styles.panelHeadCopy}>
               <p className="eyebrow dark">Existing automations</p>
               <h2>Other saved emails</h2>
             </div>
-            <span>{extraRules.length}</span>
+            <span className={styles.countBadge}>{extraRules.length}</span>
           </div>
-          <div className="review-groups">
+          <div className={styles.extraList}>
             {extraRules.map((rule) => (
-              <div key={rule.id}>
-                <div className="panel-head">
+              <div className={styles.extraCard} key={rule.id}>
+                <div className={styles.extraHeader}>
                   <div>
                     <strong>{rule.name}</strong>
-                    <p className="muted">
+                    <p className={styles.extraMeta}>
                       {automationTiming(rule)} · {timeValue(rule.send_time_local)} local
                     </p>
                   </div>
@@ -524,12 +528,11 @@ export default async function PropertyGuestEmailsPage({
                   </span>
                 </div>
 
-                <details className="pricing-create">
+                <details className={styles.customizer}>
                   <summary>Edit existing email</summary>
                   <form
-                    className="settings-form"
+                    className={styles.legacyForm}
                     action={saveGuestEmailRule}
-                    style={{ marginTop: 16 }}
                   >
                     <input type="hidden" name="return_to" value={returnTo} />
                     <input type="hidden" name="rule_id" value={rule.id} />
@@ -553,7 +556,7 @@ export default async function PropertyGuestEmailsPage({
                       <span>Name</span>
                       <input name="name" defaultValue={rule.name} required />
                     </label>
-                    <div className="field-grid">
+                    <div className={styles.legacyGrid}>
                       <label>
                         <span>Days</span>
                         <input
@@ -592,7 +595,7 @@ export default async function PropertyGuestEmailsPage({
                         required
                       />
                     </label>
-                    <label className="checkline">
+                    <label className={styles.waitForCode}>
                       <input
                         name="require_access_code"
                         type="checkbox"
@@ -606,7 +609,7 @@ export default async function PropertyGuestEmailsPage({
                   </form>
                 </details>
 
-                <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginTop: 12 }}>
+                <div className={styles.secondaryActions}>
                   <form action={toggleGuestEmailRule}>
                     <input type="hidden" name="return_to" value={returnTo} />
                     <input type="hidden" name="rule_id" value={rule.id} />

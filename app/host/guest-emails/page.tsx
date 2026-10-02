@@ -4,6 +4,8 @@ import { DashboardShell } from "@/components/DashboardShell";
 import { getHostProperties } from "@/lib/host/properties";
 import { createClient } from "@/lib/supabase/server";
 
+import styles from "./guest-emails.module.css";
+
 type RuleSummary = {
   property_id: string | null;
   trigger_event: "BEFORE_CHECKIN" | "AFTER_CHECKOUT";
@@ -86,9 +88,9 @@ export default async function GuestEmailsPage() {
 
   return (
     <DashboardShell active="Guest emails" title="Guest emails">
-      <div className="dash-toolbar pricing-toolbar">
+      <div className={styles.toolbar}>
         <div>
-          <p>
+          <p className={styles.toolbarCopy}>
             Set up automated guest emails one property at a time. Guest names,
             stay dates, confirmation numbers and trip links fill automatically;
             you only add the access code and property-specific arrival notes for
@@ -101,7 +103,7 @@ export default async function GuestEmailsPage() {
       </div>
 
       {properties.length ? (
-        <div className="pricing-property-list">
+        <div className={styles.propertyList}>
           {properties.map((property) => {
             const propertyRules = rulesByProperty.get(property.id) ?? [];
             const activeRules = propertyRules.filter((rule) => rule.is_active);
@@ -120,11 +122,11 @@ export default async function GuestEmailsPage() {
 
             return (
               <Link
-                className="pricing-property-card"
+                className={styles.propertyCard}
                 href={`/host/guest-emails/${property.slug}`}
                 key={property.id}
               >
-                <div className="pricing-property-photo">
+                <div className={styles.propertyPhoto}>
                   {property.coverImageUrl ? (
                     <img src={property.coverImageUrl} alt="" />
                   ) : (
@@ -132,8 +134,8 @@ export default async function GuestEmailsPage() {
                   )}
                 </div>
 
-                <div className="pricing-property-copy">
-                  <small>{statusLabel(property.status)}</small>
+                <div className={styles.propertyCopy}>
+                  <small className={styles.propertyStatus}>{statusLabel(property.status)}</small>
                   <h2>{property.name}</h2>
                   <p>
                     {property.publicArea ||
@@ -142,14 +144,14 @@ export default async function GuestEmailsPage() {
                   </p>
                 </div>
 
-                <div className="pricing-property-rate">
-                  <small>Guest emails</small>
+                <div className={styles.emailSummary}>
+                  <small className={styles.summaryLabel}>Guest emails</small>
                   <strong>
                     {activeRules.length
                       ? `${activeRules.length} active`
                       : "Not set up"}
                   </strong>
-                  <span>
+                  <span className={styles.summaryText}>
                     {preArrivalRule
                       ? preArrivalRule.is_active
                         ? "Pre-arrival email on"
@@ -158,19 +160,22 @@ export default async function GuestEmailsPage() {
                   </span>
                 </div>
 
-                <div className="pricing-property-meta">
-                  <span>
-                    <b>{upcoming.length}</b> upcoming stays
-                  </span>
-                  <span>
-                    <b>{missingAccess}</b> need access info
-                  </span>
-                  <span>
-                    <b>{propertyRules.length}</b> saved automations
-                  </span>
+                <div className={styles.metrics}>
+                  <div className={styles.metric}>
+                    <b>{upcoming.length}</b>
+                    <span>upcoming stays</span>
+                  </div>
+                  <div className={styles.metric}>
+                    <b>{missingAccess}</b>
+                    <span>need access info</span>
+                  </div>
+                  <div className={styles.metric}>
+                    <b>{propertyRules.length}</b>
+                    <span>saved automations</span>
+                  </div>
                 </div>
 
-                <strong className="pricing-open">Manage →</strong>
+                <strong className={styles.openLink}>Manage →</strong>
               </Link>
             );
           })}
