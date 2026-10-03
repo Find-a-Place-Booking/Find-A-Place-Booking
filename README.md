@@ -1,16 +1,17 @@
-# Find A Place Booking — Mobile property-card layout fix
+# Find A Place Booking — calendar readiness fix
 
-This overlay changes only:
+These two migrations match the production database changes applied on 2026-10-03.
 
-- `app/mobile-public-width-fix.css`
+What they do:
+- infer ICAL/PMS availability preference when a host actually connects that source
+- backfill existing unambiguous UNSET listings
+- make calendar setup part of publication readiness instead of failing only after Publish is clicked
+- make duplicate generic iCal labels provider-specific (Airbnb calendar, Vrbo calendar, etc.)
+- auto-name future generic iCal labels so multiple feeds are easier to tell apart
 
-On screens 700px wide and under, homepage/featured stay cards now reflow to a
-single full-width column instead of preserving or inheriting a compressed
-desktop composition.
+Production status when generated:
+- Livingston Junction Caboose 101: DRAFT, ICAL selected automatically, Airbnb + Vrbo both HEALTHY
+- Livingston Junction Caboose 103: DRAFT, ICAL selected automatically, Airbnb + Vrbo both HEALTHY
+- Neither draft was auto-published; the host should intentionally click Publish once after refreshing.
 
-It explicitly covers both the current `.home-property-grid` and the older
-`.featured-grid` layout so the first/wide card cannot remain large while the
-other cards get squeezed beside it.
-
-Desktop/tablet layouts above 700px are unchanged. No listing data, booking,
-Stripe, calendars, ResNexus, host tools, or database logic is changed.
+The migrations are included here so the repository can be kept aligned with production.
