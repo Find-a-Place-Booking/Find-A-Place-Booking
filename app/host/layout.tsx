@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 
+import { HostDraftPersistence } from "@/components/HostDraftPersistence";
+
 export const metadata: Metadata = {
   robots: {
     index: false,
@@ -12,5 +14,10 @@ export const metadata: Metadata = {
 export default function PrivateRouteLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
-  return children;
+  return (
+    <>
+      <HostDraftPersistence />
+      {children}
+    </>
+  );
 }

@@ -11,6 +11,7 @@ import "./photo-gallery-fixes.css";
 
 import { BookingJourneyTracker } from "@/components/BookingJourneyTracker";
 import { JsonLd } from "@/components/JsonLd";
+import { StandardTimeEnhancer } from "@/components/StandardTimeEnhancer";
 import { VercelInsights } from "@/components/VercelInsights";
 import {
   CANONICAL_SITE_URL,
@@ -129,6 +130,7 @@ export default function RootLayout({
     <html lang="en" data-scroll-behavior="smooth">
       <body>
         <BookingJourneyTracker />
+        <StandardTimeEnhancer />
         {children}
         <JsonLd data={siteSchema} />
         <VercelInsights />
