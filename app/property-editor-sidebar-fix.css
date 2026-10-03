@@ -1,0 +1,16 @@
+/*
+ * Host property editor sidebar fix
+ *
+ * The publication/status cards were sticky at desktop/tablet widths.
+ * On tablets and zoomed browser layouts that could leave the cards sitting
+ * over editable property fields while the host scrolled.
+ *
+ * Keep the cards in the existing grid/sidebar column, but let them scroll
+ * normally with the rest of the property editor.
+ */
+.property-editor-aside {
+  position: static !important;
+  top: auto !important;
+  z-index: auto !important;
+  align-self: start;
+}
