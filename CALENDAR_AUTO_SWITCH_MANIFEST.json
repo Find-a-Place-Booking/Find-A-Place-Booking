@@ -1,0 +1,11 @@
+{
+  "base_page_blob_sha": "eddf02b6cfd9435c48cc079d6457de164bdcf137",
+  "base_page_fnv1a": "742582a7",
+  "files": [
+    "app/host/calendar/page.tsx",
+    "components/CalendarUnitSelector.tsx"
+  ],
+  "database_migration_required": false,
+  "booking_logic_changed": false,
+  "calendar_sync_logic_changed": false
+}

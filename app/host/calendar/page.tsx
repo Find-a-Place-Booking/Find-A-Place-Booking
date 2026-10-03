@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import { CalendarCopyButton } from "@/components/CalendarCopyButton";
 import { CalendarIntegrationPanel } from "@/components/CalendarIntegrationPanel";
+import { CalendarUnitSelector } from "@/components/CalendarUnitSelector";
 import { HostCalendarBoard } from "@/components/HostCalendarBoard";
 import { DashboardShell } from "@/components/DashboardShell";
 import { getThinkReservationsIntegrationState } from "@/lib/host/thinkreservations";
@@ -188,28 +189,16 @@ export default async function CalendarPage({
           </small>
         </div>
 
-        <form className={styles.selector} method="get">
-          <label>
-            <span>Property / unit</span>
-            <select name="unit" defaultValue={selected.unitId}>
-              {workspace.targets.map((target) => (
-                <option value={target.unitId} key={target.unitId}>
-                  {targetLabel(target)}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          <input
-            type="hidden"
-            name="month"
-            value={workspace.month}
-          />
-
-          <button className="button button-small" type="submit">
-            Open calendar
-          </button>
-        </form>
+        <CalendarUnitSelector
+          key={selected.unitId}
+          className={styles.selector}
+          selectedUnitId={selected.unitId}
+          month={workspace.month}
+          targets={workspace.targets.map((target) => ({
+            unitId: target.unitId,
+            label: targetLabel(target),
+          }))}
+        />
       </div>
 
       <div className={styles.summaryStrip}>
