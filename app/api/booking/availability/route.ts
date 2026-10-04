@@ -20,7 +20,17 @@ function addDays(value: string, days: number) {
   return date.toISOString().slice(0, 10);
 }
 
-function missingDatabaseFunction(error: { code?: string; message?: string } | null) {
+function diffDays(start: string, end: string) {
+  return Math.round(
+    (new Date(`${end}T00:00:00Z`).getTime() -
+      new Date(`${start}T00:00:00Z`).getTime()) /
+      86_400_000,
+  );
+}
+
+function missingDatabaseFunction(
+  error: { code?: string; message?: string } | null,
+) {
   if (!error) return false;
   return (
     error.code === "PGRST202" ||
@@ -28,6 +38,14 @@ function missingDatabaseFunction(error: { code?: string; message?: string } | nu
     /could not find the function|does not exist/i.test(error.message || "")
   );
 }
+
+type StayRuleRow = {
+  start_date: string;
+  end_date: string;
+  minimum_nights: number;
+  priority: number;
+  created_at: string;
+};
 
 export async function GET(request: NextRequest) {
   try {
@@ -59,7 +77,7 @@ export async function GET(request: NextRequest) {
 
     const { data: unit, error: unitError } = await admin
       .from("property_units")
-      .select("id,property_id,is_active")
+      .select("id,property_id,is_active,minimum_stay_nights")
       .eq("id", unitId)
       .maybeSingle();
 
@@ -135,15 +153,29 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const { data: rows, error } = await admin
-      .from("availability_blocks")
-      .select("start_date,end_date,block_type,expires_at")
-      .eq("unit_id", unitId)
-      .eq("state", "ACTIVE")
-      .lt("start_date", to)
-      .gt("end_date", from)
-      .order("start_date", { ascending: true })
-      .limit(5000);
+    const [
+      { data: rows, error },
+      { data: stayRuleRows, error: stayRuleError },
+    ] = await Promise.all([
+      admin
+        .from("availability_blocks")
+        .select("start_date,end_date,block_type,expires_at")
+        .eq("unit_id", unitId)
+        .eq("state", "ACTIVE")
+        .lt("start_date", to)
+        .gt("end_date", from)
+        .order("start_date", { ascending: true })
+        .limit(5000),
+      admin
+        .from("unit_stay_rules")
+        .select(
+          "start_date,end_date,minimum_nights,priority,created_at",
+        )
+        .eq("unit_id", unitId)
+        .eq("is_active", true)
+        .lte("start_date", to)
+        .gte("end_date", from),
+    ]);
 
     if (error) {
       console.error("[public availability] lookup failed", {
@@ -154,6 +186,19 @@ export async function GET(request: NextRequest) {
 
       return NextResponse.json(
         { error: "Unable to load availability." },
+        { status: 500 },
+      );
+    }
+
+    if (stayRuleError) {
+      console.error("[public availability] stay-rule lookup failed", {
+        code: stayRuleError.code,
+        message: stayRuleError.message,
+        details: stayRuleError.details,
+      });
+
+      return NextResponse.json(
+        { error: "Unable to load minimum-stay rules." },
         { status: 500 },
       );
     }
@@ -179,6 +224,31 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    // Match resolve_unit_pricing_days() rule precedence exactly:
+    // priority DESC, narrower date range first, newest rule last tie-breaker.
+    const stayRules = ((stayRuleRows ?? []) as StayRuleRow[])
+      .sort((left, right) => {
+        const priorityDifference =
+          Number(right.priority || 0) - Number(left.priority || 0);
+        if (priorityDifference !== 0) return priorityDifference;
+
+        const leftSpan = diffDays(left.start_date, left.end_date);
+        const rightSpan = diffDays(right.start_date, right.end_date);
+        if (leftSpan !== rightSpan) return leftSpan - rightSpan;
+
+        return (
+          new Date(right.created_at).getTime() -
+          new Date(left.created_at).getTime()
+        );
+      })
+      .map((rule) => ({
+        start: rule.start_date,
+        end: rule.end_date,
+        minimumNights: Math.max(1, Number(rule.minimum_nights || 1)),
+        priority: Number(rule.priority || 0),
+        createdAt: rule.created_at,
+      }));
+
     return NextResponse.json(
       {
         unitId,
@@ -186,6 +256,11 @@ export async function GET(request: NextRequest) {
         to,
         generatedAt: new Date().toISOString(),
         blockedRanges,
+        minimumStayNights: Math.max(
+          1,
+          Number(unit.minimum_stay_nights || 1),
+        ),
+        stayRules,
       },
       {
         headers: {

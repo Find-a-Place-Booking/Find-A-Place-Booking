@@ -9,6 +9,14 @@ type BlockedRange = {
   end: string;
 };
 
+type StayRule = {
+  start: string;
+  end: string;
+  minimumNights: number;
+  priority: number;
+  createdAt: string;
+};
+
 type Props = {
   unitId: string;
   minimumStayNights: number;
@@ -121,6 +129,10 @@ export function AvailabilityDatePicker({
     checkIn && !checkOut ? "checkOut" : "checkIn",
   );
   const [blockedRanges, setBlockedRanges] = useState<BlockedRange[]>([]);
+  const [baseMinimumStayNights, setBaseMinimumStayNights] = useState(
+    Math.max(1, minimumStayNights),
+  );
+  const [stayRules, setStayRules] = useState<StayRule[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
 
@@ -151,6 +163,13 @@ export function AvailabilityDatePicker({
       }
 
       setBlockedRanges(payload.blockedRanges ?? []);
+      setBaseMinimumStayNights(
+        Math.max(
+          1,
+          Number(payload.minimumStayNights ?? minimumStayNights ?? 1),
+        ),
+      );
+      setStayRules(Array.isArray(payload.stayRules) ? payload.stayRules : []);
     } catch (error) {
       setLoadError(
         error instanceof Error
@@ -160,7 +179,7 @@ export function AvailabilityDatePicker({
     } finally {
       setLoading(false);
     }
-  }, [maximumDate, today, unitId]);
+  }, [maximumDate, minimumStayNights, today, unitId]);
 
   useEffect(() => {
     loadAvailability();
@@ -198,6 +217,20 @@ export function AvailabilityDatePicker({
     [blockedNight],
   );
 
+  const minimumForArrival = useCallback(
+    (arrivalDate: string) => {
+      const matchingRule = stayRules.find(
+        (rule) => rule.start <= arrivalDate && rule.end >= arrivalDate,
+      );
+
+      return Math.max(
+        1,
+        Number(matchingRule?.minimumNights ?? baseMinimumStayNights),
+      );
+    },
+    [baseMinimumStayNights, stayRules],
+  );
+
   function dayState(date: string) {
     const past = date < today;
     const beyondHorizon = date > maximumDate;
@@ -228,7 +261,26 @@ export function AvailabilityDatePicker({
         return { disabled: true, title: "Unavailable" };
       }
 
-      return { disabled: false, title: "Available" };
+      const requiredNights = minimumForArrival(date);
+      const earliestCheckout = addDays(date, requiredNights);
+
+      if (
+        earliestCheckout > maximumDate ||
+        !rangeAvailable(date, earliestCheckout)
+      ) {
+        return {
+          disabled: true,
+          title: `Unavailable for the ${requiredNights}-night minimum stay`,
+        };
+      }
+
+      return {
+        disabled: false,
+        title:
+          requiredNights > 1
+            ? `Available · ${requiredNights}-night minimum`
+            : "Available",
+      };
     }
 
     if (!checkIn) {
@@ -242,15 +294,15 @@ export function AvailabilityDatePicker({
       };
     }
 
+    const requiredNights = minimumForArrival(checkIn);
     const nights = diffDays(checkIn, date);
 
-    if (nights < Math.max(1, minimumStayNights)) {
+    if (nights < requiredNights) {
       return {
         disabled: true,
-        title: `Minimum stay is ${Math.max(
-          1,
-          minimumStayNights,
-        )} night${Math.max(1, minimumStayNights) === 1 ? "" : "s"}`,
+        title: `${requiredNights}-night minimum · earliest checkout ${friendly(
+          addDays(checkIn, requiredNights),
+        )}`,
       };
     }
 
@@ -273,14 +325,27 @@ export function AvailabilityDatePicker({
     if (state.disabled) return;
 
     if (activeField === "checkIn") {
+      const requiredNights = minimumForArrival(date);
+      const earliestCheckout = addDays(date, requiredNights);
+
       const existingCheckoutStillValid =
         checkOut &&
-        diffDays(date, checkOut) >= Math.max(1, minimumStayNights) &&
+        diffDays(date, checkOut) >= requiredNights &&
         rangeAvailable(date, checkOut);
+
+      const automaticCheckout =
+        !existingCheckoutStillValid &&
+        requiredNights > 1 &&
+        earliestCheckout <= maximumDate &&
+        rangeAvailable(date, earliestCheckout)
+          ? earliestCheckout
+          : "";
 
       onChange({
         checkIn: date,
-        checkOut: existingCheckoutStillValid ? checkOut : "",
+        checkOut: existingCheckoutStillValid
+          ? checkOut
+          : automaticCheckout,
       });
 
       setActiveField("checkOut");
@@ -309,6 +374,12 @@ export function AvailabilityDatePicker({
 
   const currentMonth = today.slice(0, 7);
   const maximumMonth = maximumDate.slice(0, 7);
+  const selectedMinimumStay = checkIn
+    ? minimumForArrival(checkIn)
+    : baseMinimumStayNights;
+  const earliestSelectedCheckout = checkIn
+    ? addDays(checkIn, selectedMinimumStay)
+    : "";
 
   return (
     <div className={styles.wrap}>
@@ -434,11 +505,11 @@ export function AvailabilityDatePicker({
               ? loadError
               : activeField === "checkIn"
                 ? "Choose an available check-in date."
-                : `Choose checkout${
-                    minimumStayNights > 1
-                      ? ` · minimum ${minimumStayNights} nights`
-                      : ""
-                  }.`}
+                : checkIn
+                  ? `${selectedMinimumStay}-night minimum for this check-in · earliest checkout ${friendly(
+                      earliestSelectedCheckout,
+                    )}.`
+                  : "Choose check-in first."}
         </p>
       </div>
     </div>

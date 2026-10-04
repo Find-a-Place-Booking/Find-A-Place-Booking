@@ -24,6 +24,14 @@ function verificationSecret() {
   return value;
 }
 
+export function guestEmailVerificationRequired() {
+  const value =
+    process.env.BOOKING_EMAIL_VERIFICATION_REQUIRED?.trim().toLowerCase() ||
+    "";
+
+  return ["1", "true", "yes", "on"].includes(value);
+}
+
 export function guestIdentityVerificationRequired() {
   const value =
     process.env.BOOKING_IDENTITY_VERIFICATION_REQUIRED?.trim().toLowerCase() ||
@@ -202,6 +210,7 @@ export async function reservationVerificationReadiness(
 ) {
   const phonePresent = Boolean(reservation.guest_phone?.trim());
   const emailVerified = Boolean(reservation.guest_email_verified_at);
+  const emailRequired = guestEmailVerificationRequired();
   const identityRequired = guestIdentityVerificationRequired();
   const storedIdentityStatus =
     reservation.identity_verification_status || "NOT_STARTED";
@@ -214,6 +223,7 @@ export async function reservationVerificationReadiness(
       ready: false as const,
       phonePresent,
       emailVerified,
+      emailRequired,
       identityRequired,
       identityVerified: storedIdentityVerified,
       identityStatus: storedIdentityStatus,
@@ -221,11 +231,16 @@ export async function reservationVerificationReadiness(
     };
   }
 
-  if (!emailVerified) {
+  // Email verification used to be a mandatory pre-payment gate. Funnel data
+  // showed guests creating valid holds and then disappearing immediately after
+  // the code was sent, with no Stripe/payment error. Keep the infrastructure
+  // available, but do not block payment on it unless explicitly re-enabled.
+  if (emailRequired && !emailVerified) {
     return {
       ready: false as const,
       phonePresent,
       emailVerified,
+      emailRequired,
       identityRequired,
       identityVerified: storedIdentityVerified,
       identityStatus: storedIdentityStatus,
@@ -241,6 +256,7 @@ export async function reservationVerificationReadiness(
       ready: true as const,
       phonePresent,
       emailVerified,
+      emailRequired,
       identityRequired,
       identityVerified: storedIdentityVerified,
       identityStatus: storedIdentityStatus,
@@ -253,6 +269,7 @@ export async function reservationVerificationReadiness(
       ready: false as const,
       phonePresent,
       emailVerified,
+      emailRequired,
       identityRequired,
       identityVerified: false,
       identityStatus: "NOT_STARTED",
@@ -266,6 +283,7 @@ export async function reservationVerificationReadiness(
     ready: identity.ready,
     phonePresent,
     emailVerified,
+    emailRequired,
     identityRequired,
     identityVerified: identity.ready,
     identityStatus: identity.status,
