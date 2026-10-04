@@ -109,3 +109,12 @@ The earlier CSS-only attempt was not sufficient because the global `.wizard` rul
 - This fills the card edge-to-edge while cropping portrait uploads much less aggressively than the original short landscape frame.
 - Desktop card rendering is unchanged.
 - No booking, calendar, checkout, pricing, or property data logic changed.
+
+
+## V6 mobile image rendering correction
+- Removed the fixed square mobile image frame.
+- Mobile property cards now render the primary image at its natural aspect ratio.
+- No `cover`, `contain`, forced height, or fixed aspect ratio is applied on mobile.
+- Portrait photos can make a taller card; this is intentional so the host photo is not cropped or zoomed.
+- Desktop card rendering is unchanged.
+- No booking, calendar, checkout, pricing, or host data logic changed.

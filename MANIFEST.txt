@@ -33,3 +33,6 @@ V4 additions:
 V5 mobile card correction:
 - app/guest-feedback-fixes.css
 - components/PropertyCard.tsx
+
+V6 mobile image correction:
+- app/guest-feedback-fixes.css (natural image proportions on mobile)
