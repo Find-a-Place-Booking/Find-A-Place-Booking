@@ -78,3 +78,12 @@ canonical availability code is changed by this overlay.
 - Keeps the step rail compact/sticky on desktop.
 - Preserves the existing single-column mobile wizard.
 - No onboarding, booking, payment, calendar, or availability logic is changed.
+
+
+## v3 onboarding layout correction
+The earlier CSS-only attempt was not sufficient because the global `.wizard` rule still reserved a third 220px grid column. v3 fixes the source component itself:
+- removes the decorative `Complete once` aside from the DOM
+- sets the wizard to exactly two columns inline: step rail + form
+- removes the form's old 780px max-width so it can use the available space
+- keeps the existing mobile `display:block` behavior
+- does not change onboarding data, booking, payments, calendar, or availability logic

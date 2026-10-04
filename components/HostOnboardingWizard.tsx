@@ -529,7 +529,15 @@ export function HostOnboardingWizard({
   }
 
   return (
-    <div className="wizard near-production-wizard">
+    <div
+      className="wizard near-production-wizard"
+      style={{
+        gridTemplateColumns: "minmax(160px, 190px) minmax(0, 1fr)",
+        gap: 24,
+        alignItems: "start",
+        width: "100%",
+      }}
+    >
       <aside
         className="wizard-steps"
         aria-label="Listing setup steps"
@@ -554,7 +562,10 @@ export function HostOnboardingWizard({
         ))}
       </aside>
 
-      <section className="panel wizard-panel">
+      <section
+        className="panel wizard-panel"
+        style={{ width: "100%", maxWidth: "none", minWidth: 0 }}
+      >
         <div className="wizard-mobile-step">
           <span>
             Step {step + 1} of {steps.length}
@@ -1562,25 +1573,7 @@ export function HostOnboardingWizard({
         </div>
       </section>
 
-      <aside className="onboarding-plan">
-        <small>Find A Place host setup</small>
-        <strong>Complete once</strong>
-        <span>listing + optional taxes + payments</span>
-        <hr />
-        <p>
-          The first listing is built to be booking-ready here instead
-          of sending the host back through multiple dashboard screens
-          after onboarding.
-        </p>
-        <div className="plan-points">
-          <span>✓ Real listing photos saved now</span>
-          <span>✓ Property tax setup is optional</span>
-          <span>✓ Calendar / PMS connected during setup</span>
-          <span>✓ Stripe Connect completed now</span>
-          <span>✓ Host-owned direct payments</span>
-          <span>✓ Listing data carries into the property record</span>
-        </div>
-      </aside>
+
     </div>
   );
 }
