@@ -1,21 +1,17 @@
-Find A Place Booking — Autosave + 12-hour time fix
+Find A Place Booking - Facebook property preview fix
 
-This bundle was generated against current main:
-f2dc779fe29b7812b5a460d10bb4f898e9ea958b
+Additive file:
+  app/stays/[slug]/opengraph-image.tsx
 
-What it changes
-- Host onboarding immediately keeps a browser-local crash-recovery draft.
-- Host onboarding autosaves to the existing server-side onboarding save path after ~1 second of inactivity.
-- Property editor keeps a browser-local recovery draft and autosaves after ~1.2 seconds.
-- Property autosave does NOT repeatedly geocode the address and does NOT autosave a URL slug change; those stay on the existing explicit Save action.
-- Existing Save / Save & continue buttons remain intact.
-- Host check-in, checkout, quiet hours, and guest-email send-time controls display 12-hour AM/PM choices while continuing to store HH:mm internally.
-- Guest-facing property/check-in policy displays use 12-hour AM/PM.
-- Existing timestamp helpers are made explicitly hour12 where applicable.
+What it does:
+- Gives every stay page a native Next.js Open Graph image.
+- Produces a fixed 1200x630 PNG for Facebook/social crawlers.
+- Reads the cover photo server-side from private Supabase storage.
+- Uses the Supabase image transform when available.
+- Falls back to the original private image and normalizes it through ImageResponse.
+- Falls back to a branded Find A Place image if the listing has no usable cover.
+- Adds property name/location to the preview image.
+- Does not touch booking, availability, Stripe, calendar, or normal property gallery code.
 
-Apply
-1. Put apply-autosave-time-fix.mjs in the repository root.
-2. Run: node apply-autosave-time-fix.mjs
-3. Run your normal build/deploy.
-
-The script uses exact source checks and stops if a required current-main source block no longer matches. Run it on a clean working tree so normal Git rollback is available if your local source has moved ahead.
+After deployment:
+Facebook may still have the old preview cached for URLs it has already scraped. Use the Facebook Sharing Debugger and choose Scrape Again for any stale property URL.
