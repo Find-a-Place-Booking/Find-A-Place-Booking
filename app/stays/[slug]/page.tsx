@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { cache } from "react";
 
+import { BackToStayResults } from "@/components/BackToStayResults";
 import { BookingCard } from "@/components/BookingCard";
 import { Footer } from "@/components/Footer";
 import { Header } from "@/components/Header";
@@ -12,8 +13,43 @@ import { PropertyReviews } from "@/components/PropertyReviews";
 import { PublicHostCard } from "@/components/PublicHostCard";
 import { getPublishedListingBySlug } from "@/lib/public/listings";
 import { absoluteUrl, seoDescription } from "@/lib/seo";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 const getProperty = cache(getPublishedListingBySlug);
+
+type BedConfigurationEntry = {
+  type: string;
+  count: number;
+};
+
+function parseBedConfiguration(value: unknown): BedConfigurationEntry[] {
+  if (!Array.isArray(value)) return [];
+
+  return value.flatMap((entry) => {
+    if (!entry || typeof entry !== "object" || Array.isArray(entry)) return [];
+    const row = entry as Record<string, unknown>;
+    const type = typeof row.type === "string" ? row.type.trim() : "";
+    const count = Number(row.count || 0);
+    if (!type || !Number.isInteger(count) || count < 1 || count > 20) return [];
+    return [{ type, count }];
+  });
+}
+
+function bedLabel(entry: BedConfigurationEntry) {
+  const singularPlural: Record<string, [string, string]> = {
+    King: ["king bed", "king beds"],
+    Queen: ["queen bed", "queen beds"],
+    "Full / double": ["full / double bed", "full / double beds"],
+    "Twin / single": ["twin / single bed", "twin / single beds"],
+    "Bunk bed": ["bunk bed", "bunk beds"],
+    "Sofa bed": ["sofa bed", "sofa beds"],
+    Futon: ["futon", "futons"],
+    "Murphy bed": ["Murphy bed", "Murphy beds"],
+    Crib: ["crib", "cribs"],
+  };
+  const labels = singularPlural[entry.type] ?? [entry.type.toLowerCase(), entry.type.toLowerCase()];
+  return `${entry.count} ${entry.count === 1 ? labels[0] : labels[1]}`;
+}
 
 export async function generateMetadata({
   params,
@@ -74,6 +110,34 @@ export default async function PropertyPage({
   const property = await getProperty(slug);
   if (!property) notFound();
 
+  let bedConfiguration: BedConfigurationEntry[] = [];
+  try {
+    const admin = createAdminClient();
+    const { data: unitBedData, error: unitBedError } = await admin
+      .from("property_units")
+      .select("bed_configuration")
+      .eq("id", property.unitId)
+      .maybeSingle();
+
+    if (!unitBedError) {
+      bedConfiguration = parseBedConfiguration(unitBedData?.bed_configuration);
+    }
+  } catch (error) {
+    console.error("[public stay] bed configuration unavailable", error);
+  }
+
+  const legacyBedAmenities = new Set([
+    "King bed",
+    "Queen bed",
+    "Full / double bed",
+    "Twin bed",
+    "Bunk beds",
+    "Sofa bed",
+  ]);
+  const visibleAmenities = bedConfiguration.length
+    ? property.amenities.filter((amenity) => !legacyBedAmenities.has(amenity))
+    : property.amenities;
+
   const lodgingSchema = {
     "@context": "https://schema.org",
     "@type": "LodgingBusiness",
@@ -120,6 +184,10 @@ export default async function PropertyPage({
       <Header />
 
       <main className="property-page">
+        <div className="shell stay-back-row">
+          <BackToStayResults />
+        </div>
+
         <div className="shell property-title">
           <div>
             <p className="eyebrow dark">
@@ -161,6 +229,13 @@ export default async function PropertyPage({
                 </div>
               )}
 
+              {property.beds > 0 && (
+                <div>
+                  <strong>{property.beds}</strong>
+                  <span>beds</span>
+                </div>
+              )}
+
               <div>
                 <strong>{property.baths}</strong>
                 <span>baths</span>
@@ -175,12 +250,24 @@ export default async function PropertyPage({
             <h2>About this stay</h2>
             <p className="lead-copy">{property.description}</p>
 
+            {bedConfiguration.length ? (
+              <>
+                <hr />
+                <h3>Sleeping arrangements</h3>
+                <div className="sleeping-arrangements">
+                  {bedConfiguration.map((entry) => (
+                    <span key={entry.type}>{bedLabel(entry)}</span>
+                  ))}
+                </div>
+              </>
+            ) : null}
+
             <hr />
             <h3>What this place offers</h3>
 
             <div className="amenity-grid">
-              {property.amenities.length ? (
-                property.amenities.map((amenity) => (
+              {visibleAmenities.length ? (
+                visibleAmenities.map((amenity) => (
                   <span key={amenity}>✓ {amenity}</span>
                 ))
               ) : (

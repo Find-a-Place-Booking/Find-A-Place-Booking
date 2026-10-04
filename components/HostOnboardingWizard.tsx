@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  useCallback,
   useEffect,
   useState,
   type Dispatch,
@@ -10,6 +11,8 @@ import { useRouter } from "next/navigation";
 
 import { saveHostOnboarding } from "@/app/host/onboarding/actions";
 import { OnboardingPhotoManager } from "@/components/OnboardingPhotoManager";
+import { OnboardingCalendarSetup } from "@/components/onboarding/OnboardingCalendarSetup";
+import { BedTypeCounts } from "@/components/onboarding/BedTypeCounts";
 import { OnboardingTaxSetup } from "@/components/onboarding/OnboardingTaxSetup";
 import { OnboardingStripeSetup } from "@/components/payments/OnboardingStripeSetup";
 import type { HostOnboardingRecord } from "@/lib/host/onboarding";
@@ -52,6 +55,7 @@ const initialForm = {
   maxGuests: "",
   bedrooms: "",
   beds: "",
+  bedConfiguration: "",
   bathrooms: "",
   minStay: "2",
   customAmenities: "",
@@ -144,6 +148,12 @@ export function HostOnboardingWizard({
   const [stripeReady, setStripeReady] = useState(
     Boolean(initial.stripeReady),
   );
+  const [calendarConfigured, setCalendarConfigured] = useState(
+    Boolean(initial.calendarConfigured),
+  );
+  const [calendarReady, setCalendarReady] = useState(
+    Boolean(initial.calendarReady),
+  );
   const [authorityConfirmed, setAuthorityConfirmed] = useState(
     Boolean(initial.authorityConfirmed),
   );
@@ -170,6 +180,14 @@ export function HostOnboardingWizard({
       message: "Changes on this screen have not been saved yet.",
     });
   }
+
+  const handleCalendarStatusChange = useCallback(
+    ({ configured, ready }: { configured: boolean; ready: boolean }) => {
+      setCalendarConfigured(configured);
+      setCalendarReady(ready);
+    },
+    [],
+  );
 
   const update = (key: FormKey, value: string) => {
     setForm((current) => ({ ...current, [key]: value }));
@@ -292,6 +310,14 @@ export function HostOnboardingWizard({
       return "Choose how this property will manage availability before continuing.";
     }
 
+    if (
+      step === 8 &&
+      ["ICAL", "PMS"].includes(form.calendarPreference) &&
+      !calendarConfigured
+    ) {
+      return "Connect or map at least one availability source for this property before continuing.";
+    }
+
     if (step === 9 && !stripeReady) {
       return "Finish Stripe Connect before continuing to Review. This keeps you from having to come back after onboarding.";
     }
@@ -302,6 +328,7 @@ export function HostOnboardingWizard({
   async function persist(
     targetStep: number,
     confirm = false,
+    formOverride: typeof form = form,
   ) {
     if (saving) return false;
 
@@ -314,7 +341,7 @@ export function HostOnboardingWizard({
     const result = await saveHostOnboarding({
       organizationId: initial.organizationId,
       step: clampStep(targetStep),
-      form,
+      form: formOverride,
       amenities,
       policies,
       photoNames,
@@ -346,6 +373,22 @@ export function HostOnboardingWizard({
     });
 
     return true;
+  }
+
+  async function selectCalendarPreference(value: string) {
+    if (saving) return;
+
+    const nextForm = {
+      ...form,
+      calendarPreference: value,
+    };
+
+    setForm(nextForm);
+    setCalendarConfigured(value === "NONE");
+    setCalendarReady(value === "NONE");
+    markDirty();
+
+    await persist(8, false, nextForm);
   }
 
   async function goToStep(targetStep: number) {
@@ -395,6 +438,9 @@ export function HostOnboardingWizard({
       !positiveNumber(form.weeknight) && "weeknight rate",
       photoNames.length < 1 && "at least one property photo",
       form.calendarPreference === "UNSET" && "availability source",
+      ["ICAL", "PMS"].includes(form.calendarPreference) &&
+        !calendarConfigured &&
+        "connected or mapped availability source",
       form.cancellation.trim().length < 20 &&
         "specific cancellation / refund terms",
       positiveNumber(form.extraGuest) &&
@@ -768,7 +814,7 @@ export function HostOnboardingWizard({
                 />
               </label>
               <label>
-                <span>Beds</span>
+                <span>Total beds</span>
                 <input
                   value={form.beds}
                   onChange={(event) =>
@@ -776,7 +822,15 @@ export function HostOnboardingWizard({
                   }
                   type="number"
                   min="0"
+                  inputMode="numeric"
+                  readOnly={Boolean(
+                    form.bedConfiguration && form.bedConfiguration !== "[]",
+                  )}
                 />
+                <small>
+                  Add a simple total if you do not know the bed types yet. Once
+                  you add types below, this total updates automatically.
+                </small>
               </label>
               <label>
                 <span>Bathrooms</span>
@@ -802,6 +856,19 @@ export function HostOnboardingWizard({
                 />
               </label>
             </div>
+
+            <BedTypeCounts
+              value={form.bedConfiguration}
+              legacyTotal={Number.parseInt(form.beds || "0", 10) || 0}
+              onChange={({ json, total }) => {
+                setForm((current) => ({
+                  ...current,
+                  bedConfiguration: json,
+                  beds: String(total),
+                }));
+                markDirty();
+              }}
+            />
           </>
         )}
 
@@ -810,7 +877,7 @@ export function HostOnboardingWizard({
             <p className="eyebrow dark">Amenities</p>
             <h2>Check what the property actually has.</h2>
             <div className="selection-groups">
-              {amenityGroups.map((group) => (
+              {amenityGroups.filter((group) => group.title !== "Sleeping arrangements").map((group) => (
                 <details key={group.title}>
                   <summary>
                     <span>{group.title}</span>
@@ -1214,20 +1281,19 @@ export function HostOnboardingWizard({
         {step === 8 && (
           <>
             <p className="eyebrow dark">Calendar</p>
-            <h2>
-              Choose the source of truth for availability.
-            </h2>
+            <h2>Set up availability without leaving onboarding.</h2>
             <p>
-              Save the preferred calendar approach here. If you choose
-              iCal or a PMS, the listing can be created now but it will
-              stay draft until that source has completed its first
-              successful sync. Manual Find A Place calendars do not need
-              an external connection.
+              Choose how this property manages availability, then connect the
+              calendar or booking system right here. You will not be sent to a
+              different dashboard and asked to come back. External sources use
+              the same calendar connection and sync pipeline used everywhere
+              else in Find A Place.
             </p>
             <div className="calendar-preference-grid">
               {calendarPreferences.map((option) => (
                 <button
                   type="button"
+                  disabled={saving}
                   key={option.value}
                   className={
                     form.calendarPreference === option.value
@@ -1235,10 +1301,7 @@ export function HostOnboardingWizard({
                       : ""
                   }
                   onClick={() =>
-                    update(
-                      "calendarPreference",
-                      option.value,
-                    )
+                    void selectCalendarPreference(option.value)
                   }
                 >
                   <strong>{option.label}</strong>
@@ -1246,6 +1309,14 @@ export function HostOnboardingWizard({
                 </button>
               ))}
             </div>
+
+            <OnboardingCalendarSetup
+              organizationId={initial.organizationId}
+              preference={form.calendarPreference}
+              initialConfigured={calendarConfigured}
+              initialReady={calendarReady}
+              onStatusChange={handleCalendarStatusChange}
+            />
           </>
         )}
 
@@ -1299,6 +1370,20 @@ export function HostOnboardingWizard({
               </div>
 
               <div>
+                <span>Sleeping setup</span>
+                <strong>
+                  {form.bedConfiguration
+                    ? `${form.beds || "0"} bed${form.beds === "1" ? "" : "s"} configured`
+                    : form.beds
+                      ? `${form.beds} total bed${form.beds === "1" ? "" : "s"}`
+                      : "Not added yet"}
+                </strong>
+                <small>
+                  Bed quantities are saved with the rentable unit, not as yes/no amenities.
+                </small>
+              </div>
+
+              <div>
                 <span>Property photos</span>
                 <strong>
                   {photoNames.length
@@ -1326,6 +1411,30 @@ export function HostOnboardingWizard({
                       " local tax " +
                       (configuredLocalTaxLines === 1 ? "line" : "lines")
                     : "No checkout tax configuration selected. The host remains responsible for filing/remitting applicable taxes."}
+                </small>
+              </div>
+
+              <div>
+                <span>Availability</span>
+                <strong>
+                  {form.calendarPreference === "UNSET"
+                    ? "Required"
+                    : form.calendarPreference === "NONE"
+                      ? "Find A Place only"
+                      : calendarReady
+                        ? "Connected & synced"
+                        : calendarConfigured
+                          ? "Connected · first sync pending"
+                          : "Connection required"}
+                </strong>
+                <small>
+                  {form.calendarPreference === "NONE"
+                    ? "No external calendar is required for this property."
+                    : calendarReady
+                      ? "At least one selected availability source has completed a successful sync."
+                      : calendarConfigured
+                        ? "The property-specific connection is saved. The listing stays draft until an external source completes a clean sync."
+                        : "Return to Calendar and connect or map the selected availability source."}
                 </small>
               </div>
 
@@ -1376,10 +1485,13 @@ export function HostOnboardingWizard({
               </strong>
               <span>
                 The completion check verifies required listing data,
-                at least one real photo, the Stripe connection and the
-                host policy acceptance before publication is attempted.
-                Tax setup is optional; without it, Find A Place adds $0
-                tax at checkout and the host self-remits.
+                at least one real photo, the selected availability setup,
+                the Stripe connection and the host policy acceptance before
+                publication is attempted. External calendar/PMS setup may be
+                saved while its first sync is still finishing; the listing
+                stays draft until that sync is healthy. Tax setup is optional;
+                without it, Find A Place adds $0 tax at checkout and the host
+                self-remits.
               </span>
             </div>
 
@@ -1463,6 +1575,7 @@ export function HostOnboardingWizard({
         <div className="plan-points">
           <span>✓ Real listing photos saved now</span>
           <span>✓ Property tax setup is optional</span>
+          <span>✓ Calendar / PMS connected during setup</span>
           <span>✓ Stripe Connect completed now</span>
           <span>✓ Host-owned direct payments</span>
           <span>✓ Listing data carries into the property record</span>

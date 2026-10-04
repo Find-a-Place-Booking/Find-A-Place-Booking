@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { track } from "@vercel/analytics";
 import { PropertyCard } from "./PropertyCard";
 import { DeferredStayMap } from "./DeferredStayMap";
@@ -20,6 +20,8 @@ const filterOptions = [
   "2+ bedrooms",
 ];
 
+const STAY_BROWSE_KEY = "find-a-place:stay-browse-state";
+
 export function StayResults({
   properties,
   destination,
@@ -38,6 +40,139 @@ export function StayResults({
   );
   const [sort, setSort] = useState("recommended");
   const [mapOpen, setMapOpen] = useState(true);
+  const [browseReady, setBrowseReady] = useState(false);
+
+  useEffect(() => {
+    const currentUrl = window.location.pathname + window.location.search;
+
+    try {
+      const saved = JSON.parse(
+        window.sessionStorage.getItem(STAY_BROWSE_KEY) || "null",
+      ) as {
+        url?: string;
+        filters?: string[];
+        sort?: string;
+        mapOpen?: boolean;
+        scrollY?: number;
+        savedAt?: number;
+      } | null;
+
+      const isRecent =
+        typeof saved?.savedAt === "number" &&
+        Date.now() - saved.savedAt < 12 * 60 * 60 * 1000;
+
+      if (isRecent && saved?.url?.split("#")[0] === currentUrl) {
+        if (Array.isArray(saved.filters)) {
+          setFilters(
+            saved.filters.filter((filter) => filterOptions.includes(filter)),
+          );
+        }
+        if (["recommended", "price-low", "rating"].includes(saved.sort || "")) {
+          setSort(saved.sort!);
+        }
+        if (typeof saved.mapOpen === "boolean") {
+          setMapOpen(saved.mapOpen);
+        }
+
+        const scrollY = Number(saved.scrollY || 0);
+        if (scrollY > 0) {
+          requestAnimationFrame(() => {
+            requestAnimationFrame(() => window.scrollTo(0, scrollY));
+          });
+        }
+
+        // The target marker is single-use. Clearing it after a successful
+        // restore prevents a later direct visit to the same stay from being
+        // mistaken for an active back-to-results journey.
+        window.sessionStorage.setItem(
+          STAY_BROWSE_KEY,
+          JSON.stringify({
+            ...saved,
+            target: undefined,
+            savedAt: undefined,
+          }),
+        );
+      }
+    } catch {
+      // Browsing state is a convenience only. Ignore malformed session data.
+    }
+
+    setBrowseReady(true);
+  }, []);
+
+  useEffect(() => {
+    if (!browseReady) return;
+
+    const currentUrl = window.location.pathname + window.location.search;
+    let previous: Record<string, unknown> = {};
+
+    try {
+      previous = JSON.parse(
+        window.sessionStorage.getItem(STAY_BROWSE_KEY) || "{}",
+      );
+    } catch {
+      previous = {};
+    }
+
+    window.sessionStorage.setItem(
+      STAY_BROWSE_KEY,
+      JSON.stringify({
+        ...previous,
+        url: currentUrl,
+        filters,
+        sort,
+        mapOpen,
+      }),
+    );
+  }, [browseReady, filters, mapOpen, sort]);
+
+  useEffect(() => {
+    if (!browseReady) return;
+
+    function rememberStayClick(event: MouseEvent) {
+      const node = event.target instanceof Element ? event.target : null;
+      const anchor = node?.closest("a[href]") as HTMLAnchorElement | null;
+      if (!anchor) return;
+
+      const targetUrl = new URL(anchor.href, window.location.href);
+      if (
+        targetUrl.origin !== window.location.origin ||
+        !/^\/stays\/[^/]+/.test(targetUrl.pathname)
+      ) {
+        return;
+      }
+
+      let previous: Record<string, unknown> = {};
+      try {
+        previous = JSON.parse(
+          window.sessionStorage.getItem(STAY_BROWSE_KEY) || "{}",
+        );
+      } catch {
+        previous = {};
+      }
+
+      window.sessionStorage.setItem(
+        STAY_BROWSE_KEY,
+        JSON.stringify({
+          ...previous,
+          url:
+            window.location.pathname +
+            window.location.search +
+            window.location.hash,
+          filters,
+          sort,
+          mapOpen,
+          scrollY: window.scrollY,
+          target: targetUrl.pathname + targetUrl.search,
+          savedAt: Date.now(),
+        }),
+      );
+    }
+
+    document.addEventListener("click", rememberStayClick, true);
+    return () =>
+      document.removeEventListener("click", rememberStayClick, true);
+  }, [browseReady, filters, mapOpen, sort]);
 
   const filtered = useMemo(() => {
     let result = properties.filter((property) => {

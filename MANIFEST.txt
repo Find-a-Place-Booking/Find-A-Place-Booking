@@ -1,0 +1,25 @@
+Find A Place Booking — beta host feedback + inline calendar onboarding overlay
+Built: 2026-10-03
+Base main commit observed: e3c723a244c6618a123ad946783c077de5e5f9af
+Production DB bed-configuration support + 25-photo server guard: already applied and verified.
+
+SHA256 files:
+2bfe98bd44780ec8ea168a9fa9150732eca49a231f125700321dafbd1bcbf7d8  ./README_BETA_HOST_FEEDBACK_FIXES.md
+9175241cfbc0f7ab1a64fbf2bad22976db284617603e4abfdc2c166c9b2ace8f  ./README_INLINE_CALENDAR_ONBOARDING.md
+0961a9d4b3922de7472951f09122e8cd0cf3665cf8f2131fb277a3d98e161f11  ./app/api/host/onboarding/calendar/route.ts
+c2d5080323401f5bf91dd56007538a0e4d780a635378f9165b1ae861b0bdb6d2  ./app/guest-feedback-fixes.css
+e993f52963857764196fa99a951f3c7beea55787dc1a811ae9682fe60851eee6  ./app/layout.tsx
+ee8c1c2f445520a0fba42e44de507b5b5718b74844961a3e88d73663ddd3a1dc  ./app/stays/[slug]/page.tsx
+14e6b200bf9809fe07d5acfadb8f02c783726087a998b075358ba4d150af746a  ./components/BackToStayResults.tsx
+d1e5e3bce754d78f838f5de4433c37b5bca40ff39c12bdd2034e9df743ab2fe8  ./components/HostOnboardingWizard.tsx
+0012fcdcb2c193b881e6b7cc161efd645fe3af4835b5d5f5144d64b78c0ff028  ./components/PropertyGallery.module.css
+5aea72c0d7d0fadd377e683a52afb8953af4b0e3ac31be1b8c6764057506ad3f  ./components/StayResults.tsx
+c57d7efd7c663f0a0ebde32e70b821958d662a4ee3e0928418a3e32ae7205ec9  ./components/TrackedLink.tsx
+a3a09197d3611e1677ffcc6533cf76ec049f5daebdf1208ffd4cd42d85e4ca24  ./components/onboarding/BedTypeCounts.module.css
+05278bf54416fed5736b3fee49cddb22b3865eba468d1cf1de635a185fb66694  ./components/onboarding/BedTypeCounts.tsx
+a0edb98438ae47aed90174d2afcc3f8a48d7ffda82ca1e3de9262a4e6a0ece92  ./components/onboarding/OnboardingCalendarSetup.module.css
+a249d940b763fc862466cccee129448990c5825c69f2d5264655e7fe689136ea  ./components/onboarding/OnboardingCalendarSetup.tsx
+cd9bc2e5397e71cdaa334e2307ce61ac55430fc122cc5d4ea86aa8b942b28d76  ./lib/host/onboarding.ts
+5a08dfb4f7dbb776c64767ee651557c64664dfbca14c2f7a6890c6c798d12271  ./lib/property/catalog.ts
+f5d2ac9ddcaa2b8115ca990ce4d808f9184e486b1e7274b5e45d7476fda45931  ./supabase/reference/2026-10-03-bed-configuration.sql
+16c06c7d917a8769f64a7e0838a2de5256b63b4e8ef2097c1bd4fea072c62849  ./supabase/reference/2026-10-03-onboarding-photo-limit-25.sql

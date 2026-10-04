@@ -1,0 +1,11 @@
+-- Production correction applied 2026-10-03.
+-- The UI supports up to 25 onboarding photos. The existing save_host_onboarding
+-- function still rejected 25 because its guard was `> 24`.
+--
+-- The production function was changed so the same guard is `> 25`.
+-- Keep the repository migration/function definition aligned with that value
+-- the next time save_host_onboarding is regenerated.
+--
+-- Expected clause:
+--   or coalesce(array_length(selected_photo_names, 1), 0) > 25 then
+--     raise exception 'Onboarding selection limit exceeded';

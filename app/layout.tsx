@@ -9,6 +9,7 @@ import "./mobile-ui-fixes.css";
 import "./mobile-public-width-fix.css";
 import "./photo-gallery-fixes.css";
 import "./property-editor-sidebar-fix.css";
+import "./guest-feedback-fixes.css";
 
 import { BookingJourneyTracker } from "@/components/BookingJourneyTracker";
 import { JsonLd } from "@/components/JsonLd";

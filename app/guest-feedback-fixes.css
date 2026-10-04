@@ -1,0 +1,81 @@
+.stay-back-row {
+  margin-bottom: 14px;
+}
+
+.stay-back-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 40px;
+  padding: 8px 12px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: rgba(255,255,255,.86);
+  color: var(--ink);
+  font-weight: 800;
+  font-size: .76rem;
+  box-shadow: 0 5px 16px rgba(32,37,37,.05);
+}
+
+.stay-back-button:hover {
+  background: #fff;
+  transform: translateY(-1px);
+}
+
+.stay-back-button span {
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.sleeping-arrangements {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.sleeping-arrangements span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 36px;
+  padding: 7px 10px;
+  border: 1px solid #d9d5cc;
+  border-radius: 999px;
+  background: #f8f6f1;
+  color: #4d524d;
+  font-size: .78rem;
+  font-weight: 750;
+}
+
+@media (max-width: 700px) {
+  /* Mobile cards should show the whole host-selected primary image instead of
+     zooming into a small center crop. */
+  .property-card .property-image-wrap {
+    height: auto;
+    aspect-ratio: 4 / 3;
+    background: #e4ddd2;
+  }
+
+  .property-card .property-image {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    object-position: center;
+    background: #e4ddd2;
+    transform: none !important;
+  }
+
+  .property-card:hover .property-image {
+    transform: none !important;
+  }
+
+  .stay-back-row {
+    margin-top: -4px;
+    margin-bottom: 12px;
+  }
+
+  .stay-back-button {
+    min-height: 42px;
+    font-size: .8rem;
+  }
+}
