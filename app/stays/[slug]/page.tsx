@@ -11,6 +11,7 @@ import { PropertyActions } from "@/components/PropertyActions";
 import { PropertyGallery } from "@/components/PropertyGallery";
 import { PropertyReviews } from "@/components/PropertyReviews";
 import { PublicHostCard } from "@/components/PublicHostCard";
+import { PublicNearbyExperiences } from "@/components/PublicNearbyExperiences";
 import { getPublishedListingBySlug } from "@/lib/public/listings";
 import { absoluteUrl, seoDescription } from "@/lib/seo";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -278,6 +279,8 @@ export default async function PropertyPage({
                 {property.customAmenities}
               </p>
             ) : null}
+
+            <PublicNearbyExperiences propertyId={property.propertyId} />
 
             <hr />
             <h3>Know before you book</h3>

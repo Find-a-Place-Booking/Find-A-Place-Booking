@@ -27,38 +27,38 @@
 
 .progress {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 8px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
   margin: 0 0 24px;
 }
 
 .progressItem {
   min-width: 0;
   display: grid;
-  grid-template-columns: 28px minmax(0, 1fr);
-  gap: 8px;
+  grid-template-columns: 32px minmax(0, 1fr);
+  gap: 10px;
   align-items: center;
-  padding: 9px 10px;
+  padding: 11px 12px;
   border: 1px solid #ddd6cb;
-  border-radius: 10px;
+  border-radius: 12px;
   background: #f8f6f1;
   color: #7a7d78;
 }
 
 .progressItem > span:first-child {
-  width: 26px;
-  height: 26px;
+  width: 30px;
+  height: 30px;
   border-radius: 999px;
   display: grid;
   place-items: center;
   background: #e9e3d9;
-  font-size: .68rem;
+  font-size: .72rem;
   font-weight: 900;
 }
 
 .progressItem strong {
   min-width: 0;
-  font-size: .67rem;
+  font-size: .76rem;
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
@@ -83,7 +83,7 @@
 .stageIntro {
   margin: -6px 0 22px;
   color: #68706c;
-  font-size: .88rem;
+  font-size: .9rem;
   line-height: 1.65;
 }
 
@@ -150,7 +150,7 @@
 .summaryRows {
   display: grid;
   gap: 0;
-  margin: 18px 22px;
+  margin: 18px 22px 12px;
   border-top: 1px solid var(--line);
 }
 
@@ -168,7 +168,35 @@
 }
 
 .summaryRows .total {
-  font-size: .95rem;
+  font-size: 1rem;
+  padding-top: 13px;
+}
+
+.summaryRows .total b {
+  color: #254b3d;
+}
+
+.summaryTotalCallout {
+  display: grid;
+  gap: 2px;
+  margin: 0 22px 16px;
+  padding: 14px 15px;
+  border: 1px solid #cddbcf;
+  border-radius: 12px;
+  background: #eef4ef;
+}
+
+.summaryTotalCallout span {
+  color: #5c6862;
+  font-size: .69rem;
+  font-weight: 800;
+}
+
+.summaryTotalCallout strong {
+  color: #254b3d;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 1.45rem;
+  font-weight: 500;
 }
 
 .holdNotice {
@@ -245,7 +273,7 @@
   display: block;
   margin-top: 5px;
   color: #6b706c;
-  font-size: .78rem;
+  font-size: .82rem;
   line-height: 1.5;
 }
 
@@ -257,6 +285,50 @@
 .paymentForm small {
   color: #747873;
   font-size: .7rem;
+}
+
+.paymentTrust {
+  display: grid;
+  gap: 3px;
+  padding: 12px 13px;
+  border: 1px solid #ded8cf;
+  border-radius: 10px;
+  background: #faf9f6;
+}
+
+.paymentTrust strong {
+  color: #34493f;
+  font-size: .76rem;
+}
+
+.paymentTrust span {
+  color: #717771;
+  font-size: .68rem;
+  line-height: 1.45;
+}
+
+.checkoutReassurance,
+.loadingPayment {
+  display: grid;
+  gap: 4px;
+  margin: 14px 0;
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: #f7f5f0;
+  border: 1px solid #e2ddd4;
+}
+
+.checkoutReassurance strong,
+.loadingPayment strong {
+  color: #315f4b;
+  font-size: .78rem;
+}
+
+.checkoutReassurance span,
+.loadingPayment span {
+  color: #68706c;
+  font-size: .72rem;
+  line-height: 1.5;
 }
 
 .error {
@@ -366,12 +438,6 @@
   }
 }
 
-@media (max-width: 720px) {
-  .progress {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
-
 @media (max-width: 620px) {
   .layout {
     gap: 18px;
@@ -408,10 +474,10 @@
 
 @media (max-width: 430px) {
   .progress {
-    grid-template-columns: 1fr;
+    grid-template-columns: 1fr 1fr;
   }
 
   .progressItem {
-    padding: 8px 9px;
+    padding: 9px;
   }
 }

@@ -1,0 +1,141 @@
+.section {
+  margin: 34px 0;
+  padding-top: 28px;
+  border-top: 1px solid rgba(38, 58, 64, 0.14);
+}
+
+.heading {
+  margin-bottom: 17px;
+}
+
+.heading h2 {
+  margin: 4px 0 7px;
+}
+
+.heading p:last-child {
+  margin: 0;
+  max-width: 680px;
+  color: #68706a;
+  font-size: 0.78rem;
+  line-height: 1.6;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.card {
+  border: 1px solid #ded8cf;
+  background: #fff;
+  overflow: hidden;
+  display: grid;
+  grid-template-columns: 150px 1fr;
+  min-height: 150px;
+}
+
+.media {
+  position: relative;
+  min-height: 150px;
+  background: #e9e5de;
+  overflow: hidden;
+}
+
+.media img {
+  width: 100%;
+  height: 100%;
+  min-height: 150px;
+  object-fit: cover;
+}
+
+.media > span {
+  position: absolute;
+  left: 8px;
+  bottom: 8px;
+  background: rgba(29, 45, 50, 0.9);
+  color: #fff;
+  padding: 5px 7px;
+  font-size: 0.55rem;
+  font-weight: 850;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.cardNoImage {
+  grid-template-columns: 1fr;
+  min-height: 0;
+}
+
+.cardNoImage .copy {
+  min-height: 132px;
+  padding: 17px 18px;
+}
+
+.categoryInline {
+  width: fit-content;
+  background: #eef2ef;
+  color: #365748;
+  padding: 5px 7px;
+  font-size: 0.55rem;
+  font-weight: 850;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.copy {
+  padding: 13px 14px;
+  display: grid;
+  align-content: start;
+  gap: 9px;
+}
+
+.copy > div {
+  display: grid;
+  gap: 4px;
+}
+
+.copy h3 {
+  margin: 0;
+  font-size: 0.94rem;
+}
+
+.copy strong {
+  color: #476454;
+  font-size: 0.64rem;
+}
+
+.copy p {
+  margin: 0;
+  color: #646c66;
+  font-size: 0.7rem;
+  line-height: 1.55;
+}
+
+.copy a {
+  color: #355f4a;
+  font-size: 0.65rem;
+  font-weight: 850;
+  text-decoration: none;
+}
+
+@media (max-width: 900px) {
+  .grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 520px) {
+  .card {
+    grid-template-columns: 1fr;
+  }
+
+  .media,
+  .media img {
+    min-height: 190px;
+  }
+
+  .cardNoImage .copy {
+    min-height: 0;
+  }
+}

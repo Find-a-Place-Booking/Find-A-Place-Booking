@@ -1,11 +1,18 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import type { PropertyImageRecord } from "@/lib/host/properties";
 import { createClient } from "@/lib/supabase/client";
 import styles from "./PrimaryPhotoSelector.module.css";
+
+function moveItem<T>(items: T[], from: number, to: number) {
+  const next = [...items];
+  const [item] = next.splice(from, 1);
+  next.splice(to, 0, item);
+  return next;
+}
 
 export function PrimaryPhotoSelector({
   unitId,
@@ -17,191 +24,207 @@ export function PrimaryPhotoSelector({
   editable: boolean;
 }) {
   const router = useRouter();
-  const [images, setImages] = useState(initialImages);
-  const [selectedId, setSelectedId] = useState<string | null>(
-    initialImages.length
-      ? [...initialImages].sort(
-          (a, b) => a.sortOrder - b.sortOrder,
-        )[0]?.id ?? null
-      : null,
+  const [images, setImages] = useState(() =>
+    [...initialImages].sort((a, b) => a.sortOrder - b.sortOrder),
   );
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [draggingId, setDraggingId] = useState<string | null>(null);
+  const dragIndexRef = useRef<number | null>(null);
 
-  const sortedImages = useMemo(
-    () =>
-      [...images].sort(
-        (a, b) => a.sortOrder - b.sortOrder,
-      ),
+  const orderedImages = useMemo(
+    () => [...images].sort((a, b) => a.sortOrder - b.sortOrder),
     [images],
   );
 
-  if (!sortedImages.length) return null;
+  if (!orderedImages.length) return null;
 
-  const currentPrimary = sortedImages[0];
-  const selectedImage =
-    sortedImages.find((image) => image.id === selectedId) ??
-    currentPrimary;
-  const selectionChanged = selectedImage.id !== currentPrimary.id;
+  async function persistOrder(next: PropertyImageRecord[]) {
+    if (!editable || saving) return false;
 
-  async function savePrimary() {
-    if (!editable || saving || !selectionChanged) return;
+    const previous = orderedImages;
+    const normalized = next.map((image, index) => ({
+      ...image,
+      sortOrder: index,
+    }));
 
+    setImages(normalized);
     setSaving(true);
     setError(null);
-    setMessage("Updating the primary photo…");
-
-    const minimumSortOrder = Math.min(
-      ...sortedImages.map((item) => item.sortOrder),
-    );
-    const nextSortOrder = minimumSortOrder - 1;
+    setMessage("Saving photo order…");
 
     const supabase = createClient();
-    const { data, error: updateError } = await supabase
-      .from("property_images")
-      .update({ sort_order: nextSortOrder })
-      .eq("id", selectedImage.id)
-      .eq("unit_id", unitId)
-      .select("id")
-      .single();
+    const { error: reorderError } = await supabase.rpc(
+      "reorder_property_images",
+      {
+        target_unit_id: unitId,
+        ordered_image_ids: normalized.map((image) => image.id),
+      },
+    );
 
-    if (updateError || !data) {
-      console.error("[set primary property image]", updateError);
-      setSaving(false);
+    setSaving(false);
+
+    if (reorderError) {
+      console.error("[reorder property images]", reorderError);
+      setImages(previous);
       setMessage(null);
-      setError("Couldn't change the primary photo. Try again.");
-      return;
+      setError("Couldn't save the new photo order. Nothing was changed.");
+      return false;
     }
 
-    setImages((current) =>
-      current.map((item) =>
-        item.id === selectedImage.id
-          ? { ...item, sortOrder: nextSortOrder }
-          : item,
-      ),
+    setMessage(
+      "Photo order saved. The first photo is now the primary image guests see.",
     );
-    setSaving(false);
-    setMessage("Primary photo updated. This is now the first image guests see.");
     router.refresh();
+    return true;
+  }
+
+  async function move(index: number, direction: -1 | 1) {
+    const target = index + direction;
+    if (target < 0 || target >= orderedImages.length) return;
+    await persistOrder(moveItem(orderedImages, index, target));
+  }
+
+  async function moveToFront(index: number) {
+    if (index === 0) return;
+    await persistOrder(moveItem(orderedImages, index, 0));
   }
 
   return (
     <section className={`panel ${styles.panel}`}>
       <div className={styles.heading}>
         <div>
-          <p className="eyebrow dark">Primary / hero photo</p>
-          <h2>Choose the first photo guests see</h2>
+          <p className="eyebrow dark">Photo order</p>
+          <h2>Drag photos into the order guests should see them</h2>
           <p>
-            Tap any photo below, then choose <strong>Set selected as primary</strong>.
-            This changes only the photo order — nothing is deleted or re-uploaded.
+            The first photo is automatically the primary / hero image. Drag and
+            drop on desktop, or use the move buttons on phones and tablets. The
+            order saves as soon as you move a photo.
           </p>
         </div>
 
         <div className={styles.summary}>
-          <strong>{sortedImages.length}</strong>
-          <span>photo{sortedImages.length === 1 ? "" : "s"}</span>
+          <strong>{orderedImages.length}</strong>
+          <span>photo{orderedImages.length === 1 ? "" : "s"}</span>
         </div>
       </div>
 
-      {message ? (
-        <div className="admin-message success">{message}</div>
-      ) : null}
+      {message ? <div className="admin-message success">{message}</div> : null}
+      {error ? <div className="admin-message error">{error}</div> : null}
 
-      {error ? (
-        <div className="admin-message error">{error}</div>
-      ) : null}
-
-      <div
-        className={styles.grid}
-        role="radiogroup"
-        aria-label="Choose the primary property photo"
-      >
-        {sortedImages.map((image, index) => {
-          const selected = selectedImage.id === image.id;
+      <div className={styles.grid} aria-label="Property photo order">
+        {orderedImages.map((image, index) => {
           const primary = index === 0;
+          const dragging = draggingId === image.id;
 
           return (
-            <label
+            <figure
               key={image.id}
-              className={`${styles.card} ${
-                selected ? styles.selected : ""
-              } ${primary ? styles.primary : ""}`}
+              className={`${styles.card} ${primary ? styles.primary : ""} ${
+                dragging ? styles.dragging : ""
+              }`}
+              draggable={editable && !saving}
+              onDragStart={(event) => {
+                if (!editable || saving) {
+                  event.preventDefault();
+                  return;
+                }
+                dragIndexRef.current = index;
+                setDraggingId(image.id);
+                event.dataTransfer.effectAllowed = "move";
+                event.dataTransfer.setData("text/plain", image.id);
+              }}
+              onDragEnd={() => {
+                dragIndexRef.current = null;
+                setDraggingId(null);
+              }}
+              onDragOver={(event) => {
+                if (!editable || saving) return;
+                event.preventDefault();
+                event.dataTransfer.dropEffect = "move";
+              }}
+              onDrop={(event) => {
+                if (!editable || saving) return;
+                event.preventDefault();
+                const from = dragIndexRef.current;
+                dragIndexRef.current = null;
+                setDraggingId(null);
+                if (from == null || from === index) return;
+                void persistOrder(moveItem(orderedImages, from, index));
+              }}
             >
-              <input
-                className={styles.radio}
-                type="radio"
-                name={`primary-photo-${unitId}`}
-                value={image.id}
-                checked={selected}
-                disabled={!editable || saving}
-                onChange={() => {
-                  setSelectedId(image.id);
-                  setMessage(null);
-                  setError(null);
-                }}
-              />
-
               <div className={styles.imageWrap}>
                 {image.signedUrl ? (
                   <img
                     src={image.signedUrl}
                     alt={image.altText || image.originalName || "Property photo"}
+                    draggable={false}
                   />
                 ) : (
                   <div className={styles.missing}>Preview unavailable</div>
                 )}
 
-                <span className={styles.check}>
-                  {selected ? "✓" : ""}
-                </span>
-
+                <span className={styles.positionBadge}>#{index + 1}</span>
                 {primary ? (
-                  <span className={styles.primaryBadge}>
-                    Current primary
-                  </span>
+                  <span className={styles.primaryBadge}>Primary photo</span>
                 ) : null}
-              </div>
-
-              <div className={styles.caption}>
-                <strong>
-                  {image.originalName || `Photo ${index + 1}`}
-                </strong>
-                <span>
-                  {primary
-                    ? "Currently shown first"
-                    : selected
-                      ? "Selected to become primary"
-                      : "Tap to select"}
+                <span className={styles.dragHandle} aria-hidden="true">
+                  ⋮⋮
                 </span>
               </div>
-            </label>
+
+              <figcaption className={styles.caption}>
+                <div>
+                  <strong>{image.originalName || `Photo ${index + 1}`}</strong>
+                  <span>
+                    {primary
+                      ? "Shown first across the listing"
+                      : "Drag to reorder"}
+                  </span>
+                </div>
+
+                <div className={styles.mobileActions}>
+                  <button
+                    type="button"
+                    disabled={!editable || saving || index === 0}
+                    onClick={() => void move(index, -1)}
+                    aria-label={`Move ${image.originalName || `photo ${index + 1}`} earlier`}
+                  >
+                    ←
+                  </button>
+                  <button
+                    type="button"
+                    disabled={!editable || saving || index === orderedImages.length - 1}
+                    onClick={() => void move(index, 1)}
+                    aria-label={`Move ${image.originalName || `photo ${index + 1}`} later`}
+                  >
+                    →
+                  </button>
+                  {!primary ? (
+                    <button
+                      type="button"
+                      disabled={!editable || saving}
+                      onClick={() => void moveToFront(index)}
+                    >
+                      Make primary
+                    </button>
+                  ) : null}
+                </div>
+              </figcaption>
+            </figure>
           );
         })}
       </div>
 
-      <div className={styles.actions}>
+      <div className={styles.footer}>
         <div>
-          <strong>
-            {selectionChanged
-              ? "Ready to change the hero photo"
-              : "Current primary photo selected"}
-          </strong>
+          <strong>{saving ? "Saving photo order…" : "First photo = primary photo"}</strong>
           <span>
-            {selectionChanged
-              ? "Save the selection to make this the first image across the listing."
-              : "Choose a different photo above to change it."}
+            Reordering does not delete or re-upload anything. It only changes
+            how the existing photos are arranged for guests.
           </span>
         </div>
-
-        <button
-          type="button"
-          className="button"
-          disabled={!editable || saving || !selectionChanged}
-          onClick={() => void savePrimary()}
-        >
-          {saving ? "Updating…" : "Set selected as primary"}
-        </button>
       </div>
     </section>
   );

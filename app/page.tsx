@@ -44,8 +44,8 @@ const stayCollections = [
     filter: "Hot tub",
   },
   {
-    label: "ATV access",
-    detail: "Stay somewhere that makes it easy to bring the machines and hit the trails.",
+    label: "ATV-friendly stays",
+    detail: "Stays that make it easy to bring the machines and get to nearby trails.",
     filter: "ATV access",
   },
   {
@@ -67,7 +67,7 @@ const destinationImages: Record<string, string> = {
   Branson:
     "https://thumb.wikimedia.org/wikipedia/commons/thumb/1/1c/Downtown_Branson_Missouri.jpg/960px-Downtown_Branson_Missouri.jpg",
   Jasper:
-    "https://upload.wikimedia.org/wikipedia/commons/thumb/7/79/Jasper%2C_Arkansas.jpg/960px/Jasper%2C_Arkansas.jpg",
+    "https://upload.wikimedia.org/wikipedia/commons/thumb/7/79/Jasper%2C_Arkansas.jpg/960px-Jasper%2C_Arkansas.jpg",
 };
 
 const defaults = {

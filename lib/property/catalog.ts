@@ -154,6 +154,6 @@ export const calendarPreferences = [
     value: "NONE",
     label: "Find A Place only",
     detail:
-      "No outside calendar source selected yet. Availability connections will be managed from the Calendar workspace.",
+      "Use the Find A Place calendar as the source of truth. No outside calendar connection is required.",
   },
 ] as const;

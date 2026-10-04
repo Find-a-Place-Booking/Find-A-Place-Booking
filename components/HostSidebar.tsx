@@ -3,6 +3,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { Brand } from "./Brand";
 import alertStyles from "./HostMessageAlerts.module.css";
+import styles from "./HostSidebar.module.css";
 
 const links = [
   ["Overview", "/host"],
@@ -60,7 +61,7 @@ export async function HostSidebar({
   const liveLabel = await livePropertyLabel();
 
   return (
-    <aside className="dash-sidebar">
+    <aside className={`dash-sidebar ${styles.scrollableSidebar}`}>
       <Brand compact />
       <div className="workspace">
         <span>Workspace</span>
@@ -91,7 +92,7 @@ export async function HostSidebar({
         ))}
       </nav>
 
-      <div className="side-note">
+      <div className={`side-note ${styles.helpCard}`}>
         <strong>Need help?</strong>
         <p>
           Contact the Find A Place team for help with your listing, booking

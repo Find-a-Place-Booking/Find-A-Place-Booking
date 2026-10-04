@@ -1,0 +1,136 @@
+.backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  background: rgba(19, 31, 34, 0.72);
+  padding: 28px;
+}
+
+.dialog {
+  width: min(900px, 100%);
+  margin: 0 auto;
+  border: 1px solid #d8d2c8;
+  background: #fbfaf7;
+  box-shadow: 0 28px 70px rgba(9, 20, 24, 0.28);
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 24px 26px;
+  background: #263a40;
+  color: #fff;
+}
+
+.header p {
+  margin: 0 0 6px;
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  opacity: 0.72;
+}
+
+.header h2 {
+  margin: 0 0 7px;
+  color: #fff;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: clamp(1.45rem, 3vw, 2.2rem);
+  font-weight: 500;
+}
+
+.header span {
+  display: block;
+  max-width: 690px;
+  font-size: 0.78rem;
+  line-height: 1.55;
+  opacity: 0.86;
+}
+
+.close {
+  width: 36px;
+  height: 36px;
+  flex: 0 0 auto;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  background: transparent;
+  color: #fff;
+  font: inherit;
+  font-size: 1.4rem;
+}
+
+.formWrap {
+  padding: 4px 26px 26px;
+}
+
+.thankYou {
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+  padding: 52px 28px;
+  text-align: center;
+}
+
+.check {
+  width: 56px;
+  height: 56px;
+  display: grid;
+  place-items: center;
+  margin-bottom: 6px;
+  border-radius: 50%;
+  background: #315846;
+  color: #fff;
+  font-size: 1.4rem;
+  font-weight: 900;
+}
+
+.thankYou p {
+  margin: 0;
+  color: #6d756f;
+  font-size: 0.65rem;
+  font-weight: 850;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.thankYou h2 {
+  margin: 0;
+  max-width: 620px;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: clamp(1.7rem, 3vw, 2.5rem);
+  font-weight: 500;
+}
+
+.thankYou span {
+  max-width: 620px;
+  color: #6d736e;
+  font-size: 0.8rem;
+  line-height: 1.6;
+}
+
+.thankYou :global(.button) {
+  margin-top: 12px;
+}
+
+@media (max-width: 720px) {
+  .backdrop {
+    padding: 0;
+    background: #fbfaf7;
+  }
+
+  .dialog {
+    min-height: 100dvh;
+    border: 0;
+    box-shadow: none;
+  }
+
+  .header {
+    padding: 20px 18px;
+  }
+
+  .formWrap {
+    padding: 2px 18px 22px;
+  }
+}

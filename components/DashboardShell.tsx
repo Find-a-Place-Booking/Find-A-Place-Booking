@@ -2,7 +2,9 @@ import { Suspense } from "react";
 import Link from "next/link";
 
 import { signOutHost } from "@/app/auth/actions";
+import { HostOnboardingFeedbackCard } from "@/components/HostOnboardingFeedbackCard";
 import { getHostMessageAlertCount } from "@/lib/host/message-alerts";
+import { getHostOnboardingFeedbackPrompt } from "@/lib/host/onboarding-feedback";
 import { getHostAccountProfile, initialsForHost } from "@/lib/host/profile";
 import { HostMobileNav } from "./HostMobileNav";
 import { HostSidebar } from "./HostSidebar";
@@ -20,10 +22,14 @@ export async function DashboardShell({
   eyebrow?: string;
   children: React.ReactNode;
 }) {
-  const [profile, messageAlertCount] = await Promise.all([
-    getHostAccountProfile(),
-    getHostMessageAlertCount(),
-  ]);
+  const [profile, messageAlertCount, onboardingFeedbackPrompt] =
+    await Promise.all([
+      getHostAccountProfile(),
+      getHostMessageAlertCount(),
+      active === "Overview"
+        ? getHostOnboardingFeedbackPrompt()
+        : Promise.resolve(null),
+    ]);
   const initials = initialsForHost(profile);
 
   return (
@@ -87,6 +93,12 @@ export async function DashboardShell({
           </div>
         </header>
         {children}
+        {onboardingFeedbackPrompt ? (
+          <HostOnboardingFeedbackCard
+            propertyId={onboardingFeedbackPrompt.propertyId}
+            propertyName={onboardingFeedbackPrompt.propertyName}
+          />
+        ) : null}
       </main>
     </div>
   );

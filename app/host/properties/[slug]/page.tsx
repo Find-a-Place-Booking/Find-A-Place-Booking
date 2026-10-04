@@ -6,6 +6,7 @@ import {
   setPropertyMarketplaceVisibility,
 } from "@/app/host/properties/actions";
 import { DashboardShell } from "@/components/DashboardShell";
+import { NearbyExperiencesManager } from "@/components/NearbyExperiencesManager";
 import { PropertyEditor } from "@/components/PropertyEditor";
 import { PrimaryPhotoSelector } from "@/components/PrimaryPhotoSelector";
 import { PropertyPolicyDocument } from "@/components/PropertyPolicyDocument";
@@ -49,6 +50,14 @@ export default async function ManagePropertyPage({
   const blockingIssues = property.submissionIssues.filter(
     (issue) => issue !== cancellationIssue,
   );
+
+  const editable = [
+    "DRAFT",
+    "CHANGES_REQUESTED",
+    "REJECTED",
+    "PUBLISHED",
+    "PAUSED",
+  ].includes(property.status);
 
   const canPublish = [
     "DRAFT",
@@ -119,9 +128,14 @@ export default async function ManagePropertyPage({
       <PrimaryPhotoSelector
         unitId={property.unitId}
         images={property.images}
-        editable={["DRAFT", "CHANGES_REQUESTED", "REJECTED", "PUBLISHED", "PAUSED"].includes(
-          property.status,
-        )}
+        editable={editable}
+      />
+
+      <NearbyExperiencesManager
+        propertyId={property.propertyId}
+        organizationId={property.organizationId}
+        slug={property.form.slug}
+        editable={editable}
       />
 
       <PropertyPolicyDocument

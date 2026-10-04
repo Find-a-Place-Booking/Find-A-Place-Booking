@@ -1,0 +1,257 @@
+.form {
+  display: grid;
+}
+
+.question,
+.twoColumn {
+  padding: 19px 0;
+  border-top: 1px solid #e7e1d8;
+}
+
+.question:first-child {
+  border-top: 0;
+}
+
+.question,
+.question label,
+.twoColumn label,
+.followUp {
+  display: grid;
+  gap: 9px;
+}
+
+.question > strong,
+.question label > strong,
+.twoColumn label > strong {
+  color: #263a40;
+  font-size: 0.8rem;
+  line-height: 1.45;
+}
+
+.question > small {
+  margin-top: -5px;
+  color: #777c77;
+  font-size: 0.65rem;
+}
+
+.questionHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.questionHead strong {
+  color: #263a40;
+  font-size: 0.8rem;
+  line-height: 1.45;
+}
+
+.questionHead span {
+  color: #7b807b;
+  font-size: 0.58rem;
+  font-weight: 850;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.question textarea,
+.twoColumn textarea,
+.followUp textarea {
+  width: 100%;
+  resize: vertical;
+  border: 1px solid #d4cec4;
+  border-radius: 7px;
+  background: #fff;
+  padding: 10px 11px;
+  color: #202525;
+  font: inherit;
+  font-size: 0.76rem;
+  line-height: 1.5;
+}
+
+.twoColumn {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18px;
+}
+
+.scoreRow {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(44px, 70px));
+  gap: 8px;
+}
+
+.scoreRow button {
+  min-height: 42px;
+  border: 1px solid #d1cbc1;
+  border-radius: 7px;
+  background: #faf8f4;
+  color: #263a40;
+  font-weight: 850;
+}
+
+.scoreRow button.scoreSelected {
+  border-color: #315846;
+  background: #315846;
+  color: #fff;
+}
+
+.scoreLabels {
+  display: flex;
+  justify-content: space-between;
+  max-width: 382px;
+  margin-top: 5px;
+  color: #777c77;
+  font-size: 0.6rem;
+}
+
+.chips,
+.choiceRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.chips label,
+.choiceRow label {
+  position: relative;
+  cursor: pointer;
+}
+
+.chips input,
+.choiceRow input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.chips span,
+.choiceRow span {
+  display: block;
+  border: 1px solid #d6d0c6;
+  border-radius: 999px;
+  background: #faf8f4;
+  padding: 7px 10px;
+  color: #4b5550;
+  font-size: 0.69rem;
+  font-weight: 750;
+}
+
+.chips label.chipSelected span,
+.choiceRow label.choiceSelected span {
+  border-color: #789384;
+  background: #edf3ef;
+  color: #2f5442;
+}
+
+.followUp {
+  margin-top: 4px;
+  max-width: 700px;
+}
+
+.followUp > span {
+  color: #606761;
+  font-size: 0.66rem;
+  font-weight: 750;
+}
+
+.error {
+  margin: 6px 0 0;
+  border: 1px solid #d7aaa2;
+  border-radius: 8px;
+  background: #fff2ef;
+  padding: 10px 12px;
+  color: #7b352e;
+  font-size: 0.71rem;
+  line-height: 1.5;
+}
+
+.footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 20px;
+  padding-top: 20px;
+  border-top: 1px solid #e7e1d8;
+}
+
+.footer > div:first-child {
+  display: grid;
+  gap: 2px;
+  max-width: 520px;
+}
+
+.footer strong {
+  font-size: 0.72rem;
+}
+
+.footer span {
+  color: #717671;
+  font-size: 0.65rem;
+  line-height: 1.45;
+}
+
+.actions {
+  display: flex;
+  gap: 8px;
+  flex: 0 0 auto;
+}
+
+@media (max-width: 720px) {
+  .twoColumn {
+    grid-template-columns: 1fr;
+  }
+
+  .scoreRow {
+    grid-template-columns: repeat(5, 1fr);
+  }
+
+  .footer {
+    display: grid;
+  }
+
+  .actions {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .actions :global(.button) {
+    width: 100%;
+  }
+}
+
+
+.programQuestion {
+  margin: 8px 0 4px;
+  padding: 20px;
+  border: 1px solid #d8d0c3;
+  border-radius: 12px;
+  background: #f7f3eb;
+}
+
+.programCopy {
+  display: grid;
+  gap: 6px;
+  max-width: 760px;
+}
+
+.programCopy > strong {
+  color: #263a40;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 1.08rem;
+  font-weight: 500;
+}
+
+.programCopy p {
+  margin: 0;
+  color: #59625d;
+  font-size: 0.74rem;
+  line-height: 1.62;
+}
+
+.programCopy small {
+  color: #747a75;
+  font-size: 0.64rem;
+  line-height: 1.5;
+}

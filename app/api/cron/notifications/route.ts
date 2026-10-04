@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
+import { retryHostOnboardingFeedbackEmails } from "@/lib/notifications/host-onboarding-feedback";
 import { sendBookingNotifications } from "@/lib/notifications/reservation-emails";
 import { retryNotificationDelivery } from "@/lib/notifications/transactional-email";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -95,6 +96,23 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    let onboardingFeedback = {
+      retried: 0,
+      sent: 0,
+      failed: 0,
+    };
+
+    try {
+      onboardingFeedback =
+        await retryHostOnboardingFeedbackEmails(admin, 20);
+    } catch (feedbackRetryError) {
+      console.error(
+        "[notification retry] onboarding feedback retry failed",
+        feedbackRetryError,
+      );
+      onboardingFeedback.failed += 1;
+    }
+
     return NextResponse.json({
       ok: true,
       queuedDeliveries: rows.length,
@@ -102,6 +120,7 @@ export async function GET(request: NextRequest) {
       recovered,
       legacyRecovered,
       failed,
+      onboardingFeedback,
     });
   } catch (error) {
     console.error("[notification retry cron]", error);

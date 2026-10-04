@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 
 import { HostDraftPersistence } from "@/components/HostDraftPersistence";
+import { HostOnboardingFeedbackGate } from "@/components/HostOnboardingFeedbackGate";
 
 export const metadata: Metadata = {
   robots: {
@@ -17,6 +19,9 @@ export default function PrivateRouteLayout({
   return (
     <>
       <HostDraftPersistence />
+      <Suspense fallback={null}>
+        <HostOnboardingFeedbackGate />
+      </Suspense>
       {children}
     </>
   );

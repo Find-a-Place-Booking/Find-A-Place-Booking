@@ -1,0 +1,96 @@
+.card {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 18px;
+  align-items: center;
+  margin-top: 16px;
+  border: 1px solid #d8d1c6;
+  border-radius: 15px;
+  background: linear-gradient(135deg, #fff 0%, #f5f1e9 100%);
+  padding: 22px 24px;
+  box-shadow: 0 9px 28px rgba(32, 37, 37, 0.045);
+}
+
+.inviteIcon,
+.check {
+  width: 46px;
+  height: 46px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: #263d34;
+  color: #fff;
+  font-size: 1.05rem;
+  font-weight: 900;
+}
+
+.inviteCopy h2,
+.expandedHead h2,
+.thankYou h2 {
+  margin: 0 0 6px;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: clamp(1.55rem, 2.5vw, 2.15rem);
+  font-weight: 500;
+}
+
+.inviteCopy p:not(.eyebrow),
+.expandedHead p:not(.eyebrow),
+.thankYou p:not(.eyebrow) {
+  margin: 0;
+  max-width: 760px;
+  color: #666d68;
+  font-size: 0.82rem;
+  line-height: 1.6;
+}
+
+.inviteCopy small {
+  display: block;
+  margin-top: 7px;
+  color: #7a7f79;
+  font-size: 0.66rem;
+}
+
+.expanded {
+  display: block;
+  padding: 26px;
+  background: #fff;
+}
+
+.expandedHead {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 20px;
+  padding-bottom: 18px;
+}
+
+.textButton {
+  flex: 0 0 auto;
+  border: 0;
+  background: transparent;
+  color: #4f6259;
+  font-weight: 800;
+  font-size: 0.72rem;
+}
+
+.thankYou {
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  background: #f3f7f3;
+  border-color: #cfdccf;
+}
+
+@media (max-width: 760px) {
+  .card,
+  .thankYou {
+    grid-template-columns: 1fr;
+    align-items: start;
+  }
+
+  .card :global(.button) {
+    width: 100%;
+  }
+
+  .expandedHead {
+    display: grid;
+  }
+}

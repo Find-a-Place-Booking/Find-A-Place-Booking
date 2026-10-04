@@ -1,61 +1,48 @@
-# Find A Place Booking — minimum-stay + verification funnel fix
+# Find A Place Booking — streamlined guest checkout UI
 
-## 1. Minimum-stay selection
-The public availability response now includes:
-- the unit's default minimum stay
-- active date-specific minimum-stay rules
+Source baseline: GitHub main at commit 1652fc3ca0778535569287578391e4570c7c7533.
 
-The guest date picker resolves the same arrival-date rule precedence used by
-`resolve_unit_pricing_days()` / `quote_unit_stay()`:
-1. higher priority first
-2. narrower matching date range first
-3. newest rule as the final tie breaker
+This overlay intentionally changes only guest-facing presentation/components.
 
-Behavior:
-- check-in dates that cannot satisfy their required minimum before a blocked
-  night are disabled
-- checkout dates shorter than the arrival-date minimum are disabled
-- the guest sees the exact minimum and earliest valid checkout
-- for minimum stays over 1 night, selecting check-in automatically selects the
-  earliest valid checkout; the guest can still extend the stay
+Changed:
+- stay page CTA: `Reserve these dates`
+- clear `No charge yet` reassurance
+- checkout progress simplified visually from Details → Verify → Review → Pay to Reserve → Pay
+- existing verification/status checks still run underneath unchanged
+- existing policy review/acceptance endpoints still run unchanged
+- existing hold endpoint unchanged
+- existing payment-intent endpoint unchanged
+- Stripe Connect/direct-charge routing unchanged
+- Stripe confirmation logic unchanged
+- webhook/booking confirmation logic unchanged
+- final payment CTA shows the actual held reservation total, e.g. `Pay $683.73 securely`
+- technical “host connected Stripe account” wording replaced with guest-friendly Stripe trust copy
+- payment summary gets a stronger total callout
+- header back link becomes the quieter `Edit dates or guests`
+- loading language simplified
 
-Example verified against current Lil' Rustic data:
-- base minimum: 2 nights
-- Christmas rule Dec 23, 2026–Jan 4, 2027: 3 nights
-- selecting Dec 25 now resolves to a 3-night minimum and earliest checkout
-  Dec 28, so the guest cannot reach checkout with Dec 25–27.
+Not changed:
+- Supabase
+- tax calculation
+- calendar refresh/availability checks
+- hold creation logic
+- policy enforcement
+- email/identity verification feature flags
+- PaymentIntent creation
+- Stripe payment methods
+- commissions/application fees
+- reservation state transitions
+- webhooks
 
-The server-side hold/quote validation remains unchanged and authoritative.
+Important:
+The stay-page pre-checkout pricing estimate was NOT used for a “Reserve for $X” CTA in this overlay.
+The current production `quote_guest_checkout_estimate` function is not yet aligned with the newest
+state-tax reconciliation logic for every property, so displaying that estimate could show a total
+that differs from the actual held reservation. This overlay waits until the authoritative hold is
+created, then displays the exact total returned by the existing booking backend.
 
-## 2. Email verification rework
-Email verification is no longer a hard pre-payment gate by default.
-
-Current funnel evidence since the email-code system was introduced:
-- 7 holds created an email-verification row
-- 4 expired unverified before payment
-- 3 verified
-- only 2 of the verified holds reached payment
-
-The abandoned rows had no email-send error recorded; the stall was after the
-code was sent.
-
-What changes:
-- phone number remains required
-- email format validation remains required in `/api/booking/hold`
-- policy acceptance remains required
-- Stripe/payment readiness checks remain unchanged
-- identity verification remains optional/off by default as before
-- email-code infrastructure is preserved
-
-To restore the old email-code gate later:
-`BOOKING_EMAIL_VERIFICATION_REQUIRED=true`
-
-With the variable absent/false, `reservationVerificationReadiness()` allows
-checkout to proceed without waiting for a six-digit email code.
-
-## Files
-- `app/api/booking/availability/route.ts`
-- `components/AvailabilityDatePicker.tsx`
-- `lib/bookings/guest-verification.ts`
-
-No database migration is required.
+Files:
+- components/BookingCard.tsx
+- components/GuestCheckout.tsx
+- components/GuestCheckout.module.css
+- app/checkout/page.tsx

@@ -1,22 +1,12 @@
 {
-  "name": "Find A Place Booking - Pre-Pilot Cleanup",
-  "date": "2026-09-21",
-  "baseline_commit": "a4518d7fd709e703fb77e3f34aeecdab724f3105",
-  "migration_floor": "supabase/migrations/20260920005000_restore_live_safety_hardening.sql",
-  "scope": [
-    "guest checkout promo codes and guest-visible add-ons",
-    "pre-payment itemized booking summary",
-    "guest-safe API error handling",
-    "reservation message email notifications",
-    "protected operations health endpoint",
-    "homepage stay-type image optimization",
-    "host/admin copy cleanup",
-    "shared contact/support styles",
-    "production README and manifest restoration"
+  "baseline_commit": "1652fc3ca0778535569287578391e4570c7c7533",
+  "files": [
+    "components/BookingCard.tsx",
+    "components/GuestCheckout.tsx",
+    "components/GuestCheckout.module.css",
+    "app/checkout/page.tsx"
   ],
-  "database_migrations_added": false,
-  "payment_math_changed": false,
-  "stripe_routing_changed": false,
-  "tax_math_changed": false,
-  "payout_policy_changed": false
+  "backend_changes": false,
+  "supabase_changes": false,
+  "stripe_backend_changes": false
 }

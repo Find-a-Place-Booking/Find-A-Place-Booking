@@ -56,35 +56,37 @@
 
 .card {
   position: relative;
+  margin: 0;
   display: grid;
   border: 2px solid #ded8cf;
   background: #f7f5f0;
-  cursor: pointer;
   overflow: hidden;
+  cursor: grab;
   transition:
     border-color 0.16s ease,
     box-shadow 0.16s ease,
-    transform 0.16s ease;
+    transform 0.16s ease,
+    opacity 0.16s ease;
 }
 
 .card:hover {
-  border-color: #a9aea8;
+  border-color: #9aa89f;
   transform: translateY(-1px);
 }
 
-.card.selected {
-  border-color: #315f4b;
-  box-shadow: 0 0 0 3px rgba(49, 95, 75, 0.13);
+.card:active {
+  cursor: grabbing;
 }
 
 .card.primary {
+  border-color: #315f4b;
   background: #f3f7f3;
+  box-shadow: 0 0 0 2px rgba(49, 95, 75, 0.08);
 }
 
-.radio {
-  position: absolute;
-  opacity: 0;
-  pointer-events: none;
+.card.dragging {
+  opacity: 0.52;
+  transform: scale(0.98);
 }
 
 .imageWrap {
@@ -98,6 +100,8 @@
   width: 100%;
   height: 100%;
   object-fit: cover;
+  pointer-events: none;
+  user-select: none;
 }
 
 .missing {
@@ -109,29 +113,25 @@
   font-size: 0.68rem;
 }
 
-.check {
+.positionBadge,
+.primaryBadge,
+.dragHandle {
   position: absolute;
-  right: 9px;
-  top: 9px;
-  width: 27px;
-  height: 27px;
-  border-radius: 50%;
-  display: grid;
-  place-items: center;
-  background: rgba(255, 255, 255, 0.92);
-  border: 2px solid #c6c9c3;
-  font-size: 0.78rem;
-  font-weight: 900;
-  color: #315f4b;
+  z-index: 2;
 }
 
-.selected .check {
-  border-color: #315f4b;
-  background: #edf4ef;
+.positionBadge {
+  left: 8px;
+  bottom: 8px;
+  border-radius: 999px;
+  padding: 5px 8px;
+  background: rgba(255, 255, 255, 0.94);
+  color: #263a40;
+  font-size: 0.62rem;
+  font-weight: 900;
 }
 
 .primaryBadge {
-  position: absolute;
   left: 8px;
   top: 8px;
   background: #263a40;
@@ -143,8 +143,28 @@
   letter-spacing: 0.06em;
 }
 
+.dragHandle {
+  right: 8px;
+  top: 8px;
+  min-width: 31px;
+  min-height: 31px;
+  border-radius: 6px;
+  display: grid;
+  place-items: center;
+  background: rgba(255, 255, 255, 0.94);
+  color: #34483e;
+  font-weight: 900;
+  letter-spacing: -3px;
+}
+
 .caption {
-  padding: 9px 10px 10px;
+  padding: 10px;
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+
+.caption > div:first-child {
   display: grid;
   gap: 3px;
   min-width: 0;
@@ -162,25 +182,45 @@
   color: #72766f;
 }
 
-.actions {
-  border-top: 1px solid #e1dcd3;
-  padding-top: 15px;
+.mobileActions {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 18px;
+  flex-wrap: wrap;
+  gap: 6px;
 }
 
-.actions > div {
+.mobileActions button {
+  appearance: none;
+  border: 1px solid #d5d0c8;
+  background: #fff;
+  color: #34443d;
+  padding: 6px 8px;
+  min-height: 30px;
+  font: inherit;
+  font-size: 0.6rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.mobileActions button:disabled {
+  opacity: 0.38;
+  cursor: not-allowed;
+}
+
+.footer {
+  border-top: 1px solid #e1dcd3;
+  padding-top: 15px;
+}
+
+.footer > div {
   display: grid;
   gap: 3px;
 }
 
-.actions strong {
+.footer strong {
   font-size: 0.75rem;
 }
 
-.actions span {
+.footer span {
   font-size: 0.67rem;
   color: #6d716c;
 }
@@ -204,17 +244,16 @@
     min-width: 72px;
   }
 
-  .actions {
-    align-items: stretch;
-    flex-direction: column;
+  .card {
+    cursor: default;
   }
 
-  .actions .button {
-    width: 100%;
+  .dragHandle {
+    display: none;
   }
 }
 
-@media (max-width: 420px) {
+@media (max-width: 430px) {
   .grid {
     grid-template-columns: 1fr;
   }

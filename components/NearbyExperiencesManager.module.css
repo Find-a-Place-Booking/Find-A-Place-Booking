@@ -1,0 +1,352 @@
+.panel {
+  margin-top: 16px;
+  display: grid;
+  gap: 18px;
+}
+
+.heading {
+  display: flex;
+  justify-content: space-between;
+  gap: 24px;
+  align-items: flex-start;
+}
+
+.heading h2 {
+  margin: 0 0 7px;
+}
+
+.heading p:last-child {
+  max-width: 800px;
+  margin: 0;
+  color: #69706b;
+  font-size: 0.74rem;
+  line-height: 1.6;
+}
+
+.summary {
+  min-width: 90px;
+  border: 1px solid #ddd6cb;
+  background: #f6f3ed;
+  padding: 12px 14px;
+  display: grid;
+  text-align: center;
+}
+
+.summary strong {
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 1.65rem;
+  line-height: 1;
+  font-weight: 500;
+}
+
+.summary span {
+  margin-top: 5px;
+  color: #747770;
+  font-size: 0.59rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+}
+
+.addCard {
+  border: 1px solid #dcd6cd;
+  background: #faf8f3;
+  padding: 16px;
+  display: grid;
+  gap: 14px;
+}
+
+.addHead,
+.rowTop,
+.rowActions,
+.addActions {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  align-items: center;
+}
+
+.addHead > div,
+.addActions > div {
+  display: grid;
+  gap: 3px;
+}
+
+.addHead strong {
+  font-size: 0.82rem;
+}
+
+.addHead span,
+.addHead small,
+.addActions small {
+  color: #70756f;
+  font-size: 0.64rem;
+  line-height: 1.45;
+}
+
+.formGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 11px;
+}
+
+.formGrid label {
+  display: grid;
+  gap: 5px;
+}
+
+.formGrid label > span {
+  font-size: 0.62rem;
+  font-weight: 850;
+  color: #515a55;
+}
+
+.formGrid input,
+.formGrid select,
+.formGrid textarea {
+  width: 100%;
+  min-width: 0;
+  border: 1px solid #d6d0c7;
+  background: #fff;
+  padding: 9px 10px;
+  font: inherit;
+  font-size: 0.72rem;
+}
+
+.formGrid textarea {
+  min-height: 82px;
+  resize: vertical;
+}
+
+.full {
+  grid-column: 1 / -1;
+}
+
+.searchLine {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+}
+
+.searchResults {
+  border: 1px solid #d8d2c9;
+  background: #fff;
+  display: grid;
+}
+
+.searchResults button {
+  appearance: none;
+  border: 0;
+  border-bottom: 1px solid #ece7df;
+  background: #fff;
+  padding: 10px 11px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+}
+
+.searchResults button:last-child {
+  border-bottom: 0;
+}
+
+.searchResults button:hover {
+  background: #f4f7f4;
+}
+
+.searchResults button > span {
+  display: grid;
+  gap: 2px;
+}
+
+.searchResults strong {
+  font-size: 0.7rem;
+}
+
+.searchResults small {
+  color: #747973;
+  font-size: 0.61rem;
+}
+
+.searchResults b {
+  color: #315f4b;
+  font-size: 0.61rem;
+  white-space: nowrap;
+}
+
+.list {
+  display: grid;
+  gap: 12px;
+}
+
+.rowCard {
+  border: 1px solid #ddd7cf;
+  background: #fff;
+  display: grid;
+  grid-template-columns: 190px 1fr;
+  overflow: hidden;
+}
+
+.preview {
+  min-height: 100%;
+  position: relative;
+  background: #e9e5dd;
+}
+
+.preview img,
+.placeholder {
+  width: 100%;
+  height: 100%;
+  min-height: 230px;
+  object-fit: cover;
+}
+
+.placeholder {
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  gap: 8px;
+  background: linear-gradient(145deg, #263a40, #526b5e);
+  color: #fff;
+}
+
+.placeholder span {
+  font-size: 0.58rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.placeholder strong {
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 3rem;
+  font-weight: 500;
+}
+
+.imageButton {
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  bottom: 8px;
+  padding: 7px 9px;
+  background: rgba(255, 255, 255, 0.94);
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  color: #34483e;
+  text-align: center;
+  font-size: 0.61rem;
+  font-weight: 850;
+  cursor: pointer;
+}
+
+.imageButton input {
+  display: none;
+}
+
+.rowFields {
+  padding: 13px;
+  display: grid;
+  gap: 12px;
+}
+
+.rowTop > strong {
+  color: #6f756f;
+  font-size: 0.65rem;
+}
+
+.orderButtons {
+  display: flex;
+  gap: 6px;
+}
+
+.orderButtons button,
+.removeButton {
+  appearance: none;
+  border: 1px solid #d8d2ca;
+  background: #fff;
+  padding: 6px 8px;
+  color: #505852;
+  font: inherit;
+  font-size: 0.59rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.orderButtons button:disabled,
+.removeButton:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.rowActions {
+  padding-top: 4px;
+  border-top: 1px solid #eee9e2;
+}
+
+.rowActions > div {
+  display: flex;
+  gap: 7px;
+}
+
+.visibleToggle {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 0.64rem;
+  font-weight: 800;
+}
+
+.removeButton {
+  color: #8b3e3e;
+}
+
+@media (max-width: 850px) {
+  .rowCard {
+    grid-template-columns: 145px 1fr;
+  }
+
+  .preview img,
+  .placeholder {
+    min-height: 250px;
+  }
+}
+
+@media (max-width: 680px) {
+  .heading,
+  .addHead,
+  .addActions,
+  .rowActions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .summary {
+    min-width: 0;
+  }
+
+  .formGrid,
+  .searchLine,
+  .rowCard {
+    grid-template-columns: 1fr;
+  }
+
+  .preview img,
+  .placeholder {
+    min-height: 190px;
+    max-height: 260px;
+  }
+
+  .searchResults button {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .rowActions > div {
+    width: 100%;
+  }
+
+  .rowActions > div > * {
+    flex: 1;
+  }
+}

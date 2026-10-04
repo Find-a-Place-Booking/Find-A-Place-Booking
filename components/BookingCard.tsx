@@ -119,13 +119,13 @@ export function BookingCard({
           router.push(`/checkout?${query.toString()}`);
         }}
       >
-        Continue to checkout
+        Reserve these dates
       </button>
 
       <small className="secure-note">
         {testMode
           ? "Stripe test mode. No live money will move."
-          : "Secure payment processing by Stripe."}
+          : "No charge yet · final total shown before payment · secure payment by Stripe."}
       </small>
     </aside>
   );

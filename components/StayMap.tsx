@@ -1,8 +1,10 @@
 "use client";
 
 import { useEffect, useMemo, useRef } from "react";
-import type { MapLayerMouseEvent } from "mapbox-gl";
+import type { GeoJSONSource, MapLayerMouseEvent } from "mapbox-gl";
 import { track } from "@vercel/analytics";
+
+import styles from "./StayMap.module.css";
 
 export type StayMapItem = {
   slug: string;
@@ -22,10 +24,6 @@ type Props = {
   emptyMessage?: string;
 };
 
-function usableCoordinate(value: number, min: number, max: number) {
-  return Number.isFinite(value) && value >= min && value <= max;
-}
-
 type MapPointFeature = {
   geometry?: {
     type?: string;
@@ -34,11 +32,14 @@ type MapPointFeature = {
   properties?: Record<string, unknown> | null;
 };
 
+function usableCoordinate(value: number, min: number, max: number) {
+  return Number.isFinite(value) && value >= min && value <= max;
+}
+
 function pointCoordinates(
   feature: MapPointFeature | undefined,
 ): [number, number] | null {
   if (feature?.geometry?.type !== "Point") return null;
-
   const coordinates = feature.geometry.coordinates;
   if (!Array.isArray(coordinates) || coordinates.length < 2) return null;
 
@@ -50,8 +51,14 @@ function pointCoordinates(
   ) {
     return null;
   }
-
   return [lng, lat];
+}
+
+function stayImage(stay: StayMapItem) {
+  return (
+    stay.image ||
+    `/api/public/stay-cover/${encodeURIComponent(stay.slug)}`
+  );
 }
 
 function popupNode(stay: StayMapItem) {
@@ -66,14 +73,12 @@ function popupNode(stay: StayMapItem) {
     });
   });
 
-  if (stay.image) {
-    const image = document.createElement("img");
-    image.src = stay.image;
-    image.alt = "";
-    image.loading = "lazy";
-    image.decoding = "async";
-    card.appendChild(image);
-  }
+  const image = document.createElement("img");
+  image.src = stayImage(stay);
+  image.alt = "";
+  image.loading = "lazy";
+  image.decoding = "async";
+  card.appendChild(image);
 
   const copy = document.createElement("span");
   copy.className = "stay-map-popup-copy";
@@ -96,6 +101,107 @@ function popupNode(stay: StayMapItem) {
 
   card.appendChild(copy);
   return card;
+}
+
+function clusterPopupNode(
+  stays: StayMapItem[],
+  pointCount: number,
+  onZoom: () => void,
+  onEnter: () => void,
+  onLeave: () => void,
+) {
+  const root = document.createElement("div");
+  root.className = styles.clusterPopup;
+  root.addEventListener("mouseenter", onEnter);
+  root.addEventListener("mouseleave", onLeave);
+
+  const heading = document.createElement("div");
+  heading.className = styles.clusterHeading;
+
+  const titleWrap = document.createElement("div");
+  const eyebrow = document.createElement("small");
+  eyebrow.textContent = "Explore this area";
+  const title = document.createElement("strong");
+  title.textContent = `${pointCount} ${pointCount === 1 ? "stay" : "stays"} here`;
+  titleWrap.append(eyebrow, title);
+
+  const sort = document.createElement("select");
+  sort.setAttribute("aria-label", "Sort stays in this map area");
+  [
+    ["recommended", "Recommended"],
+    ["price-low", "Price: low to high"],
+    ["price-high", "Price: high to low"],
+    ["rating", "Guest rating"],
+  ].forEach(([value, label]) => {
+    const option = document.createElement("option");
+    option.value = value;
+    option.textContent = label;
+    sort.appendChild(option);
+  });
+  heading.append(titleWrap, sort);
+
+  const list = document.createElement("div");
+  list.className = styles.clusterList;
+
+  const render = (mode: string) => {
+    const sorted = [...stays];
+    if (mode === "price-low") sorted.sort((a, b) => a.price - b.price);
+    if (mode === "price-high") sorted.sort((a, b) => b.price - a.price);
+    if (mode === "rating") {
+      sorted.sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0));
+    }
+
+    list.replaceChildren();
+    sorted.forEach((stay) => {
+      const link = document.createElement("a");
+      link.className = styles.clusterStay;
+      link.href = `/stays/${encodeURIComponent(stay.slug)}`;
+      link.addEventListener("click", () => {
+        track("property_click", {
+          slug: stay.slug,
+          surface: "map_cluster",
+          trigger: "cluster_list",
+        });
+      });
+
+      const image = document.createElement("img");
+      image.src = stayImage(stay);
+      image.alt = "";
+      image.loading = "lazy";
+      image.decoding = "async";
+
+      const copy = document.createElement("span");
+      const name = document.createElement("strong");
+      name.textContent = stay.name;
+      const location = document.createElement("small");
+      location.textContent = stay.location;
+      const meta = document.createElement("b");
+      const rating =
+        stay.rating && stay.reviews
+          ? ` · ★ ${stay.rating.toFixed(1)}`
+          : "";
+      meta.textContent = `$${Math.max(0, Math.round(stay.price))}/night${rating}`;
+      copy.append(name, location, meta);
+      link.append(image, copy);
+      list.appendChild(link);
+    });
+  };
+
+  render("recommended");
+  sort.addEventListener("change", () => render(sort.value));
+
+  const footer = document.createElement("div");
+  footer.className = styles.clusterFooter;
+  const hint = document.createElement("span");
+  hint.textContent = "Browse here or zoom in to separate the pins.";
+  const zoom = document.createElement("button");
+  zoom.type = "button";
+  zoom.textContent = "Zoom into this area";
+  zoom.addEventListener("click", onZoom);
+  footer.append(hint, zoom);
+
+  root.append(heading, list, footer);
+  return root;
 }
 
 export function StayMap({
@@ -148,12 +254,34 @@ export function StayMap({
         "bottom-right",
       );
 
-      const popup = new mapboxgl.Popup({
+      const stayPopup = new mapboxgl.Popup({
         closeButton: true,
         closeOnClick: true,
         maxWidth: "310px",
         offset: 18,
       });
+      const clusterPopup = new mapboxgl.Popup({
+        closeButton: true,
+        closeOnClick: false,
+        maxWidth: "400px",
+        offset: 20,
+        className: styles.clusterMapboxPopup,
+      });
+
+      let closeTimer: ReturnType<typeof setTimeout> | null = null;
+      let activeClusterId: number | null = null;
+
+      const cancelClusterClose = () => {
+        if (closeTimer) clearTimeout(closeTimer);
+        closeTimer = null;
+      };
+      const scheduleClusterClose = () => {
+        cancelClusterClose();
+        closeTimer = setTimeout(() => {
+          clusterPopup.remove();
+          activeClusterId = null;
+        }, 260);
+      };
 
       const stayBySlug = new Map(mappedStays.map((stay) => [stay.slug, stay]));
       const geojson = {
@@ -215,9 +343,7 @@ export function StayMap({
             "text-field": ["get", "point_count_abbreviated"],
             "text-size": 12,
           },
-          paint: {
-            "text-color": "#ffffff",
-          },
+          paint: { "text-color": "#ffffff" },
         });
 
         map.addLayer({
@@ -243,9 +369,7 @@ export function StayMap({
             "text-size": 11,
             "text-allow-overlap": true,
           },
-          paint: {
-            "text-color": "#ffffff",
-          },
+          paint: { "text-color": "#ffffff" },
         });
 
         if (mappedStays.length === 1) {
@@ -260,48 +384,131 @@ export function StayMap({
       });
 
       const openStay = (event: MapLayerMouseEvent) => {
-        const feature = event.features?.[0] as unknown as
-          | MapPointFeature
-          | undefined;
+        clusterPopup.remove();
+        activeClusterId = null;
+        const feature = event.features?.[0] as unknown as MapPointFeature | undefined;
         const slug = String(feature?.properties?.slug ?? "");
         const stay = stayBySlug.get(slug);
         const coordinates = pointCoordinates(feature);
         if (!stay || !coordinates) return;
-
-        popup.setLngLat(coordinates).setDOMContent(popupNode(stay)).addTo(map);
+        stayPopup.setLngLat(coordinates).setDOMContent(popupNode(stay)).addTo(map);
       };
 
-      const expandCluster = (event: MapLayerMouseEvent) => {
-        const feature = event.features?.[0] as unknown as
-          | MapPointFeature
-          | undefined;
-        const coordinates = pointCoordinates(feature);
-        if (!coordinates) return;
+      const openCluster = async (event: MapLayerMouseEvent) => {
+        cancelClusterClose();
+        stayPopup.remove();
 
-        map.easeTo({
-          center: coordinates,
-          zoom: Math.min(map.getZoom() + 2, 12),
-        });
+        const feature = event.features?.[0] as unknown as MapPointFeature | undefined;
+        const coordinates = pointCoordinates(feature);
+        const clusterId = Number(feature?.properties?.cluster_id);
+        const pointCount = Number(feature?.properties?.point_count || 0);
+        if (!coordinates || !Number.isFinite(clusterId)) return;
+        if (activeClusterId === clusterId && clusterPopup.isOpen()) return;
+
+        const source = map.getSource("find-a-place-stays") as GeoJSONSource | undefined;
+        if (!source) return;
+
+        try {
+          const leaves = await new Promise<any[]>(
+            (resolve, reject) => {
+              source.getClusterLeaves(
+                clusterId,
+                Math.max(1, Math.min(pointCount || mappedStays.length, 100)),
+                0,
+                (clusterError, features) => {
+                  if (clusterError) reject(clusterError);
+                  else resolve(features || []);
+                },
+              );
+            },
+          );
+          if (disposed) return;
+
+          const clusterStays = leaves.flatMap((leaf) => {
+            const slug = String(leaf.properties?.slug ?? "");
+            const stay = stayBySlug.get(slug);
+            return stay ? [stay] : [];
+          });
+          if (!clusterStays.length) return;
+
+          const zoomIn = async () => {
+            try {
+              const expansionZoom = await new Promise<number>(
+                (resolve, reject) => {
+                  source.getClusterExpansionZoom(
+                    clusterId,
+                    (zoomError, zoom) => {
+                      if (zoomError) reject(zoomError);
+                      else resolve(zoom ?? Math.min(map.getZoom() + 2, 13));
+                    },
+                  );
+                },
+              );
+              clusterPopup.remove();
+              activeClusterId = null;
+              map.easeTo({
+                center: coordinates,
+                zoom: Math.min(expansionZoom, 13),
+              });
+              track("map_cluster_zoom", {
+                count: pointCount,
+                surface: "stay_map",
+              });
+            } catch {
+              map.easeTo({
+                center: coordinates,
+                zoom: Math.min(map.getZoom() + 2, 13),
+              });
+            }
+          };
+
+          const node = clusterPopupNode(
+            clusterStays,
+            pointCount || clusterStays.length,
+            () => void zoomIn(),
+            cancelClusterClose,
+            scheduleClusterClose,
+          );
+
+          activeClusterId = clusterId;
+          clusterPopup.setLngLat(coordinates).setDOMContent(node).addTo(map);
+          track("map_cluster_open", {
+            count: pointCount || clusterStays.length,
+            surface: "stay_map",
+          });
+        } catch (error) {
+          console.error("[stay map cluster] unable to load cluster leaves", error);
+        }
       };
 
       map.on("click", "stay-points", openStay);
       map.on("click", "stay-price-labels", openStay);
-      map.on("click", "stay-clusters", expandCluster);
+      map.on("click", "stay-clusters", (event) => void openCluster(event));
 
-      const interactiveLayers = [
-        "stay-points",
-        "stay-price-labels",
-        "stay-clusters",
-      ];
-      const enter = () => {
-        map.getCanvas().style.cursor = "pointer";
-      };
-      const leave = () => {
-        map.getCanvas().style.cursor = "";
-      };
-      interactiveLayers.forEach((layer) => {
-        map.on("mouseenter", layer, enter);
-        map.on("mouseleave", layer, leave);
+      const hoverCapable = window.matchMedia("(hover: hover) and (pointer: fine)").matches;
+      if (hoverCapable) {
+        map.on("mouseenter", "stay-clusters", (event) => {
+          map.getCanvas().style.cursor = "pointer";
+          void openCluster(event);
+        });
+        map.on("mouseleave", "stay-clusters", () => {
+          map.getCanvas().style.cursor = "";
+          scheduleClusterClose();
+        });
+      }
+
+      ["stay-points", "stay-price-labels"].forEach((layer) => {
+        map.on("mouseenter", layer, () => {
+          map.getCanvas().style.cursor = "pointer";
+        });
+        map.on("mouseleave", layer, () => {
+          map.getCanvas().style.cursor = "";
+        });
+      });
+
+      clusterPopup.on("close", () => {
+        activeClusterId = null;
+        cancelClusterClose();
       });
 
       const resizeObserver = new ResizeObserver(() => map.resize());
@@ -309,7 +516,9 @@ export function StayMap({
 
       cleanup = () => {
         resizeObserver.disconnect();
-        popup.remove();
+        cancelClusterClose();
+        stayPopup.remove();
+        clusterPopup.remove();
         map.remove();
       };
     }

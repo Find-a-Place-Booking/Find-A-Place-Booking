@@ -93,7 +93,7 @@ export default async function CheckoutPage({
     <main className="checkout-page">
       <header className="checkout-header shell">
         <Brand />
-        <Link href={`/stays/${property.slug}`}>← Back to stay</Link>
+        <Link href={`/stays/${property.slug}`}>Edit dates or guests</Link>
       </header>
 
       <div className="shell">
