@@ -12,6 +12,9 @@ export function PropertyCard({
   surface?: string;
 }) {
   const href = `/stays/${property.slug}`;
+  const mobileCover = `/api/public/stay-cover/${encodeURIComponent(
+    property.slug,
+  )}`;
 
   return (
     <article className={`property-card ${wide ? "property-wide" : ""}`}>
@@ -27,21 +30,26 @@ export function PropertyCard({
         }}
       >
         {property.image ? (
-          <picture style={{ display: "contents" }}>
-            <source
-              media="(max-width: 700px)"
-              srcSet={`/api/public/stay-cover/${encodeURIComponent(
-                property.slug,
-              )}`}
+          <>
+            <span
+              className="property-image-blur"
+              aria-hidden="true"
+              style={{ backgroundImage: `url("${mobileCover}")` }}
             />
-            <img
-              className="property-image"
-              src={property.image}
-              alt={`${property.name} in ${property.location}`}
-              loading="lazy"
-              decoding="async"
-            />
-          </picture>
+            <picture style={{ display: "contents" }}>
+              <source
+                media="(max-width: 700px)"
+                srcSet={mobileCover}
+              />
+              <img
+                className="property-image"
+                src={property.image}
+                alt={`${property.name} in ${property.location}`}
+                loading="lazy"
+                decoding="async"
+              />
+            </picture>
+          </>
         ) : (
           <div
             className="property-image property-image-empty"

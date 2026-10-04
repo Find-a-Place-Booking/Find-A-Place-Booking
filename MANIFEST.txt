@@ -23,3 +23,9 @@ cd9bc2e5397e71cdaa334e2307ce61ac55430fc122cc5d4ea86aa8b942b28d76  ./lib/host/onb
 5a08dfb4f7dbb776c64767ee651557c64664dfbca14c2f7a6890c6c798d12271  ./lib/property/catalog.ts
 f5d2ac9ddcaa2b8115ca990ce4d808f9184e486b1e7274b5e45d7476fda45931  ./supabase/reference/2026-10-03-bed-configuration.sql
 16c06c7d917a8769f64a7e0838a2de5256b63b4e8ef2097c1bd4fea072c62849  ./supabase/reference/2026-10-03-onboarding-photo-limit-25.sql
+
+V4 additions:
+- components/PropertyCard.tsx
+- app/api/public/stay-social-image/[slug]/route.ts
+- app/stays/[slug]/page.tsx (stable social metadata image)
+- app/guest-feedback-fixes.css (blurred mobile fill)

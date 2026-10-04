@@ -87,3 +87,17 @@ The earlier CSS-only attempt was not sufficient because the global `.wizard` rul
 - removes the form's old 780px max-width so it can use the available space
 - keeps the existing mobile `display:block` behavior
 - does not change onboarding data, booking, payments, calendar, or availability logic
+
+
+## Social share + mobile image follow-up
+- Stay pages no longer publish a short-lived private Supabase signed image URL directly in `og:image`.
+- Added `/api/public/stay-social-image/[slug]`, a stable same-domain endpoint that streams the listing's primary photo for Facebook/Twitter crawlers.
+- The endpoint requests a 1200×630 social crop and falls back to the original image if image transformations are unavailable.
+- Mobile search cards still show the full primary photo, but the empty side area is now filled by a blurred crop of the same image instead of flat beige bars.
+- Desktop listing cards are unchanged.
+
+## ResNexus status check
+- Fancy Hill's live ResNexus `BROWSER_WORKER` connections were checked directly.
+- The active connections were HEALTHY with a fresh successful sync.
+- `Lil' Rustic` was the one stale preference mismatch: the listing said ICAL even though its only active source was ResNexus. That production record was corrected to PMS.
+- No ResNexus booking/block data was rewritten as part of this UI patch.

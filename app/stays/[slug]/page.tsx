@@ -71,6 +71,13 @@ export async function generateMetadata({
     `${property.name} in ${property.location}. View details and availability on Find A Place Booking.`,
   );
   const canonical = `/stays/${property.slug}`;
+  const socialImage = property.images[0]
+    ? absoluteUrl(
+        `/api/public/stay-social-image/${encodeURIComponent(
+          property.slug,
+        )}`,
+      )
+    : absoluteUrl("/brand/find-a-place-seal.png");
 
   return {
     title: property.name,
@@ -81,22 +88,13 @@ export async function generateMetadata({
       title: property.name,
       description,
       url: canonical,
-      images: property.images[0]
-        ? [{ url: property.images[0], alt: property.name }]
-        : [
-            {
-              url: "/brand/find-a-place-seal.png",
-              alt: "Find A Place Booking",
-            },
-          ],
+      images: [{ url: socialImage, alt: property.name }],
     },
     twitter: {
       card: "summary_large_image",
       title: property.name,
       description,
-      images: property.images[0]
-        ? [property.images[0]]
-        : ["/brand/find-a-place-seal.png"],
+      images: [socialImage],
     },
   };
 }
