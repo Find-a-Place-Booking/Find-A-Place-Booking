@@ -48,33 +48,23 @@
 }
 
 .property-image-blur {
-  display: none;
+  display: none !important;
 }
 
 @media (max-width: 700px) {
-  /* Keep the full host-selected image visible on phones without leaving the
-     ugly flat side bars that a portrait image creates inside a landscape card.
-     A soft crop of the same photo fills the background while the real photo
-     stays uncropped in front. */
+  /* Mobile stay cards should use the actual listing photo edge-to-edge.
+     A square frame gives portrait uploads enough vertical room that the crop
+     stays reasonable without leaving side bars or fake blurred padding. */
   .property-card .property-image-wrap {
     height: auto;
-    aspect-ratio: 4 / 3;
+    aspect-ratio: 1 / 1;
+    overflow: hidden;
     background: #d8d2c8;
-    isolation: isolate;
+    isolation: auto;
   }
 
   .property-card .property-image-blur {
-    display: block;
-    position: absolute;
-    inset: -18px;
-    z-index: 0;
-    background-position: center;
-    background-repeat: no-repeat;
-    background-size: cover;
-    filter: blur(18px) saturate(.82) brightness(.92);
-    opacity: .58;
-    transform: scale(1.08);
-    pointer-events: none;
+    display: none !important;
   }
 
   .property-card .property-image {
@@ -82,8 +72,8 @@
     z-index: 1;
     width: 100%;
     height: 100%;
-    object-fit: contain;
-    object-position: center;
+    object-fit: cover;
+    object-position: 50% 50%;
     background: transparent;
     transform: none !important;
   }

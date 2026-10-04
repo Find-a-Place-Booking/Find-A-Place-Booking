@@ -31,11 +31,6 @@ export function PropertyCard({
       >
         {property.image ? (
           <>
-            <span
-              className="property-image-blur"
-              aria-hidden="true"
-              style={{ backgroundImage: `url("${mobileCover}")` }}
-            />
             <picture style={{ display: "contents" }}>
               <source
                 media="(max-width: 700px)"

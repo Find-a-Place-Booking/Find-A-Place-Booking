@@ -29,3 +29,7 @@ V4 additions:
 - app/api/public/stay-social-image/[slug]/route.ts
 - app/stays/[slug]/page.tsx (stable social metadata image)
 - app/guest-feedback-fixes.css (blurred mobile fill)
+
+V5 mobile card correction:
+- app/guest-feedback-fixes.css
+- components/PropertyCard.tsx

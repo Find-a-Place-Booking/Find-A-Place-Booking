@@ -101,3 +101,11 @@ The earlier CSS-only attempt was not sufficient because the global `.wizard` rul
 - The active connections were HEALTHY with a fresh successful sync.
 - `Lil' Rustic` was the one stale preference mismatch: the listing said ICAL even though its only active source was ResNexus. That production record was corrected to PMS.
 - No ResNexus booking/block data was rewritten as part of this UI patch.
+
+
+## V5 mobile card image correction
+- Removed the `contain + blurred side fill` treatment from mobile listing cards.
+- Mobile cards now use a square image frame with the real listing image set to `object-fit: cover`.
+- This fills the card edge-to-edge while cropping portrait uploads much less aggressively than the original short landscape frame.
+- Desktop card rendering is unchanged.
+- No booking, calendar, checkout, pricing, or property data logic changed.
