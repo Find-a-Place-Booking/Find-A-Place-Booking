@@ -36,3 +36,7 @@ V5 mobile card correction:
 
 V6 mobile image correction:
 - app/guest-feedback-fixes.css (natural image proportions on mobile)
+
+V7 mobile image correction:
+- components/PropertyCard.tsx (same image URL on mobile and desktop)
+- app/guest-feedback-fixes.css (no mobile image overrides)

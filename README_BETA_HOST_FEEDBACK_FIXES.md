@@ -118,3 +118,15 @@ The earlier CSS-only attempt was not sufficient because the global `.wizard` rul
 - Portrait photos can make a taller card; this is intentional so the host photo is not cropped or zoomed.
 - Desktop card rendering is unchanged.
 - No booking, calendar, checkout, pricing, or host data logic changed.
+
+
+## V7 mobile image final correction — identical to desktop
+- Removed the mobile-only `<picture>` / `/api/public/stay-cover/[slug]` source from property cards.
+- Mobile and desktop now use the exact same `property.image` URL.
+- Removed all mobile-only `.property-image-wrap` and `.property-image` overrides.
+- Mobile now inherits the exact desktop image rules:
+  - `.property-image-wrap { height: 260px; overflow: hidden; }`
+  - global `img { width: 100%; object-fit: cover; }`
+  - `.property-image { height: 100%; }`
+- No mobile resizing/cropping/contain/blur/natural-height behavior remains.
+- No booking, calendar, checkout, pricing, or property data logic changed.

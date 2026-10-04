@@ -47,49 +47,7 @@
   font-weight: 750;
 }
 
-.property-image-blur {
-  display: none !important;
-}
-
 @media (max-width: 700px) {
-  /* Do not force mobile listing photos into a fixed crop.
-     Render the real primary image at its natural aspect ratio and full card
-     width so portrait, square and landscape uploads all remain intact. */
-  .property-card .property-image-wrap {
-    height: auto !important;
-    aspect-ratio: auto !important;
-    overflow: hidden;
-    background: #d8d2c8;
-    isolation: auto;
-  }
-
-  .property-card .property-image-blur {
-    display: none !important;
-  }
-
-  .property-card .property-image {
-    position: relative;
-    z-index: 1;
-    display: block;
-    width: 100%;
-    height: auto !important;
-    max-height: none !important;
-    aspect-ratio: auto !important;
-    object-fit: unset !important;
-    object-position: initial !important;
-    background: transparent;
-    transform: none !important;
-  }
-
-  .property-card .property-type,
-  .property-card .instant-label {
-    z-index: 3;
-  }
-
-  .property-card:hover .property-image {
-    transform: none !important;
-  }
-
   .stay-back-row {
     margin-top: -4px;
     margin-bottom: 12px;
