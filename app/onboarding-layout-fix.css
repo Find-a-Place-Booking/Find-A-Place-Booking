@@ -1,0 +1,52 @@
+/* Host onboarding desktop layout cleanup.
+   The "Complete once" panel was a decorative third grid column that squeezed
+   the actual setup form and produced a tall skinny card with dead space.
+   Keep onboarding focused on the step rail + working form. */
+
+.near-production-wizard {
+  grid-template-columns: minmax(170px, 200px) minmax(0, 1fr) !important;
+  gap: 24px;
+  align-items: start;
+  width: 100%;
+}
+
+.near-production-wizard > .onboarding-plan {
+  display: none !important;
+}
+
+.near-production-wizard > .wizard-panel {
+  width: 100%;
+  max-width: none;
+  min-width: 0;
+  align-self: start;
+}
+
+.near-production-wizard > .wizard-steps {
+  min-width: 0;
+  align-self: start;
+  position: sticky;
+  top: 18px;
+}
+
+@media (max-width: 1000px) {
+  .near-production-wizard {
+    grid-template-columns: minmax(145px, 175px) minmax(0, 1fr) !important;
+    gap: 18px;
+  }
+}
+
+@media (max-width: 700px) {
+  .near-production-wizard {
+    display: block;
+  }
+
+  .near-production-wizard > .wizard-steps,
+  .near-production-wizard > .onboarding-plan {
+    display: none !important;
+  }
+
+  .near-production-wizard > .wizard-panel {
+    width: 100%;
+    max-width: none;
+  }
+}

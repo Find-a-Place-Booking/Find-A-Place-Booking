@@ -71,3 +71,10 @@ at `supabase/reference/2026-10-03-onboarding-photo-limit-25.sql`.
 
 No booking hold, quote, Stripe, reservation, iCal/PMS synchronization, or
 canonical availability code is changed by this overlay.
+
+## Onboarding layout CSS cleanup
+- Removes the decorative `Complete once` third column from the working onboarding layout.
+- Expands the real onboarding form into the freed space.
+- Keeps the step rail compact/sticky on desktop.
+- Preserves the existing single-column mobile wizard.
+- No onboarding, booking, payment, calendar, or availability logic is changed.
