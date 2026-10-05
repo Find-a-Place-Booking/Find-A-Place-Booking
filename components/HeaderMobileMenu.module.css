@@ -59,6 +59,74 @@
 }
 
 /*
+ * Desktop navigation repair.
+ *
+ * The public header gained another primary destination ("Meet the hosts"),
+ * which made the old 1180px shell too narrow for the brand + primary nav +
+ * account actions. Flexbox then squeezed individual links until labels wrapped.
+ *
+ * Keep the rest of the site's .shell width untouched and widen only the public
+ * header. Links are explicitly kept on one line, and medium desktop/tablet
+ * switches to the existing menu before the header can become cramped.
+ */
+:global(.site-header .header-inner) {
+  width: min(1440px, calc(100% - 48px));
+  gap: 20px;
+}
+
+:global(.site-header .brand) {
+  flex: 0 0 auto;
+}
+
+:global(.site-header .main-nav) {
+  flex: 1 1 auto;
+  justify-content: center;
+  gap: clamp(16px, 1.45vw, 24px);
+  min-width: 0;
+}
+
+:global(.site-header .main-nav a),
+:global(.site-header .header-actions .text-link),
+:global(.site-header .header-list-property) {
+  white-space: nowrap;
+}
+
+:global(.site-header .header-actions) {
+  flex: 0 0 auto;
+  gap: 14px;
+  white-space: nowrap;
+}
+
+/* SavedStayNavLink uses a CSS-module class, so explicitly restore the same
+   dark header-light color used by the other public navigation links. */
+:global(.site-header.header-light .header-actions > a:not(.button)) {
+  color: #111411;
+}
+
+/*
+ * Do not wait until 1000px to collapse the expanded desktop nav. At widths
+ * where the full header would need to wrap, use the existing mobile drawer.
+ * This affects only the public header and leaves phone rules below untouched.
+ */
+@media (max-width: 1260px) and (min-width: 701px) {
+  :global(.site-header .main-nav) {
+    display: none !important;
+  }
+
+  :global(.site-header .mobile-menu-toggle) {
+    display: flex !important;
+  }
+
+  :global(.site-header .header-list-property) {
+    display: none !important;
+  }
+
+  :global(.site-header .mobile-menu-shell) {
+    display: block;
+  }
+}
+
+/*
  * On phones the navigation becomes a full-width sheet directly below the
  * site header. This keeps every link and action inside the visible viewport
  * regardless of browser chrome / dynamic viewport width.
@@ -70,6 +138,10 @@
     border-left: 0 !important;
     border-right: 0 !important;
     border-radius: 0 !important;
+  }
+
+  :global(.site-header .header-inner) {
+    width: min(100% - 24px, 1180px);
   }
 
   :global(.mobile-menu-toggle) {

@@ -1,21 +1,19 @@
-Find A Place Booking — build fix overlay for commit a8d59c0
+Find A Place Booking — desktop navigation repair overlay
 
-Drop/unzip this over the project root.
+DROP/UNZIP OVER THE PROJECT ROOT.
 
-Files replaced:
-- components/PropertyActions.tsx
-- lib/public/stay-cards.ts
+Replaces:
+  components/HeaderMobileMenu.module.css
 
 Fixes:
-1. TS2774 in PropertyActions.tsx
-   - Uses `typeof navigator.share === "function"` once and reuses the boolean.
-   - Runtime share/copy behavior is unchanged.
+- Widens ONLY the public header from the old 1180px shell to a max 1440px.
+- Keeps Find a stay / Meet the hosts / Explore / For hosts / About Find A Place
+  on one line on full desktop.
+- Keeps My trip, Host sign in and List your property on one line.
+- Fixes the Saved link appearing white on the cream/light header.
+- Tightens desktop spacing without changing the brand.
+- Switches to the existing hamburger menu at <=1260px, before the nav can wrap.
+- Leaves the existing <=700px phone drawer behavior intact.
 
-2. TS2322 / TS2677 in lib/public/stay-cards.ts
-   - Explicitly types buildCards() as Promise<Property[]>.
-   - Explicitly types each mapped card as Property.
-   - Prevents `instantBook: false` from being inferred as the literal `false`
-     when later code expects the broader Property type.
-   - The existing undefined filtering then narrows correctly.
-
-No database, calendar, payment, checkout, or email behavior is changed.
+No booking, checkout, calendar, auth, Supabase, or payment logic is touched.
+No migration is required.
