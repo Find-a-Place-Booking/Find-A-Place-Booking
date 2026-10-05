@@ -1,10 +1,11 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { cache } from "react";
+import { cache, Suspense } from "react";
 
 import { BackToStayResults } from "@/components/BackToStayResults";
 import { BookingCard } from "@/components/BookingCard";
 import { Footer } from "@/components/Footer";
+import { GuestStayRecommendations } from "@/components/GuestStayRecommendations";
 import { Header } from "@/components/Header";
 import { JsonLd } from "@/components/JsonLd";
 import { PropertyActions } from "@/components/PropertyActions";
@@ -48,7 +49,11 @@ function bedLabel(entry: BedConfigurationEntry) {
     "Murphy bed": ["Murphy bed", "Murphy beds"],
     Crib: ["crib", "cribs"],
   };
-  const labels = singularPlural[entry.type] ?? [entry.type.toLowerCase(), entry.type.toLowerCase()];
+  const labels =
+    singularPlural[entry.type] ?? [
+      entry.type.toLowerCase(),
+      entry.type.toLowerCase(),
+    ];
   return `${entry.count} ${entry.count === 1 ? labels[0] : labels[1]}`;
 }
 
@@ -119,7 +124,9 @@ export default async function PropertyPage({
       .maybeSingle();
 
     if (!unitBedError) {
-      bedConfiguration = parseBedConfiguration(unitBedData?.bed_configuration);
+      bedConfiguration = parseBedConfiguration(
+        unitBedData?.bed_configuration,
+      );
     }
   } catch (error) {
     console.error("[public stay] bed configuration unavailable", error);
@@ -134,7 +141,9 @@ export default async function PropertyPage({
     "Sofa bed",
   ]);
   const visibleAmenities = bedConfiguration.length
-    ? property.amenities.filter((amenity) => !legacyBedAmenities.has(amenity))
+    ? property.amenities.filter(
+        (amenity) => !legacyBedAmenities.has(amenity),
+      )
     : property.amenities;
 
   const lodgingSchema = {
@@ -205,7 +214,10 @@ export default async function PropertyPage({
             </p>
           </div>
 
-          <PropertyActions />
+          <PropertyActions
+            propertyName={property.name}
+            propertySlug={property.slug}
+          />
         </div>
 
         <PropertyGallery
@@ -365,6 +377,18 @@ export default async function PropertyPage({
             testMode={testMode}
           />
         </div>
+
+        <Suspense fallback={null}>
+          <GuestStayRecommendations
+            propertyId={property.propertyId}
+            slug={property.slug}
+            city={property.city}
+            state={property.state}
+            type={property.type}
+            location={property.location}
+            price={property.price}
+          />
+        </Suspense>
       </main>
 
       <Footer />

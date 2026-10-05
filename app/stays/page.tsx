@@ -69,9 +69,6 @@ export default async function StaysPage({
     loadManagedCopy(defaults),
   ]);
 
-  // Do the fixed destination + guest filtering on the server so the browser
-  // only receives the inventory relevant to this search. Interactive chips and
-  // sorting still stay client-side without another round trip.
   const properties = allProperties.filter(
     (property) =>
       propertyMatchesDestination(property, where) &&
@@ -92,6 +89,13 @@ export default async function StaysPage({
     : where
       ? `Stays near ${where}`
       : collectionHeading || summary.title;
+  const dateFiltered = Boolean(
+    start &&
+      end &&
+      /^\d{4}-\d{2}-\d{2}$/.test(checkin) &&
+      /^\d{4}-\d{2}-\d{2}$/.test(checkout) &&
+      checkout > checkin,
+  );
 
   return (
     <>
@@ -120,8 +124,8 @@ export default async function StaysPage({
             </div>
             <div className="availability-fresh">
               <i />
-              {start && end
-                ? "Availability checked for these dates"
+              {dateFiltered
+                ? "Calendar checked for these dates"
                 : "Live availability on each stay"}
             </div>
           </div>
@@ -133,6 +137,7 @@ export default async function StaysPage({
           guests={1}
           initialFilter={initialFilter}
           inventoryAvailable={allProperties.length > 0}
+          availabilityConfirmed={dateFiltered}
         />
       </main>
       <Footer />

@@ -1,0 +1,133 @@
+.chooseDatesPrompt {
+  margin: 4px 0 15px;
+  padding: 11px 12px;
+  border: 1px solid #e3ddd3;
+  background: #f8f6f1;
+  display: grid;
+  gap: 3px;
+}
+
+.chooseDatesPrompt strong {
+  color: #35433d;
+  font-size: .72rem;
+}
+
+.chooseDatesPrompt span {
+  color: #747a75;
+  font-size: .62rem;
+  line-height: 1.5;
+}
+
+.estimate {
+  margin: 4px 0 15px;
+  border: 1px solid #d8ddd7;
+  background: #f5f8f5;
+  overflow: hidden;
+}
+
+.estimateHead {
+  min-height: 58px;
+  padding: 11px 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 14px;
+  border-bottom: 1px solid #dfe5df;
+}
+
+.estimateHead > div {
+  display: grid;
+  gap: 2px;
+}
+
+.estimateHead span {
+  color: #315f4b;
+  font-size: .66rem;
+  font-weight: 900;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+
+.estimateHead small {
+  color: #747b76;
+  font-size: .6rem;
+}
+
+.estimateHead > strong {
+  flex: 0 0 auto;
+  color: #263a40;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 1.25rem;
+  font-weight: 500;
+}
+
+.estimateRows {
+  padding: 8px 12px 5px;
+}
+
+.estimateRows > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 5px 0;
+  color: #5d6762;
+  font-size: .67rem;
+}
+
+.estimateRows b {
+  color: #35413c;
+  font-weight: 800;
+  text-align: right;
+}
+
+.estimateRows .discount,
+.estimateRows .discount b {
+  color: #315f4b;
+}
+
+.estimateRows .totalRow {
+  margin-top: 4px;
+  padding-top: 9px;
+  border-top: 1px solid #dce2dc;
+  color: #263a40;
+  font-weight: 900;
+}
+
+.estimateRows .totalRow b {
+  font-size: .78rem;
+}
+
+.estimateNote {
+  display: block;
+  padding: 0 12px 11px;
+  color: #777e78;
+  font-size: .57rem;
+  line-height: 1.5;
+}
+
+.estimateLoading,
+.estimateUnavailable {
+  padding: 12px;
+  color: #6d756f;
+  font-size: .64rem;
+  line-height: 1.5;
+}
+
+.estimateUnavailable {
+  background: #faf7f0;
+}
+
+@media (max-width: 700px) {
+  .estimateHead {
+    align-items: flex-start;
+  }
+
+  .estimateHead > strong {
+    font-size: 1.18rem;
+  }
+
+  .chooseDatesPrompt,
+  .estimate {
+    margin-bottom: 14px;
+  }
+}

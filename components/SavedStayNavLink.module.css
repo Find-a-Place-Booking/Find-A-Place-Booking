@@ -1,0 +1,75 @@
+.desktopLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: .9rem;
+  font-weight: 750;
+  white-space: nowrap;
+}
+
+.desktopLink b,
+.mobileLink b {
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  display: inline-grid;
+  place-items: center;
+  background: #263a40;
+  color: #fff;
+  font-size: .56rem;
+  line-height: 1;
+}
+
+.mobileLink {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.mobileLink > span {
+  flex: 1;
+}
+
+.mobileLink i {
+  font-style: normal;
+}
+
+@media (max-width: 700px) {
+  .desktopLink {
+    display: none;
+  }
+}
+
+
+@media (max-width: 1180px) and (min-width: 701px) {
+  .desktopLink {
+    position: relative;
+    width: 34px;
+    height: 34px;
+    justify-content: center;
+    border: 1px solid rgba(120, 120, 110, .28);
+    border-radius: 999px;
+  }
+
+  .desktopLink > span {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+
+  .desktopLink::before {
+    content: "♡";
+    font-size: 1rem;
+    line-height: 1;
+  }
+
+  .desktopLink b {
+    position: absolute;
+    top: -5px;
+    right: -7px;
+  }
+}

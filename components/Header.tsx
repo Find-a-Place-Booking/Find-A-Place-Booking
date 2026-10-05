@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import { useEffect, useId, useState } from "react";
 
 import { Brand } from "./Brand";
+import { SavedStayNavLink } from "./SavedStayNavLink";
 import { TrackedLink } from "./TrackedLink";
 import mobileStyles from "./HeaderMobileMenu.module.css";
 
@@ -95,6 +96,7 @@ export function Header({ light = false }: { light?: boolean }) {
               </div>
 
               <div className="mobile-menu-secondary">
+                <SavedStayNavLink mobile onNavigate={closeMenu} />
                 <Link href="/trip" onClick={closeMenu}>
                   My trip
                 </Link>
@@ -138,6 +140,8 @@ export function Header({ light = false }: { light?: boolean }) {
           </nav>
 
           <div className="header-actions">
+            <SavedStayNavLink />
+
             <Link className="text-link" href="/trip">
               My trip
             </Link>

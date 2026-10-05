@@ -28,12 +28,14 @@ export function StayResults({
   guests,
   initialFilter = "",
   inventoryAvailable = properties.length > 0,
+  availabilityConfirmed = false,
 }: {
   properties: Property[];
   destination: string;
   guests: number;
   initialFilter?: string;
   inventoryAvailable?: boolean;
+  availabilityConfirmed?: boolean;
 }) {
   const [filters, setFilters] = useState<string[]>(() =>
     filterOptions.includes(initialFilter) ? [initialFilter] : [],
@@ -81,9 +83,6 @@ export function StayResults({
           });
         }
 
-        // The target marker is single-use. Clearing it after a successful
-        // restore prevents a later direct visit to the same stay from being
-        // mistaken for an active back-to-results journey.
         window.sessionStorage.setItem(
           STAY_BROWSE_KEY,
           JSON.stringify({
@@ -281,6 +280,7 @@ export function StayResults({
                   key={property.slug}
                   property={property}
                   surface="search_results"
+                  availabilityConfirmed={availabilityConfirmed}
                 />
               ))}
             </div>
