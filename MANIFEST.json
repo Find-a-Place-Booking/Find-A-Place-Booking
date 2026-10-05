@@ -1,9 +1,12 @@
 {
-  "scope": "checkout subtotal copy only",
+  "scope": "recent validity fixes after audit",
+  "production_database_already_fixed": true,
+  "requires_source_push_for_tracking_fixes": true,
   "files": [
-    "app/checkout/page.tsx",
-    "app/checkout/CheckoutSubtotal.module.css"
-  ],
-  "backend_changes": false,
-  "database_changes": false
+    "app/api/booking/track/route.ts",
+    "lib/bookings/booking-tracking.ts",
+    "supabase/migrations/20261005041805_normalize_host_state_tax_categories.sql",
+    "supabase/migrations/20261005042006_checkout_payment_hold_grace_and_recovery_timing.sql",
+    "supabase/migrations/20261005200754_fix_checkout_tax_record_and_refund_enum_reconciliation.sql"
+  ]
 }

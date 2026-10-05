@@ -12,10 +12,17 @@ export function PropertyGallery({
   images: string[];
 }) {
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
-  const hasImages = images.length > 0;
-  const mainImage = images[0];
-  const secondImage = images[1] ?? mainImage;
-  const thirdImage = images[2] ?? mainImage;
+
+  // Never invent extra photos to fill the three-slot layout. If a listing only
+  // has one or two real photos, the unused slots stay as the existing
+  // placeholders instead of repeating the primary image.
+  const uniqueImages = Array.from(
+    new Set(images.filter((image): image is string => Boolean(image))),
+  );
+  const hasImages = uniqueImages.length > 0;
+  const mainImage = uniqueImages[0];
+  const secondImage = uniqueImages[1];
+  const thirdImage = uniqueImages[2];
 
   useEffect(() => {
     if (activeIndex === null) return;
@@ -29,19 +36,19 @@ export function PropertyGallery({
         return;
       }
 
-      if (images.length < 2) return;
+      if (uniqueImages.length < 2) return;
 
       if (event.key === "ArrowLeft") {
         setActiveIndex((current) =>
           current === null
             ? 0
-            : (current - 1 + images.length) % images.length,
+            : (current - 1 + uniqueImages.length) % uniqueImages.length,
         );
       }
 
       if (event.key === "ArrowRight") {
         setActiveIndex((current) =>
-          current === null ? 0 : (current + 1) % images.length,
+          current === null ? 0 : (current + 1) % uniqueImages.length,
         );
       }
     }
@@ -51,10 +58,10 @@ export function PropertyGallery({
       document.body.style.overflow = previousOverflow;
       window.removeEventListener("keydown", onKeyDown);
     };
-  }, [activeIndex, images.length]);
+  }, [activeIndex, uniqueImages.length]);
 
   function open(index: number) {
-    if (!images[index]) return;
+    if (!uniqueImages[index]) return;
     setActiveIndex(index);
   }
 
@@ -62,13 +69,13 @@ export function PropertyGallery({
     setActiveIndex((current) =>
       current === null
         ? 0
-        : (current - 1 + images.length) % images.length,
+        : (current - 1 + uniqueImages.length) % uniqueImages.length,
     );
   }
 
   function next() {
     setActiveIndex((current) =>
-      current === null ? 0 : (current + 1) % images.length,
+      current === null ? 0 : (current + 1) % uniqueImages.length,
     );
   }
 
@@ -80,7 +87,7 @@ export function PropertyGallery({
             className={`${styles.photoButton} ${styles.main}`}
             type="button"
             onClick={() => open(0)}
-            aria-label={`Open photo 1 of ${images.length}`}
+            aria-label={`Open photo 1 of ${uniqueImages.length}`}
           >
             <img
               src={mainImage}
@@ -101,12 +108,12 @@ export function PropertyGallery({
           <button
             className={`${styles.photoButton} ${styles.secondary}`}
             type="button"
-            onClick={() => open(images[1] ? 1 : 0)}
-            aria-label={`Open photo ${images[1] ? 2 : 1} of ${images.length}`}
+            onClick={() => open(1)}
+            aria-label={`Open photo 2 of ${uniqueImages.length}`}
           >
             <img
               src={secondImage}
-              alt={`${propertyName} photo ${images[1] ? 2 : 1}`}
+              alt={`${propertyName} photo 2`}
               loading="lazy"
               decoding="async"
             />
@@ -114,7 +121,7 @@ export function PropertyGallery({
         ) : (
           <div
             className={`${styles.placeholder} ${styles.secondary}`}
-            aria-label="Property photo unavailable"
+            aria-label="Additional property photo unavailable"
           />
         )}
 
@@ -122,12 +129,12 @@ export function PropertyGallery({
           <button
             className={`${styles.photoButton} ${styles.secondary}`}
             type="button"
-            onClick={() => open(images[2] ? 2 : 0)}
-            aria-label={`Open photo ${images[2] ? 3 : 1} of ${images.length}`}
+            onClick={() => open(2)}
+            aria-label={`Open photo 3 of ${uniqueImages.length}`}
           >
             <img
               src={thirdImage}
-              alt={`${propertyName} photo ${images[2] ? 3 : 1}`}
+              alt={`${propertyName} photo 3`}
               loading="lazy"
               decoding="async"
             />
@@ -135,7 +142,7 @@ export function PropertyGallery({
         ) : (
           <div
             className={`${styles.placeholder} ${styles.secondary}`}
-            aria-label="Property photo unavailable"
+            aria-label="Additional property photo unavailable"
           />
         )}
 
@@ -146,12 +153,12 @@ export function PropertyGallery({
             onClick={() => open(0)}
           >
             <span aria-hidden="true">▦</span>
-            View all {images.length} photo{images.length === 1 ? "" : "s"}
+            View all {uniqueImages.length} photo{uniqueImages.length === 1 ? "" : "s"}
           </button>
         ) : null}
       </div>
 
-      {activeIndex !== null && images[activeIndex] ? (
+      {activeIndex !== null && uniqueImages[activeIndex] ? (
         <div
           className={styles.lightbox}
           role="dialog"
@@ -167,7 +174,7 @@ export function PropertyGallery({
             <div>
               <strong>{propertyName}</strong>
               <span>
-                {activeIndex + 1} of {images.length}
+                {activeIndex + 1} of {uniqueImages.length}
               </span>
             </div>
             <button
@@ -181,7 +188,7 @@ export function PropertyGallery({
           </div>
 
           <div className={styles.lightboxStage}>
-            {images.length > 1 ? (
+            {uniqueImages.length > 1 ? (
               <button
                 type="button"
                 className={`${styles.nav} ${styles.previous}`}
@@ -194,11 +201,11 @@ export function PropertyGallery({
 
             <img
               className={styles.lightboxImage}
-              src={images[activeIndex]}
+              src={uniqueImages[activeIndex]}
               alt={`${propertyName} photo ${activeIndex + 1}`}
             />
 
-            {images.length > 1 ? (
+            {uniqueImages.length > 1 ? (
               <button
                 type="button"
                 className={`${styles.nav} ${styles.next}`}
@@ -210,9 +217,9 @@ export function PropertyGallery({
             ) : null}
           </div>
 
-          {images.length > 1 ? (
+          {uniqueImages.length > 1 ? (
             <div className={styles.thumbnails} aria-label="Photo thumbnails">
-              {images.map((image, index) => (
+              {uniqueImages.map((image, index) => (
                 <button
                   key={`${image}-${index}`}
                   type="button"

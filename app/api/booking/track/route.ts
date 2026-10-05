@@ -21,6 +21,11 @@ const ALLOWED_STAGES = new Set([
   "COMPLETE",
 ]);
 
+function trackedLabel(metadata: Record<string, unknown> | undefined) {
+  const value = metadata?.label;
+  return typeof value === "string" ? value.trim().slice(0, 350) : "";
+}
+
 export async function POST(request: NextRequest) {
   if (!sameOrigin(request)) {
     return NextResponse.json(
@@ -50,14 +55,28 @@ export async function POST(request: NextRequest) {
   }
 
   const eventName = body.eventName?.trim().toLowerCase() || "";
-  const stage = body.stage?.trim().toUpperCase() || "";
+  const requestedStage = body.stage?.trim().toUpperCase() || "";
 
-  if (!EVENT_RE.test(eventName) || !ALLOWED_STAGES.has(stage)) {
+  if (!EVENT_RE.test(eventName) || !ALLOWED_STAGES.has(requestedStage)) {
     return NextResponse.json(
       { error: "Invalid booking event." },
       { status: 400 },
     );
   }
+
+  // Turnstile telemetry happens before a booking hold exists. Older client
+  // builds labeled these events HOLD, which made the funnel look farther along
+  // than it really was. Normalize them server-side so cached clients cannot
+  // keep polluting the funnel.
+  const stage = eventName.startsWith("security_event_")
+    ? "CHECKOUT_DETAILS"
+    : requestedStage;
+
+  const path =
+    request.headers.get("x-fap-page-path") ||
+    request.nextUrl.pathname;
+  const userAgent = request.headers.get("user-agent");
+  const referrer = request.headers.get("referer");
 
   await recordBookingAttemptEvent({
     attemptId: body.attemptId,
@@ -74,12 +93,66 @@ export async function POST(request: NextRequest) {
     errorCode: body.errorCode || null,
     errorMessage: body.errorMessage || null,
     metadata: body.metadata || {},
-    path:
-      request.headers.get("x-fap-page-path") ||
-      request.nextUrl.pathname,
-    userAgent: request.headers.get("user-agent"),
-    referrer: request.headers.get("referer"),
+    path,
+    userAgent,
+    referrer,
   });
+
+  // The checkout UI copy changed, but older client tracking still looks for
+  // the previous button labels. Derive the important funnel milestones from
+  // the generic click event for the current labels. Restrict this to only the
+  // new labels so older cached clients that still emit their own milestone
+  // events do not double-count.
+  if (eventName === "booking_ui_clicked") {
+    const label = trackedLabel(body.metadata);
+
+    let derived:
+      | { eventName: string; stage: string }
+      | null = null;
+
+    if (
+      stage === "LISTING" &&
+      /^reserve these dates$/i.test(label)
+    ) {
+      derived = {
+        eventName: "checkout_clicked",
+        stage: "LISTING",
+      };
+    } else if (
+      stage === "CHECKOUT_DETAILS" &&
+      /^reserve these dates$/i.test(label)
+    ) {
+      derived = {
+        eventName: "hold_submit_clicked",
+        stage: "HOLD",
+      };
+    } else if (
+      stage === "CHECKOUT_DETAILS" &&
+      /^pay .+ & confirm stay$/i.test(label)
+    ) {
+      derived = {
+        eventName: "payment_submit_clicked",
+        stage: "PAYMENT",
+      };
+    }
+
+    if (derived) {
+      await recordBookingAttemptEvent({
+        attemptId: body.attemptId,
+        eventName: derived.eventName,
+        stage: derived.stage,
+        unitId: body.unitId || null,
+        reservationId: body.reservationId || null,
+        metadata: {
+          source: "server_derived_booking_ui_click",
+          label,
+        },
+        path,
+        userAgent,
+        referrer,
+      });
+    }
+  }
 
   return NextResponse.json(
     { ok: true },

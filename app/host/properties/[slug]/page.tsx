@@ -8,7 +8,6 @@ import {
 import { DashboardShell } from "@/components/DashboardShell";
 import { NearbyExperiencesManager } from "@/components/NearbyExperiencesManager";
 import { PropertyEditor } from "@/components/PropertyEditor";
-import { PrimaryPhotoSelector } from "@/components/PrimaryPhotoSelector";
 import { PropertyPolicyDocument } from "@/components/PropertyPolicyDocument";
 import { PropertyPublicationControl } from "@/components/PropertyPublicationControl";
 import { getCurrentPropertyPolicyDocument } from "@/lib/host/policy-documents";
@@ -124,12 +123,6 @@ export default async function ManagePropertyPage({
       ) : null}
 
       <PropertyEditor initial={property} />
-
-      <PrimaryPhotoSelector
-        unitId={property.unitId}
-        images={property.images}
-        editable={editable}
-      />
 
       <NearbyExperiencesManager
         propertyId={property.propertyId}

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { savePropertyListing } from "@/app/host/properties/actions";
@@ -18,6 +18,13 @@ import {
 import { createClient } from "@/lib/supabase/client";
 
 type SaveTone = "saved" | "dirty" | "saving" | "error";
+
+function moveItem<T>(items: T[], from: number, to: number) {
+  const next = [...items];
+  const [item] = next.splice(from, 1);
+  next.splice(to, 0, item);
+  return next;
+}
 
 export function PropertyEditor({
   initial,
@@ -37,6 +44,9 @@ export function PropertyEditor({
   const [message, setMessage] = useState("Property details loaded.");
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [organizingPhotos, setOrganizingPhotos] = useState(false);
+  const [draggingPhotoId, setDraggingPhotoId] = useState<string | null>(null);
+  const dragPhotoIndexRef = useRef<number | null>(null);
 
   const editable = [
     "DRAFT",
@@ -59,6 +69,11 @@ export function PropertyEditor({
           option.value === (form.calendarPreference || "UNSET"),
       ),
     [form.calendarPreference],
+  );
+
+  const orderedImages = useMemo(
+    () => [...images].sort((a, b) => a.sortOrder - b.sortOrder),
+    [images],
   );
 
   function update(key: string, value: string) {
@@ -118,7 +133,7 @@ export function PropertyEditor({
   }
 
   async function uploadFiles(files: FileList | null) {
-    if (!files?.length || uploading || !editable) return;
+    if (!files?.length || uploading || organizingPhotos || !editable) return;
 
     const remaining = Math.max(0, 25 - images.length);
     if (!remaining) {
@@ -144,7 +159,7 @@ export function PropertyEditor({
       return;
     }
 
-    const nextImages = [...images];
+    const nextImages = [...orderedImages];
 
     for (const file of selected) {
       if (
@@ -234,7 +249,7 @@ export function PropertyEditor({
   }
 
   async function removeImage(image: PropertyImageRecord) {
-    if (uploading || !editable) return;
+    if (uploading || organizingPhotos || !editable) return;
 
     setUploading(true);
     const supabase = createClient();
@@ -276,6 +291,58 @@ export function PropertyEditor({
     }
 
     router.refresh();
+  }
+
+  async function persistPhotoOrder(next: PropertyImageRecord[]) {
+    if (!editable || uploading || organizingPhotos) return false;
+
+    const previous = orderedImages;
+    const normalized = next.map((image, index) => ({
+      ...image,
+      sortOrder: index,
+    }));
+
+    setImages(normalized);
+    setOrganizingPhotos(true);
+    setSaveTone("saving");
+    setMessage("Saving photo order…");
+
+    const supabase = createClient();
+    const { error: reorderError } = await supabase.rpc(
+      "reorder_property_images",
+      {
+        target_unit_id: initial.unitId,
+        ordered_image_ids: normalized.map((image) => image.id),
+      },
+    );
+
+    setOrganizingPhotos(false);
+
+    if (reorderError) {
+      console.error("[reorder property images]", reorderError);
+      setImages(previous);
+      setSaveTone("error");
+      setMessage("Couldn't save the new photo order. Nothing was changed.");
+      return false;
+    }
+
+    setSaveTone("saved");
+    setMessage(
+      "Photo order saved. The first photo is now the primary image guests see.",
+    );
+    router.refresh();
+    return true;
+  }
+
+  async function movePhoto(index: number, direction: -1 | 1) {
+    const target = index + direction;
+    if (target < 0 || target >= orderedImages.length) return;
+    await persistPhotoOrder(moveItem(orderedImages, index, target));
+  }
+
+  async function makePrimaryPhoto(index: number) {
+    if (index === 0) return;
+    await persistPhotoOrder(moveItem(orderedImages, index, 0));
   }
 
   return (
@@ -931,9 +998,18 @@ export function PropertyEditor({
                 <b>6</b>
                 <strong>Photos</strong>
               </span>
-              <small>{images.length}/25 uploaded</small>
+              <small>{orderedImages.length}/25 uploaded</small>
             </summary>
             <div className="property-edit-body">
+              <div className="inline-note commission-note">
+                <strong>Upload, organize and choose the primary photo here.</strong>
+                <span>
+                  The first photo is the primary image guests see. Drag photos to
+                  reorder on desktop, or use the move and Make primary controls on
+                  phones and tablets. Uploads, removals and photo order save immediately.
+                </span>
+              </div>
+
               <label
                 className={`property-upload ${
                   uploading ? "busy" : ""
@@ -943,7 +1019,9 @@ export function PropertyEditor({
                   type="file"
                   accept="image/jpeg,image/png,image/webp"
                   multiple
-                  disabled={uploading || images.length >= 25}
+                  disabled={
+                    uploading || organizingPhotos || orderedImages.length >= 25
+                  }
                   onChange={(event) => {
                     void uploadFiles(event.target.files);
                     event.currentTarget.value = "";
@@ -953,46 +1031,128 @@ export function PropertyEditor({
                   {uploading ? "Uploading…" : "Add property photos"}
                 </strong>
                 <span>
-                  JPG, PNG or WebP · up to 10 MB each · private until
-                  this property is published
+                  JPG, PNG or WebP · up to 10 MB each · 25 photos total ·
+                  private until this property is published
                 </span>
               </label>
 
-              {images.length ? (
+              {orderedImages.length ? (
                 <div className="property-image-grid">
-                  {images.map((image, index) => (
-                    <figure key={image.id}>
-                      {image.signedUrl ? (
-                        <img
-                          src={image.signedUrl}
-                          alt={
-                            image.altText ||
-                            form.name ||
-                            "Property"
+                  {orderedImages.map((image, index) => {
+                    const primary = index === 0;
+                    const dragging = draggingPhotoId === image.id;
+
+                    return (
+                      <figure
+                        key={image.id}
+                        draggable={editable && !uploading && !organizingPhotos}
+                        onDragStart={(event) => {
+                          if (!editable || uploading || organizingPhotos) {
+                            event.preventDefault();
+                            return;
                           }
-                        />
-                      ) : (
-                        <div className="property-image-missing">
-                          Preview unavailable
-                        </div>
-                      )}
-                      <figcaption>
-                        <span>
-                          {index === 0
-                            ? "Primary photo"
-                            : image.originalName ||
-                              `Photo ${index + 1}`}
-                        </span>
-                        <button
-                          type="button"
-                          disabled={uploading}
-                          onClick={() => void removeImage(image)}
-                        >
-                          Remove
-                        </button>
-                      </figcaption>
-                    </figure>
-                  ))}
+                          dragPhotoIndexRef.current = index;
+                          setDraggingPhotoId(image.id);
+                          event.dataTransfer.effectAllowed = "move";
+                          event.dataTransfer.setData("text/plain", image.id);
+                        }}
+                        onDragEnd={() => {
+                          dragPhotoIndexRef.current = null;
+                          setDraggingPhotoId(null);
+                        }}
+                        onDragOver={(event) => {
+                          if (!editable || uploading || organizingPhotos) return;
+                          event.preventDefault();
+                          event.dataTransfer.dropEffect = "move";
+                        }}
+                        onDrop={(event) => {
+                          if (!editable || uploading || organizingPhotos) return;
+                          event.preventDefault();
+                          const from = dragPhotoIndexRef.current;
+                          dragPhotoIndexRef.current = null;
+                          setDraggingPhotoId(null);
+                          if (from == null || from === index) return;
+                          void persistPhotoOrder(
+                            moveItem(orderedImages, from, index),
+                          );
+                        }}
+                        style={dragging ? { opacity: 0.55 } : undefined}
+                      >
+                        {image.signedUrl ? (
+                          <img
+                            src={image.signedUrl}
+                            alt={
+                              image.altText ||
+                              form.name ||
+                              "Property"
+                            }
+                            draggable={false}
+                          />
+                        ) : (
+                          <div className="property-image-missing">
+                            Preview unavailable
+                          </div>
+                        )}
+                        <figcaption>
+                          <span>
+                            {primary
+                              ? "Primary photo"
+                              : image.originalName || `Photo ${index + 1}`}
+                          </span>
+                          <div
+                            style={{
+                              display: "flex",
+                              flexWrap: "wrap",
+                              gap: "6px",
+                              justifyContent: "flex-end",
+                            }}
+                          >
+                            <button
+                              type="button"
+                              className="button button-small button-quiet"
+                              disabled={
+                                uploading || organizingPhotos || index === 0
+                              }
+                              onClick={() => void movePhoto(index, -1)}
+                              aria-label={`Move ${image.originalName || `photo ${index + 1}`} earlier`}
+                            >
+                              ←
+                            </button>
+                            <button
+                              type="button"
+                              className="button button-small button-quiet"
+                              disabled={
+                                uploading ||
+                                organizingPhotos ||
+                                index === orderedImages.length - 1
+                              }
+                              onClick={() => void movePhoto(index, 1)}
+                              aria-label={`Move ${image.originalName || `photo ${index + 1}`} later`}
+                            >
+                              →
+                            </button>
+                            {!primary ? (
+                              <button
+                                type="button"
+                                className="button button-small button-quiet"
+                                disabled={uploading || organizingPhotos}
+                                onClick={() => void makePrimaryPhoto(index)}
+                              >
+                                Make primary
+                              </button>
+                            ) : null}
+                            <button
+                              type="button"
+                              disabled={uploading || organizingPhotos}
+                              onClick={() => void removeImage(image)}
+                            >
+                              Remove
+                            </button>
+                          </div>
+                        </figcaption>
+                      </figure>
+                    );
+                  })}
                 </div>
               ) : (
                 <div className="panel-empty">
@@ -1003,6 +1163,20 @@ export function PropertyEditor({
                   </span>
                 </div>
               )}
+
+              {orderedImages.length ? (
+                <div className="inline-note commission-note">
+                  <strong>
+                    {organizingPhotos
+                      ? "Saving photo order…"
+                      : "First photo = primary photo"}
+                  </strong>
+                  <span>
+                    Reordering does not delete or re-upload anything. It only
+                    changes how the existing photos are arranged for guests.
+                  </span>
+                </div>
+              ) : null}
             </div>
           </details>
 

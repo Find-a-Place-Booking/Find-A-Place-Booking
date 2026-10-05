@@ -52,6 +52,22 @@ type Draft = {
   websiteUrl: string;
 };
 
+type CopyTarget = {
+  propertyId: string;
+  name: string;
+  slug: string;
+};
+
+type CopyPropertyRow = {
+  id: string;
+  name: string;
+};
+
+type CopyUnitRow = {
+  property_id: string;
+  slug: string;
+};
+
 const emptyDraft: Draft = {
   title: "",
   category: "Outdoors",
@@ -78,6 +94,10 @@ function extensionFor(file: File) {
   return "jpg";
 }
 
+function normalizedExperienceTitle(value: string) {
+  return value.trim().toLocaleLowerCase();
+}
+
 export function NearbyExperiencesManager({
   propertyId,
   organizationId,
@@ -99,6 +119,8 @@ export function NearbyExperiencesManager({
   const [searching, setSearching] = useState(false);
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [matchedPlace, setMatchedPlace] = useState<string | null>(null);
+  const [copyTargets, setCopyTargets] = useState<CopyTarget[]>([]);
+  const [selectedTargetIds, setSelectedTargetIds] = useState<string[]>([]);
 
   const supabase = useMemo(() => createClient(), []);
 
@@ -143,9 +165,72 @@ export function NearbyExperiencesManager({
     setError(null);
   }, [propertyId, supabase]);
 
+  const loadCopyTargets = useCallback(async () => {
+    const { data: propertyData, error: propertyError } = await supabase
+      .from("properties")
+      .select("id,name")
+      .eq("organization_id", organizationId)
+      .neq("status", "ARCHIVED")
+      .neq("id", propertyId)
+      .order("name", { ascending: true });
+
+    if (propertyError || !propertyData?.length) {
+      if (propertyError) {
+        console.error("[nearby experiences copy targets]", propertyError);
+      }
+      setCopyTargets([]);
+      setSelectedTargetIds([]);
+      return;
+    }
+
+    const properties = propertyData as CopyPropertyRow[];
+    const propertyIds = properties.map((property) => property.id);
+
+    const { data: unitData, error: unitError } = await supabase
+      .from("property_units")
+      .select("property_id,slug")
+      .in("property_id", propertyIds)
+      .eq("is_primary", true)
+      .eq("is_active", true);
+
+    if (unitError) {
+      console.error("[nearby experiences copy target units]", unitError);
+      setCopyTargets([]);
+      setSelectedTargetIds([]);
+      return;
+    }
+
+    const slugByProperty = new Map(
+      ((unitData ?? []) as CopyUnitRow[]).map((unit) => [
+        unit.property_id,
+        unit.slug,
+      ]),
+    );
+
+    const nextTargets = properties.flatMap((property) => {
+      const targetSlug = slugByProperty.get(property.id);
+      if (!targetSlug) return [];
+      return [
+        {
+          propertyId: property.id,
+          name: property.name,
+          slug: targetSlug,
+        } satisfies CopyTarget,
+      ];
+    });
+
+    setCopyTargets(nextTargets);
+    setSelectedTargetIds((current) =>
+      current.filter((id) =>
+        nextTargets.some((target) => target.propertyId === id),
+      ),
+    );
+  }, [organizationId, propertyId, supabase]);
+
   useEffect(() => {
     void load();
-  }, [load]);
+    void loadCopyTargets();
+  }, [load, loadCopyTargets]);
 
   function updateDraft(key: keyof Draft, value: string) {
     setDraft((current) => ({ ...current, [key]: value }));
@@ -257,6 +342,28 @@ export function NearbyExperiencesManager({
 
     if (uploadError) throw uploadError;
     return path;
+  }
+
+  async function removeStoragePathIfUnused(path: string) {
+    const { count, error: countError } = await supabase
+      .from("property_nearby_experiences")
+      .select("id", { count: "exact", head: true })
+      .eq("image_path", path);
+
+    if (countError) {
+      console.error("[nearby experience image reference check]", countError);
+      return;
+    }
+
+    if ((count ?? 0) === 0) {
+      const { error: storageError } = await supabase.storage
+        .from("property-images")
+        .remove([path]);
+
+      if (storageError) {
+        console.error("[nearby experience image cleanup]", storageError);
+      }
+    }
   }
 
   async function addExperience() {
@@ -379,7 +486,7 @@ export function NearbyExperiencesManager({
       if (updateError) throw updateError;
 
       if (row.image_path) {
-        await supabase.storage.from("property-images").remove([row.image_path]);
+        await removeStoragePathIfUnused(row.image_path);
       }
       setMessage(`${row.title} image updated.`);
       await refreshPublicListing();
@@ -408,7 +515,7 @@ export function NearbyExperiencesManager({
       .eq("property_id", propertyId);
 
     if (!deleteError && row.image_path) {
-      await supabase.storage.from("property-images").remove([row.image_path]);
+      await removeStoragePathIfUnused(row.image_path);
     }
 
     setSaving(false);
@@ -451,6 +558,161 @@ export function NearbyExperiencesManager({
     await refreshPublicListing();
   }
 
+  async function copyExperiences(targetIds: string[]) {
+    if (!editable || saving || !targetIds.length) return;
+
+    const allowedTargetIds = targetIds.filter((id) =>
+      copyTargets.some((target) => target.propertyId === id),
+    );
+    if (!allowedTargetIds.length) return;
+
+    setSaving(true);
+    setError(null);
+    setMessage("Copying saved nearby experiences…");
+
+    try {
+      const { data: userData } = await supabase.auth.getUser();
+      const userId = userData.user?.id;
+      if (!userId) throw new Error("Your session expired. Sign in again.");
+
+      // Copy the saved database state, not any unsaved edits currently on screen.
+      const { data: sourceData, error: sourceError } = await supabase
+        .from("property_nearby_experiences")
+        .select(
+          "id,property_id,title,category,description,distance_miles,drive_minutes,website_url,image_path,sort_order,is_active",
+        )
+        .eq("property_id", propertyId)
+        .order("sort_order", { ascending: true })
+        .order("created_at", { ascending: true });
+
+      if (sourceError) throw sourceError;
+      const sourceRows = (sourceData ?? []) as NearbyRow[];
+      if (!sourceRows.length) {
+        throw new Error("There are no saved nearby experiences to copy yet.");
+      }
+
+      const { data: existingData, error: existingError } = await supabase
+        .from("property_nearby_experiences")
+        .select("property_id,title,sort_order")
+        .in("property_id", allowedTargetIds);
+
+      if (existingError) throw existingError;
+
+      const existingRows = (existingData ?? []) as Array<{
+        property_id: string;
+        title: string;
+        sort_order: number;
+      }>;
+
+      const inserts: Array<{
+        property_id: string;
+        title: string;
+        category: string;
+        description: string | null;
+        distance_miles: number | null;
+        drive_minutes: number | null;
+        website_url: string | null;
+        image_path: string | null;
+        sort_order: number;
+        is_active: boolean;
+        created_by: string;
+      }> = [];
+
+      let skippedForLimit = 0;
+
+      for (const targetId of allowedTargetIds) {
+        const targetExisting = existingRows.filter(
+          (row) => row.property_id === targetId,
+        );
+        const existingTitles = new Set(
+          targetExisting.map((row) => normalizedExperienceTitle(row.title)),
+        );
+        let targetCount = targetExisting.length;
+        let nextSort =
+          targetExisting.reduce(
+            (max, row) => Math.max(max, Number(row.sort_order ?? -1)),
+            -1,
+          ) + 1;
+
+        for (const source of sourceRows) {
+          const normalizedTitle = normalizedExperienceTitle(source.title);
+          if (existingTitles.has(normalizedTitle)) continue;
+
+          if (targetCount >= 12) {
+            skippedForLimit += 1;
+            continue;
+          }
+
+          inserts.push({
+            property_id: targetId,
+            title: source.title,
+            category: source.category,
+            description: source.description,
+            distance_miles: source.distance_miles,
+            drive_minutes: source.drive_minutes,
+            website_url: source.website_url,
+            image_path: source.image_path,
+            sort_order: nextSort,
+            is_active: source.is_active,
+            created_by: userId,
+          });
+
+          existingTitles.add(normalizedTitle);
+          targetCount += 1;
+          nextSort += 1;
+        }
+      }
+
+      if (inserts.length) {
+        const { error: insertError } = await supabase
+          .from("property_nearby_experiences")
+          .insert(inserts);
+
+        if (insertError) throw insertError;
+      }
+
+      await Promise.all(
+        allowedTargetIds.map(async (targetId) => {
+          const target = copyTargets.find(
+            (item) => item.propertyId === targetId,
+          );
+          if (!target) return;
+          await revalidateNearbyExperienceChange({
+            propertyId: target.propertyId,
+            slug: target.slug,
+          });
+        }),
+      );
+
+      setSelectedTargetIds([]);
+
+      if (!inserts.length) {
+        setMessage(
+          "Nothing new was copied. Those listings already contain the same nearby experiences or are at the 12-item limit.",
+        );
+      } else {
+        setMessage(
+          `${inserts.length} nearby experience${
+            inserts.length === 1 ? "" : "s"
+          } copied across ${allowedTargetIds.length} listing${
+            allowedTargetIds.length === 1 ? "" : "s"
+          }. Matching names were skipped${
+            skippedForLimit ? " and the 12-item limit was respected" : ""
+          }.`,
+        );
+      }
+    } catch (caught) {
+      setMessage(null);
+      setError(
+        caught instanceof Error
+          ? caught.message
+          : "Couldn't copy the nearby experiences.",
+      );
+    } finally {
+      setSaving(false);
+    }
+  }
+
   return (
     <section className={`panel ${styles.panel}`}>
       <div className={styles.heading}>
@@ -471,6 +733,70 @@ export function NearbyExperiencesManager({
 
       {message ? <div className="admin-message success">{message}</div> : null}
       {error ? <div className="admin-message error">{error}</div> : null}
+
+      {rows.length && copyTargets.length ? (
+        <div className={styles.addCard}>
+          <div className={styles.addHead}>
+            <div>
+              <strong>Reuse these experiences on other listings</strong>
+              <span>
+                Pick specific properties or apply the saved list to every other
+                listing in this host account.
+              </span>
+            </div>
+            <small>{copyTargets.length} other listing{copyTargets.length === 1 ? "" : "s"}</small>
+          </div>
+
+          <div className={styles.formGrid}>
+            {copyTargets.map((target) => (
+              <label className={styles.visibleToggle} key={target.propertyId}>
+                <input
+                  type="checkbox"
+                  checked={selectedTargetIds.includes(target.propertyId)}
+                  disabled={!editable || saving}
+                  onChange={(event) => {
+                    setSelectedTargetIds((current) =>
+                      event.target.checked
+                        ? [...current, target.propertyId]
+                        : current.filter((id) => id !== target.propertyId),
+                    );
+                  }}
+                />
+                <span>{target.name}</span>
+              </label>
+            ))}
+          </div>
+
+          <div className={styles.addActions}>
+            <small>
+              The place details, image, miles and drive time are copied exactly.
+              Use this across listings at the same property/location. Existing
+              target entries are kept, matching names are skipped, and nothing is
+              deleted.
+            </small>
+            <div className={styles.orderButtons}>
+              <button
+                type="button"
+                disabled={!editable || saving || !selectedTargetIds.length}
+                onClick={() => void copyExperiences(selectedTargetIds)}
+              >
+                Apply to selected
+              </button>
+              <button
+                type="button"
+                disabled={!editable || saving || !copyTargets.length}
+                onClick={() =>
+                  void copyExperiences(
+                    copyTargets.map((target) => target.propertyId),
+                  )
+                }
+              >
+                Apply to all listings
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       <div className={styles.addCard}>
         <div className={styles.addHead}>

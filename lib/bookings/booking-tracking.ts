@@ -164,55 +164,76 @@ export async function recordBookingAttemptEvent(input: {
     };
 
     if (existing) {
-      await admin
+      const { error: updateError } = await admin
         .from("booking_attempts")
         .update(updatePayload)
         .eq("id", attemptId);
+
+      if (updateError) throw updateError;
     } else {
-      await admin.from("booking_attempts").insert({
-        id: attemptId,
-        unit_id: unitId,
-        reservation_id: reservationId,
-        payment_environment: environment,
-        current_stage: stage,
-        last_event: eventName,
-        outcome: confirmed
-          ? "CONFIRMED"
-          : expired
-            ? "EXPIRED"
-            : cancelled
-              ? "CANCELLED"
-              : null,
-        landing_path: safeText(input.path, 500),
-        referrer: safeText(input.referrer, 1000),
-        user_agent: safeText(input.userAgent, 500),
-        started_at: now,
-        last_seen_at: now,
-        completed_at: confirmed || cancelled ? now : null,
-        updated_at: now,
-      });
+      // Multiple client events can arrive at the same time on the first page
+      // load. Use ON CONFLICT DO NOTHING semantics so two requests that both
+      // observe "no row yet" cannot throw booking_attempts_pkey violations.
+      // The event table still records every event, and subsequent events update
+      // the shared attempt summary normally.
+      const { error: insertError } = await admin
+        .from("booking_attempts")
+        .upsert(
+          {
+            id: attemptId,
+            unit_id: unitId,
+            reservation_id: reservationId,
+            payment_environment: environment,
+            current_stage: stage,
+            last_event: eventName,
+            outcome: confirmed
+              ? "CONFIRMED"
+              : expired
+                ? "EXPIRED"
+                : cancelled
+                  ? "CANCELLED"
+                  : null,
+            landing_path: safeText(input.path, 500),
+            referrer: safeText(input.referrer, 1000),
+            user_agent: safeText(input.userAgent, 500),
+            started_at: now,
+            last_seen_at: now,
+            completed_at: confirmed || cancelled ? now : null,
+            updated_at: now,
+          },
+          {
+            onConflict: "id",
+            ignoreDuplicates: true,
+          },
+        );
+
+      if (insertError) throw insertError;
     }
 
-    await admin.from("booking_attempt_events").insert({
-      attempt_id: attemptId,
-      unit_id: unitId,
-      reservation_id: reservationId,
-      event_name: eventName,
-      stage,
-      success:
-        typeof input.success === "boolean" ? input.success : null,
-      status_code:
-        Number.isInteger(input.statusCode)
-          ? Number(input.statusCode)
-          : null,
-      error_code: safeText(input.errorCode, 120),
-      error_message: scrubError(input.errorMessage),
-      path: safeText(input.path, 500),
-      metadata: sanitizeValue(
-        input.metadata || {},
-      ) as Record<string, unknown>,
-      created_at: now,
-    });
+    const { error: eventError } = await admin
+      .from("booking_attempt_events")
+      .insert({
+        attempt_id: attemptId,
+        unit_id: unitId,
+        reservation_id: reservationId,
+        event_name: eventName,
+        stage,
+        success:
+          typeof input.success === "boolean" ? input.success : null,
+        status_code:
+          Number.isInteger(input.statusCode)
+            ? Number(input.statusCode)
+            : null,
+        error_code: safeText(input.errorCode, 120),
+        error_message: scrubError(input.errorMessage),
+        path: safeText(input.path, 500),
+        metadata: sanitizeValue(
+          input.metadata || {},
+        ) as Record<string, unknown>,
+        created_at: now,
+      });
+
+    if (eventError) throw eventError;
 
     return true;
   } catch (error) {
