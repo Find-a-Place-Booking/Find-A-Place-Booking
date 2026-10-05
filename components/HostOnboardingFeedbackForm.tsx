@@ -287,29 +287,26 @@ export function HostOnboardingFeedbackForm({
             ["NO", "No"],
             ["A_LITTLE", "A little"],
             ["YES_SEVERAL", "Yes, several times"],
-          ].map(([value, label]) => (
-            <label
-              key={value}
-              className={
-                survey.humanHelp === value
-                  ? styles.choiceSelected
-                  : ""
-              }
-            >
-              <input
-                type="radio"
-                name={`human-help-${surface}`}
-                checked={survey.humanHelp === value}
-                onChange={() =>
+          ].map(([value, label]) => {
+            const selected = survey.humanHelp === value;
+
+            return (
+              <button
+                key={value}
+                type="button"
+                aria-pressed={selected}
+                className={selected ? styles.choiceSelected : ""}
+                onClick={() =>
                   set(
                     "humanHelp",
                     value as SurveyState["humanHelp"],
                   )
                 }
-              />
-              <span>{label}</span>
-            </label>
-          ))}
+              >
+                {label}
+              </button>
+            );
+          })}
         </div>
 
         {survey.humanHelp && survey.humanHelp !== "NO" ? (
@@ -407,20 +404,17 @@ export function HostOnboardingFeedbackForm({
               survey.dontGoEmptyInterest === (value === "yes");
 
             return (
-              <label
+              <button
                 key={value}
+                type="button"
+                aria-pressed={checked}
                 className={checked ? styles.choiceSelected : ""}
+                onClick={() =>
+                  set("dontGoEmptyInterest", value === "yes")
+                }
               >
-                <input
-                  type="radio"
-                  name={`dont-go-empty-${surface}`}
-                  checked={checked}
-                  onChange={() =>
-                    set("dontGoEmptyInterest", value === "yes")
-                  }
-                />
-                <span>{label}</span>
-              </label>
+                {label}
+              </button>
             );
           })}
         </div>
