@@ -12,6 +12,7 @@ const staticRoutes: Array<{
 }> = [
   { path: "/", priority: 1, changeFrequency: "daily" },
   { path: "/stays", priority: 0.95, changeFrequency: "daily" },
+  { path: "/host-profiles", priority: 0.8, changeFrequency: "weekly" },
   { path: "/about", priority: 0.75, changeFrequency: "monthly" },
   { path: "/hosts", priority: 0.8, changeFrequency: "monthly" },
   { path: "/contact", priority: 0.5, changeFrequency: "monthly" },

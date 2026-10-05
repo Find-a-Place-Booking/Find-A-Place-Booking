@@ -1,0 +1,146 @@
+.page {
+  padding: 38px 0 72px;
+}
+
+.hero {
+  max-width: 880px;
+  padding-bottom: 26px;
+}
+
+.hero h1 {
+  margin: 5px 0 10px;
+}
+
+.hero > p:last-child {
+  max-width: 760px;
+  color: #66706b;
+  line-height: 1.7;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.card {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: 92px minmax(0, 1fr);
+  gap: 14px;
+  align-items: start;
+  border: 1px solid #e0dbd1;
+  border-radius: 15px;
+  background: #fff;
+  padding: 15px;
+  color: inherit;
+  text-decoration: none;
+  transition:
+    transform 160ms ease,
+    box-shadow 160ms ease,
+    border-color 160ms ease;
+}
+
+.card:hover {
+  transform: translateY(-2px);
+  border-color: #cfc7bb;
+  box-shadow: 0 10px 28px rgba(38, 58, 64, .08);
+}
+
+.avatar {
+  width: 92px;
+  height: 92px;
+  border-radius: 999px;
+  overflow: hidden;
+  display: grid;
+  place-items: center;
+  background: #263a40;
+  color: #fff;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 1.4rem;
+}
+
+.avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.body {
+  min-width: 0;
+}
+
+.kicker {
+  color: #728078;
+  font-size: .6rem;
+  font-weight: 800;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+
+.body h2 {
+  margin: 3px 0 6px;
+  color: #263a40;
+  font-size: 1rem;
+}
+
+.meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  color: #707872;
+  font-size: .63rem;
+  font-weight: 700;
+}
+
+.body p {
+  margin: 10px 0;
+  color: #59635e;
+  font-size: .7rem;
+  line-height: 1.55;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.action {
+  color: #315f4b;
+  font-size: .67rem;
+}
+
+.empty {
+  grid-column: 1 / -1;
+  border: 1px dashed #d8d2c8;
+  border-radius: 14px;
+  padding: 24px;
+  display: grid;
+  gap: 5px;
+  color: #6f7671;
+}
+
+@media (max-width: 980px) {
+  .grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 680px) {
+  .page {
+    padding-top: 24px;
+  }
+
+  .grid {
+    grid-template-columns: 1fr;
+  }
+
+  .card {
+    grid-template-columns: 78px minmax(0, 1fr);
+  }
+
+  .avatar {
+    width: 78px;
+    height: 78px;
+  }
+}

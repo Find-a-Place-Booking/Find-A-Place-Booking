@@ -15,6 +15,7 @@ const links = [
   ["Rates & fees", "/host/rates"],
   ["Payments & taxes", "/host/payments"],
   ["Messages", "/host/messages"],
+  ["Inquiries", "/host/messages/inquiries"],
   ["Reviews", "/host/reviews"],
   ["Reports", "/host/reports"],
   ["Settings", "/host/settings"],
@@ -82,7 +83,7 @@ export async function HostSidebar({
               {label === "Messages" && messageAlertCount > 0 ? (
                 <b
                   className={alertStyles.badge}
-                  aria-label={`${messageAlertCount} message alerts`}
+                  aria-label={`${messageAlertCount} booking message alerts`}
                 >
                   {messageAlertCount > 10 ? "10+" : messageAlertCount}
                 </b>

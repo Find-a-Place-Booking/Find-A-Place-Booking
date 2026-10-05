@@ -10,6 +10,7 @@ import mobileStyles from "./HeaderMobileMenu.module.css";
 
 const primaryLinks = [
   ["Find a stay", "/stays"],
+  ["Meet the hosts", "/host-profiles"],
   ["Explore", "/#regions"],
   ["For hosts", "/hosts"],
   ["About Find A Place", "/about"],
