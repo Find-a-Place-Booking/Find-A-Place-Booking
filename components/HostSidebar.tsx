@@ -18,6 +18,7 @@ const links = [
   ["Reviews", "/host/reviews"],
   ["Reports", "/host/reports"],
   ["Settings", "/host/settings"],
+  ["Help & FAQ", "/host/help"],
 ];
 
 async function livePropertyLabel() {
@@ -95,10 +96,10 @@ export async function HostSidebar({
       <div className={`side-note ${styles.helpCard}`}>
         <strong>Need help?</strong>
         <p>
-          Contact the Find A Place team for help with your listing, booking
-          tools, calendars, payment connection or account.
+          Search the host FAQ for setup, calendars, Stripe, taxes,
+          integrations and common problems.
         </p>
-        <Link href="/contact#host">Contact Find A Place →</Link>
+        <Link href="/host/help">Open host FAQ →</Link>
       </div>
     </aside>
   );

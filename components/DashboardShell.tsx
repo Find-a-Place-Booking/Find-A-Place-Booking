@@ -2,6 +2,7 @@ import { Suspense } from "react";
 import Link from "next/link";
 
 import { signOutHost } from "@/app/auth/actions";
+import { HostHelpAssistant } from "@/components/HostHelpAssistant";
 import { HostOnboardingFeedbackCard } from "@/components/HostOnboardingFeedbackCard";
 import { getHostMessageAlertCount } from "@/lib/host/message-alerts";
 import { getHostOnboardingFeedbackPrompt } from "@/lib/host/onboarding-feedback";
@@ -57,9 +58,9 @@ export async function DashboardShell({
           <div className="dash-actions">
             <Link
               className="button button-small button-quiet"
-              href="/contact#host"
+              href="/host/help"
             >
-              Get help
+              Help &amp; FAQ
             </Link>
             <Link
               className="button button-small button-quiet dash-marketplace-link"
@@ -92,6 +93,9 @@ export async function DashboardShell({
             </form>
           </div>
         </header>
+
+        <HostHelpAssistant />
+
         {children}
         {onboardingFeedbackPrompt ? (
           <HostOnboardingFeedbackCard

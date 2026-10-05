@@ -1,0 +1,242 @@
+.tipCard {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 14px;
+  align-items: start;
+  margin: 0 0 18px;
+  padding: 14px 16px;
+  border: 1px solid #d9d4c9;
+  border-radius: 16px;
+  background: #f7f5ef;
+}
+
+.tipIcon {
+  width: 30px;
+  height: 30px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  background: #29453a;
+  color: #fff;
+  font-weight: 900;
+}
+
+.tipCopy {
+  min-width: 0;
+}
+
+.tipCopy > span {
+  display: block;
+  margin-bottom: 3px;
+  color: #746b5b;
+  font-size: 0.7rem;
+  font-weight: 850;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.tipCopy > strong {
+  display: block;
+  color: #1f3029;
+  font-size: 1rem;
+  line-height: 1.35;
+}
+
+.tipCopy p {
+  margin: 5px 0 0;
+  color: #5f655f;
+  line-height: 1.55;
+  font-size: 0.9rem;
+}
+
+.tipCopy ul {
+  margin: 8px 0 0;
+  padding-left: 18px;
+  color: #4f5751;
+  font-size: 0.88rem;
+  line-height: 1.5;
+}
+
+.tipLinks {
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+  align-items: center;
+  margin-top: 9px;
+}
+
+.tipLinks a,
+.tipLinks button {
+  color: #315f4b;
+  font: inherit;
+  font-size: 0.84rem;
+  font-weight: 800;
+}
+
+.tipLinks button {
+  border: 0;
+  padding: 0;
+  background: transparent;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.hideButton {
+  border: 0;
+  background: transparent;
+  color: #6d716d;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 750;
+  white-space: nowrap;
+}
+
+.offRow {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  align-items: center;
+  margin: -4px 0 14px;
+  font-size: 0.8rem;
+}
+
+.offRow a {
+  color: #5f655f;
+}
+
+.showButton {
+  border: 1px solid #d3ccbf;
+  border-radius: 999px;
+  background: #fff;
+  color: #315f4b;
+  padding: 7px 11px;
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.unavailable {
+  display: block;
+  margin-top: 8px;
+  color: #8a573c;
+}
+
+.coachLayer {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  pointer-events: none;
+}
+
+.coachHighlight {
+  position: fixed;
+  z-index: 10000;
+  border: 3px solid #fff;
+  border-radius: 20px;
+  box-shadow:
+    0 0 0 9999px rgba(16, 25, 22, 0.72),
+    0 18px 50px rgba(0, 0, 0, 0.3);
+  pointer-events: none;
+  transition:
+    top 0.18s ease,
+    left 0.18s ease,
+    width 0.18s ease,
+    height 0.18s ease;
+}
+
+.coachCard {
+  position: fixed;
+  right: 22px;
+  bottom: 22px;
+  z-index: 10001;
+  width: min(430px, calc(100vw - 32px));
+  padding: 18px;
+  border-radius: 18px;
+  background: #fff;
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.32);
+  pointer-events: auto;
+}
+
+.coachHead {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+  color: #6c706c;
+  font-size: 0.76rem;
+  font-weight: 850;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.coachHead button {
+  border: 0;
+  background: transparent;
+  color: #5f655f;
+  font: inherit;
+  cursor: pointer;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.coachCard h3 {
+  margin: 14px 0 0;
+  color: #1d2e28;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 1.45rem;
+  font-weight: 500;
+}
+
+.coachCard p {
+  margin: 9px 0 0;
+  color: #5f655f;
+  line-height: 1.6;
+}
+
+.coachActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.coachActions button {
+  border: 1px solid #d3ccbf;
+  border-radius: 11px;
+  background: #fff;
+  color: #263a31;
+  padding: 9px 14px;
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.coachActions button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.coachActions .coachPrimary {
+  background: #29453a;
+  border-color: #29453a;
+  color: #fff;
+}
+
+@media (max-width: 720px) {
+  .tipCard {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .hideButton {
+    grid-column: 2;
+    justify-self: start;
+    padding: 0;
+  }
+
+  .coachCard {
+    right: 16px;
+    bottom: 16px;
+  }
+}

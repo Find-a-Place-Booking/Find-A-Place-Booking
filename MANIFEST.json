@@ -1,12 +1,20 @@
 {
-  "scope": "recent validity fixes after audit",
-  "production_database_already_fixed": true,
-  "requires_source_push_for_tracking_fixes": true,
-  "files": [
-    "app/api/booking/track/route.ts",
-    "lib/bookings/booking-tracking.ts",
-    "supabase/migrations/20261005041805_normalize_host_state_tax_categories.sql",
-    "supabase/migrations/20261005042006_checkout_payment_hold_grace_and_recovery_timing.sql",
-    "supabase/migrations/20261005200754_fix_checkout_tax_record_and_refund_enum_reconciliation.sql"
-  ]
+  "base_sha": "dd9d9c452e545b53f50040808636efc1b70a77bc",
+  "new_files": [
+    "app/host/help/page.tsx",
+    "components/HostHelpAssistant.tsx",
+    "components/HostHelpAssistant.module.css",
+    "components/HostHelpCenter.tsx",
+    "components/HostHelpCenter.module.css",
+    "lib/host/help-content.ts"
+  ],
+  "replaced_files": [
+    "components/DashboardShell.tsx",
+    "components/HostSidebar.tsx",
+    "components/HostMobileNav.tsx"
+  ],
+  "database_changes": false,
+  "booking_changes": false,
+  "stripe_backend_changes": false,
+  "calendar_backend_changes": false
 }

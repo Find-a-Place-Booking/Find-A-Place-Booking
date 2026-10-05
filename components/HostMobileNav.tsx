@@ -16,6 +16,7 @@ const links = [
   ["Reviews", "/host/reviews"],
   ["Reports", "/host/reports"],
   ["Settings", "/host/settings"],
+  ["Help & FAQ", "/host/help"],
   ["Help & contact", "/contact#host"],
 ];
 
