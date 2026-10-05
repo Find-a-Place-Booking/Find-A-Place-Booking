@@ -66,9 +66,13 @@ export function BookingCard({
       </div>
 
       <div className="availability-note">
-        <span>●</span>
+        <span>{checkIn && checkOut ? "✓" : "●"}</span>
         <strong>
-          {testMode ? "Test checkout enabled" : "Secure online booking"}
+          {testMode
+            ? "Test checkout enabled"
+            : checkIn && checkOut
+              ? "Dates selected — ready to reserve"
+              : "Secure online booking"}
         </strong>
       </div>
 
@@ -125,7 +129,9 @@ export function BookingCard({
       <small className="secure-note">
         {testMode
           ? "Stripe test mode. No live money will move."
-          : "No charge yet · final total shown before payment · secure payment by Stripe."}
+          : checkIn && checkOut
+            ? "🔒 No charge yet · we’ll hold these dates before payment · secure checkout by Stripe."
+            : "🔒 Secure checkout · no charge until you review the final total and confirm payment."}
       </small>
     </aside>
   );

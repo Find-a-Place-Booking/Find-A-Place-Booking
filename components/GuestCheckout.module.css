@@ -481,3 +481,227 @@
     padding: 9px;
   }
 }
+
+/* Trust + conversion pass: presentation only; no booking/payment behavior. */
+.trustStrip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: -8px 0 22px;
+}
+
+.trustStrip > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 9px;
+  border: 1px solid #dfe4df;
+  border-radius: 999px;
+  background: #fafcf9;
+  color: #53615a;
+  font-size: .64rem;
+  font-weight: 760;
+  line-height: 1.2;
+}
+
+.trustStrip b {
+  color: #315f4b;
+  font-size: .7rem;
+}
+
+.holdMessage {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+  min-width: 0;
+}
+
+.holdMessage > div {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+
+.holdCheck {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 999px;
+  background: #315f4b;
+  color: #fff !important;
+  font-size: .86rem;
+  font-weight: 900;
+}
+
+.checkoutReassurance {
+  grid-template-columns: 32px minmax(0, 1fr);
+  align-items: center;
+}
+
+.checkoutReassurance > div {
+  display: grid;
+  gap: 4px;
+}
+
+.reassuranceIcon {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 999px;
+  background: #e5eee7;
+  color: #315f4b;
+  font-size: .78rem;
+  font-weight: 900;
+}
+
+.reserveButton,
+.payButton {
+  min-height: 50px;
+  font-weight: 850;
+}
+
+.actionTrust {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 6px;
+  margin-top: 9px;
+  color: #68716c;
+  font-size: .68rem;
+  text-align: center;
+}
+
+.paymentSecurityBanner {
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr);
+  gap: 11px;
+  align-items: center;
+  padding: 13px 14px;
+  border: 1px solid #bfd1c4;
+  border-radius: 12px;
+  background: #f1f7f2;
+}
+
+.paymentSecurityBanner > div {
+  display: grid;
+  gap: 3px;
+}
+
+.paymentSecurityBanner strong {
+  color: #274d3e;
+  font-size: .82rem;
+}
+
+.paymentSecurityBanner span:not(.securityIcon) {
+  color: #657069;
+  font-size: .7rem;
+  line-height: 1.5;
+}
+
+.securityIcon {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 999px;
+  background: #fff;
+  border: 1px solid #ccdad0;
+  font-size: .92rem;
+}
+
+.paymentHelp {
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+  align-items: center;
+  color: #707773;
+  font-size: .7rem;
+}
+
+.paymentHelp a {
+  color: #315f4b;
+  font-weight: 850;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.summaryHeld,
+.summaryReady {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 14px 22px 0;
+  padding: 9px 10px;
+  border-radius: 9px;
+  font-size: .68rem;
+}
+
+.summaryHeld {
+  background: #edf5ef;
+  border: 1px solid #c7d8cb;
+  color: #315f4b;
+}
+
+.summaryReady {
+  background: #faf8f4;
+  border: 1px solid #ded8cf;
+  color: #59655f;
+}
+
+.summaryHeld > span,
+.summaryReady > span {
+  flex: 0 0 auto;
+}
+
+.summarySecurity {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 8px;
+  align-items: start;
+  margin: 0 22px;
+  padding-top: 2px;
+}
+
+.summarySecurity > span {
+  margin-top: 1px;
+  font-size: .72rem;
+}
+
+.summarySecurity > div {
+  display: grid;
+  gap: 2px;
+}
+
+.summarySecurity strong {
+  color: #46554e;
+  font-size: .7rem;
+}
+
+.summarySecurity small {
+  color: #777d79;
+  font-size: .62rem;
+  line-height: 1.45;
+}
+
+@media (max-width: 620px) {
+  .trustStrip {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .trustStrip > span {
+    border-radius: 9px;
+  }
+
+  .holdMessage {
+    grid-template-columns: 30px minmax(0, 1fr);
+  }
+
+  .holdCheck {
+    width: 28px;
+    height: 28px;
+  }
+}

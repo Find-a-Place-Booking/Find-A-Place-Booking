@@ -1,48 +1,44 @@
-# Find A Place Booking — streamlined guest checkout UI
+# Find A Place Booking — checkout trust & conversion test overlay
 
-Source baseline: GitHub main at commit 1652fc3ca0778535569287578391e4570c7c7533.
+Baseline: GitHub `main` commit `4659db18dcad410f8ff20cc84a5db8010f552190`.
 
-This overlay intentionally changes only guest-facing presentation/components.
+This is a **presentation-only checkout test overlay**. It does not modify Supabase, Stripe backend code, booking routes, tax logic, calendar logic, reservation state transitions, or webhook handling.
 
-Changed:
-- stay page CTA: `Reserve these dates`
-- clear `No charge yet` reassurance
-- checkout progress simplified visually from Details → Verify → Review → Pay to Reserve → Pay
-- existing verification/status checks still run underneath unchanged
-- existing policy review/acceptance endpoints still run unchanged
-- existing hold endpoint unchanged
-- existing payment-intent endpoint unchanged
-- Stripe Connect/direct-charge routing unchanged
-- Stripe confirmation logic unchanged
-- webhook/booking confirmation logic unchanged
-- final payment CTA shows the actual held reservation total, e.g. `Pay $683.73 securely`
-- technical “host connected Stripe account” wording replaced with guest-friendly Stripe trust copy
-- payment summary gets a stronger total callout
-- header back link becomes the quieter `Edit dates or guests`
-- loading language simplified
+## What changed
 
-Not changed:
-- Supabase
+- Makes **Secure checkout** visible at the top of the guest checkout.
+- Adds small trust cues: dates checked before payment + Stripe payment processing.
+- Makes the pre-hold message explicitly say **No charge yet**.
+- Makes a successful hold feel like progress: **Your dates are reserved** + calm hold timer.
+- Keeps the existing `Reserve → Pay` visual progression.
+- Strengthens the final payment screen with **Your payment is secure** before the Stripe Payment Element.
+- Final CTA becomes `Pay $X & confirm stay`, tying the payment action to the confirmed stay.
+- Adds a small `Get help` link beside payment for guests who need reassurance before booking.
+- Keeps property/date/guest/price visible, adds **Dates held for you**, and strengthens the final-total callout.
+- Listing booking card reinforces **ready to reserve**, **no charge yet**, and secure Stripe checkout after dates are selected.
+
+## Deliberately unchanged
+
+- `/api/booking/hold`
+- `/api/booking/payment-intent`
+- Stripe Connect/direct-charge configuration
+- `stripe.confirmPayment(...)` behavior
+- Stripe Payment Element/payment-method configuration
+- Turnstile
+- verification readiness
+- policy-open / policy-accept requirements
+- calendar/PMS refreshes and availability checks
 - tax calculation
-- calendar refresh/availability checks
-- hold creation logic
-- policy enforcement
-- email/identity verification feature flags
-- PaymentIntent creation
-- Stripe payment methods
 - commissions/application fees
-- reservation state transitions
-- webhooks
+- webhook processing
+- reservation/payment statuses
 
-Important:
-The stay-page pre-checkout pricing estimate was NOT used for a “Reserve for $X” CTA in this overlay.
-The current production `quote_guest_checkout_estimate` function is not yet aligned with the newest
-state-tax reconciliation logic for every property, so displaying that estimate could show a total
-that differs from the actual held reservation. This overlay waits until the authoritative hold is
-created, then displays the exact total returned by the existing booking backend.
+## Important
 
-Files:
-- components/BookingCard.tsx
-- components/GuestCheckout.tsx
-- components/GuestCheckout.module.css
-- app/checkout/page.tsx
+This overlay still does **not** show `Reserve for $X` on the listing page. The pre-hold estimate needs to be reconciled with the authoritative live tax calculation first; until then the exact guest total is emphasized only after the canonical booking hold returns it.
+
+## Files
+
+- `components/GuestCheckout.tsx`
+- `components/GuestCheckout.module.css`
+- `components/BookingCard.tsx`

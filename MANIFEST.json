@@ -1,12 +1,13 @@
 {
-  "baseline_commit": "1652fc3ca0778535569287578391e4570c7c7533",
+  "baseline_commit": "4659db18dcad410f8ff20cc84a5db8010f552190",
+  "scope": "guest checkout trust/conversion UI only",
   "files": [
-    "components/BookingCard.tsx",
     "components/GuestCheckout.tsx",
     "components/GuestCheckout.module.css",
-    "app/checkout/page.tsx"
+    "components/BookingCard.tsx"
   ],
   "backend_changes": false,
   "supabase_changes": false,
-  "stripe_backend_changes": false
+  "stripe_backend_changes": false,
+  "booking_route_changes": false
 }

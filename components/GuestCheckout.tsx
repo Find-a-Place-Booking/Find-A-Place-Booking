@@ -190,18 +190,31 @@ function StripePaymentForm({
 
   return (
     <form className={styles.paymentForm} onSubmit={submit}>
+      {!testMode ? (
+        <div className={styles.paymentSecurityBanner}>
+          <span className={styles.securityIcon} aria-hidden="true">🔒</span>
+          <div>
+            <strong>Your payment is secure</strong>
+            <span>
+              Payment is securely processed by Stripe. Find A Place does not
+              store your card details.
+            </span>
+          </div>
+        </div>
+      ) : null}
+
       <PaymentElement />
 
       {error ? <div className={styles.error}>{error}</div> : null}
 
       <button
-        className="button button-full"
+        className={`button button-full ${styles.payButton}`}
         type="submit"
         disabled={!stripe || busy}
       >
         {busy
-          ? "Processing payment…"
-          : `Pay ${money(amountCents, currency || "USD")} securely`}
+          ? "Confirming your stay…"
+          : `Pay ${money(amountCents, currency || "USD")} & confirm stay`}
       </button>
 
       {testMode ? (
@@ -209,10 +222,19 @@ function StripePaymentForm({
           Stripe test mode. Use 4242 4242 4242 4242 with any future expiry.
         </small>
       ) : (
-        <div className={styles.paymentTrust}>
-          <strong>Secure payment powered by Stripe</strong>
-          <span>Your payment details are handled by Stripe, not stored by Find A Place.</span>
-        </div>
+        <>
+          <div className={styles.paymentTrust}>
+            <strong>Secure payment powered by Stripe</strong>
+            <span>
+              Your payment details go directly through Stripe&apos;s secure
+              payment form.
+            </span>
+          </div>
+          <div className={styles.paymentHelp}>
+            <span>Questions before you book?</span>
+            <a href="/help">Get help</a>
+          </div>
+        </>
       )}
     </form>
   );
@@ -589,9 +611,15 @@ export function GuestCheckout({
     <div className={styles.layout}>
       <section className={styles.checkoutCard}>
         <p className="eyebrow dark">
-          {testMode ? "Test checkout" : "Secure booking"}
+          {testMode ? "Test checkout" : "Secure checkout"}
         </p>
-        <h1>Reserve your stay</h1>
+        <h1>
+          {clientSecret
+            ? "Complete your reservation"
+            : hold
+              ? "Your dates are held"
+              : "Reserve your stay"}
+        </h1>
 
         <div className={styles.progress} aria-label="Booking progress">
           {["Reserve", "Pay"].map((label, index) => (
@@ -611,10 +639,18 @@ export function GuestCheckout({
           ))}
         </div>
 
+        {!testMode ? (
+          <div className={styles.trustStrip} aria-label="Checkout protections">
+            <span><b aria-hidden="true">🔒</b> Secure checkout</span>
+            <span><b aria-hidden="true">✓</b> Dates checked before payment</span>
+            <span><b aria-hidden="true">✓</b> Payment processed by Stripe</span>
+          </div>
+        ) : null}
+
         {!hold ? (
           <p className={styles.stageIntro}>
-            Add your contact details and any extras. We&apos;ll hold your dates
-            while you review the stay terms and finish secure payment.
+            No charge yet. Add your contact details and any extras, and we&apos;ll
+            verify availability and hold these dates before you pay.
           </p>
         ) : null}
 
@@ -626,8 +662,16 @@ export function GuestCheckout({
         ) : hold && !clientSecret ? (
           <>
             <div className={styles.holdNotice}>
-              <strong>Your dates are reserved while you finish</strong>
-              <span>Reservation {hold.confirmationCode}</span>
+              <div className={styles.holdMessage}>
+                <span className={styles.holdCheck} aria-hidden="true">✓</span>
+                <div>
+                  <strong>Your dates are reserved</strong>
+                  <span>
+                    We&apos;re holding this stay while you finish booking ·
+                    Reservation {hold.confirmationCode}
+                  </span>
+                </div>
+              </div>
               {holdTimeLabel ? (
                 <span className={styles.holdTimer}>
                   <b>{holdTimeLabel}</b>
@@ -786,11 +830,14 @@ export function GuestCheckout({
             </div>
 
             <div className={styles.checkoutReassurance}>
-              <strong>No charge yet</strong>
-              <span>
-                We&apos;ll verify availability, hold your dates, show the final
-                total, and let you review the policies before payment.
-              </span>
+              <span className={styles.reassuranceIcon} aria-hidden="true">✓</span>
+              <div>
+                <strong>No charge yet</strong>
+                <span>
+                  We&apos;ll verify availability, hold your dates, show the final
+                  total, and let you review the policies before payment.
+                </span>
+              </div>
             </div>
 
             {error ? <div className={styles.error}>{error}</div> : null}
@@ -806,7 +853,7 @@ export function GuestCheckout({
             ) : null}
 
             <button
-              className="button button-full"
+              className={`button button-full ${styles.reserveButton}`}
               type="button"
               onClick={createHold}
               disabled={
@@ -821,12 +868,27 @@ export function GuestCheckout({
             >
               {busy ? "Reserving your dates…" : "Reserve these dates"}
             </button>
+
+            {!testMode ? (
+              <div className={styles.actionTrust}>
+                <span aria-hidden="true">🔒</span>
+                <span>Secure checkout · payment handled by Stripe</span>
+              </div>
+            ) : null}
           </>
         ) : paymentStripePromise && hold ? (
           <>
             <div className={styles.holdNotice}>
-              <strong>Your dates are reserved for payment</strong>
-              <span>Reservation {hold.confirmationCode}</span>
+              <div className={styles.holdMessage}>
+                <span className={styles.holdCheck} aria-hidden="true">✓</span>
+                <div>
+                  <strong>Your dates are reserved</strong>
+                  <span>
+                    This stay is being held while you complete secure payment ·
+                    Reservation {hold.confirmationCode}
+                  </span>
+                </div>
+              </div>
               {holdTimeLabel ? (
                 <span className={styles.holdTimer}>
                   <b>{holdTimeLabel}</b>
@@ -837,10 +899,11 @@ export function GuestCheckout({
 
             <div className={styles.paymentStage}>
               <div className={styles.paymentHeading}>
-                <small>Final step</small>
+                <small>Final step · secure checkout</small>
                 <strong>Complete your reservation</strong>
                 <span>
-                  Pay the total shown in your booking summary to confirm these dates.
+                  Your dates are held. Pay the total shown in your booking
+                  summary to confirm your stay.
                 </span>
               </div>
 
@@ -882,6 +945,18 @@ export function GuestCheckout({
 
         <strong>{property.name}</strong>
         <span>{property.location}</span>
+
+        {hold ? (
+          <div className={styles.summaryHeld}>
+            <span aria-hidden="true">✓</span>
+            <strong>Dates held for you</strong>
+          </div>
+        ) : (
+          <div className={styles.summaryReady}>
+            <span aria-hidden="true">🔒</span>
+            <strong>Secure reservation checkout</strong>
+          </div>
+        )}
 
         <div className={styles.summaryRows}>
           <div><span>Check in</span><b>{checkIn}</b></div>
@@ -947,7 +1022,7 @@ export function GuestCheckout({
 
         {hold ? (
           <div className={styles.summaryTotalCallout}>
-            <span>Total to complete reservation</span>
+            <span>Total to confirm your stay</span>
             <strong>{money(hold.guestTotalCents, hold.quote?.currency || "USD")}</strong>
           </div>
         ) : null}
@@ -957,9 +1032,13 @@ export function GuestCheckout({
             Stripe test mode is active. No live money will move.
           </small>
         ) : (
-          <small>
-            Secure payment powered by Stripe.
-          </small>
+          <div className={styles.summarySecurity}>
+            <span aria-hidden="true">🔒</span>
+            <div>
+              <strong>Secure payment</strong>
+              <small>Powered by Stripe. Card details are not stored by Find A Place.</small>
+            </div>
+          </div>
         )}
       </aside>
     </div>
