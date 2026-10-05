@@ -148,6 +148,17 @@ export async function retrievePaymentIntent(
   );
 }
 
+export async function cancelDirectPaymentIntent(
+  paymentIntentId: string,
+  connectedAccountId: string,
+) {
+  return getStripeClient().paymentIntents.cancel(
+    paymentIntentId,
+    {},
+    { stripeAccount: connectedAccountId },
+  );
+}
+
 // Pending guest refunds can succeed asynchronously. The refund webhook uses
 // this same idempotency key to return the tax/eligible commission to the host.
 export async function reconcileApplicationFeeRefund(_input: {
