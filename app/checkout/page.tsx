@@ -5,6 +5,63 @@ import { CheckoutBrandExit } from "@/components/CheckoutBrandExit";
 import { CheckoutExitLink } from "@/components/CheckoutExitLink";
 import { GuestCheckout } from "@/components/GuestCheckout";
 import { getPublishedListingBySlug } from "@/lib/public/listings";
+import { createAdminClient } from "@/lib/supabase/admin";
+import styles from "./CheckoutSubtotal.module.css";
+
+type InitialQuote = {
+  currency?: string;
+  lodging_subtotal_before_discount_cents?: number;
+  lodging_subtotal_cents?: number;
+  fee_lines?: Array<{
+    id: string;
+    type: string;
+    label: string;
+    amount_cents: number;
+  }>;
+  pre_tax_total_cents?: number;
+};
+
+function money(cents: number, currency = "USD") {
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency,
+  }).format(cents / 100);
+}
+
+async function getInitialQuote(input: {
+  unitId: string;
+  checkIn: string;
+  checkOut: string;
+  guests: number;
+}) {
+  try {
+    const admin = createAdminClient();
+
+    const { data, error } = await admin.rpc("quote_unit_stay", {
+      target_unit_id: input.unitId,
+      check_in_date: input.checkIn,
+      check_out_date: input.checkOut,
+      guest_count: input.guests,
+      pet_count: 0,
+      selected_add_on_ids: [],
+      promotion_code: null,
+    });
+
+    if (error || !data) {
+      console.warn("[checkout subtotal] initial quote unavailable", {
+        code: error?.code,
+        message: error?.message,
+      });
+      return null;
+    }
+
+    return data as InitialQuote;
+  } catch (error) {
+    // Price preview is helpful, but it must never become a booking gate.
+    console.warn("[checkout subtotal] initial quote failed", error);
+    return null;
+  }
+}
 
 export default async function CheckoutPage({
   searchParams,
@@ -91,6 +148,21 @@ export default async function CheckoutPage({
     Math.min(property.sleeps, Number(params.guests || 1) || 1),
   );
 
+  const initialQuote = await getInitialQuote({
+    unitId: property.unitId,
+    checkIn: params.checkIn,
+    checkOut: params.checkOut,
+    guests,
+  });
+
+  const currency = initialQuote?.currency || "USD";
+  const lodgingCents =
+    initialQuote?.lodging_subtotal_before_discount_cents ??
+    initialQuote?.lodging_subtotal_cents ??
+    0;
+  const subtotalCents = Number(initialQuote?.pre_tax_total_cents || 0);
+  const feeLines = initialQuote?.fee_lines ?? [];
+
   return (
     <main className="checkout-page">
       <header className="checkout-header shell">
@@ -101,6 +173,41 @@ export default async function CheckoutPage({
       </header>
 
       <div className="shell">
+        {initialQuote && subtotalCents > 0 ? (
+          <section
+            className={styles.subtotalCard}
+            aria-label="Estimated stay subtotal"
+          >
+            <div className={styles.subtotalLead}>
+              <span>Stay subtotal</span>
+              <strong>{money(subtotalCents, currency)}</strong>
+              <small>
+                Before taxes, pets, optional extras or promo discounts.
+              </small>
+            </div>
+
+            <div className={styles.breakdown}>
+              <div>
+                <span>Lodging</span>
+                <b>{money(lodgingCents, currency)}</b>
+              </div>
+
+              {feeLines.map((line) => (
+                <div key={line.id}>
+                  <span>{line.label}</span>
+                  <b>{money(Number(line.amount_cents || 0), currency)}</b>
+                </div>
+              ))}
+            </div>
+
+            <p>
+              This gives you the stay cost up front. Any taxes, pet fees,
+              extras or eligible promo discounts are shown in the final total
+              before you pay.
+            </p>
+          </section>
+        ) : null}
+
         <GuestCheckout
           property={{
             unitId: property.unitId,

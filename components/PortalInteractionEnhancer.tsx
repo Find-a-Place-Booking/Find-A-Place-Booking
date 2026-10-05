@@ -68,6 +68,67 @@ function readRestore(scope: string): RestorePayload | null {
   }
 }
 
+function normalizedPhone(raw: string) {
+  const trimmed = raw.trim();
+  if (!trimmed) return "";
+
+  const digits = trimmed.replace(/\D/g, "");
+
+  if (digits.length === 10) return `+1${digits}`;
+  if (digits.length === 11 && digits.startsWith("1")) {
+    return `+${digits}`;
+  }
+
+  if (trimmed.startsWith("+") && digits.length >= 7) {
+    return `+${digits}`;
+  }
+
+  return digits;
+}
+
+function contactProtocol(anchor: HTMLAnchorElement) {
+  const rawHref = anchor.getAttribute("href")?.trim() || "";
+  const colon = rawHref.indexOf(":");
+  if (colon <= 0) return null;
+
+  const scheme = rawHref.slice(0, colon).toLowerCase();
+  if (!["mailto", "tel", "sms"].includes(scheme)) return null;
+
+  const rawValue = rawHref.slice(colon + 1).trim();
+
+  if (scheme === "mailto") {
+    const [address, suffix = ""] = rawValue.split("?", 2);
+    const cleanAddress = address.trim();
+    if (!cleanAddress) return null;
+
+    return {
+      scheme,
+      href: `mailto:${cleanAddress}${suffix ? `?${suffix}` : ""}`,
+      fallbackValue: cleanAddress,
+      fallbackLabel: "Email address copied",
+    };
+  }
+
+  const phone = normalizedPhone(rawValue.split("?", 1)[0]);
+  if (!phone) return null;
+
+  return {
+    scheme,
+    href: `${scheme}:${phone}`,
+    fallbackValue: phone,
+    fallbackLabel: "Guest phone number copied",
+  };
+}
+
+async function copyFallback(value: string) {
+  try {
+    await navigator.clipboard.writeText(value);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export function PortalInteractionEnhancer({
   scope,
 }: {
@@ -161,6 +222,50 @@ export function PortalInteractionEnhancer({
       const target = event.target as HTMLElement | null;
       const anchor = target?.closest<HTMLAnchorElement>("a[href]");
       if (!anchor || !root.contains(anchor)) return;
+
+      const contact = contactProtocol(anchor);
+
+      if (contact) {
+        /*
+         * Do not hand tel:/sms:/mailto: through Next/router behavior or leave
+         * raw formatted phone strings up to an embedded browser. This runs
+         * directly from the user's click, which is required by iOS/Android for
+         * external protocol handlers.
+         */
+        event.preventDefault();
+        event.stopPropagation();
+
+        const fallbackTimer = window.setTimeout(async () => {
+          if (document.hidden) return;
+
+          const copied = await copyFallback(contact.fallbackValue);
+          if (copied) {
+            setToast({
+              tone: "success",
+              text: `${contact.fallbackLabel}. If no app opened, paste it into your phone or email app.`,
+            });
+            window.setTimeout(() => setToast(null), 4200);
+          }
+        }, 900);
+
+        const clearFallback = () => {
+          if (document.hidden) {
+            window.clearTimeout(fallbackTimer);
+            document.removeEventListener(
+              "visibilitychange",
+              clearFallback,
+            );
+          }
+        };
+
+        document.addEventListener(
+          "visibilitychange",
+          clearFallback,
+        );
+
+        window.location.assign(contact.href);
+        return;
+      }
 
       try {
         const url = new URL(anchor.href, window.location.href);

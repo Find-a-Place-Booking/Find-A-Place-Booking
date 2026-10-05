@@ -1,0 +1,90 @@
+.subtotalCard {
+  display: grid;
+  grid-template-columns: minmax(210px, .8fr) minmax(260px, 1.25fr);
+  gap: 18px 30px;
+  align-items: center;
+  margin: 22px 0 -18px;
+  padding: 18px 22px;
+  border: 1px solid #cddbcf;
+  border-radius: 16px;
+  background: #f3f7f3;
+  box-shadow: 0 1px 0 rgba(18, 37, 39, .03);
+}
+
+.subtotalLead {
+  display: grid;
+  gap: 2px;
+}
+
+.subtotalLead > span {
+  color: #5c6862;
+  font-size: .7rem;
+  font-weight: 850;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+
+.subtotalLead > strong {
+  color: #254b3d;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: clamp(1.65rem, 3vw, 2.25rem);
+  font-weight: 500;
+  line-height: 1.1;
+}
+
+.subtotalLead > small {
+  margin-top: 3px;
+  color: #6a746e;
+  font-size: .68rem;
+  line-height: 1.4;
+}
+
+.breakdown {
+  display: grid;
+  gap: 0;
+  border-top: 1px solid #d6e1d7;
+}
+
+.breakdown > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 8px 0;
+  border-bottom: 1px solid #d6e1d7;
+  font-size: .75rem;
+}
+
+.breakdown span {
+  color: #65716b;
+}
+
+.breakdown b {
+  color: #263c32;
+}
+
+.subtotalCard > p {
+  grid-column: 1 / -1;
+  margin: -3px 0 0;
+  color: #68736d;
+  font-size: .7rem;
+  line-height: 1.5;
+}
+
+@media (max-width: 760px) {
+  .subtotalCard {
+    grid-template-columns: 1fr;
+    gap: 14px;
+    margin: 12px 0 0;
+    padding: 15px 16px;
+    border-radius: 14px;
+  }
+
+  .subtotalCard > p {
+    grid-column: auto;
+    margin-top: 0;
+  }
+
+  .subtotalLead > strong {
+    font-size: 1.8rem;
+  }
+}
