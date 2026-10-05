@@ -21,15 +21,20 @@ export function CheckoutBrandExit() {
         await fetch("/api/booking/release", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ reservationId, checkoutToken }),
+          body: JSON.stringify({
+            reservationId,
+            checkoutToken,
+            sendRecovery: true,
+          }),
           credentials: "same-origin",
           cache: "no-store",
           keepalive: true,
           signal: controller.signal,
         });
       } catch {
-        // If the explicit release cannot finish, the server-side hold timer
-        // remains the fail-safe. Never let navigation get stuck.
+        // The hold is released before the email is attempted. If the request
+        // is interrupted while email is sending, the cron fallback is already
+        // eligible to send the same idempotent recovery message.
       } finally {
         window.clearTimeout(timeout);
       }

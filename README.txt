@@ -1,24 +1,22 @@
-Find A Place Booking — Checkout Logo Release Overlay
+Find A Place Booking — Immediate abandoned-checkout email overlay
 
-Drop this over the project root.
+Why the email did not send immediately:
+- Explicit checkout exit was releasing the hold correctly.
+- The recovery email was only queued for the cron path, with a delay.
+- So clicking the Find A Place logo could free the dates but would not
+  immediately send the recovery message.
 
-Files:
-- components/CheckoutBrandExit.tsx
-- app/checkout/page.tsx
+This overlay changes only the explicit HOME/LOGO exit:
+- the hold/payment cleanup runs first
+- dates are released
+- the checkout recovery email is sent immediately
+- checkout_recovery_sent_at is marked only after a successful send
+- the cron is made eligible immediately as a fallback if the direct send fails
+- sendNotificationOnce keeps it to one recovery email per reservation
 
-Fix:
-The regular Find A Place logo was a plain Link to "/". Once a reservation hold
-had been created, clicking that logo navigated home without calling the
-checkout release endpoint, so the dates stayed blocked until the hold expired.
+"Edit dates or guests" does NOT request an immediate abandonment email, because
+the guest is still actively working on that booking.
 
-The active checkout header now uses CheckoutBrandExit. It:
-- checks the checkout URL for reservationId + checkoutToken
-- calls the existing /api/booking/release endpoint
-- lets the server safely cancel any unfinished Stripe PaymentIntent first
-- releases the INTERNAL_HOLD
-- then navigates home
-
-The existing "Edit dates or guests" exit behavior is unchanged.
-
-It intentionally does NOT release holds on generic pagehide/visibility changes,
-because mobile browsers can fire those when the app is backgrounded.
+A tab close/browser close still uses the cron/inactivity fallback; generic
+pagehide is intentionally not used to release a hold because mobile browsers
+fire it during app switching and payment authentication.
