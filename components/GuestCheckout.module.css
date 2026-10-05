@@ -430,30 +430,105 @@
 @media (max-width: 900px) {
   .layout {
     grid-template-columns: 1fr;
+    gap: 18px;
   }
 
   .summary {
     position: static;
-    order: -1;
+    order: 0;
   }
 }
 
 @media (max-width: 620px) {
   .layout {
-    gap: 18px;
-    padding-top: 22px;
+    gap: 14px;
+    padding: 14px 0 calc(52px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .checkoutCard,
+  .summary {
+    border-radius: 14px;
   }
 
   .checkoutCard {
-    padding: 20px;
+    padding: 16px;
+  }
+
+  .checkoutCard h1 {
+    margin-bottom: 14px;
+    font-size: clamp(1.8rem, 9vw, 2.35rem);
+    line-height: 1.05;
+  }
+
+  .progress {
+    gap: 8px;
+    margin-bottom: 16px;
+  }
+
+  .progressItem {
+    grid-template-columns: 28px minmax(0, 1fr);
+    gap: 8px;
+    padding: 9px 10px;
+  }
+
+  .progressItem > span:first-child {
+    width: 28px;
+    height: 28px;
+  }
+
+  .stageIntro {
+    margin: -2px 0 16px;
+    font-size: .86rem;
+    line-height: 1.55;
   }
 
   .guestGrid {
     grid-template-columns: 1fr;
+    gap: 12px;
+    margin-bottom: 14px;
+  }
+
+  .guestGrid input,
+  .guestGrid select,
+  .promoField input {
+    min-height: 50px;
+    padding: 12px 13px;
+    font-size: 16px;
+  }
+
+  .extrasSection {
+    gap: 13px;
+    margin: 16px 0;
+    padding: 14px;
+  }
+
+  .addOnOption {
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 10px;
+    min-height: 48px;
+    padding: 10px 0;
+  }
+
+  .addOnOption input {
+    width: 20px;
+    height: 20px;
+  }
+
+  .addOnOption em {
+    grid-column: 2;
+    white-space: normal;
+  }
+
+  .checkoutReassurance,
+  .loadingPayment {
+    margin: 12px 0;
+    padding: 11px 12px;
   }
 
   .holdNotice {
     grid-template-columns: minmax(0, 1fr);
+    margin-bottom: 14px;
+    padding: 12px;
   }
 
   .holdTimer {
@@ -463,12 +538,67 @@
     padding-top: 4px;
   }
 
-  .addOnOption {
-    grid-template-columns: auto minmax(0, 1fr);
+  .paymentStage {
+    gap: 14px;
   }
 
-  .addOnOption em {
-    grid-column: 2;
+  .paymentHeading {
+    padding-bottom: 13px;
+  }
+
+  .paymentHeading strong {
+    font-size: 1.35rem;
+  }
+
+  .paymentForm {
+    gap: 15px;
+  }
+
+  .reserveButton,
+  .payButton {
+    min-height: 54px;
+    font-size: 1rem;
+  }
+
+  .summary {
+    overflow: hidden;
+    padding-bottom: 18px;
+  }
+
+  .summary img {
+    display: none;
+  }
+
+  .summary > strong,
+  .summary > span,
+  .summary > small {
+    margin-inline: 16px;
+  }
+
+  .summary > strong {
+    margin-top: 16px;
+    font-size: 1.18rem;
+  }
+
+  .summaryRows {
+    margin: 14px 16px 10px;
+  }
+
+  .summaryRows > div {
+    padding: 9px 0;
+  }
+
+  .summaryTotalCallout {
+    margin: 0 16px 14px;
+  }
+
+  .summaryHeld,
+  .summaryReady {
+    margin: 12px 16px 0;
+  }
+
+  .summarySecurity {
+    margin-inline: 16px;
   }
 }
 
@@ -689,11 +819,20 @@
 @media (max-width: 620px) {
   .trustStrip {
     display: grid;
-    grid-template-columns: 1fr;
+    grid-template-columns: 1fr 1fr;
+    gap: 7px;
+    margin-bottom: 16px;
   }
 
   .trustStrip > span {
+    min-width: 0;
     border-radius: 9px;
+    padding: 8px;
+    font-size: .61rem;
+  }
+
+  .trustStrip > span:last-child {
+    grid-column: 1 / -1;
   }
 
   .holdMessage {
@@ -703,5 +842,20 @@
   .holdCheck {
     width: 28px;
     height: 28px;
+  }
+
+  .paymentSecurityBanner {
+    grid-template-columns: 32px minmax(0, 1fr);
+    padding: 11px 12px;
+  }
+
+  .securityIcon {
+    width: 30px;
+    height: 30px;
+  }
+
+  .actionTrust,
+  .paymentHelp {
+    font-size: .68rem;
   }
 }
