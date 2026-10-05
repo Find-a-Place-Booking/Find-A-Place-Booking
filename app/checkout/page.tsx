@@ -181,9 +181,7 @@ export default async function CheckoutPage({
             <div className={styles.subtotalLead}>
               <span>Stay subtotal</span>
               <strong>{money(subtotalCents, currency)}</strong>
-              <small>
-                Before taxes, pets, optional extras or promo discounts.
-              </small>
+              <small>Before taxes and extras.</small>
             </div>
 
             <div className={styles.breakdown}>
@@ -199,12 +197,6 @@ export default async function CheckoutPage({
                 </div>
               ))}
             </div>
-
-            <p>
-              This gives you the stay cost up front. Any taxes, pet fees,
-              extras or eligible promo discounts are shown in the final total
-              before you pay.
-            </p>
           </section>
         ) : null}
 

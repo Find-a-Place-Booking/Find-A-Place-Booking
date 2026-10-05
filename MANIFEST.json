@@ -1,13 +1,9 @@
 {
-  "baseline_commit": "4659db18dcad410f8ff20cc84a5db8010f552190",
-  "scope": "guest checkout trust/conversion UI only",
+  "scope": "checkout subtotal copy only",
   "files": [
-    "components/GuestCheckout.tsx",
-    "components/GuestCheckout.module.css",
-    "components/BookingCard.tsx"
+    "app/checkout/page.tsx",
+    "app/checkout/CheckoutSubtotal.module.css"
   ],
   "backend_changes": false,
-  "supabase_changes": false,
-  "stripe_backend_changes": false,
-  "booking_route_changes": false
+  "database_changes": false
 }
