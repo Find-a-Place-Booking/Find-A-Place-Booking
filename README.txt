@@ -1,30 +1,24 @@
-Find A Place Booking — Mobile Checkout Clean Overlay
+Find A Place Booking — Date Carryover Overlay
 
-Drop the included components/GuestCheckout.module.css over the same file in the repo.
+Drop this over the project root.
 
-What this changes:
-- Mobile checkout form stays ABOVE the large booking summary.
-- Removes the large property image from the mobile checkout summary.
-- Tightens spacing/cards so checkout feels like a payment flow instead of a long landing page.
-- Makes Name / Email / Phone / Promo inputs 16px on mobile to prevent iOS input zoom.
-- Makes Reserve and Pay buttons larger and easier to tap.
-- Makes add-ons easier to tap without taking over the whole screen.
-- Compresses the three security/trust messages into two compact rows.
-- Cleans the held-reservation and Stripe payment sections on small screens.
-- Adds safe-area bottom spacing for iPhones.
+Replaces:
+- components/BookingCard.tsx
 
-Deliberately NOT changed:
-- /api/booking/hold
-- /api/booking/payment-intent
-- Stripe confirmPayment behavior
-- reservation/payment state logic
-- Supabase
+What it fixes:
+- When a guest searches dates/guest count on the home page, goes to /stays,
+  and then selects a property, the booking card now restores that same
+  check-in, check-out, and guest count from the existing results-page journey state.
+- If a property URL already contains checkin/checkout/guests, those values win.
+- This also covers property selections made from the results map because the
+  results page already records the clicked stay and the full search-results URL.
+- When the guest presses "Reserve these dates", the existing checkout route
+  receives those restored values as checkIn/checkOut/guests.
+
+This does NOT change:
+- availability rules
+- reservation holds
+- Stripe/payment logic
 - taxes
-- calendars/PMS integrations
-- webhooks
-
-Baseline:
-- GitHub main commit e0bc03a1c99cce20861085cc99d3fbc62a5e7a8d ("Checkout Security")
-- Original GuestCheckout.module.css blob SHA b9d5348d69ed3b47b8f6fdd94a58e0d8812e4418
-
-The GitHub connector in this chat has read access but returned 403 for repository writes, so this is packaged as a drop-in overlay rather than claiming it was pushed.
+- calendar syncing
+- booking confirmation

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { track } from "@vercel/analytics";
 
@@ -30,6 +30,65 @@ export function BookingCard({
   const [checkIn, setCheckIn] = useState("");
   const [checkOut, setCheckOut] = useState("");
   const [guests, setGuests] = useState(1);
+
+  useEffect(() => {
+    function applyTripContext(source: URL) {
+      const carriedCheckIn = source.searchParams.get("checkin") || "";
+      const carriedCheckOut = source.searchParams.get("checkout") || "";
+      const carriedGuests = Number.parseInt(
+        source.searchParams.get("guests") || "",
+        10,
+      );
+
+      if (
+        /^\d{4}-\d{2}-\d{2}$/.test(carriedCheckIn) &&
+        /^\d{4}-\d{2}-\d{2}$/.test(carriedCheckOut) &&
+        carriedCheckOut > carriedCheckIn
+      ) {
+        setCheckIn(carriedCheckIn);
+        setCheckOut(carriedCheckOut);
+      }
+
+      if (Number.isFinite(carriedGuests)) {
+        setGuests(Math.max(1, Math.min(maxGuests, carriedGuests)));
+      }
+    }
+
+    const current = new URL(window.location.href);
+    if (
+      current.searchParams.has("checkin") ||
+      current.searchParams.has("checkout")
+    ) {
+      applyTripContext(current);
+      return;
+    }
+
+    // Fallback for older/plain property links (including map links) while
+    // existing sessions age out. The results page already stores its URL.
+    try {
+      const saved = JSON.parse(
+        window.sessionStorage.getItem("find-a-place:stay-browse-state") ||
+          "null",
+      ) as {
+        url?: string;
+        target?: string;
+        savedAt?: number;
+      } | null;
+
+      const recent =
+        typeof saved?.savedAt === "number" &&
+        Date.now() - saved.savedAt < 12 * 60 * 60 * 1000;
+
+      if (!recent || !saved?.url || !saved?.target) return;
+
+      const target = new URL(saved.target, window.location.origin);
+      if (target.pathname !== window.location.pathname) return;
+
+      applyTripContext(new URL(saved.url, window.location.origin));
+    } catch {
+      // Direct property visits continue with blank dates.
+    }
+  }, [maxGuests]);
 
   if (!checkoutEnabled) {
     return (
