@@ -1,22 +1,32 @@
-Find A Place Booking — Immediate abandoned-checkout email overlay
+Find A Place Booking — Recovery re-hold fix
 
-Why the email did not send immediately:
-- Explicit checkout exit was releasing the hold correctly.
-- The recovery email was only queued for the cron path, with a delay.
-- So clicking the Find A Place logo could free the dates but would not
-  immediately send the recovery message.
+What was happening:
+The email recovery URL was a GET route that immediately restored the reservation
+hold. That means revisiting the URL from browser history, an email link preview,
+or a mail/security scanner could put the same dates back on hold AFTER the guest
+had already left checkout again.
 
-This overlay changes only the explicit HOME/LOGO exit:
-- the hold/payment cleanup runs first
-- dates are released
-- the checkout recovery email is sent immediately
-- checkout_recovery_sent_at is marked only after a successful send
-- the cron is made eligible immediately as a fallback if the direct send fails
-- sendNotificationOnce keeps it to one recovery email per reservation
+The live reservation event timeline showed exactly that pattern:
+- checkout hold released
+- then a recovery restore happened afterward
 
-"Edit dates or guests" does NOT request an immediate abandonment email, because
-the guest is still actively working on that booking.
+This overlay makes recovery safe:
 
-A tab close/browser close still uses the cron/inactivity fallback; generic
-pagehide is intentionally not used to release a hold because mobile browsers
-fire it during app switching and payment authentication.
+1. /checkout/recover is now a side-effect-free GET.
+2. It redirects to a small "Continue checkout" page.
+3. The dates are NOT held just by opening/scanning the email link.
+4. Only an explicit Continue checkout button sends a POST to
+   /api/booking/recover.
+5. The POST rechecks availability and restores the SAME reservation only if the
+   dates are still open.
+6. Leaving checkout again releases the hold normally.
+7. No second recovery email is required.
+8. Browser history, email scanners and link previews can no longer silently
+   re-hold inventory.
+
+Also fixed:
+The old recovery route used `confirmationCode=` when redirecting to the booking
+confirmation page. The confirmation page expects `code=`. The new recovery API
+uses the correct parameter.
+
+No database migration is required for this fix.
