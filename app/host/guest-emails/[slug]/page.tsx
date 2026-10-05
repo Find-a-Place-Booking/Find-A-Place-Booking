@@ -28,6 +28,7 @@ type RuleRow = {
   default_arrival_notes: string | null;
   is_active: boolean;
   created_at: string;
+  updated_at: string;
 };
 
 const defaultArrivalSubject = "Your stay at {{property_name}} is coming up";
@@ -122,7 +123,11 @@ function AutomationEditor({
         </span>
       </div>
 
-      <form className={styles.editorForm} action={saveGuestEmailRule}>
+      <form
+        key={`${propertyId}:${kind}:${rule?.id ?? "new"}:${rule?.updated_at ?? "new"}`}
+        className={styles.editorForm}
+        action={saveGuestEmailRule}
+      >
         <input type="hidden" name="return_to" value={returnTo} />
         <input type="hidden" name="rule_id" value={rule?.id || ""} />
         <input type="hidden" name="organization_id" value={organizationId} />
@@ -322,7 +327,7 @@ export default async function PropertyGuestEmailsPage({
   const { data: rulesData } = await supabase
     .from("host_guest_email_rules")
     .select(
-      "id,organization_id,property_id,name,trigger_event,day_offset,send_time_local,subject_template,body_template,require_access_code,default_access_code,default_arrival_notes,is_active,created_at",
+      "id,organization_id,property_id,name,trigger_event,day_offset,send_time_local,subject_template,body_template,require_access_code,default_access_code,default_arrival_notes,is_active,created_at,updated_at",
     )
     .eq("property_id", property.id)
     .order("created_at", { ascending: true });
@@ -435,6 +440,7 @@ export default async function PropertyGuestEmailsPage({
                 <details className={styles.customizer}>
                   <summary>Edit existing email</summary>
                   <form
+                    key={`${property.id}:${rule.id}:${rule.updated_at}`}
                     className={styles.legacyForm}
                     action={saveGuestEmailRule}
                   >
