@@ -1,0 +1,1 @@
+-- Historical production cleanup marker. The attempted materialization trigger was disabled; final code does not rely on it.

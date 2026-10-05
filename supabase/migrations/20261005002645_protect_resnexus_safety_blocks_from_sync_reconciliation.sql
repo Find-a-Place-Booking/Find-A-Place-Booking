@@ -1,0 +1,1 @@
+-- Historical production diagnostic migration. Superseded before release; no action required on fresh environments.

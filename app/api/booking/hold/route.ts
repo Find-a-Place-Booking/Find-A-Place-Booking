@@ -106,21 +106,44 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: turnstile.error }, { status: 403 });
     }
 
-    // Refresh all connected inbound calendars first. ThinkReservations now
-    // reconciles both official inventory and blackout sources; neither source
-    // is allowed to clear the other by itself. Then verify the requested stay
-    // against Think's documented live availabilities endpoint before the hold.
+    const admin = createAdminClient();
+
+    // Refresh connected calendars before taking a hold. ThinkReservations gets
+    // its documented live availability check, and ResNexus gets the same
+    // unresolved/safety-range assertion already used immediately before
+    // payment. That keeps a guest from entering a temporary hold on a range
+    // the guest calendar already treats as unavailable.
     await refreshUnitCalendarsOrThrow(body.unitId, {
       startDate: body.checkIn,
       endDate: body.checkOut,
     });
+
     await assertThinkReservationsUnitAvailable(
       body.unitId,
       body.checkIn,
       body.checkOut,
     );
 
-    const admin = createAdminClient();
+    const { error: resNexusReadinessError } = await admin.rpc(
+      "service_assert_resnexus_unit_availability_ready",
+      {
+        target_unit_id: body.unitId,
+        target_check_in: body.checkIn,
+        target_check_out: body.checkOut,
+      },
+    );
+
+    if (resNexusReadinessError) {
+      return NextResponse.json(
+        {
+          error: guestFacingBookingError(
+            resNexusReadinessError,
+            "We could not verify the ResNexus calendar. No booking hold was created. Please choose available dates or try again in a moment.",
+          ),
+        },
+        { status: 409 },
+      );
+    }
 
     const { data, error } = await admin.rpc(
       "create_guest_taxed_reservation_hold",

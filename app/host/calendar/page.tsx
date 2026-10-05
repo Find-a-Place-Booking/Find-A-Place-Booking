@@ -11,6 +11,7 @@ import {
   calendarProviderLabel,
   getCalendarWorkspace,
 } from "@/lib/host/calendar";
+import { getResNexusSafetyRangesForHostCalendar } from "@/lib/host/resnexus-safety-display";
 import {
   connectIcalCalendar,
   disconnectCalendar,
@@ -129,10 +130,63 @@ export default async function CalendarPage({
       new Date(block.expires_at).getTime() > now,
   );
 
+  // Guest availability already uses the ResNexus unresolved/safety ranges.
+  // Add the same ranges to the host calendar display so the owner sees the
+  // exact unavailable nights guests see. These are display-only synthetic
+  // blocks; we do not write them into availability_blocks or interfere with
+  // the persistent-browser worker's canonical imported block reconciliation.
+  const resNexusConnection =
+    workspace.connections.find(
+      (connection) =>
+        connection.provider === "RESNEXUS" &&
+        connection.connection_kind === "BROWSER_WORKER",
+    ) ?? null;
+
+  const resNexusSafetyRanges = resNexusConnection
+    ? await getResNexusSafetyRangesForHostCalendar({
+        unitId: selected.unitId,
+        startDate: workspace.gridStart,
+        endDate: workspace.gridEndExclusive,
+      })
+    : [];
+
+  const resNexusSafetyBlocks = resNexusSafetyRanges.flatMap(
+    (range, index) => {
+      const alreadyRepresented = activeBlocks.some(
+        (block) =>
+          block.start_date <= range.start &&
+          block.end_date >= range.end,
+      );
+
+      if (alreadyRepresented) return [];
+
+      return [
+        {
+          id: `resnexus-safety:${selected.unitId}:${range.start}:${range.end}:${index}`,
+          unit_id: selected.unitId,
+          connection_id: resNexusConnection?.id ?? null,
+          reservation_id: null,
+          block_type: "EXTERNAL_BLOCK" as const,
+          state: "ACTIVE" as const,
+          start_date: range.start,
+          end_date: range.end,
+          label: "ResNexus reservation",
+          expires_at: null,
+          updated_at: new Date().toISOString(),
+        },
+      ];
+    },
+  );
+
+  const displayBlocks = [
+    ...activeBlocks,
+    ...resNexusSafetyBlocks,
+  ];
+
   const currentMonthDays = workspace.days.filter((day) => day.inMonth);
 
   const blockedCurrentDays = currentMonthDays.filter((day) =>
-    activeBlocks.some(
+    displayBlocks.some(
       (block) =>
         block.start_date <= day.date && block.end_date > day.date,
     ),
@@ -140,7 +194,7 @@ export default async function CalendarPage({
 
   const conflictCurrentDays = currentMonthDays.filter(
     (day) =>
-      activeBlocks.filter(
+      displayBlocks.filter(
         (block) =>
           block.start_date <= day.date && block.end_date > day.date,
       ).length > 1,
@@ -236,7 +290,7 @@ export default async function CalendarPage({
             selected.unitId,
           )}&month=${workspace.nextMonth}`}
           days={workspace.days}
-          blocks={activeBlocks}
+          blocks={displayBlocks}
           connections={workspace.connections}
           pricingDays={workspace.pricingDays}
         />
