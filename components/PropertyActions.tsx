@@ -31,7 +31,9 @@ export function PropertyActions({
 
   async function share() {
     try {
-      if (navigator.share) {
+      const canNativeShare = typeof navigator.share === "function";
+
+      if (canNativeShare) {
         await navigator.share({
           title: propertyName || document.title,
           url: window.location.href,
@@ -42,7 +44,7 @@ export function PropertyActions({
 
       track("stay_share", {
         slug: propertySlug,
-        method: navigator.share ? "native" : "copy",
+        method: canNativeShare ? "native" : "copy",
       });
 
       setShared(true);

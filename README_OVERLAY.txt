@@ -1,14 +1,21 @@
-Find A Place Booking — About Featured Card Overlay
+Find A Place Booking — build fix overlay for commit a8d59c0
 
-Drop the contents of this ZIP over the project root.
+Drop/unzip this over the project root.
 
-Changes:
-- Removes the visible "Arkansas first" label from the About-page featured card.
-- Keeps the featured image fixed in code.
-- Makes the featured card heading and paragraph editable in:
-  Admin -> Site Copy & Policies -> About -> Featured card
-- Adds an idempotent Supabase migration for the new managed content block.
+Files replaced:
+- components/PropertyActions.tsx
+- lib/public/stay-cards.ts
 
-Files:
-- app/about/page.tsx
-- supabase/migrations/20260923055000_about_featured_card_content.sql
+Fixes:
+1. TS2774 in PropertyActions.tsx
+   - Uses `typeof navigator.share === "function"` once and reuses the boolean.
+   - Runtime share/copy behavior is unchanged.
+
+2. TS2322 / TS2677 in lib/public/stay-cards.ts
+   - Explicitly types buildCards() as Promise<Property[]>.
+   - Explicitly types each mapped card as Property.
+   - Prevents `instantBook: false` from being inferred as the literal `false`
+     when later code expects the broader Property type.
+   - The existing undefined filtering then narrows correctly.
+
+No database, calendar, payment, checkout, or email behavior is changed.

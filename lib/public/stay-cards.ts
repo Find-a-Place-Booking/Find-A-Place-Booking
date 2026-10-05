@@ -42,7 +42,7 @@ function regionName(code: string | null) {
   return normalized;
 }
 
-async function buildCards(rows: PublicIndexRow[]) {
+async function buildCards(rows: PublicIndexRow[]): Promise<Property[]> {
   if (!rows.length) return [];
 
   const supabase = await createClient();
@@ -119,7 +119,7 @@ async function buildCards(rows: PublicIndexRow[]) {
     nearbyByProperty.set(row.property_id, current);
   }
 
-  return rows.map((row) => {
+  return rows.map((row): Property => {
     const coverPath = row.image_paths?.[0] ?? null;
     const reviews = reviewStats.get(row.property_id);
     const nearby = nearbyByProperty.get(row.property_id);
@@ -156,7 +156,7 @@ async function buildCards(rows: PublicIndexRow[]) {
       lng: 0,
       nearbyExperienceCount: nearby?.count ?? 0,
       nearbyExperiences: nearby?.items ?? [],
-    } satisfies Property;
+    };
   });
 }
 
