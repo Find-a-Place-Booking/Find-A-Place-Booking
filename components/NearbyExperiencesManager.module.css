@@ -113,6 +113,45 @@
   font-size: 0.72rem;
 }
 
+/*
+ * Reuse-listing choices are checkboxes, not text fields.
+ * Keep them visually in line with the rest of the host dashboard instead of
+ * inheriting the full-width form-input styling above.
+ */
+.formGrid .visibleToggle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 42px;
+  padding: 9px 11px;
+  border: 1px solid #d8d2ca;
+  background: #fff;
+  cursor: pointer;
+}
+
+.formGrid .visibleToggle:hover {
+  border-color: #bcc8c0;
+  background: #f8faf8;
+}
+
+.formGrid .visibleToggle input {
+  width: 16px;
+  height: 16px;
+  min-width: 16px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  accent-color: #315f4b;
+  flex: 0 0 16px;
+}
+
+.formGrid .visibleToggle > span {
+  font-size: 0.68rem;
+  font-weight: 800;
+  color: #34483e;
+  line-height: 1.35;
+}
+
 .formGrid textarea {
   min-height: 82px;
   resize: vertical;
@@ -279,6 +318,31 @@
   cursor: not-allowed;
 }
 
+/* The reuse action buttons sit together as a compact action group. */
+.addActions .orderButtons {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.addActions .orderButtons button {
+  min-height: 34px;
+  padding: 8px 11px;
+  white-space: nowrap;
+}
+
+.addActions .orderButtons button:last-child:not(:disabled) {
+  border-color: #315f4b;
+  background: #315f4b;
+  color: #fff;
+}
+
+.addActions .orderButtons button:last-child:not(:disabled):hover {
+  background: #284f3e;
+}
+
 .rowActions {
   padding-top: 4px;
   border-top: 1px solid #eee9e2;
@@ -329,6 +393,19 @@
   .searchLine,
   .rowCard {
     grid-template-columns: 1fr;
+  }
+
+  .formGrid .visibleToggle {
+    width: 100%;
+  }
+
+  .addActions .orderButtons {
+    width: 100%;
+    justify-content: stretch;
+  }
+
+  .addActions .orderButtons button {
+    flex: 1;
   }
 
   .preview img,
