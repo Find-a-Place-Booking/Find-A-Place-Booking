@@ -14,10 +14,15 @@ export type PropertyTaxLineInput = {
   base_scope: "LODGING_ONLY" | "ACCOMMODATION_TOTAL" | "PRE_TAX_TOTAL";
 };
 
-type EditorLine = PropertyTaxLineInput & { key: string };
+type EditorLine = PropertyTaxLineInput & {
+  key: string;
+  ratePercentText: string;
+};
 
 function rateText(rateBps: number) {
-  return (Number(rateBps || 0) / 100).toFixed(rateBps % 100 ? 2 : 0);
+  const value = Number(rateBps || 0) / 100;
+  if (!value) return "";
+  return value.toFixed(rateBps % 100 ? 2 : 0);
 }
 
 function makeInitialLines(
@@ -28,6 +33,7 @@ function makeInitialLines(
     return initialLines.map((line, index) => ({
       ...line,
       key: line.id || `existing-${index}`,
+      ratePercentText: rateText(line.rate_bps),
     }));
   }
 
@@ -37,6 +43,7 @@ function makeInitialLines(
     category: line.category,
     label: line.label,
     rate_bps: 0,
+    ratePercentText: "",
     base_scope: line.baseScope,
   }));
 }
@@ -61,6 +68,24 @@ export function PropertyTaxLineFields({
     );
   }
 
+  function patchRate(index: number, value: string) {
+    const cleaned = value
+      .replace(/[^\d.]/g, "")
+      .replace(/^(\d*\.?\d*).*$/, "$1");
+
+    if (cleaned) {
+      const parsed = Number.parseFloat(cleaned);
+      if (Number.isFinite(parsed) && parsed > 100) return;
+    }
+
+    patchLine(index, {
+      ratePercentText: cleaned,
+      rate_bps: cleaned && Number.isFinite(Number.parseFloat(cleaned))
+        ? Math.round(Number.parseFloat(cleaned) * 100)
+        : 0,
+    });
+  }
+
   function addLine() {
     setLines((current) => {
       if (current.length >= 12) return current;
@@ -68,9 +93,10 @@ export function PropertyTaxLineFields({
         ...current,
         {
           key: `new-${Date.now()}-${current.length}`,
-          category: "OTHER",
+          category: "LOCAL_SALES",
           label: "",
           rate_bps: 0,
+          ratePercentText: "",
           base_scope: "ACCOMMODATION_TOTAL",
         },
       ];
@@ -89,9 +115,13 @@ export function PropertyTaxLineFields({
         <div>
           <strong>Local taxes for this property</strong>
           <span>{config.localHelp}</span>
+          <span>
+            Statewide taxes shown above are automatic. Add only the local rate
+            or rates that still need to be charged for this property.
+          </span>
         </div>
         <button type="button" onClick={addLine} disabled={lines.length >= 12}>
-          + Add tax
+          + Add local tax
         </button>
       </div>
 
@@ -99,7 +129,7 @@ export function PropertyTaxLineFields({
         {lines.map((line, index) => (
           <div className={styles.line} key={line.key}>
             <label className={styles.typeField}>
-              <span>Type</span>
+              <span>Local tax type</span>
               <select
                 name="taxLineCategory"
                 value={line.category}
@@ -109,9 +139,11 @@ export function PropertyTaxLineFields({
                   })
                 }
               >
-                <option value="LOCAL_SALES">Sales tax</option>
-                <option value="LOCAL_LODGING">Lodging / occupancy</option>
-                <option value="OTHER">Other tax</option>
+                <option value="LOCAL_SALES">Local sales tax</option>
+                <option value="LOCAL_LODGING">
+                  Local lodging / occupancy / A&amp;P
+                </option>
+                <option value="OTHER">Other local tax</option>
               </select>
             </label>
 
@@ -123,30 +155,23 @@ export function PropertyTaxLineFields({
                 onChange={(event) =>
                   patchLine(index, { label: event.target.value })
                 }
-                placeholder="Local lodging tax"
+                placeholder="Example: City + county sales tax"
                 maxLength={160}
               />
             </label>
 
             <label className={styles.rateField}>
-              <span>Rate</span>
+              <span>Local rate</span>
               <div className={styles.rateInput}>
                 <input
                   name="taxLineRatePercent"
-                  type="number"
-                  min="0"
-                  max="100"
-                  step="0.001"
+                  type="text"
                   inputMode="decimal"
-                  value={rateText(line.rate_bps)}
-                  onChange={(event) => {
-                    const parsed = Number.parseFloat(event.target.value);
-                    patchLine(index, {
-                      rate_bps: Number.isFinite(parsed)
-                        ? Math.round(parsed * 100)
-                        : 0,
-                    });
-                  }}
+                  autoComplete="off"
+                  value={line.ratePercentText}
+                  onChange={(event) => patchRate(index, event.target.value)}
+                  placeholder="3"
+                  aria-label={`${line.label || "Local tax"} rate percent`}
                 />
                 <b>%</b>
               </div>
@@ -176,7 +201,7 @@ export function PropertyTaxLineFields({
               className={styles.removeButton}
               type="button"
               onClick={() => removeLine(index)}
-              aria-label={`Remove ${line.label || "tax line"}`}
+              aria-label={`Remove ${line.label || "local tax line"}`}
             >
               Remove
             </button>
@@ -185,8 +210,9 @@ export function PropertyTaxLineFields({
 
         {!lines.length ? (
           <div className={styles.empty}>
-            No local tax lines added. Use <strong>+ Add tax</strong> if a local
-            tax applies to this property.
+            No local tax is added yet. Use <strong>+ Add local tax</strong> if
+            this property has a city, county, lodging, occupancy, tourism or
+            A&amp;P tax in addition to the automatic statewide taxes.
           </div>
         ) : null}
       </div>

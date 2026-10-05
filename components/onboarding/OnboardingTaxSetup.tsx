@@ -10,8 +10,15 @@ type TaxLine = {
   category: "LOCAL_SALES" | "LOCAL_LODGING" | "OTHER";
   label: string;
   rate_bps: number;
+  ratePercentText: string;
   base_scope: "LODGING_ONLY" | "ACCOMMODATION_TOTAL" | "PRE_TAX_TOTAL";
 };
+
+function rateText(rateBps: number) {
+  const value = Number(rateBps || 0) / 100;
+  if (!value) return "";
+  return value.toFixed(rateBps % 100 ? 2 : 0);
+}
 
 function defaultsFor(stateCode: string): TaxLine[] {
   return getStateTaxSetup(stateCode).suggestedLines.map((line, index) => ({
@@ -19,6 +26,7 @@ function defaultsFor(stateCode: string): TaxLine[] {
     category: line.category,
     label: line.label,
     rate_bps: 0,
+    ratePercentText: "",
     base_scope: line.baseScope,
   }));
 }
@@ -32,28 +40,33 @@ function parseLines(raw: string, stateCode: string): TaxLine[] {
 
     const lines = parsed
       .slice(0, 12)
-      .map((line, index) => ({
-        key:
-          typeof line?.key === "string"
-            ? line.key
-            : `saved-${stateCode}-${index}`,
-        category: ["LOCAL_SALES", "LOCAL_LODGING", "OTHER"].includes(
-          line?.category,
-        )
-          ? line.category
-          : "OTHER",
-        label: typeof line?.label === "string" ? line.label : "",
-        rate_bps: Number.isFinite(Number(line?.rate_bps))
+      .map((line, index) => {
+        const rateBps = Number.isFinite(Number(line?.rate_bps))
           ? Math.max(0, Math.min(10000, Number(line.rate_bps)))
-          : 0,
-        base_scope: [
-          "LODGING_ONLY",
-          "ACCOMMODATION_TOTAL",
-          "PRE_TAX_TOTAL",
-        ].includes(line?.base_scope)
-          ? line.base_scope
-          : "ACCOMMODATION_TOTAL",
-      })) as TaxLine[];
+          : 0;
+
+        return {
+          key:
+            typeof line?.key === "string"
+              ? line.key
+              : `saved-${stateCode}-${index}`,
+          category: ["LOCAL_SALES", "LOCAL_LODGING", "OTHER"].includes(
+            line?.category,
+          )
+            ? line.category
+            : "OTHER",
+          label: typeof line?.label === "string" ? line.label : "",
+          rate_bps: rateBps,
+          ratePercentText: rateText(rateBps),
+          base_scope: [
+            "LODGING_ONLY",
+            "ACCOMMODATION_TOTAL",
+            "PRE_TAX_TOTAL",
+          ].includes(line?.base_scope)
+            ? line.base_scope
+            : "ACCOMMODATION_TOTAL",
+        };
+      }) as TaxLine[];
 
     return lines.length ? lines : defaultsFor(stateCode);
   } catch {
@@ -69,12 +82,6 @@ function serialize(lines: TaxLine[]) {
       rate_bps,
       base_scope,
     })),
-  );
-}
-
-function rateText(rateBps: number) {
-  return (Number(rateBps || 0) / 100).toFixed(
-    rateBps % 100 ? 2 : 0,
   );
 }
 
@@ -116,7 +123,7 @@ export function OnboardingTaxSetup({
       onLocalityChange(city.trim());
       onAcceptedChange(false);
     }
-  }, [city, locality, onLocalityChange]);
+  }, [city, locality, onLocalityChange, onAcceptedChange]);
 
   useEffect(() => {
     if (previousState.current === normalizedState) return;
@@ -144,15 +151,34 @@ export function OnboardingTaxSetup({
     );
   }
 
+  function patchRate(index: number, value: string) {
+    const cleaned = value
+      .replace(/[^\d.]/g, "")
+      .replace(/^(\d*\.?\d*).*$/, "$1");
+
+    if (cleaned) {
+      const parsed = Number.parseFloat(cleaned);
+      if (Number.isFinite(parsed) && parsed > 100) return;
+    }
+
+    patch(index, {
+      ratePercentText: cleaned,
+      rate_bps: cleaned && Number.isFinite(Number.parseFloat(cleaned))
+        ? Math.round(Number.parseFloat(cleaned) * 100)
+        : 0,
+    });
+  }
+
   function addLine() {
     if (lines.length >= 12) return;
     commit([
       ...lines,
       {
         key: `new-${Date.now()}-${lines.length}`,
-        category: "OTHER",
+        category: "LOCAL_SALES",
         label: "",
         rate_bps: 0,
+        ratePercentText: "",
         base_scope: "ACCOMMODATION_TOTAL",
       },
     ]);
@@ -208,6 +234,10 @@ export function OnboardingTaxSetup({
           <div>
             <strong>Local taxes</strong>
             <span>{config.localHelp}</span>
+            <span>
+              Statewide taxes are automatic. Add only the remaining local rate
+              or rates for this property.
+            </span>
           </div>
           <button
             className={styles.addButton}
@@ -215,7 +245,7 @@ export function OnboardingTaxSetup({
             onClick={addLine}
             disabled={lines.length >= 12}
           >
-            + Add tax
+            + Add local tax
           </button>
         </div>
 
@@ -224,7 +254,7 @@ export function OnboardingTaxSetup({
             lines.map((line, index) => (
               <div className={styles.line} key={line.key}>
                 <label>
-                  <span>Type</span>
+                  <span>Local tax type</span>
                   <select
                     value={line.category}
                     onChange={(event) =>
@@ -234,11 +264,11 @@ export function OnboardingTaxSetup({
                       })
                     }
                   >
-                    <option value="LOCAL_SALES">Sales tax</option>
+                    <option value="LOCAL_SALES">Local sales tax</option>
                     <option value="LOCAL_LODGING">
-                      Lodging / occupancy
+                      Local lodging / occupancy / A&amp;P
                     </option>
-                    <option value="OTHER">Other tax</option>
+                    <option value="OTHER">Other local tax</option>
                   </select>
                 </label>
 
@@ -249,31 +279,21 @@ export function OnboardingTaxSetup({
                     onChange={(event) =>
                       patch(index, { label: event.target.value })
                     }
-                    placeholder="Local lodging tax"
+                    placeholder="Example: City + county sales tax"
                     maxLength={160}
                   />
                 </label>
 
                 <label>
-                  <span>Rate</span>
+                  <span>Local rate</span>
                   <div className={styles.rateWrap}>
                     <input
-                      type="number"
-                      min="0"
-                      max="100"
-                      step="0.001"
+                      type="text"
                       inputMode="decimal"
-                      value={rateText(line.rate_bps)}
-                      onChange={(event) => {
-                        const parsed = Number.parseFloat(
-                          event.target.value,
-                        );
-                        patch(index, {
-                          rate_bps: Number.isFinite(parsed)
-                            ? Math.round(parsed * 100)
-                            : 0,
-                        });
-                      }}
+                      autoComplete="off"
+                      value={line.ratePercentText}
+                      onChange={(event) => patchRate(index, event.target.value)}
+                      placeholder="3"
                     />
                     <b>%</b>
                   </div>
@@ -313,8 +333,8 @@ export function OnboardingTaxSetup({
             ))
           ) : (
             <div className={styles.empty}>
-              No local tax lines added. Add one only when a local tax
-              applies to this property.
+              No local tax lines added. Use <strong>+ Add local tax</strong> if
+              a local tax applies to this property.
             </div>
           )}
         </div>
