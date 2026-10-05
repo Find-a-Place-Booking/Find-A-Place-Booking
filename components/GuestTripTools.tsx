@@ -1,8 +1,14 @@
 "use client";
 
-import { FormEvent, useCallback, useEffect, useState } from "react";
+import {
+  FormEvent,
+  useCallback,
+  useEffect,
+  useState,
+} from "react";
 
 import { StarRating } from "@/components/StarRating";
+import { formatPropertyDateTime } from "@/lib/time/property-time";
 import reviewStyles from "./GuestReview.module.css";
 import styles from "./ReservationChat.module.css";
 
@@ -106,6 +112,7 @@ export function GuestTripTools({
   hostPhone,
   guestName,
   canReview,
+  timeZone,
 }: {
   reservationId: string;
   checkoutToken: string;
@@ -115,11 +122,14 @@ export function GuestTripTools({
   hostPhone: string | null;
   guestName: string;
   canReview: boolean;
+  timeZone: string;
 }) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [review, setReview] = useState<Review | null>(null);
-  const [cancellation, setCancellation] = useState<CancellationState | null>(null);
-  const [changeRequest, setChangeRequest] = useState<ChangeState | null>(null);
+  const [cancellation, setCancellation] =
+    useState<CancellationState | null>(null);
+  const [changeRequest, setChangeRequest] =
+    useState<ChangeState | null>(null);
   const [messageDraft, setMessageDraft] = useState("");
   const [requestDraft, setRequestDraft] = useState("");
   const [requestMode, setRequestMode] = useState<RequestMode>(null);
@@ -131,15 +141,41 @@ export function GuestTripTools({
   const [requestBusy, setRequestBusy] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
 
-  const load = useCallback(async () => {
-    const query = new URLSearchParams({ reservationId, checkoutToken });
-    const [messageResponse, reviewResponse, cancellationResponse, changeResponse] =
-      await Promise.all([
-        fetch(`/api/trip/messages?${query.toString()}`, { cache: "no-store" }),
-        fetch(`/api/trip/review?${query.toString()}`, { cache: "no-store" }),
-        fetch(`/api/trip/cancellation?${query.toString()}`, { cache: "no-store" }),
-        fetch(`/api/trip/change-request?${query.toString()}`, { cache: "no-store" }),
-      ]);
+  const queryString = useCallback(
+    () => new URLSearchParams({ reservationId, checkoutToken }).toString(),
+    [reservationId, checkoutToken],
+  );
+
+  const loadMessages = useCallback(async () => {
+    const response = await fetch(
+      `/api/trip/messages?${queryString()}`,
+      { cache: "no-store" },
+    );
+
+    if (!response.ok) return;
+
+    const payload = await response.json();
+    setMessages(
+      (payload.messages ?? []).filter(
+        (item: Message) => !isLegacyRequestMessage(item.body),
+      ),
+    );
+  }, [queryString]);
+
+  const loadAll = useCallback(async () => {
+    const query = queryString();
+
+    const [
+      messageResponse,
+      reviewResponse,
+      cancellationResponse,
+      changeResponse,
+    ] = await Promise.all([
+      fetch(`/api/trip/messages?${query}`, { cache: "no-store" }),
+      fetch(`/api/trip/review?${query}`, { cache: "no-store" }),
+      fetch(`/api/trip/cancellation?${query}`, { cache: "no-store" }),
+      fetch(`/api/trip/change-request?${query}`, { cache: "no-store" }),
+    ]);
 
     if (messageResponse.ok) {
       const payload = await messageResponse.json();
@@ -156,19 +192,45 @@ export function GuestTripTools({
     }
 
     if (cancellationResponse.ok) {
-      setCancellation((await cancellationResponse.json()) as CancellationState);
+      setCancellation(
+        (await cancellationResponse.json()) as CancellationState,
+      );
     }
 
     if (changeResponse.ok) {
-      setChangeRequest((await changeResponse.json()) as ChangeState);
+      setChangeRequest(
+        (await changeResponse.json()) as ChangeState,
+      );
     }
-  }, [reservationId, checkoutToken]);
+  }, [queryString]);
 
   useEffect(() => {
-    void load();
-    const timer = window.setInterval(() => void load(), 15_000);
-    return () => window.clearInterval(timer);
-  }, [load]);
+    void loadAll();
+
+    const refreshMessages = () => {
+      if (document.visibilityState === "visible") {
+        void loadMessages();
+      }
+    };
+
+    const timer = window.setInterval(refreshMessages, 4_000);
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") {
+        void loadMessages();
+      }
+    };
+
+    window.addEventListener("focus", refreshMessages);
+    window.addEventListener("online", refreshMessages);
+    document.addEventListener("visibilitychange", onVisibility);
+
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener("focus", refreshMessages);
+      window.removeEventListener("online", refreshMessages);
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
+  }, [loadAll, loadMessages]);
 
   useEffect(() => {
     if (!requestMode) return;
@@ -211,7 +273,7 @@ export function GuestTripTools({
 
     setMessageDraft("");
     setNotice("Message sent. Your host was also notified by email.");
-    await load();
+    await loadMessages();
   }
 
   function openRequest(mode: Exclude<RequestMode, null>) {
@@ -267,7 +329,7 @@ export function GuestTripTools({
         ? "Change request sent to your host. They were also notified by email."
         : "Cancellation request sent to your host. The reservation remains active until the host responds.",
     );
-    await load();
+    await loadAll();
   }
 
   async function submitReview(event: FormEvent) {
@@ -312,7 +374,7 @@ export function GuestTripTools({
     setReviewNotice(
       "Thanks. Your verified review and star rating are now attached to the stay.",
     );
-    await load();
+    await loadAll();
   }
 
   const hostEmailHref = hostEmail
@@ -323,7 +385,8 @@ export function GuestTripTools({
       )}`
     : null;
 
-  const openChange = changeRequest?.request?.status === "REQUESTED";
+  const openChange =
+    changeRequest?.request?.status === "REQUESTED";
   const openCancellation = ["REQUESTED", "APPROVED"].includes(
     cancellation?.request?.status || "",
   );
@@ -438,7 +501,10 @@ export function GuestTripTools({
         ) : null}
       </section>
 
-      <section className={styles.requestToolbar} aria-label="Booking requests">
+      <section
+        className={styles.requestToolbar}
+        aria-label="Booking requests"
+      >
         <div>
           <p className="eyebrow dark">Booking requests</p>
           <h2>Need to change something?</h2>
@@ -549,7 +615,9 @@ export function GuestTripTools({
                 >
                   <div
                     className={`${styles.bubble} ${
-                      guest ? styles.bubbleGuest : styles.bubbleHost
+                      guest
+                        ? styles.bubbleGuest
+                        : styles.bubbleHost
                     }`}
                   >
                     <div className={styles.bubbleMeta}>
@@ -559,18 +627,15 @@ export function GuestTripTools({
                           : senderLabel(item.sender_type)}
                       </strong>
                       <span>
-                        {new Date(item.created_at).toLocaleString(
-                          "en-US",
-                          {
-                            month: "short",
-                            day: "numeric",
-                            hour: "numeric",
-                            minute: "2-digit",
-                          },
+                        {formatPropertyDateTime(
+                          item.created_at,
+                          timeZone,
                         )}
                       </span>
                     </div>
-                    <div className={styles.bubbleBody}>{item.body}</div>
+                    <div className={styles.bubbleBody}>
+                      {item.body}
+                    </div>
                   </div>
                 </div>
               );
@@ -612,7 +677,9 @@ export function GuestTripTools({
       </section>
 
       {notice ? (
-        <div className={`admin-message success ${styles.pageNotice}`}>
+        <div
+          className={`admin-message success ${styles.pageNotice}`}
+        >
           {notice}
         </div>
       ) : null}

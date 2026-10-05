@@ -11,6 +11,7 @@ import { taxLinesFromSnapshot } from "@/lib/bookings/financial-display";
 import { getPublicHostProfileForOrganization } from "@/lib/hosts/public-profile";
 import { guestCheckoutTokenMatches } from "@/lib/payments/booking-runtime";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { formatPropertyDateTime } from "@/lib/time/property-time";
 
 function money(cents: number, currency: string) {
   return new Intl.NumberFormat("en-US", {
@@ -44,7 +45,10 @@ export default async function TripPage({
     checkoutToken?: string;
   }>;
 }) {
-  const [{ confirmation }, query] = await Promise.all([params, searchParams]);
+  const [{ confirmation }, query] = await Promise.all([
+    params,
+    searchParams,
+  ]);
 
   const reservationId = query.reservationId?.trim() || "";
   const checkoutToken = query.checkoutToken?.trim() || "";
@@ -92,13 +96,19 @@ export default async function TripPage({
     notFound();
   }
 
-  const [{ data: property }, host, { data: refund }] = await Promise.all([
+  const [
+    { data: property },
+    host,
+    { data: refund },
+  ] = await Promise.all([
     admin
       .from("properties")
-      .select("name,public_area,city,region_code")
+      .select("name,public_area,city,region_code,time_zone")
       .eq("id", reservation.property_id)
       .maybeSingle(),
-    getPublicHostProfileForOrganization(reservation.organization_id),
+    getPublicHostProfileForOrganization(
+      reservation.organization_id,
+    ),
     reservation.status === "CANCELLED"
       ? admin
           .from("refunds")
@@ -110,10 +120,14 @@ export default async function TripPage({
       : Promise.resolve({ data: null, error: null }),
   ]);
 
+  const propertyTimeZone =
+    property?.time_zone || "America/Chicago";
   const today = new Date().toISOString().slice(0, 10);
   const canReview =
-    reservation.status === "CONFIRMED" && reservation.check_out <= today;
-  const hostName = host?.name || property?.name || "Property host";
+    reservation.status === "CONFIRMED" &&
+    reservation.check_out <= today;
+  const hostName =
+    host?.name || property?.name || "Property host";
   const hostDescription =
     host?.publicBio ||
     `${hostName} independently manages this stay. Use My Trip to keep booking questions, change requests and cancellation discussions connected to the reservation.`;
@@ -125,9 +139,12 @@ export default async function TripPage({
         <div className="shell">
           <section className="panel">
             <p className="eyebrow dark">Your trip</p>
-            <h1>{property?.name || "Your Find A Place stay"}</h1>
+            <h1>
+              {property?.name || "Your Find A Place stay"}
+            </h1>
             <p>
-              Confirmation <strong>{reservation.confirmation_code}</strong>
+              Confirmation{" "}
+              <strong>{reservation.confirmation_code}</strong>
             </p>
 
             <div className="dash-grid metrics">
@@ -145,13 +162,22 @@ export default async function TripPage({
                 <small>{reservation.pet_count} pet(s)</small>
               </div>
               <div>
-                <span>{reservation.status === "CANCELLED" ? "Booking" : "Total"}</span>
+                <span>
+                  {reservation.status === "CANCELLED"
+                    ? "Booking"
+                    : "Total"}
+                </span>
                 <strong>
                   {reservation.status === "CANCELLED"
                     ? "Cancelled"
-                    : money(reservation.guest_total_cents, reservation.currency)}
+                    : money(
+                        reservation.guest_total_cents,
+                        reservation.currency,
+                      )}
                 </strong>
-                <small>{readableStatus(reservation.payment_status)}</small>
+                <small>
+                  {readableStatus(reservation.payment_status)}
+                </small>
               </div>
             </div>
           </section>
@@ -161,7 +187,10 @@ export default async function TripPage({
             <div className={chatStyles.hostSummary}>
               <div className={chatStyles.hostAvatar}>
                 {host?.avatarUrl ? (
-                  <img src={host.avatarUrl} alt={`${hostName} host profile`} />
+                  <img
+                    src={host.avatarUrl}
+                    alt={`${hostName} host profile`}
+                  />
                 ) : (
                   initials(hostName)
                 )}
@@ -171,12 +200,15 @@ export default async function TripPage({
                 <h2>{hostName}</h2>
                 <p>
                   Independent host on Find A Place
-                  {host?.businessLocation ? ` · ${host.businessLocation}` : ""}
+                  {host?.businessLocation
+                    ? ` · ${host.businessLocation}`
+                    : ""}
                 </p>
               </div>
             </div>
             <p className="muted">{hostDescription}</p>
-            {(host?.contactEmail || host?.contactPhone) ? (
+
+            {host?.contactEmail || host?.contactPhone ? (
               <div className={chatStyles.contactLinks}>
                 {host.contactEmail ? (
                   <a
@@ -189,58 +221,85 @@ export default async function TripPage({
                   </a>
                 ) : null}
                 {host.contactPhone ? (
-                  <a className={chatStyles.actionLink} href={`tel:${host.contactPhone}`}>
+                  <a
+                    className={chatStyles.actionLink}
+                    href={`tel:${host.contactPhone}`}
+                  >
                     Call host
                   </a>
                 ) : null}
                 {host.contactPhone ? (
-                  <a className={chatStyles.actionLink} href={`sms:${host.contactPhone}`}>
+                  <a
+                    className={chatStyles.actionLink}
+                    href={`sms:${host.contactPhone}`}
+                  >
                     Text host
                   </a>
                 ) : null}
-                <a className={chatStyles.actionLink} href="#messages">
+                <a
+                  className={chatStyles.actionLink}
+                  href="#messages"
+                >
                   Booking messages
                 </a>
               </div>
             ) : (
-              <p className="muted">Use the booking conversation below to reach the host.</p>
+              <p className="muted">
+                Use the booking conversation below to reach the host.
+              </p>
             )}
           </section>
 
           {reservation.status === "CANCELLED" ? (
             <section className="panel">
-              <p className="eyebrow dark">Cancellation record</p>
+              <p className="eyebrow dark">
+                Cancellation record
+              </p>
               <h2>This reservation was cancelled.</h2>
+
               <div className="setting-row">
                 <span>Cancelled</span>
                 <strong>
                   {reservation.cancelled_at
-                    ? new Date(reservation.cancelled_at).toLocaleString("en-US")
+                    ? formatPropertyDateTime(
+                        reservation.cancelled_at,
+                        propertyTimeZone,
+                      )
                     : "Recorded"}
                 </strong>
               </div>
+
               <div className="setting-row">
                 <span>Refund status</span>
                 <strong>
-                  {refund?.status ? readableStatus(refund.status) : "No refund record"}
+                  {refund?.status
+                    ? readableStatus(refund.status)
+                    : "No refund record"}
                 </strong>
               </div>
+
               {refund ? (
                 <div className="setting-row">
                   <span>Refund amount</span>
                   <strong>
-                    {money(Number(refund.amount_cents || 0), reservation.currency)}
+                    {money(
+                      Number(refund.amount_cents || 0),
+                      reservation.currency,
+                    )}
                   </strong>
                 </div>
               ) : null}
+
               <p className="muted">
-                This page remains available as the booking, payment and host-message
-                record.
+                This page remains available as the booking, payment and
+                host-message record.
               </p>
             </section>
           ) : null}
 
-          <section className={`panel ${chatStyles.tripSectionPanel}`}>
+          <section
+            className={`panel ${chatStyles.tripSectionPanel}`}
+          >
             <p className="eyebrow dark">Receipt</p>
             <h2>
               {reservation.status === "CANCELLED"
@@ -249,11 +308,19 @@ export default async function TripPage({
             </h2>
             <BookingReceipt
               pricingSnapshot={reservation.pricing_snapshot}
-              preTaxTotalCents={Number(reservation.pre_tax_total_cents)}
-              taxTotalCents={Number(reservation.tax_total_cents)}
-              guestTotalCents={Number(reservation.guest_total_cents)}
+              preTaxTotalCents={Number(
+                reservation.pre_tax_total_cents,
+              )}
+              taxTotalCents={Number(
+                reservation.tax_total_cents,
+              )}
+              guestTotalCents={Number(
+                reservation.guest_total_cents,
+              )}
               currency={reservation.currency}
-              taxLines={taxLinesFromSnapshot(reservation.tax_snapshot)}
+              taxLines={taxLinesFromSnapshot(
+                reservation.tax_snapshot,
+              )}
             />
             <PrintReceiptButton />
           </section>
@@ -267,6 +334,7 @@ export default async function TripPage({
             hostPhone={host?.contactPhone ?? null}
             guestName={reservation.guest_name || "Guest"}
             canReview={canReview}
+            timeZone={propertyTimeZone}
           />
         </div>
       </main>

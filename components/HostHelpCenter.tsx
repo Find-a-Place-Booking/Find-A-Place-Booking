@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import {
   HOST_HELP_ARTICLES,
@@ -58,6 +58,25 @@ export function HostHelpCenter({
     [category, query],
   );
 
+  useEffect(() => {
+    if (!initialTopic) return;
+
+    const target = document.getElementById(
+      initialTopic,
+    ) as HTMLDetailsElement | null;
+
+    if (!target) return;
+
+    target.open = true;
+
+    window.requestAnimationFrame(() => {
+      target.scrollIntoView({
+        behavior: "smooth",
+        block: "center",
+      });
+    });
+  }, [initialTopic]);
+
   return (
     <div className={styles.helpShell}>
       <section className={styles.hero}>
@@ -112,7 +131,6 @@ export function HostHelpCenter({
             className={styles.article}
             key={article.id}
             id={article.id}
-            defaultOpen={initialTopic === article.id}
           >
             <summary>
               <span>

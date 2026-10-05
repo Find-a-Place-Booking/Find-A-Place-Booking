@@ -1,3 +1,4 @@
+import { after } from "next/server";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import {
@@ -6,10 +7,11 @@ import {
   siteUrl,
 } from "@/lib/notifications/transactional-email";
 import { createGuestCheckoutToken } from "@/lib/payments/booking-runtime";
+import { formatPropertyDateTime } from "@/lib/time/property-time";
 
 type SenderType = "GUEST" | "HOST";
 
-export async function sendReservationMessageNotification(
+async function deliverReservationMessageNotification(
   admin: SupabaseClient,
   input: {
     reservationId: string;
@@ -30,16 +32,26 @@ export async function sendReservationMessageNotification(
     throw new Error("Unable to load reservation message notification data.");
   }
 
-  const [{ data: property }, { data: organization }] = await Promise.all([
+  const [
+    { data: property },
+    { data: organization },
+    { data: messageRow },
+  ] = await Promise.all([
     admin
       .from("properties")
-      .select("name,notification_email,operations_email")
+      .select("name,notification_email,operations_email,time_zone")
       .eq("id", reservation.property_id)
       .maybeSingle(),
     admin
       .from("organizations")
       .select("name,contact_email,contact_phone")
       .eq("id", reservation.organization_id)
+      .maybeSingle(),
+    admin
+      .from("reservation_messages")
+      .select("created_at")
+      .eq("id", input.messageId)
+      .eq("reservation_id", reservation.id)
       .maybeSingle(),
   ]);
 
@@ -48,6 +60,10 @@ export async function sendReservationMessageNotification(
   const cleanBody = input.body.trim().slice(0, 4000);
   const escapedBody = escapeHtml(cleanBody).replace(/\n/g, "<br>");
   const cleanMessageId = input.messageId.replace(/[^a-zA-Z0-9]/g, "");
+  const sentAt = formatPropertyDateTime(
+    messageRow?.created_at || new Date(),
+    property?.time_zone || "America/Chicago",
+  );
 
   if (input.senderType === "GUEST") {
     const recipient =
@@ -66,6 +82,7 @@ export async function sendReservationMessageNotification(
       subject: `New guest message: ${propertyName} · ${reservation.confirmation_code}`,
       text: [
         `${reservation.guest_name || "Your guest"} sent a message about ${propertyName}.`,
+        `Sent: ${sentAt}`,
         `Guest email: ${reservation.guest_email || "Not provided"}`,
         `Guest phone: ${reservation.guest_phone || "Not provided"}`,
         "",
@@ -77,7 +94,9 @@ export async function sendReservationMessageNotification(
         reservation.guest_name || "Your guest",
       )} sent a message about ${escapeHtml(
         propertyName,
-      )}.</p><p><strong>Email:</strong> ${escapeHtml(
+      )}.</p><p><small>Sent ${escapeHtml(
+        sentAt,
+      )}</small></p><p><strong>Email:</strong> ${escapeHtml(
         reservation.guest_email || "Not provided",
       )}<br><strong>Phone:</strong> ${escapeHtml(
         reservation.guest_phone || "Not provided",
@@ -106,8 +125,13 @@ export async function sendReservationMessageNotification(
     subject: `New host message: ${propertyName}`,
     text: [
       `${hostName} sent a message about ${propertyName} (${reservation.confirmation_code}).`,
-      organization?.contact_email ? `Host email: ${organization.contact_email}` : null,
-      organization?.contact_phone ? `Host phone: ${organization.contact_phone}` : null,
+      `Sent: ${sentAt}`,
+      organization?.contact_email
+        ? `Host email: ${organization.contact_email}`
+        : null,
+      organization?.contact_phone
+        ? `Host phone: ${organization.contact_phone}`
+        : null,
       "",
       cleanBody,
       "",
@@ -117,11 +141,15 @@ export async function sendReservationMessageNotification(
       .join("\n"),
     html: `<p><strong>New host message</strong></p><p>${escapeHtml(
       hostName,
-    )} sent a message about ${escapeHtml(propertyName)}.</p>${
+    )} sent a message about ${escapeHtml(
+      propertyName,
+    )}.</p><p><small>Sent ${escapeHtml(sentAt)}</small></p>${
       organization?.contact_email || organization?.contact_phone
         ? `<p>${
             organization?.contact_email
-              ? `<strong>Email:</strong> ${escapeHtml(organization.contact_email)}`
+              ? `<strong>Email:</strong> ${escapeHtml(
+                  organization.contact_email,
+                )}`
               : ""
           }${
             organization?.contact_email && organization?.contact_phone
@@ -129,12 +157,40 @@ export async function sendReservationMessageNotification(
               : ""
           }${
             organization?.contact_phone
-              ? `<strong>Phone:</strong> ${escapeHtml(organization.contact_phone)}`
+              ? `<strong>Phone:</strong> ${escapeHtml(
+                  organization.contact_phone,
+                )}`
               : ""
           }</p>`
         : ""
     }<blockquote>${escapedBody}</blockquote><p><a href="${escapeHtml(
       tripUrl,
     )}">Reply to your host</a></p>`,
+  });
+}
+
+export async function sendReservationMessageNotification(
+  admin: SupabaseClient,
+  input: {
+    reservationId: string;
+    messageId: string;
+    senderType: SenderType;
+    body: string;
+  },
+) {
+  // The reservation message is already committed before this function runs.
+  // Email is an alert, not the source of truth, so do not make the sender wait
+  // on Resend/provider latency. Next.js keeps this work alive after the response.
+  after(async () => {
+    try {
+      await deliverReservationMessageNotification(admin, input);
+    } catch (error) {
+      console.error("[reservation message notification]", {
+        reservationId: input.reservationId,
+        messageId: input.messageId,
+        senderType: input.senderType,
+        error: error instanceof Error ? error.message : "unknown_error",
+      });
+    }
   });
 }

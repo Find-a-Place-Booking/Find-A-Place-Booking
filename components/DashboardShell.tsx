@@ -2,8 +2,8 @@ import { Suspense } from "react";
 import Link from "next/link";
 
 import { signOutHost } from "@/app/auth/actions";
-import { HostHelpAssistant } from "@/components/HostHelpAssistant";
 import { HostOnboardingFeedbackCard } from "@/components/HostOnboardingFeedbackCard";
+import { HostReservationMessageLiveRefresh } from "@/components/HostReservationMessageLiveRefresh";
 import { getHostMessageAlertCount } from "@/lib/host/message-alerts";
 import { getHostOnboardingFeedbackPrompt } from "@/lib/host/onboarding-feedback";
 import { getHostAccountProfile, initialsForHost } from "@/lib/host/profile";
@@ -41,6 +41,11 @@ export async function DashboardShell({
       <Suspense fallback={null}>
         <PortalInteractionEnhancer scope="host" />
       </Suspense>
+
+      <HostReservationMessageLiveRefresh
+        aggressive={active === "Messages"}
+      />
+
       <HostSidebar
         active={active}
         messageAlertCount={messageAlertCount}
@@ -58,9 +63,9 @@ export async function DashboardShell({
           <div className="dash-actions">
             <Link
               className="button button-small button-quiet"
-              href="/host/help"
+              href="/contact#host"
             >
-              Help &amp; FAQ
+              Get help
             </Link>
             <Link
               className="button button-small button-quiet dash-marketplace-link"
@@ -93,9 +98,6 @@ export async function DashboardShell({
             </form>
           </div>
         </header>
-
-        <HostHelpAssistant />
-
         {children}
         {onboardingFeedbackPrompt ? (
           <HostOnboardingFeedbackCard
