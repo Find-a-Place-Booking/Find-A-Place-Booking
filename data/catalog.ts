@@ -1,3 +1,10 @@
+export type NearbyExperiencePreview = {
+  title: string;
+  category: string;
+  distanceMiles: number | null;
+  driveMinutes: number | null;
+};
+
 export type Property = {
   slug: string;
   name: string;
@@ -21,6 +28,8 @@ export type Property = {
   instantBook: boolean;
   lat: number;
   lng: number;
+  nearbyExperienceCount?: number;
+  nearbyExperiences?: NearbyExperiencePreview[];
 };
 
 export type Destination = {

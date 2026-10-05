@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 
-import type { Property } from "@/data/catalog";
+import type { NearbyExperiencePreview, Property } from "@/data/catalog";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { createSignedUrlMap } from "@/lib/storage/signed-urls";
@@ -41,6 +41,19 @@ type PublicMapListingRow = {
   weeknight_cents: number | null;
   map_latitude: number | string | null;
   map_longitude: number | string | null;
+};
+
+type PublicNearbyPreviewRow = {
+  property_id: string;
+  title: string;
+  category: string;
+  distance_miles: number | string | null;
+  drive_minutes: number | null;
+};
+
+type NearbyPreviewSet = {
+  count: number;
+  items: NearbyExperiencePreview[];
 };
 
 export type PublicMapStay = {
@@ -164,6 +177,36 @@ function reviewStats(
     current.total += Number(row.rating);
     current.count += 1;
     current.rating = current.total / current.count;
+    byProperty.set(row.property_id, current);
+  }
+
+  return byProperty;
+}
+
+function nearbyPreviewSets(rows: PublicNearbyPreviewRow[]) {
+  const byProperty = new Map<string, NearbyPreviewSet>();
+
+  for (const row of rows) {
+    const current = byProperty.get(row.property_id) ?? {
+      count: 0,
+      items: [],
+    };
+
+    current.count += 1;
+
+    if (current.items.length < 3) {
+      const miles = Number(row.distance_miles);
+      current.items.push({
+        title: row.title,
+        category: row.category,
+        distanceMiles: Number.isFinite(miles) ? miles : null,
+        driveMinutes:
+          typeof row.drive_minutes === "number" && row.drive_minutes >= 0
+            ? row.drive_minutes
+            : null,
+      });
+    }
+
     byProperty.set(row.property_id, current);
   }
 
@@ -371,26 +414,59 @@ export async function getPublishedProperties(
     string,
     { total: number; count: number; rating: number }
   >();
+  let nearbyByProperty = new Map<string, NearbyPreviewSet>();
 
   try {
     const propertyIds = rows.map((row) => row.property_id);
     if (propertyIds.length) {
       const admin = createAdminClient();
-      const { data: reviewRows } = await admin
-        .from("reservation_reviews")
-        .select("property_id,rating")
-        .in("property_id", propertyIds)
-        .eq("status", "PUBLISHED");
+      const [reviewResult, nearbyResult] = await Promise.all([
+        admin
+          .from("reservation_reviews")
+          .select("property_id,rating")
+          .in("property_id", propertyIds)
+          .eq("status", "PUBLISHED"),
+        admin
+          .from("property_nearby_experiences")
+          .select(
+            "property_id,title,category,distance_miles,drive_minutes,sort_order,created_at",
+          )
+          .in("property_id", propertyIds)
+          .eq("is_active", true)
+          .order("sort_order", { ascending: true })
+          .order("created_at", { ascending: true }),
+      ]);
 
-      stats = reviewStats(
-        (reviewRows ?? []) as Array<{
-          property_id: string;
-          rating: number;
-        }>,
-      );
+      if (reviewResult.error) {
+        console.error(
+          "[getPublishedProperties] reviews unavailable",
+          reviewResult.error,
+        );
+      } else {
+        stats = reviewStats(
+          (reviewResult.data ?? []) as Array<{
+            property_id: string;
+            rating: number;
+          }>,
+        );
+      }
+
+      if (nearbyResult.error) {
+        console.error(
+          "[getPublishedProperties] nearby experiences unavailable",
+          nearbyResult.error,
+        );
+      } else {
+        nearbyByProperty = nearbyPreviewSets(
+          (nearbyResult.data ?? []) as PublicNearbyPreviewRow[],
+        );
+      }
     }
-  } catch (reviewError) {
-    console.error("[getPublishedProperties] reviews unavailable", reviewError);
+  } catch (extraError) {
+    console.error(
+      "[getPublishedProperties] public listing extras unavailable",
+      extraError,
+    );
   }
 
   return rows.map((row) => {
@@ -402,6 +478,7 @@ export async function getPublishedProperties(
       "Regional stay";
     const price = Math.round((row.weeknight_cents ?? 0) / 100);
     const propertyReviews = stats.get(row.property_id);
+    const nearby = nearbyByProperty.get(row.property_id);
     const mapCoordinates = mapCoordinateByProperty.get(row.property_id);
     const mapLatitude = Number(mapCoordinates?.map_latitude);
     const mapLongitude = Number(mapCoordinates?.map_longitude);
@@ -433,6 +510,8 @@ export async function getPublishedProperties(
       instantBook: false,
       lat: Number.isFinite(mapLatitude) ? mapLatitude : 0,
       lng: Number.isFinite(mapLongitude) ? mapLongitude : 0,
+      nearbyExperienceCount: nearby?.count ?? 0,
+      nearbyExperiences: nearby?.items ?? [],
     } satisfies Property;
   });
 }

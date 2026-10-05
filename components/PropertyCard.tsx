@@ -1,4 +1,6 @@
 import type { Property } from "@/data/catalog";
+import { NearbyExperiencesPeek } from "@/components/NearbyExperiencesPeek";
+import peekStyles from "@/components/NearbyExperiencesPeek.module.css";
 import { SaveStayButton } from "@/components/SaveStayButton";
 import { TrackedLink } from "@/components/TrackedLink";
 
@@ -12,39 +14,53 @@ export function PropertyCard({
   surface?: string;
 }) {
   const href = `/stays/${property.slug}`;
+  const showNearby =
+    surface.startsWith("home_") &&
+    Boolean(property.nearbyExperienceCount) &&
+    Boolean(property.nearbyExperiences?.length);
 
   return (
     <article className={`property-card ${wide ? "property-wide" : ""}`}>
-      <TrackedLink
-        className="property-image-wrap"
-        href={href}
-        prefetch={false}
-        eventName="property_click"
-        eventData={{
-          slug: property.slug,
-          surface,
-          trigger: "image",
-        }}
-      >
-        {property.image ? (
-          <>
-            <img
-              className="property-image"
-              src={property.image}
-              alt={`${property.name} in ${property.location}`}
-              loading="lazy"
-              decoding="async"
+      <div className={peekStyles.mediaShell}>
+        <TrackedLink
+          className="property-image-wrap"
+          href={href}
+          prefetch={false}
+          eventName="property_click"
+          eventData={{
+            slug: property.slug,
+            surface,
+            trigger: "image",
+          }}
+        >
+          {property.image ? (
+            <>
+              <img
+                className="property-image"
+                src={property.image}
+                alt={`${property.name} in ${property.location}`}
+                loading="lazy"
+                decoding="async"
+              />
+            </>
+          ) : (
+            <div
+              className="property-image property-image-empty"
+              aria-label="Property photo unavailable"
             />
-          </>
-        ) : (
-          <div
-            className="property-image property-image-empty"
-            aria-label="Property photo unavailable"
+          )}
+          <span className="property-type">{property.type}</span>
+          {property.instantBook && <span className="instant-label">Instant book</span>}
+        </TrackedLink>
+
+        {showNearby ? (
+          <NearbyExperiencesPeek
+            slug={property.slug}
+            count={property.nearbyExperienceCount ?? 0}
+            items={property.nearbyExperiences ?? []}
           />
-        )}
-        <span className="property-type">{property.type}</span>
-        {property.instantBook && <span className="instant-label">Instant book</span>}
-      </TrackedLink>
+        ) : null}
+      </div>
 
       <SaveStayButton
         propertyName={property.name}

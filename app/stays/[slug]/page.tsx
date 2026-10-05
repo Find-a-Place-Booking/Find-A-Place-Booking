@@ -213,6 +213,10 @@ export default async function PropertyPage({
           images={property.images}
         />
 
+        <div className="shell">
+          <PublicNearbyExperiences propertyId={property.propertyId} />
+        </div>
+
         <div className="shell property-content">
           <article className="property-copy">
             <div className="stay-summary">
@@ -279,8 +283,6 @@ export default async function PropertyPage({
                 {property.customAmenities}
               </p>
             ) : null}
-
-            <PublicNearbyExperiences propertyId={property.propertyId} />
 
             <hr />
             <h3>Know before you book</h3>

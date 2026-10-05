@@ -53,8 +53,7 @@ export async function PublicNearbyExperiences({
     .limit(12);
 
   if (error) {
-    // Keep the public listing healthy if the migration has not been applied yet
-    // or nearby content is temporarily unavailable.
+    // Keep the public listing healthy if nearby content is temporarily unavailable.
     console.error("[public nearby experiences] unavailable", {
       propertyId,
       code: error.code,
@@ -74,8 +73,8 @@ export async function PublicNearbyExperiences({
         .from("property-images")
         .createSignedUrl(row.image_path, 3600, {
           transform: {
-            width: 900,
-            height: 600,
+            width: 720,
+            height: 480,
             resize: "cover",
             quality: 76,
           },
@@ -93,61 +92,78 @@ export async function PublicNearbyExperiences({
     }),
   );
 
+  const firstRows = rows.slice(0, 4);
+  const remainingRows = rows.slice(4);
+
+  const renderCard = (row: PublicNearbyExperience) => {
+    const image = imageUrls.get(row.id);
+    const website = validExternalUrl(row.website_url);
+    const distance = distanceLabel(row);
+
+    return (
+      <article
+        className={`${styles.card} ${image ? "" : styles.cardNoImage}`}
+        key={row.id}
+      >
+        {image ? (
+          <div className={styles.media}>
+            <img src={image} alt="" loading="lazy" decoding="async" />
+            <span>{row.category}</span>
+          </div>
+        ) : (
+          <div className={styles.noImage}>
+            <span>{row.category}</span>
+            <strong>{row.title.slice(0, 1).toUpperCase()}</strong>
+          </div>
+        )}
+
+        <div className={styles.copy}>
+          <div>
+            <h3>{row.title}</h3>
+            {distance ? <strong>{distance}</strong> : null}
+          </div>
+
+          {row.description ? <p>{row.description}</p> : null}
+
+          {website ? (
+            <a href={website} target="_blank" rel="noreferrer">
+              More information ↗
+            </a>
+          ) : null}
+        </div>
+      </article>
+    );
+  };
+
   return (
-    <section className={styles.section}>
+    <section className={styles.section} id="nearby-experiences">
       <div className={styles.heading}>
-        <p className="eyebrow dark">Near this stay</p>
-        <h2>Things worth doing nearby</h2>
-        <p>
-          Local favorites and trip draws picked by the host to help you see what
-          is around this stay.
-        </p>
+        <div>
+          <p className="eyebrow dark">Near this stay</p>
+          <h2>Things worth doing nearby</h2>
+          <p>
+            Local favorites and trip draws picked by the host, so you can see
+            what is around the stay before you book.
+          </p>
+        </div>
+        <span className={styles.count}>
+          {rows.length} place{rows.length === 1 ? "" : "s"}
+        </span>
       </div>
 
-      <div className={styles.grid}>
-        {rows.map((row) => {
-          const image = imageUrls.get(row.id);
-          const website = validExternalUrl(row.website_url);
-          const distance = distanceLabel(row);
+      <div className={styles.grid}>{firstRows.map(renderCard)}</div>
 
-          return (
-            <article
-              className={`${styles.card} ${
-                image ? "" : styles.cardNoImage
-              }`}
-              key={row.id}
-            >
-              {image ? (
-                <div className={styles.media}>
-                  <img src={image} alt="" loading="lazy" decoding="async" />
-                  <span>{row.category}</span>
-                </div>
-              ) : null}
-
-              <div className={styles.copy}>
-                {!image ? (
-                  <span className={styles.categoryInline}>
-                    {row.category}
-                  </span>
-                ) : null}
-
-                <div>
-                  <h3>{row.title}</h3>
-                  {distance ? <strong>{distance}</strong> : null}
-                </div>
-
-                {row.description ? <p>{row.description}</p> : null}
-
-                {website ? (
-                  <a href={website} target="_blank" rel="noreferrer">
-                    More information ↗
-                  </a>
-                ) : null}
-              </div>
-            </article>
-          );
-        })}
-      </div>
+      {remainingRows.length ? (
+        <details className={styles.more}>
+          <summary>
+            See all {rows.length} nearby experiences
+            <span aria-hidden="true">＋</span>
+          </summary>
+          <div className={`${styles.grid} ${styles.moreGrid}`}>
+            {remainingRows.map(renderCard)}
+          </div>
+        </details>
+      ) : null}
     </section>
   );
 }

@@ -1,0 +1,198 @@
+.mediaShell {
+  position: relative;
+}
+
+.root {
+  position: absolute;
+  left: 11px;
+  bottom: 11px;
+  z-index: 6;
+  width: max-content;
+  max-width: calc(100% - 22px);
+}
+
+.trigger {
+  appearance: none;
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  background: rgba(30, 43, 37, 0.88);
+  color: #fff;
+  min-height: 31px;
+  padding: 6px 8px 6px 9px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font: inherit;
+  box-shadow: 0 7px 20px rgba(13, 20, 17, 0.18);
+  backdrop-filter: blur(10px);
+  cursor: pointer;
+}
+
+.trigger > span {
+  font-size: 0.78rem;
+  line-height: 1;
+  opacity: 0.9;
+}
+
+.trigger b {
+  font-size: 0.58rem;
+  line-height: 1;
+  font-weight: 850;
+  letter-spacing: 0.015em;
+  white-space: nowrap;
+}
+
+.trigger small {
+  min-width: 20px;
+  height: 20px;
+  padding: 0 5px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  background: rgba(255, 255, 255, 0.16);
+  color: #fff;
+  font-size: 0.54rem;
+  font-weight: 900;
+}
+
+.popover {
+  position: absolute;
+  left: 0;
+  bottom: calc(100% + 8px);
+  width: min(284px, calc(100vw - 36px));
+  padding: 13px;
+  border: 1px solid rgba(46, 58, 51, 0.12);
+  border-radius: 14px;
+  background: rgba(255, 253, 249, 0.98);
+  color: #252a26;
+  box-shadow: 0 18px 44px rgba(28, 35, 31, 0.18);
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(5px);
+  pointer-events: none;
+  transition:
+    opacity 0.16s ease,
+    transform 0.16s ease,
+    visibility 0.16s ease;
+}
+
+.root:hover .popover,
+.root:focus-within .popover,
+.open .popover {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+
+.popoverHead {
+  padding-bottom: 9px;
+  border-bottom: 1px solid #ece6dc;
+}
+
+.popoverHead > div {
+  display: grid;
+  gap: 2px;
+}
+
+.popoverHead span {
+  color: #737970;
+  font-size: 0.54rem;
+  font-weight: 850;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.popoverHead strong {
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 0.91rem;
+  font-weight: 500;
+}
+
+.items {
+  display: grid;
+}
+
+.item {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 9px 0;
+  border-bottom: 1px solid #efeae2;
+}
+
+.item > div {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.item strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.66rem;
+  line-height: 1.25;
+}
+
+.item span {
+  color: #787d76;
+  font-size: 0.56rem;
+}
+
+.item small {
+  flex: 0 0 auto;
+  color: #42604f;
+  font-size: 0.55rem;
+  font-weight: 850;
+  white-space: nowrap;
+}
+
+.viewAll {
+  display: inline-flex;
+  margin-top: 10px;
+  color: #315f4b;
+  font-size: 0.61rem;
+  font-weight: 900;
+  text-decoration: none;
+}
+
+.viewAll:hover {
+  text-decoration: underline;
+}
+
+@media (hover: none) {
+  .root:hover .popover {
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(5px);
+    pointer-events: none;
+  }
+
+  .root.open .popover,
+  .root:focus-within .popover {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+    pointer-events: auto;
+  }
+}
+
+@media (max-width: 520px) {
+  .root {
+    left: 9px;
+    bottom: 9px;
+  }
+
+  .trigger {
+    min-height: 30px;
+  }
+
+  .trigger b {
+    font-size: 0.57rem;
+  }
+
+  .popover {
+    width: min(270px, calc(100vw - 30px));
+  }
+}
