@@ -1,24 +1,24 @@
-Find A Place Booking — Date Carryover Overlay
+Find A Place Booking — Checkout Logo Release Overlay
 
 Drop this over the project root.
 
-Replaces:
-- components/BookingCard.tsx
+Files:
+- components/CheckoutBrandExit.tsx
+- app/checkout/page.tsx
 
-What it fixes:
-- When a guest searches dates/guest count on the home page, goes to /stays,
-  and then selects a property, the booking card now restores that same
-  check-in, check-out, and guest count from the existing results-page journey state.
-- If a property URL already contains checkin/checkout/guests, those values win.
-- This also covers property selections made from the results map because the
-  results page already records the clicked stay and the full search-results URL.
-- When the guest presses "Reserve these dates", the existing checkout route
-  receives those restored values as checkIn/checkOut/guests.
+Fix:
+The regular Find A Place logo was a plain Link to "/". Once a reservation hold
+had been created, clicking that logo navigated home without calling the
+checkout release endpoint, so the dates stayed blocked until the hold expired.
 
-This does NOT change:
-- availability rules
-- reservation holds
-- Stripe/payment logic
-- taxes
-- calendar syncing
-- booking confirmation
+The active checkout header now uses CheckoutBrandExit. It:
+- checks the checkout URL for reservationId + checkoutToken
+- calls the existing /api/booking/release endpoint
+- lets the server safely cancel any unfinished Stripe PaymentIntent first
+- releases the INTERNAL_HOLD
+- then navigates home
+
+The existing "Edit dates or guests" exit behavior is unchanged.
+
+It intentionally does NOT release holds on generic pagehide/visibility changes,
+because mobile browsers can fire those when the app is backgrounded.

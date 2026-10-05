@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { Brand } from "@/components/Brand";
+import { CheckoutBrandExit } from "@/components/CheckoutBrandExit";
 import { CheckoutExitLink } from "@/components/CheckoutExitLink";
 import { GuestCheckout } from "@/components/GuestCheckout";
 import { getPublishedListingBySlug } from "@/lib/public/listings";
@@ -93,7 +94,7 @@ export default async function CheckoutPage({
   return (
     <main className="checkout-page">
       <header className="checkout-header shell">
-        <Brand />
+        <CheckoutBrandExit />
         <CheckoutExitLink href={`/stays/${property.slug}`}>
           Edit dates or guests
         </CheckoutExitLink>
