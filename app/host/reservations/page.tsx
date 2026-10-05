@@ -229,6 +229,15 @@ export default async function ReservationsPage({
                       Review booking
                     </Link>
 
+                    {reservation.status === "CONFIRMED" ? (
+                      <Link
+                        className="button button-small button-quiet"
+                        href={`/host/reservations/${reservation.id}/cancel`}
+                      >
+                        Cancel / refund
+                      </Link>
+                    ) : null}
+
                     {localToolsAvailable && reservation.status === "HOLD" ? (
                       <form action={cancelTestHold}>
                         <input
