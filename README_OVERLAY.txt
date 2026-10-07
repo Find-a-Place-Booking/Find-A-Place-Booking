@@ -1,26 +1,15 @@
-Find A Place Booking — Mobile availability-first stay page
+Find A Place Booking — turn on host/onboarding contextual tips
 
-DROP/UNZIP OVER THE PROJECT ROOT.
+Drop this over the project root.
 
-What changes on phones (<=700px):
-  Property photos
-  -> live availability / booking card
-  -> property details
-  -> nearby experiences
+Changes:
+- Mounts the already-built HostHelpAssistant inside DashboardShell.
+- On /host/onboarding, tips default ON and follow the active onboarding step.
+- The existing Stripe walkthrough becomes visible from the Payments tip.
+- On other host dashboard pages, tips remain opt-in as originally designed.
+- No onboarding save logic, Stripe logic, calendar sync, checkout, or database code changes.
 
-Desktop/tablet ordering stays as it is now:
-  Property photos
-  -> nearby experiences
-  -> details + sticky booking card
+File:
+- components/DashboardShell.tsx
 
-The BookingCard is NOT duplicated. It is the same component and the same
-checkout/availability state; only CSS grid/flex ordering changes on mobile.
-
-Files:
-- app/stays/[slug]/page.tsx
-- app/stays/[slug]/stay-mobile-order.module.css
-
-No database, calendar, pricing, checkout, or booking logic changes.
-
-GitHub connector write access returned 403, so this overlay was prepared
-instead of claiming the repo was pushed.
+GitHub write access is still returning 403 from this connector, so this is a drop-in overlay instead of a claimed push.

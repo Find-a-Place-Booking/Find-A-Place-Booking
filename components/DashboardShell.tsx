@@ -2,6 +2,7 @@ import { Suspense } from "react";
 import Link from "next/link";
 
 import { signOutHost } from "@/app/auth/actions";
+import { HostHelpAssistant } from "@/components/HostHelpAssistant";
 import { HostOnboardingFeedbackCard } from "@/components/HostOnboardingFeedbackCard";
 import { HostReservationMessageLiveRefresh } from "@/components/HostReservationMessageLiveRefresh";
 import { getHostMessageAlertCount } from "@/lib/host/message-alerts";
@@ -98,7 +99,11 @@ export async function DashboardShell({
             </form>
           </div>
         </header>
+
+        <HostHelpAssistant />
+
         {children}
+
         {onboardingFeedbackPrompt ? (
           <HostOnboardingFeedbackCard
             propertyId={onboardingFeedbackPrompt.propertyId}
