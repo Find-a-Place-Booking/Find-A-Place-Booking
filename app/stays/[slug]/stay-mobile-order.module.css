@@ -1,0 +1,43 @@
+.postGallery {
+  display: block;
+}
+
+/* Desktop/tablet keeps the existing order:
+   gallery -> nearby experiences -> details + sticky booking card. */
+.nearby {
+  display: block;
+}
+
+.content {
+  display: grid;
+}
+
+.copy {
+  min-width: 0;
+}
+
+@media (max-width: 700px) {
+  .postGallery {
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* Mobile: availability immediately follows the property photos. */
+  .content {
+    order: 1;
+  }
+
+  .nearby {
+    order: 2;
+  }
+
+  .content > :global(.booking-card) {
+    grid-row: 1;
+    grid-column: 1;
+  }
+
+  .copy {
+    grid-row: 2;
+    grid-column: 1;
+  }
+}

@@ -17,6 +17,8 @@ import { getPublishedListingBySlug } from "@/lib/public/listings";
 import { absoluteUrl, seoDescription } from "@/lib/seo";
 import { createAdminClient } from "@/lib/supabase/admin";
 
+import mobileOrderStyles from "./stay-mobile-order.module.css";
+
 const getProperty = cache(getPublishedListingBySlug);
 
 type BedConfigurationEntry = {
@@ -225,157 +227,163 @@ export default async function PropertyPage({
           images={property.images}
         />
 
-        <div className="shell">
-          <PublicNearbyExperiences propertyId={property.propertyId} />
-        </div>
+        <div className={mobileOrderStyles.postGallery}>
+          <div className={`shell ${mobileOrderStyles.nearby}`}>
+            <PublicNearbyExperiences propertyId={property.propertyId} />
+          </div>
 
-        <div className="shell property-content">
-          <article className="property-copy">
-            <div className="stay-summary">
-              <div>
-                <strong>{property.sleeps}</strong>
-                <span>guests</span>
-              </div>
-
-              {property.bedrooms > 0 && (
+          <div
+            className={`shell property-content ${mobileOrderStyles.content}`}
+          >
+            <article
+              className={`property-copy ${mobileOrderStyles.copy}`}
+            >
+              <div className="stay-summary">
                 <div>
-                  <strong>{property.bedrooms}</strong>
-                  <span>bedrooms</span>
+                  <strong>{property.sleeps}</strong>
+                  <span>guests</span>
                 </div>
-              )}
 
-              {property.beds > 0 && (
+                {property.bedrooms > 0 && (
+                  <div>
+                    <strong>{property.bedrooms}</strong>
+                    <span>bedrooms</span>
+                  </div>
+                )}
+
+                {property.beds > 0 && (
+                  <div>
+                    <strong>{property.beds}</strong>
+                    <span>beds</span>
+                  </div>
+                )}
+
                 <div>
-                  <strong>{property.beds}</strong>
-                  <span>beds</span>
+                  <strong>{property.baths}</strong>
+                  <span>baths</span>
                 </div>
-              )}
 
-              <div>
-                <strong>{property.baths}</strong>
-                <span>baths</span>
+                <div>
+                  <strong>{property.type}</strong>
+                  <span>stay type</span>
+                </div>
               </div>
 
-              <div>
-                <strong>{property.type}</strong>
-                <span>stay type</span>
-              </div>
-            </div>
+              <h2>About this stay</h2>
+              <p className="lead-copy">{property.description}</p>
 
-            <h2>About this stay</h2>
-            <p className="lead-copy">{property.description}</p>
-
-            {bedConfiguration.length ? (
-              <>
-                <hr />
-                <h3>Sleeping arrangements</h3>
-                <div className="sleeping-arrangements">
-                  {bedConfiguration.map((entry) => (
-                    <span key={entry.type}>{bedLabel(entry)}</span>
-                  ))}
-                </div>
-              </>
-            ) : null}
-
-            <hr />
-            <h3>What this place offers</h3>
-
-            <div className="amenity-grid">
-              {visibleAmenities.length ? (
-                visibleAmenities.map((amenity) => (
-                  <span key={amenity}>✓ {amenity}</span>
-                ))
-              ) : (
-                <span>No additional amenities listed.</span>
-              )}
-            </div>
-
-            {property.customAmenities ? (
-              <p className="listing-custom-copy">
-                {property.customAmenities}
-              </p>
-            ) : null}
-
-            <hr />
-            <h3>Know before you book</h3>
-
-            <div className="amenity-grid">
-              {property.policies.map((policy) => (
-                <span key={policy}>✓ {policy}</span>
-              ))}
-            </div>
-
-            {property.customPolicies ? (
-              <p className="listing-custom-copy">
-                {property.customPolicies}
-              </p>
-            ) : null}
-
-            {property.policyDocument ? (
-              <p>
-                <a
-                  className="under-link"
-                  href={property.policyDocument.url}
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  Read full property policies (PDF) →
-                </a>
-              </p>
-            ) : null}
-
-            <div className="listing-stay-details">
-              <span>
-                Minimum stay: {property.minimumStayNights} night
-                {property.minimumStayNights === 1 ? "" : "s"}
-              </span>
-
-              {property.checkIn ? (
-                <span>
-                  Check-in: {property.checkIn.slice(0, 5)}
-                </span>
+              {bedConfiguration.length ? (
+                <>
+                  <hr />
+                  <h3>Sleeping arrangements</h3>
+                  <div className="sleeping-arrangements">
+                    {bedConfiguration.map((entry) => (
+                      <span key={entry.type}>{bedLabel(entry)}</span>
+                    ))}
+                  </div>
+                </>
               ) : null}
 
-              {property.checkout ? (
-                <span>
-                  Checkout: {property.checkout.slice(0, 5)}
-                </span>
+              <hr />
+              <h3>What this place offers</h3>
+
+              <div className="amenity-grid">
+                {visibleAmenities.length ? (
+                  visibleAmenities.map((amenity) => (
+                    <span key={amenity}>✓ {amenity}</span>
+                  ))
+                ) : (
+                  <span>No additional amenities listed.</span>
+                )}
+              </div>
+
+              {property.customAmenities ? (
+                <p className="listing-custom-copy">
+                  {property.customAmenities}
+                </p>
               ) : null}
-            </div>
 
-            {property.cancellationPolicy ? (
-              <p>
-                <strong>Cancellation:</strong>{" "}
-                {property.cancellationPolicy}
-              </p>
-            ) : null}
+              <hr />
+              <h3>Know before you book</h3>
 
-            <hr />
+              <div className="amenity-grid">
+                {property.policies.map((policy) => (
+                  <span key={policy}>✓ {policy}</span>
+                ))}
+              </div>
 
-            <PublicHostCard
-              propertyId={property.propertyId}
-              fallbackHostName={property.hostName}
-            />
+              {property.customPolicies ? (
+                <p className="listing-custom-copy">
+                  {property.customPolicies}
+                </p>
+              ) : null}
 
-            <hr />
+              {property.policyDocument ? (
+                <p>
+                  <a
+                    className="under-link"
+                    href={property.policyDocument.url}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    Read full property policies (PDF) →
+                  </a>
+                </p>
+              ) : null}
 
-            <PropertyReviews
+              <div className="listing-stay-details">
+                <span>
+                  Minimum stay: {property.minimumStayNights} night
+                  {property.minimumStayNights === 1 ? "" : "s"}
+                </span>
+
+                {property.checkIn ? (
+                  <span>
+                    Check-in: {property.checkIn.slice(0, 5)}
+                  </span>
+                ) : null}
+
+                {property.checkout ? (
+                  <span>
+                    Checkout: {property.checkout.slice(0, 5)}
+                  </span>
+                ) : null}
+              </div>
+
+              {property.cancellationPolicy ? (
+                <p>
+                  <strong>Cancellation:</strong>{" "}
+                  {property.cancellationPolicy}
+                </p>
+              ) : null}
+
+              <hr />
+
+              <PublicHostCard
+                propertyId={property.propertyId}
+                fallbackHostName={property.hostName}
+              />
+
+              <hr />
+
+              <PropertyReviews
+                rating={property.rating}
+                reviewCount={property.reviewCount}
+                reviews={property.reviews}
+              />
+            </article>
+
+            <BookingCard
+              unitId={property.unitId}
+              slug={property.slug}
+              price={property.price}
               rating={property.rating}
-              reviewCount={property.reviewCount}
-              reviews={property.reviews}
+              maxGuests={property.sleeps}
+              minimumStayNights={property.minimumStayNights}
+              checkoutEnabled={checkoutEnabled}
+              testMode={testMode}
             />
-          </article>
-
-          <BookingCard
-            unitId={property.unitId}
-            slug={property.slug}
-            price={property.price}
-            rating={property.rating}
-            maxGuests={property.sleeps}
-            minimumStayNights={property.minimumStayNights}
-            checkoutEnabled={checkoutEnabled}
-            testMode={testMode}
-          />
+          </div>
         </div>
 
         <Suspense fallback={null}>
