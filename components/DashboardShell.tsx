@@ -4,6 +4,7 @@ import Link from "next/link";
 import { signOutHost } from "@/app/auth/actions";
 import { HostHelpAssistant } from "@/components/HostHelpAssistant";
 import { HostOnboardingFeedbackCard } from "@/components/HostOnboardingFeedbackCard";
+import { HostRecoveryAlert } from "@/components/HostRecoveryAlert";
 import { HostReservationMessageLiveRefresh } from "@/components/HostReservationMessageLiveRefresh";
 import { getHostMessageAlertCount } from "@/lib/host/message-alerts";
 import { getHostOnboardingFeedbackPrompt } from "@/lib/host/onboarding-feedback";
@@ -101,6 +102,7 @@ export async function DashboardShell({
         </header>
 
         <HostHelpAssistant />
+        <HostRecoveryAlert />
 
         {children}
 

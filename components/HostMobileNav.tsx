@@ -9,6 +9,7 @@ const links = [
   ["Calendar", "/host/calendar"],
   ["Reservations", "/host/reservations"],
   ["Guest emails", "/host/guest-emails"],
+  ["Booking recovery", "/host/recovery"],
   ["Integrations", "/host/integrations/resnexus"],
   ["Rates & fees", "/host/rates"],
   ["Payments & taxes", "/host/payments"],

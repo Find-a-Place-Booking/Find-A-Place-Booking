@@ -11,6 +11,7 @@ const links = [
   ["Calendar", "/host/calendar"],
   ["Reservations", "/host/reservations"],
   ["Guest emails", "/host/guest-emails"],
+  ["Booking recovery", "/host/recovery"],
   ["Integrations", "/host/integrations/resnexus"],
   ["Rates & fees", "/host/rates"],
   ["Payments & taxes", "/host/payments"],
@@ -35,7 +36,7 @@ async function livePropertyLabel() {
     .eq("status", "ACTIVE");
 
   const organizationIds = (memberships ?? []).map(
-    (row) => row.organization_id as string,
+    (row: { organization_id: string }) => row.organization_id,
   );
   if (!organizationIds.length) return "No properties live yet";
 

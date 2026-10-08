@@ -1,0 +1,14 @@
+{
+  "feature": "missed-booking-recovery",
+  "prepared_for": "Find-a-Place-Booking/Find-A-Place-Booking",
+  "production_migrations_already_applied": [
+    "20261007222730_booking_recovery_campaigns",
+    "20261007222827_booking_recovery_hardening"
+  ],
+  "replaced_files": {
+    "components/DashboardShell.tsx": "8c06fdb5b9fd896c1bec6ff88b8ea20c47319c67",
+    "components/HostSidebar.tsx": "fcdb9e042fb186e1b9081b2c43ba4864decff1b1",
+    "components/HostMobileNav.tsx": "0010d32d2b5223067dada12692a068dc11e350bc",
+    "vercel.json": "099571546ef90e65830fd2ca2ec0dd643f7b8586"
+  }
+}

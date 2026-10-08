@@ -1,0 +1,169 @@
+.intro {
+  margin: 0 0 18px;
+  max-width: 860px;
+  color: #666b69;
+  line-height: 1.65;
+}
+
+.message {
+  margin-bottom: 16px;
+  padding: 12px 14px;
+  border: 1px solid #d9d4c9;
+  background: #f7f5ef;
+  font-size: 0.85rem;
+}
+
+.grid {
+  display: grid;
+  gap: 16px;
+}
+
+.card {
+  border: 1px solid #ddd6cb;
+  background: #fff;
+  padding: 18px;
+}
+
+.cardHead {
+  display: flex;
+  justify-content: space-between;
+  gap: 18px;
+  align-items: flex-start;
+  margin-bottom: 14px;
+}
+
+.cardHead h2,
+.cardHead h3 {
+  margin: 0;
+  font-family: Georgia, "Times New Roman", serif;
+  font-weight: 500;
+}
+
+.cardHead p {
+  margin: 4px 0 0;
+  color: #737771;
+  font-size: 0.78rem;
+}
+
+.settings {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.settings label {
+  display: grid;
+  gap: 5px;
+  align-content: start;
+}
+
+.settings label > span {
+  font-size: 0.67rem;
+  font-weight: 850;
+  color: #5f625d;
+}
+
+.settings input,
+.settings select {
+  width: 100%;
+  border: 1px solid #d5d2ca;
+  background: #fff;
+  padding: 10px 11px;
+}
+
+.check {
+  display: flex !important;
+  grid-column: span 2;
+  flex-direction: row;
+  align-items: center;
+  gap: 8px !important;
+  border: 1px solid #e4ded5;
+  background: #f8f6f1;
+  padding: 10px 11px;
+}
+
+.check input {
+  width: auto;
+}
+
+.actions {
+  grid-column: 1 / -1;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.opportunityGrid {
+  display: grid;
+  gap: 12px;
+}
+
+.opportunity {
+  border: 1px solid #d8d2c7;
+  background: #fff;
+  padding: 16px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 18px;
+  align-items: center;
+}
+
+.metrics {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+  color: #656a66;
+  font-size: 0.75rem;
+}
+
+.offerForm {
+  display: flex;
+  align-items: end;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.offerForm label {
+  display: grid;
+  gap: 4px;
+  font-size: 0.65rem;
+  font-weight: 800;
+}
+
+.offerForm input {
+  width: 82px;
+  border: 1px solid #d5d2ca;
+  padding: 9px 10px;
+}
+
+.empty {
+  color: #70746f;
+  font-size: 0.85rem;
+  padding: 16px 0 4px;
+}
+
+@media (max-width: 850px) {
+  .settings {
+    grid-template-columns: 1fr 1fr;
+  }
+  .opportunity {
+    grid-template-columns: 1fr;
+  }
+  .offerForm {
+    justify-content: flex-start;
+  }
+}
+
+@media (max-width: 560px) {
+  .settings {
+    grid-template-columns: 1fr;
+  }
+  .check {
+    grid-column: auto;
+  }
+  .actions .button,
+  .offerForm .button {
+    width: 100%;
+  }
+}
