@@ -1,15 +1,15 @@
-Find A Place Booking — turn on host/onboarding contextual tips
+Find A Place Booking — host signup policy review mobile fix
 
-Drop this over the project root.
+Replace:
+- components/HostSignupPolicyReview.tsx
+- components/HostSignupPolicyReview.module.css
 
-Changes:
-- Mounts the already-built HostHelpAssistant inside DashboardShell.
-- On /host/onboarding, tips default ON and follow the active onboarding step.
-- The existing Stripe walkthrough becomes visible from the Payments tip.
-- On other host dashboard pages, tips remain opt-in as originally designed.
-- No onboarding save logic, Stripe logic, calendar sync, checkout, or database code changes.
+What changes:
+- Required Host Agreement / Terms / Cancellation / Privacy reviews open inside a full-screen review panel.
+- The signup form stays mounted underneath, so name/contact/password entries are not lost.
+- "Done reviewing · next" advances through the remaining required documents.
+- The existing hidden evidence fields and final required agreement checkbox remain intact.
+- "Open separately" remains available as a fallback.
+- No auth, policy-version, database, onboarding, Stripe, or booking logic changes.
 
-File:
-- components/DashboardShell.tsx
-
-GitHub write access is still returning 403 from this connector, so this is a drop-in overlay instead of a claimed push.
+GitHub write access returned 403, so this is a drop-in overlay.
