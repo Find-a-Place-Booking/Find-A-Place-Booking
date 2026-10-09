@@ -9,7 +9,7 @@ import { GuestStayRecommendations } from "@/components/GuestStayRecommendations"
 import { Header } from "@/components/Header";
 import { JsonLd } from "@/components/JsonLd";
 import { PropertyActions } from "@/components/PropertyActions";
-import { PropertyGallery } from "@/components/PropertyGallery";
+import { PropertyMediaGallery } from "@/components/PropertyMediaGallery";
 import { PropertyReviews } from "@/components/PropertyReviews";
 import { PublicHostCard } from "@/components/PublicHostCard";
 import { PublicNearbyExperiences } from "@/components/PublicNearbyExperiences";
@@ -222,8 +222,9 @@ export default async function PropertyPage({
           />
         </div>
 
-        <PropertyGallery
+        <PropertyMediaGallery
           propertyName={property.name}
+          unitId={property.unitId}
           images={property.images}
         />
 

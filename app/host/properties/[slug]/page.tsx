@@ -10,6 +10,7 @@ import { NearbyExperiencesManager } from "@/components/NearbyExperiencesManager"
 import { PropertyEditor } from "@/components/PropertyEditor";
 import { PropertyPolicyDocument } from "@/components/PropertyPolicyDocument";
 import { PropertyPublicationControl } from "@/components/PropertyPublicationControl";
+import { PropertyVideoManager } from "@/components/PropertyVideoManager";
 import { getCurrentPropertyPolicyDocument } from "@/lib/host/policy-documents";
 import { getHostPropertyBySlug } from "@/lib/host/properties";
 
@@ -123,6 +124,14 @@ export default async function ManagePropertyPage({
       ) : null}
 
       <PropertyEditor initial={property} />
+
+      <PropertyVideoManager
+        organizationId={property.organizationId}
+        propertyId={property.propertyId}
+        unitId={property.unitId}
+        propertyName={property.form.name || "Property"}
+        editable={editable}
+      />
 
       <NearbyExperiencesManager
         propertyId={property.propertyId}
