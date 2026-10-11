@@ -9,6 +9,21 @@ import {
   subscribeToSavedStays,
 } from "@/lib/client/saved-stays";
 
+function fallbackCopy(value: string) {
+  const textarea = document.createElement("textarea");
+  textarea.value = value;
+  textarea.setAttribute("readonly", "");
+  textarea.style.position = "fixed";
+  textarea.style.opacity = "0";
+  textarea.style.pointerEvents = "none";
+  document.body.appendChild(textarea);
+  textarea.select();
+
+  const copied = document.execCommand("copy");
+  textarea.remove();
+  return copied;
+}
+
 export function PropertyActions({
   propertyName = "",
   propertySlug = "",
@@ -18,6 +33,7 @@ export function PropertyActions({
 }) {
   const [saved, setSaved] = useState(false);
   const [shared, setShared] = useState(false);
+  const [copyFailed, setCopyFailed] = useState(false);
 
   useEffect(() => {
     if (!propertySlug) return;
@@ -29,28 +45,28 @@ export function PropertyActions({
     });
   }, [propertySlug]);
 
-  async function share() {
-    try {
-      const canNativeShare = typeof navigator.share === "function";
+  async function copyLink() {
+    const url = window.location.href;
 
-      if (canNativeShare) {
-        await navigator.share({
-          title: propertyName || document.title,
-          url: window.location.href,
-        });
-      } else {
-        await navigator.clipboard?.writeText(window.location.href);
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(url);
+      } else if (!fallbackCopy(url)) {
+        throw new Error("Copy unavailable");
       }
 
       track("stay_share", {
         slug: propertySlug,
-        method: canNativeShare ? "native" : "copy",
+        method: "copy",
       });
 
+      setCopyFailed(false);
       setShared(true);
       window.setTimeout(() => setShared(false), 1800);
     } catch {
       setShared(false);
+      setCopyFailed(true);
+      window.setTimeout(() => setCopyFailed(false), 2500);
     }
   }
 
@@ -77,8 +93,16 @@ export function PropertyActions({
       <button type="button" onClick={toggleSaved} aria-pressed={saved}>
         {saved ? "♥ Saved" : "♡ Save"}
       </button>
-      <button type="button" onClick={share}>
-        {shared ? "✓ Link copied" : "↗ Share"}
+      <button
+        type="button"
+        onClick={copyLink}
+        aria-label={`Copy link to ${propertyName || "this stay"}`}
+      >
+        {shared
+          ? "✓ Link copied"
+          : copyFailed
+            ? "Copy failed — try again"
+            : "⧉ Copy link"}
       </button>
     </div>
   );

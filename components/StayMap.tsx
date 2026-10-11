@@ -61,10 +61,24 @@ function stayImage(stay: StayMapItem) {
   );
 }
 
+function protectImage(image: HTMLImageElement) {
+  image.addEventListener(
+    "error",
+    () => {
+      if (image.dataset.fallback === "1") return;
+      image.dataset.fallback = "1";
+      image.src = "/brand/find-a-place-seal.png";
+      image.classList.add("is-fallback");
+    },
+    { once: true },
+  );
+}
+
 function popupNode(stay: StayMapItem) {
   const card = document.createElement("a");
   card.className = "stay-map-popup";
   card.href = `/stays/${encodeURIComponent(stay.slug)}`;
+  card.setAttribute("aria-label", `View ${stay.name}`);
   card.addEventListener("click", () => {
     track("property_click", {
       slug: stay.slug,
@@ -78,6 +92,7 @@ function popupNode(stay: StayMapItem) {
   image.alt = "";
   image.loading = "lazy";
   image.decoding = "async";
+  protectImage(image);
   card.appendChild(image);
 
   const copy = document.createElement("span");
@@ -98,6 +113,11 @@ function popupNode(stay: StayMapItem) {
       : "";
   meta.textContent = `$${Math.max(0, Math.round(stay.price))}/night${rating}`;
   copy.appendChild(meta);
+
+  const action = document.createElement("b");
+  action.className = "stay-map-popup-action";
+  action.textContent = "View stay →";
+  copy.appendChild(action);
 
   card.appendChild(copy);
   return card;
@@ -156,6 +176,7 @@ function clusterPopupNode(
       const link = document.createElement("a");
       link.className = styles.clusterStay;
       link.href = `/stays/${encodeURIComponent(stay.slug)}`;
+      link.setAttribute("aria-label", `View ${stay.name}`);
       link.addEventListener("click", () => {
         track("property_click", {
           slug: stay.slug,
@@ -169,6 +190,7 @@ function clusterPopupNode(
       image.alt = "";
       image.loading = "lazy";
       image.decoding = "async";
+      protectImage(image);
 
       const copy = document.createElement("span");
       const name = document.createElement("strong");
@@ -193,7 +215,7 @@ function clusterPopupNode(
   const footer = document.createElement("div");
   footer.className = styles.clusterFooter;
   const hint = document.createElement("span");
-  hint.textContent = "Browse here or zoom in to separate the pins.";
+  hint.textContent = "Tap a stay to open it, or zoom in to separate the pins.";
   const zoom = document.createElement("button");
   zoom.type = "button";
   zoom.textContent = "Zoom into this area";
@@ -236,6 +258,13 @@ export function StayMap({
       const mapboxgl = module.default;
       mapboxgl.accessToken = token;
 
+      const touchLayout = window.matchMedia(
+        "(max-width: 700px), (pointer: coarse)",
+      ).matches;
+      const hoverCapable = window.matchMedia(
+        "(hover: hover) and (pointer: fine)",
+      ).matches;
+
       const first = mappedStays[0];
       const map = new mapboxgl.Map({
         container: containerRef.current,
@@ -245,10 +274,12 @@ export function StayMap({
         attributionControl: false,
       });
 
-      map.addControl(
-        new mapboxgl.NavigationControl({ showCompass: false }),
-        "top-right",
-      );
+      if (!touchLayout) {
+        map.addControl(
+          new mapboxgl.NavigationControl({ showCompass: false }),
+          "top-right",
+        );
+      }
       map.addControl(
         new mapboxgl.AttributionControl({ compact: true }),
         "bottom-right",
@@ -257,14 +288,15 @@ export function StayMap({
       const stayPopup = new mapboxgl.Popup({
         closeButton: true,
         closeOnClick: true,
-        maxWidth: "310px",
-        offset: 18,
+        maxWidth: touchLayout ? "calc(100vw - 26px)" : "310px",
+        offset: touchLayout ? 14 : 18,
+        className: styles.stayMapboxPopup,
       });
       const clusterPopup = new mapboxgl.Popup({
         closeButton: true,
-        closeOnClick: false,
-        maxWidth: "400px",
-        offset: 20,
+        closeOnClick: touchLayout,
+        maxWidth: touchLayout ? "calc(100vw - 20px)" : "400px",
+        offset: touchLayout ? 14 : 20,
         className: styles.clusterMapboxPopup,
       });
 
@@ -276,6 +308,7 @@ export function StayMap({
         closeTimer = null;
       };
       const scheduleClusterClose = () => {
+        if (!hoverCapable) return;
         cancelClusterClose();
         closeTimer = setTimeout(() => {
           clusterPopup.remove();
@@ -310,7 +343,7 @@ export function StayMap({
           data: geojson,
           cluster: true,
           clusterMaxZoom: 10,
-          clusterRadius: 48,
+          clusterRadius: touchLayout ? 54 : 48,
         });
 
         map.addLayer({
@@ -323,11 +356,11 @@ export function StayMap({
             "circle-radius": [
               "step",
               ["get", "point_count"],
-              20,
+              touchLayout ? 22 : 20,
               10,
-              24,
+              touchLayout ? 27 : 24,
               50,
-              30,
+              touchLayout ? 31 : 30,
             ],
             "circle-stroke-color": "#ffffff",
             "circle-stroke-width": 2,
@@ -341,7 +374,7 @@ export function StayMap({
           filter: ["has", "point_count"],
           layout: {
             "text-field": ["get", "point_count_abbreviated"],
-            "text-size": 12,
+            "text-size": touchLayout ? 13 : 12,
           },
           paint: { "text-color": "#ffffff" },
         });
@@ -353,7 +386,7 @@ export function StayMap({
           filter: ["!", ["has", "point_count"]],
           paint: {
             "circle-color": "#1d2d32",
-            "circle-radius": 22,
+            "circle-radius": touchLayout ? 24 : 22,
             "circle-stroke-color": "#ffffff",
             "circle-stroke-width": 2,
           },
@@ -366,7 +399,7 @@ export function StayMap({
           filter: ["!", ["has", "point_count"]],
           layout: {
             "text-field": ["get", "priceLabel"],
-            "text-size": 11,
+            "text-size": touchLayout ? 12 : 11,
             "text-allow-overlap": true,
           },
           paint: { "text-color": "#ffffff" },
@@ -376,7 +409,9 @@ export function StayMap({
           map.jumpTo({ center: [first.lng, first.lat], zoom: 10 });
         } else {
           map.fitBounds(bounds, {
-            padding: { top: 70, right: 60, bottom: 60, left: 60 },
+            padding: touchLayout
+              ? { top: 58, right: 28, bottom: 38, left: 28 }
+              : { top: 70, right: 60, bottom: 60, left: 60 },
             maxZoom: 10,
             duration: 0,
           });
@@ -386,42 +421,61 @@ export function StayMap({
       const openStay = (event: MapLayerMouseEvent) => {
         clusterPopup.remove();
         activeClusterId = null;
-        const feature = event.features?.[0] as unknown as MapPointFeature | undefined;
+        const feature = event.features?.[0] as unknown as
+          | MapPointFeature
+          | undefined;
         const slug = String(feature?.properties?.slug ?? "");
         const stay = stayBySlug.get(slug);
         const coordinates = pointCoordinates(feature);
         if (!stay || !coordinates) return;
-        stayPopup.setLngLat(coordinates).setDOMContent(popupNode(stay)).addTo(map);
+
+        stayPopup
+          .setLngLat(coordinates)
+          .setDOMContent(popupNode(stay))
+          .addTo(map);
+
+        if (touchLayout) {
+          map.easeTo({
+            center: coordinates,
+            offset: [0, 78],
+            duration: 180,
+          });
+        }
       };
 
       const openCluster = async (event: MapLayerMouseEvent) => {
         cancelClusterClose();
         stayPopup.remove();
 
-        const feature = event.features?.[0] as unknown as MapPointFeature | undefined;
+        const feature = event.features?.[0] as unknown as
+          | MapPointFeature
+          | undefined;
         const coordinates = pointCoordinates(feature);
         const clusterId = Number(feature?.properties?.cluster_id);
         const pointCount = Number(feature?.properties?.point_count || 0);
         if (!coordinates || !Number.isFinite(clusterId)) return;
         if (activeClusterId === clusterId && clusterPopup.isOpen()) return;
 
-        const source = map.getSource("find-a-place-stays") as GeoJSONSource | undefined;
+        const source = map.getSource(
+          "find-a-place-stays",
+        ) as GeoJSONSource | undefined;
         if (!source) return;
 
         try {
-          const leaves = await new Promise<any[]>(
-            (resolve, reject) => {
-              source.getClusterLeaves(
-                clusterId,
-                Math.max(1, Math.min(pointCount || mappedStays.length, 100)),
-                0,
-                (clusterError, features) => {
-                  if (clusterError) reject(clusterError);
-                  else resolve(features || []);
-                },
-              );
-            },
-          );
+          const leaves = await new Promise<any[]>((resolve, reject) => {
+            source.getClusterLeaves(
+              clusterId,
+              Math.max(
+                1,
+                Math.min(pointCount || mappedStays.length, touchLayout ? 24 : 40),
+              ),
+              0,
+              (clusterError, features) => {
+                if (clusterError) reject(clusterError);
+                else resolve(features || []);
+              },
+            );
+          });
           if (disposed) return;
 
           const clusterStays = leaves.flatMap((leaf) => {
@@ -471,29 +525,46 @@ export function StayMap({
           );
 
           activeClusterId = clusterId;
-          clusterPopup.setLngLat(coordinates).setDOMContent(node).addTo(map);
+          clusterPopup
+            .setLngLat(coordinates)
+            .setDOMContent(node)
+            .addTo(map);
+
+          if (touchLayout) {
+            map.easeTo({
+              center: coordinates,
+              offset: [0, 96],
+              duration: 180,
+            });
+          }
+
           track("map_cluster_open", {
             count: pointCount || clusterStays.length,
             surface: "stay_map",
           });
         } catch (error) {
-          console.error("[stay map cluster] unable to load cluster leaves", error);
+          console.error(
+            "[stay map cluster] unable to load cluster leaves",
+            error,
+          );
         }
       };
 
       map.on("click", "stay-points", openStay);
       map.on("click", "stay-price-labels", openStay);
       map.on("click", "stay-clusters", (event) => void openCluster(event));
+      map.on("click", "stay-cluster-count", (event) => void openCluster(event));
 
-      const hoverCapable = window.matchMedia("(hover: hover) and (pointer: fine)").matches;
       if (hoverCapable) {
-        map.on("mouseenter", "stay-clusters", (event) => {
-          map.getCanvas().style.cursor = "pointer";
-          void openCluster(event);
-        });
-        map.on("mouseleave", "stay-clusters", () => {
-          map.getCanvas().style.cursor = "";
-          scheduleClusterClose();
+        ["stay-clusters", "stay-cluster-count"].forEach((layer) => {
+          map.on("mouseenter", layer, (event) => {
+            map.getCanvas().style.cursor = "pointer";
+            void openCluster(event);
+          });
+          map.on("mouseleave", layer, () => {
+            map.getCanvas().style.cursor = "";
+            scheduleClusterClose();
+          });
         });
       }
 

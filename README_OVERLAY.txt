@@ -1,50 +1,51 @@
-Find A Place Booking — direct property search + property video upgrade
+Find A Place Booking — Share + Social Preview + Mobile Map + Host Help polish
 
-DROP/UNZIP OVER THE PROJECT ROOT.
+Drop these files into the repo at the same paths, replacing the existing files, then deploy.
 
-Guest property search
-- Adds "Already know the place?" directly above the existing trip search.
-- Autocompletes published property names after 2 characters.
-- Prefix matches are ranked first, then other partial-name matches.
-- Selecting a result goes straight to /stays/[slug].
-- Pressing Enter / the search icon opens the first matching property.
-- Available on both the home page and /stays because it is part of SearchBar.
-- Does not change destination/date/guest search behavior.
+Files changed
+- components/PropertyActions.tsx
+- app/api/public/stay-social-image/[slug]/route.ts
+- app/stays/[slug]/opengraph-image.tsx
+- components/StayMap.tsx
+- components/StayMap.module.css
+- components/HostHelpAssistant.tsx
+- components/HostHelpAssistant.module.css
 
-Host property video
-- Adds a Property Video panel to every host property editor.
-- One optional video per property/unit.
-- MP4 or WebM only for reliable cross-browser playback.
-- Up to 60 seconds and 75 MB.
-- Hosts can replace/remove it and choose "Use video as the main media."
-- If primary, the stay page shows the video in the large gallery slot.
-- If not primary, the video stays available from the gallery/watch-video control.
-- Video never auto-plays merely because the stay page loaded; it auto-plays only after the guest explicitly opens the video viewer.
-- The first photo remains the card/search/social fallback even when video is primary.
-- Existing photo requirements and photo order are unchanged.
+What this fixes / improves
 
-Database/storage
-- Adds public.property_videos with host-only RLS access.
-- Adds a private property-videos Storage bucket with host organization/property policies.
-- Public stay pages receive only a short-lived signed video URL generated server-side after the listing has already passed the published-listing lookup.
-- No anonymous/public table or bucket access is granted.
-- Video MIME, size, duration and one-video-per-unit constraints are enforced in the database/storage layer as well as the UI.
+1. One-tap Copy link
+- Removes the native share-sheet detour from the main stay action.
+- Clicking Copy link writes the stay URL directly to the clipboard.
+- Includes a fallback copy method for browsers/in-app browsers where Clipboard API is unavailable.
+- Shows Link copied or a short copy-failed state.
 
-Migrations
-- supabase/migrations/20261009013500_property_video_media.sql
-- supabase/migrations/20261009015800_property_video_media_hardening.sql
-- supabase/migrations/20261009020100_property_video_duration_required.sql
+2. Stable property photo for shared links
+- The stay social-image endpoint no longer redirects Facebook/Messenger crawlers to a short-lived signed Supabase URL.
+- Find A Place now serves the property image bytes from the stable Find A Place social-image URL.
+- Keeps the property primary photo as first choice and the Find A Place seal only as fallback.
+- The Next.js opengraph-image route uses the same stable image loader for consistency.
 
-All three schema migrations are already applied to production in this work session after validation. Keep the files in the repo for migration history; do not manually re-run them against production.
+3. Mobile map cleanup
+- Larger touch targets for price pins/clusters.
+- Removes desktop zoom controls on touch layouts to free map space.
+- Single-stay popup becomes a compact horizontal card on mobile with photo, property name, price/rating and View stay CTA.
+- Cluster popup is shorter and easier to use on small screens, with a capped list, compact cards and full-width zoom button.
+- Mobile popup opening recenters the selected point so the card is less likely to be clipped.
+- Cluster count labels are clickable, not only the circle underneath.
+- Broken map thumbnails fall back to the Find A Place seal instead of showing a broken image.
 
-Validation completed
-- All new/changed TS and TSX files passed isolated TypeScript transpile syntax checks.
-- New search/video components passed a semantic TypeScript check with dependency shims.
-- CSS module class references and brace balance were checked.
-- Production RLS, grants, Storage bucket restrictions and policies were verified.
-- Supabase security advisor reports no findings for property_videos/property-videos.
-- The only current performance advisor note is the expected unused new FK index because the video table has no real rows yet.
-- A transaction-only insert verified the new video table shape without leaving test data behind.
-- Published-listing data was checked with Lil' Rustic to verify property-name search has the required slug/name/location fields.
+4. Better contextual host help
+- Help tips default on for hosts who have not explicitly hidden them.
+- Critical areas are visually marked Important on this screen.
+- Adds practical bullets to Calendar, Integrations, Payments, Guest emails, Properties, Reservations, and Booking recovery.
+- Adds stronger onboarding guidance for Photos, Taxes, Policies, Calendar, Payments and Review.
+- Booking recovery now has its own contextual explanation instead of falling back to the generic host dashboard tip.
+- Existing Hide tips preference remains respected.
 
-GitHub connector write access still returns 403, so the application files are packaged as an overlay instead of a claimed push/deploy. The database/storage portion IS already live; the UI/API portion becomes live after this overlay is deployed.
+Validation
+- All TS/TSX files in this overlay were parsed/transpiled with TypeScript successfully.
+- No database migrations or environment-variable changes are required.
+- No booking/payment/calendar routing was changed.
+
+GitHub write note
+- The connected GitHub integration still returns 403 Resource not accessible by integration for repo writes, so this overlay was prepared instead of falsely claiming a push.

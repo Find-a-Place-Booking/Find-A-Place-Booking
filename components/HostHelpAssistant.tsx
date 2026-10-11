@@ -19,6 +19,147 @@ import styles from "./HostHelpAssistant.module.css";
 const ONBOARDING_KEY = "fap_host_onboarding_help_enabled_v1";
 const DASHBOARD_KEY = "fap_host_dashboard_help_enabled_v1";
 
+type DisplayHelp = ContextHelp & {
+  important?: boolean;
+};
+
+const onboardingEnhancements: Record<
+  string,
+  Partial<DisplayHelp>
+> = {
+  Photos: {
+    bullets: [
+      "The first photo is the cover image guests see first.",
+      "That cover is also used for stay cards and shared-link previews.",
+      "Use a clear exterior or room photo rather than a logo when possible.",
+    ],
+  },
+  Taxes: {
+    important: true,
+    bullets: [
+      "Statewide configured taxes are handled separately from optional local lines.",
+      "Only add county, city or lodging taxes that actually apply to this property.",
+      "Tax setup should not be used as a reason to enter made-up rates just to finish setup.",
+    ],
+  },
+  Policies: {
+    important: true,
+    bullets: [
+      "Guests accept these terms during checkout.",
+      "Use exact cancellation/refund wording you can actually follow later.",
+      "Check-in, checkout, pet and age rules should match what happens at the property.",
+    ],
+  },
+  Calendar: {
+    important: true,
+    bullets: [
+      "Choose the system that really controls this property's availability.",
+      "If another platform or PMS takes bookings, do not choose Find A Place only just to get through setup.",
+      "For iCal/PMS, verify at least one known blocked or booked date after connecting.",
+    ],
+  },
+  Payments: {
+    important: true,
+    bullets: [
+      "Stripe must show ready before the first listing can take live payments.",
+      "Bank and identity information stays inside Stripe.",
+      "If Stripe asks for a website, a public property/booking page can usually be used.",
+    ],
+  },
+  Review: {
+    important: true,
+    bullets: [
+      "Fix anything marked Required before finishing.",
+      "Make sure the calendar source is correct before publishing.",
+      "Confirm the cover photo, nightly rate and cancellation wording one last time.",
+    ],
+  },
+};
+
+const routeEnhancements: Array<{
+  prefix: string;
+  patch: Partial<DisplayHelp>;
+}> = [
+  {
+    prefix: "/host/calendar",
+    patch: {
+      important: true,
+      bullets: [
+        "Pick the correct property before judging whether dates are missing.",
+        "Click a date to see whether it came from Find A Place, an outside calendar, an owner block or a safety range.",
+        "Do not manually reopen an externally blocked date until the source is verified.",
+      ],
+    },
+  },
+  {
+    prefix: "/host/integrations",
+    patch: {
+      important: true,
+      bullets: [
+        "Match every outside source to the exact cabin, room or site.",
+        "Two-way iCal needs the outside feed coming in and the Find A Place export added back to the outside platform.",
+        "After setup, compare one known reservation or blocked date before relying on the sync.",
+      ],
+    },
+  },
+  {
+    prefix: "/host/payments",
+    patch: {
+      important: true,
+      bullets: [
+        "Stripe readiness and tax setup are separate checks.",
+        "Never send passwords, bank numbers or identity documents to Find A Place support.",
+        "If Stripe changes a requirement later, reopen the Stripe setup here and finish it.",
+      ],
+    },
+  },
+  {
+    prefix: "/host/guest-emails",
+    patch: {
+      important: true,
+      bullets: [
+        "Keep instructions property-specific when access details differ.",
+        "If a message needs an access code, make sure the reservation has one before the send window.",
+        "Avoid duplicate rules that send nearly the same message at the same time.",
+      ],
+    },
+  },
+  {
+    prefix: "/host/properties",
+    patch: {
+      bullets: [
+        "The primary photo is used for the listing card and shared-link preview.",
+        "Keep sleeping capacity, bed sizes and amenities consistent with the actual stay.",
+        "Use Archive only when the property should no longer be active in the marketplace.",
+      ],
+    },
+  },
+  {
+    prefix: "/host/reservations",
+    patch: {
+      important: true,
+      bullets: [
+        "Confirm the exact property and dates before changing anything.",
+        "Check payment status before approving a refund or cancellation.",
+        "Use the saved property cancellation terms as the reference for guest requests.",
+      ],
+    },
+  },
+];
+
+const bookingRecoveryHelp: DisplayHelp = {
+  title: "Recovery only works when the property is intentionally opted in.",
+  body:
+    "The 24-hour reminder only goes out while the same dates are still available. After about 3 days, discount offers follow the mode you choose here: ask first, automatic, or off.",
+  articleId: "guest-emails",
+  important: true,
+  bullets: [
+    "The first reminder does not hold the dates for the guest.",
+    "Recovery discounts apply to lodging, not taxes or unrelated fees.",
+    "Automatic offers should use a discount you are comfortable sending without another approval.",
+  ],
+};
+
 const stripeCoachSteps = [
   {
     title: "Choose the Stripe path that fits you",
@@ -97,6 +238,19 @@ function routeHelp(pathname: string): ContextHelp | null {
   return match?.help ?? null;
 }
 
+function mergeHelp(
+  base: ContextHelp,
+  patch: Partial<DisplayHelp> | undefined,
+): DisplayHelp {
+  if (!patch) return base;
+
+  return {
+    ...base,
+    ...patch,
+    bullets: patch.bullets ?? base.bullets,
+  };
+}
+
 export function HostHelpAssistant() {
   const pathname = usePathname();
   const onboarding = pathname === "/host/onboarding";
@@ -112,7 +266,7 @@ export function HostHelpAssistant() {
 
   useEffect(() => {
     const key = onboarding ? ONBOARDING_KEY : DASHBOARD_KEY;
-    setEnabled(storedEnabled(key, onboarding));
+    setEnabled(storedEnabled(key, true));
     setReady(true);
   }, [onboarding]);
 
@@ -143,14 +297,28 @@ export function HostHelpAssistant() {
     return () => observer.disconnect();
   }, [onboarding]);
 
-  const help = useMemo(() => {
+  const help = useMemo<DisplayHelp | null>(() => {
     if (pathname === "/host/help") return null;
 
     if (onboarding && onboardingStep) {
-      return ONBOARDING_HELP[onboardingStep] ?? null;
+      const base = ONBOARDING_HELP[onboardingStep];
+      return base
+        ? mergeHelp(base, onboardingEnhancements[onboardingStep])
+        : null;
     }
 
-    return routeHelp(pathname);
+    if (pathname.startsWith("/host/recovery")) {
+      return bookingRecoveryHelp;
+    }
+
+    const base = routeHelp(pathname);
+    if (!base) return null;
+
+    const enhancement = routeEnhancements.find((entry) =>
+      pathname.startsWith(entry.prefix),
+    );
+
+    return mergeHelp(base, enhancement?.patch);
   }, [onboarding, onboardingStep, pathname]);
 
   const saveEnabled = useCallback(
@@ -248,13 +416,22 @@ export function HostHelpAssistant() {
 
   return (
     <>
-      <aside className={styles.tipCard} aria-label="Contextual host help">
+      <aside
+        className={`${styles.tipCard} ${help.important ? styles.important : ""}`}
+        aria-label="Contextual host help"
+      >
         <div className={styles.tipIcon} aria-hidden="true">
-          ?
+          {help.important ? "!" : "?"}
         </div>
 
         <div className={styles.tipCopy}>
-          <span>{onboarding ? "Setup tip" : "Help tip"}</span>
+          <span>
+            {help.important
+              ? "Important on this screen"
+              : onboarding
+                ? "Setup tip"
+                : "Help tip"}
+          </span>
           <strong>{help.title}</strong>
           <p>{help.body}</p>
 
@@ -270,10 +447,7 @@ export function HostHelpAssistant() {
             <Link href={articleHref}>Read the related FAQ →</Link>
 
             {help.stripeWalkthrough ? (
-              <button
-                type="button"
-                onClick={startStripeCoach}
-              >
+              <button type="button" onClick={startStripeCoach}>
                 Start Stripe setup walkthrough
               </button>
             ) : null}
@@ -311,13 +485,9 @@ export function HostHelpAssistant() {
           <section className={styles.coachCard}>
             <div className={styles.coachHead}>
               <span>
-                Stripe setup · {coachStep + 1} of{" "}
-                {stripeCoachSteps.length}
+                Stripe setup · {coachStep + 1} of {stripeCoachSteps.length}
               </span>
-              <button
-                type="button"
-                onClick={() => setCoachOpen(false)}
-              >
+              <button type="button" onClick={() => setCoachOpen(false)}>
                 Hide guide
               </button>
             </div>
