@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { createClient } from "@/lib/supabase/client";
 import styles from "./OnboardingPhotoManager.module.css";
@@ -36,6 +36,13 @@ function extensionFor(file: File) {
   return "jpg";
 }
 
+function moveItem<T>(items: T[], from: number, to: number) {
+  const next = [...items];
+  const [item] = next.splice(from, 1);
+  next.splice(to, 0, item);
+  return next;
+}
+
 export function OnboardingPhotoManager({
   organizationId,
   propertyName,
@@ -46,15 +53,22 @@ export function OnboardingPhotoManager({
   const [images, setImages] = useState<Photo[]>([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
+  const [organizingPhotos, setOrganizingPhotos] = useState(false);
   const [message, setMessage] = useState(
     "Preparing the real listing photo storage…",
   );
   const [error, setError] = useState<string | null>(null);
 
+  const orderedImages = useMemo(
+    () => [...images].sort((a, b) => a.sortOrder - b.sortOrder),
+    [images],
+  );
+
   const publishNames = useCallback(
     (next: Photo[]) => {
+      const ordered = [...next].sort((a, b) => a.sortOrder - b.sortOrder);
       onPhotoNamesChange?.(
-        next
+        ordered
           .map((image) => image.originalName?.trim() || "")
           .filter(Boolean),
       );
@@ -116,7 +130,7 @@ export function OnboardingPhotoManager({
   }, [load]);
 
   async function uploadFiles(files: FileList | null) {
-    if (!files?.length || uploading || !target) return;
+    if (!files?.length || uploading || organizingPhotos || !target) return;
 
     const remaining = Math.max(0, 25 - images.length);
     if (!remaining) {
@@ -139,7 +153,7 @@ export function OnboardingPhotoManager({
       return;
     }
 
-    const nextImages = [...images];
+    const nextImages = [...orderedImages];
 
     for (const file of selected) {
       if (!allowedTypes.has(file.type) || file.size > 10 * 1024 * 1024) {
@@ -214,13 +228,13 @@ export function OnboardingPhotoManager({
 
     if (nextImages.length > images.length) {
       setMessage(
-        `${nextImages.length} photo${nextImages.length === 1 ? "" : "s"} saved to the real listing. You will not need to upload them again later.`,
+        `${nextImages.length} photo${nextImages.length === 1 ? "" : "s"} saved to the real listing. You can set the cover and reorder them below.`,
       );
     }
   }
 
   async function removeImage(image: Photo) {
-    if (uploading || !target) return;
+    if (uploading || organizingPhotos || !target) return;
 
     setUploading(true);
     setError(null);
@@ -241,10 +255,25 @@ export function OnboardingPhotoManager({
       .from("property-images")
       .remove([image.storagePath]);
 
-    const nextImages = images.filter((item) => item.id !== image.id);
+    const nextImages = orderedImages
+      .filter((item) => item.id !== image.id)
+      .map((item, index) => ({ ...item, sortOrder: index }));
     setImages(nextImages);
     publishNames(nextImages);
     setUploading(false);
+
+    if (nextImages.length && target) {
+      const { error: normalizeError } = await supabase.rpc(
+        "reorder_property_images",
+        {
+          target_unit_id: target.unitId,
+          ordered_image_ids: nextImages.map((item) => item.id),
+        },
+      );
+      if (normalizeError) {
+        console.error("[onboarding photo order normalize]", normalizeError);
+      }
+    }
 
     if (storageError) {
       console.error("[onboarding photo storage cleanup]", storageError);
@@ -261,6 +290,57 @@ export function OnboardingPhotoManager({
     );
   }
 
+  async function persistPhotoOrder(next: Photo[]) {
+    if (!target || uploading || organizingPhotos) return;
+
+    const previous = orderedImages;
+    const normalized = next.map((image, index) => ({
+      ...image,
+      sortOrder: index,
+    }));
+
+    setImages(normalized);
+    publishNames(normalized);
+    setOrganizingPhotos(true);
+    setError(null);
+    setMessage("Saving photo order…");
+
+    const supabase = createClient();
+    const { error: reorderError } = await supabase.rpc(
+      "reorder_property_images",
+      {
+        target_unit_id: target.unitId,
+        ordered_image_ids: normalized.map((image) => image.id),
+      },
+    );
+
+    setOrganizingPhotos(false);
+
+    if (reorderError) {
+      console.error("[onboarding reorder property images]", reorderError);
+      setImages(previous);
+      publishNames(previous);
+      setError("Couldn't save the new photo order. Nothing was changed.");
+      setMessage("Photo order was not changed.");
+      return;
+    }
+
+    setMessage(
+      "Photo order saved. The first photo is now the cover used on the listing and shared-link preview.",
+    );
+  }
+
+  function movePhoto(index: number, direction: -1 | 1) {
+    const targetIndex = index + direction;
+    if (targetIndex < 0 || targetIndex >= orderedImages.length) return;
+    void persistPhotoOrder(moveItem(orderedImages, index, targetIndex));
+  }
+
+  function makePrimaryPhoto(index: number) {
+    if (index === 0) return;
+    void persistPhotoOrder(moveItem(orderedImages, index, 0));
+  }
+
   return (
     <div className={styles.manager}>
       <div className={styles.status}>
@@ -270,7 +350,9 @@ export function OnboardingPhotoManager({
               ? "Preparing photo storage"
               : uploading
                 ? "Saving photos"
-                : "Photos save immediately"}
+                : organizingPhotos
+                  ? "Saving photo order"
+                  : "Photos save immediately"}
           </strong>
           <span>{message}</span>
         </div>
@@ -285,8 +367,8 @@ export function OnboardingPhotoManager({
         <span>＋</span>
         <strong>Add property photos</strong>
         <p>
-          JPG, PNG or WebP, up to 10 MB each and 25 photos total. The first
-          photo is the cover image.
+          JPG, PNG or WebP, up to 10 MB each and 25 photos total. You can
+          choose the cover and reorder photos after upload.
         </p>
         <span className="button button-small button-quiet">
           {uploading ? "Uploading…" : "Choose photos"}
@@ -296,7 +378,7 @@ export function OnboardingPhotoManager({
           type="file"
           accept="image/png,image/jpeg,image/webp"
           multiple
-          disabled={loading || uploading || !target}
+          disabled={loading || uploading || organizingPhotos || !target}
           onChange={(event) => {
             void uploadFiles(event.target.files);
             event.currentTarget.value = "";
@@ -304,36 +386,87 @@ export function OnboardingPhotoManager({
         />
       </label>
 
-      {images.length ? (
-        <div className={styles.grid}>
-          {images.map((photo, index) => (
-            <div className={styles.photo} key={photo.id}>
-              {photo.signedUrl ? (
-                <img
-                  src={photo.signedUrl}
-                  alt={photo.altText || "Property photo"}
-                />
-              ) : (
-                <div aria-label="Property photo unavailable" />
-              )}
-              <div className={styles.photoMeta}>
-                <span>
-                  {index === 0
-                    ? "Cover"
-                    : photo.originalName || `Photo ${index + 1}`}
-                </span>
-                <button
-                  className={styles.remove}
-                  type="button"
-                  disabled={uploading}
-                  onClick={() => void removeImage(photo)}
-                >
-                  Remove
-                </button>
+      {orderedImages.length ? (
+        <>
+          <div className={styles.organizeNote}>
+            <strong>Arrange your listing photos</strong>
+            <span>
+              The first photo is the cover guests see on stay cards and shared
+              links. Use the buttons below to change the order on desktop or
+              mobile.
+            </span>
+          </div>
+
+          <div className={styles.grid}>
+            {orderedImages.map((photo, index) => (
+              <div className={styles.photo} key={photo.id}>
+                {photo.signedUrl ? (
+                  <img
+                    src={photo.signedUrl}
+                    alt={photo.altText || "Property photo"}
+                  />
+                ) : (
+                  <div aria-label="Property photo unavailable" />
+                )}
+
+                <div className={styles.photoMeta}>
+                  <span className={index === 0 ? styles.coverLabel : ""}>
+                    {index === 0
+                      ? "Cover"
+                      : photo.originalName || `Photo ${index + 1}`}
+                  </span>
+                  <button
+                    className={styles.remove}
+                    type="button"
+                    disabled={uploading || organizingPhotos}
+                    onClick={() => void removeImage(photo)}
+                  >
+                    Remove
+                  </button>
+                </div>
+
+                <div className={styles.photoActions}>
+                  {index !== 0 ? (
+                    <button
+                      type="button"
+                      disabled={uploading || organizingPhotos}
+                      onClick={() => makePrimaryPhoto(index)}
+                    >
+                      Set as cover
+                    </button>
+                  ) : (
+                    <span className={styles.primary}>Primary photo</span>
+                  )}
+
+                  <div className={styles.moveButtons}>
+                    <button
+                      type="button"
+                      aria-label={`Move photo ${index + 1} left`}
+                      disabled={
+                        uploading || organizingPhotos || index === 0
+                      }
+                      onClick={() => movePhoto(index, -1)}
+                    >
+                      ←
+                    </button>
+                    <button
+                      type="button"
+                      aria-label={`Move photo ${index + 1} right`}
+                      disabled={
+                        uploading ||
+                        organizingPhotos ||
+                        index === orderedImages.length - 1
+                      }
+                      onClick={() => movePhoto(index, 1)}
+                    >
+                      →
+                    </button>
+                  </div>
+                </div>
               </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        </>
       ) : null}
 
       <p className={styles.help}>

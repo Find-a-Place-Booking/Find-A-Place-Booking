@@ -9,6 +9,7 @@ import {
   useState,
 } from "react";
 
+import { OnboardingCalendarBridgeHelp } from "@/components/onboarding/OnboardingCalendarBridgeHelp";
 import {
   HOST_ROUTE_HELP,
   ONBOARDING_HELP,
@@ -30,6 +31,7 @@ const onboardingEnhancements: Record<
   Photos: {
     bullets: [
       "The first photo is the cover image guests see first.",
+      "Use Set as cover or the left/right controls to arrange photos before you finish setup.",
       "That cover is also used for stay cards and shared-link previews.",
       "Use a clear exterior or room photo rather than a logo when possible.",
     ],
@@ -55,7 +57,9 @@ const onboardingEnhancements: Record<
     bullets: [
       "Choose the system that really controls this property's availability.",
       "If another platform or PMS takes bookings, do not choose Find A Place only just to get through setup.",
-      "For iCal/PMS, verify at least one known blocked or booked date after connecting.",
+      "When you leave to copy an Airbnb, Vrbo or other iCal URL, open that service in a new browser tab and keep this setup tab open.",
+      "After an iCal source connects, copy the Find A Place return feed shown below back into that same service for two-way blocking.",
+      "Verify at least one known blocked or booked date after connecting.",
     ],
   },
   Payments: {
@@ -397,16 +401,22 @@ export function HostHelpAssistant() {
 
   if (!enabled) {
     return (
-      <div className={styles.offRow}>
-        <button
-          className={styles.showButton}
-          type="button"
-          onClick={() => saveEnabled(true)}
-        >
-          ? Show help tips
-        </button>
-        <Link href="/host/help">Host FAQ</Link>
-      </div>
+      <>
+        <div className={styles.offRow}>
+          <button
+            className={styles.showButton}
+            type="button"
+            onClick={() => saveEnabled(true)}
+          >
+            ? Show help tips
+          </button>
+          <Link href="/host/help">Host FAQ</Link>
+        </div>
+
+        {onboarding && onboardingStep === "Calendar" ? (
+          <OnboardingCalendarBridgeHelp />
+        ) : null}
+      </>
     );
   }
 
@@ -469,6 +479,10 @@ export function HostHelpAssistant() {
           Hide tips
         </button>
       </aside>
+
+      {onboarding && onboardingStep === "Calendar" ? (
+        <OnboardingCalendarBridgeHelp />
+      ) : null}
 
       {coachOpen && coachRect ? (
         <div className={styles.coachLayer} role="dialog" aria-modal="true">

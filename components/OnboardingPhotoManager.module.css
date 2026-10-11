@@ -52,6 +52,27 @@
   line-height: 1.5;
 }
 
+.organizeNote {
+  display: grid;
+  gap: 3px;
+  padding: 11px 12px;
+  border: 1px solid #d4ded7;
+  border-left: 3px solid #607f6e;
+  background: #f4f8f5;
+  border-radius: 8px;
+}
+
+.organizeNote strong {
+  color: #315f4b;
+  font-size: .75rem;
+}
+
+.organizeNote span {
+  color: #667069;
+  font-size: .66rem;
+  line-height: 1.5;
+}
+
 .grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -78,7 +99,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  padding: 8px 9px;
+  padding: 8px 9px 5px;
 }
 
 .photoMeta span {
@@ -90,6 +111,11 @@
   color: #686d67;
 }
 
+.photoMeta .coverLabel {
+  color: #315f4b;
+  font-weight: 850;
+}
+
 .remove {
   flex: 0 0 auto;
   border: 0;
@@ -98,6 +124,57 @@
   font-size: .63rem;
   font-weight: 850;
   padding: 4px;
+}
+
+.photoActions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  padding: 0 9px 9px;
+}
+
+.photoActions > button,
+.moveButtons button {
+  min-height: 32px;
+  border: 1px solid #d3cec4;
+  border-radius: 7px;
+  background: #fff;
+  color: #33443b;
+  padding: 5px 8px;
+  font: inherit;
+  font-size: .6rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.photoActions > button:hover,
+.moveButtons button:hover:not(:disabled) {
+  border-color: #789487;
+  background: #f4f8f5;
+}
+
+.photoActions button:disabled {
+  opacity: .4;
+  cursor: not-allowed;
+}
+
+.primary {
+  color: #315f4b;
+  font-size: .6rem;
+  font-weight: 850;
+}
+
+.moveButtons {
+  display: flex;
+  gap: 4px;
+  margin-left: auto;
+}
+
+.moveButtons button {
+  min-width: 34px;
+  padding: 5px;
+  font-size: .8rem;
 }
 
 .help {
@@ -124,5 +201,26 @@
 
   .grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .photoActions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .photoActions > button,
+  .primary {
+    width: 100%;
+    text-align: center;
+  }
+
+  .moveButtons {
+    width: 100%;
+    margin-left: 0;
+  }
+
+  .moveButtons button {
+    flex: 1;
+    min-height: 38px;
   }
 }

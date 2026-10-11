@@ -7,6 +7,18 @@ const UUID_RE =
 const SENSITIVE_KEY =
   /(email|phone|name|token|secret|password|code|address|card|client.?secret)/i;
 
+const STAGE_RANK: Record<string, number> = {
+  LISTING: 0,
+  AVAILABILITY: 1,
+  CHECKOUT_DETAILS: 2,
+  HOLD: 3,
+  VERIFY: 4,
+  POLICIES: 5,
+  PAYMENT: 6,
+  CONFIRMATION: 7,
+  COMPLETE: 8,
+};
+
 function safeText(value: unknown, max = 1000) {
   if (typeof value !== "string") return null;
   const trimmed = value.trim();
@@ -127,7 +139,7 @@ export async function recordBookingAttemptEvent(input: {
     const { data: existing } = await admin
       .from("booking_attempts")
       .select(
-        "id,unit_id,reservation_id,outcome,landing_path,referrer,user_agent",
+        "id,unit_id,reservation_id,current_stage,outcome,landing_path,referrer,user_agent",
       )
       .eq("id", attemptId)
       .maybeSingle();
@@ -137,9 +149,16 @@ export async function recordBookingAttemptEvent(input: {
       eventName === "hold_expired" ||
       eventName === "reservation_expired";
     const cancelled = eventName === "reservation_cancelled";
+    const existingStage =
+      safeText(existing?.current_stage, 60)?.toUpperCase() || null;
+    const summaryStage =
+      existingStage &&
+      (STAGE_RANK[existingStage] ?? -1) > (STAGE_RANK[stage] ?? -1)
+        ? existingStage
+        : stage;
 
     const updatePayload = {
-      current_stage: stage,
+      current_stage: summaryStage,
       last_event: eventName,
       last_seen_at: now,
       updated_at: now,

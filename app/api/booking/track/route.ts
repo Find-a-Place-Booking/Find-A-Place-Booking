@@ -26,6 +26,15 @@ function trackedLabel(metadata: Record<string, unknown> | undefined) {
   return typeof value === "string" ? value.trim().slice(0, 350) : "";
 }
 
+function trackedPagePath(metadata: Record<string, unknown> | undefined) {
+  const value = metadata?.path;
+
+  if (typeof value !== "string") return "";
+
+  const trimmed = value.trim();
+  return trimmed.startsWith("/") ? trimmed.slice(0, 500) : "";
+}
+
 export async function POST(request: NextRequest) {
   if (!sameOrigin(request)) {
     return NextResponse.json(
@@ -74,6 +83,7 @@ export async function POST(request: NextRequest) {
 
   const path =
     request.headers.get("x-fap-page-path") ||
+    trackedPagePath(body.metadata) ||
     request.nextUrl.pathname;
   const userAgent = request.headers.get("user-agent");
   const referrer = request.headers.get("referer");

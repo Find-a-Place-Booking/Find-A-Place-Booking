@@ -140,6 +140,14 @@ function stageForPath(pathname: string) {
   return "LISTING";
 }
 
+function isBookingJourneyPath(pathname: string) {
+  return (
+    pathname.startsWith("/stays/") ||
+    pathname.startsWith("/checkout") ||
+    pathname.startsWith("/booking/")
+  );
+}
+
 function describeBookingRequest(
   pathname: string,
   body: Record<string, unknown> | null,
@@ -737,19 +745,25 @@ export function BookingJourneyTracker() {
     }
 
     function onPageHide() {
-      const state = stateRef.current;
+      const exitPath = window.location.pathname;
 
+      // BookingJourneyTracker is mounted globally so it can follow the guest
+      // through checkout. Do not create booking drop-offs when an admin, host,
+      // or ordinary marketing page is unloaded.
+      if (!isBookingJourneyPath(exitPath)) return;
+
+      const state = stateRef.current;
       if (!state) return;
 
       sendTrack(
         {
           attemptId: state.attemptId,
           eventName: "booking_page_exit",
-          stage: stageForPath(window.location.pathname),
+          stage: stageForPath(exitPath),
           unitId: state.unitId,
           reservationId: state.reservationId,
           metadata: {
-            path: window.location.pathname,
+            path: exitPath,
             elapsed_ms:
               Date.now() - pageStartedAtRef.current,
             completed: state.completed,

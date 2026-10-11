@@ -1,0 +1,102 @@
+.bridge{
+  display:grid;
+  gap:10px;
+  margin-top:12px;
+}
+
+.note,
+.pending,
+.returnBox{
+  display:grid;
+  gap:4px;
+  border:1px solid #d6ddd8;
+  border-left:3px solid #607f6e;
+  border-radius:9px;
+  background:#f5f8f5;
+  padding:11px 12px;
+}
+
+.note strong,
+.pending strong,
+.returnBox>strong{
+  color:#315f4b;
+  font-size:.72rem;
+}
+
+.note span,
+.pending span,
+.returnBox p{
+  margin:0;
+  color:#657069;
+  font-size:.66rem;
+  line-height:1.5;
+}
+
+.returnBox{
+  gap:9px;
+  background:#fff;
+}
+
+.feedList{
+  display:grid;
+  gap:8px;
+}
+
+.feed{
+  display:grid;
+  gap:7px;
+  min-width:0;
+  padding:9px;
+  border:1px solid #e1ddd5;
+  border-radius:8px;
+  background:#fbfaf7;
+}
+
+.feed>div strong,
+.feed>div span{
+  display:block;
+}
+
+.feed>div strong{
+  color:#33443b;
+  font-size:.68rem;
+}
+
+.feed>div span{
+  margin-top:2px;
+  color:#777;
+  font-size:.6rem;
+}
+
+.feed code{
+  display:block;
+  max-width:100%;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  padding:7px 8px;
+  border-radius:6px;
+  background:#f0ede7;
+  color:#55605a;
+  font-size:.58rem;
+}
+
+.feed button{
+  justify-self:start;
+  min-height:36px;
+  border:1px solid #315f4b;
+  border-radius:7px;
+  background:#315f4b;
+  color:#fff;
+  padding:7px 10px;
+  font:inherit;
+  font-size:.62rem;
+  font-weight:850;
+  cursor:pointer;
+}
+
+@media(max-width:700px){
+  .feed button{
+    width:100%;
+  }
+}
