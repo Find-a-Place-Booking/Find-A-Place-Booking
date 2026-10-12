@@ -1,58 +1,37 @@
-Find A Place Booking — host feedback cleanup + tracking repair
-Built against current main after commit 9649e4e1 ("fixes").
+Find A Place Booking — Facebook stay thumbnail fix
 
-WHAT THIS FIXES
+Problem:
+Stay URLs were still sometimes sharing the Find A Place logo instead of the stay's
+actual primary/cover photo.
 
-1) ONBOARDING PHOTOS CAN NOW BE ORGANIZED
-- Keeps the existing 25-photo upload limit.
-- Adds Set as cover during onboarding.
-- Adds left/right ordering controls that work on mobile and desktop.
-- Reuses the existing reorder_property_images RPC already used by the normal Property editor.
-- The first photo remains the primary listing/share image.
-- Removing a photo normalizes the remaining order.
+Root cause addressed:
+The social-image helper generated a short-lived signed Supabase URL and then made
+a second server-side fetch to that signed URL. Any failure in either the transformed
+or original signed-url fetch dropped all the way to the brand logo. Facebook could
+then cache that incorrect logo against the stay.
 
-2) TWO-WAY iCAL IS SURFACED DURING ONBOARDING
-- Adds a small authenticated endpoint that reads the current onboarding property's active iCal connections and existing source-specific calendar export tokens.
-- The Calendar step now tells hosts to keep Find A Place open and open Airbnb/Vrbo/etc. in another browser tab when retrieving the inbound iCal URL.
-- Once an iCal source connects, the host sees the matching Find A Place return feed during onboarding instead of having to discover it later in Host Calendar.
-- Copy uses the full absolute .ics URL and includes a fallback for browsers where Clipboard API is unavailable.
-- The helper refreshes while the Calendar step is open so a newly-created return feed appears without making the host leave setup.
-- It does NOT create a second export system; it only exposes the source-specific tokens that create_ical_connection already creates.
+This overlay changes that behavior:
+1. The server retrieves the primary property image directly from the private
+   property-images bucket with the authenticated Supabase Storage client.
+2. It first requests a 1200x630 social-card transform.
+3. If transformations are unavailable, it returns the actual original primary photo.
+4. If a stay has a real photo but Storage is temporarily unavailable, the endpoint
+   returns 503/no-store instead of the Find A Place logo, so crawlers retry rather
+   than caching the wrong thumbnail.
+5. The response includes a concrete image MIME type, content length, nosniff header,
+   and long CDN cache headers after a successful image response.
+6. Both the explicit /api/public/stay-social-image/[slug] route and Next's
+   /stays/[slug]/opengraph-image metadata route use the same corrected behavior.
 
-3) INCOMPLETE ONBOARDING CANNOT GENERATE END-OF-ONBOARDING FEEDBACK
-- Production migrations are ALREADY APPLIED:
-  20261011040530 guard_incomplete_onboarding_feedback
-  20261011040534 harden_onboarding_feedback_guard
-- A feedback row linked to an onboarding draft still marked IN_PROGRESS is rejected.
-- Existing feedback and completed READY_FOR_PROPERTY onboarding are unaffected.
-- The trigger helper is not executable by anon/authenticated REST clients.
+Files:
+- lib/public/stay-social-image.ts
+- app/api/public/stay-social-image/[slug]/route.ts
+- app/stays/[slug]/opengraph-image.tsx
 
-4) BOOKING FUNNEL TRACKING CLEANUP
-- Stops page-exit telemetry from firing when the user is on unrelated pages.
-- Beacon page-exit events preserve the actual page path instead of being stored as /api/booking/track.
-- Keeps booking-attempt summary stages monotonic in application code as well as the existing production database guard.
-- Does not alter booking, availability, hold, payment, Stripe, or reservation routing.
+No database migration or environment variable change is required.
 
-FILES
-- components/OnboardingPhotoManager.tsx
-- components/OnboardingPhotoManager.module.css
-- components/HostHelpAssistant.tsx
-- components/onboarding/OnboardingCalendarBridgeHelp.tsx
-- components/onboarding/OnboardingCalendarBridgeHelp.module.css
-- app/api/host/onboarding/calendar-exports/route.ts
-- components/BookingJourneyTracker.tsx
-- app/api/booking/track/route.ts
-- lib/bookings/booking-tracking.ts
-- supabase/migrations/20261011040530_guard_incomplete_onboarding_feedback.sql
-- supabase/migrations/20261011040534_harden_onboarding_feedback_guard.sql
-
-VALIDATION
-- All changed TS/TSX files pass TypeScript parser/transpile validation.
-- Production RLS was checked for organization_members, host_onboarding_drafts, properties, property_units, calendar_connections and calendar_export_tokens. Authenticated hosts already have the required scoped SELECT access.
-- reorder_property_images(target_unit_id uuid, ordered_image_ids uuid[]) exists in production.
-- create_ical_connection already creates a source-specific export token, so no new calendar-token migration is required.
-- Supabase security advisor was rerun after the DDL. The new feedback guard does not add a new exposed SECURITY DEFINER warning; remaining advisor findings are pre-existing broader project findings.
-
-NOT INCLUDED
-- Gez/Mike onboarding-review recipients are not changed in this overlay because Mike's email address is still not present in the FAP database/project files. Do not guess it. Gez can be added with Mike once his real address is supplied.
-- The share-link, property social-image, mobile map popup and improved tooltip styling from commit 9649e4e1 are already on main and are not duplicated here.
+Important Facebook cache note:
+Facebook caches share metadata aggressively. After this is deployed, links Facebook
+already scraped with the old logo may need one "Scrape Again" in Facebook's Sharing
+Debugger before the corrected thumbnail appears immediately. New/uncached stay URLs
+should use the actual primary photo on their first scrape.

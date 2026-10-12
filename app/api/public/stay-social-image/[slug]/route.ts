@@ -15,16 +15,45 @@ export async function GET(
     return new Response(null, { status: 404 });
   }
 
-  const image = await loadStaySocialImage(slug);
+  try {
+    const image = await loadStaySocialImage(slug);
 
-  return new Response(image.body, {
-    status: 200,
-    headers: {
-      "Content-Type": image.contentType,
-      "Content-Disposition": "inline",
-      "Cache-Control":
-        "public, max-age=300, s-maxage=3600, stale-while-revalidate=86400",
-      "X-Find-A-Place-Social-Image": image.source,
-    },
-  });
+    if (!image) {
+      return new Response(null, {
+        status: 404,
+        headers: {
+          "Cache-Control": "public, max-age=300, s-maxage=300",
+        },
+      });
+    }
+
+    return new Response(image.body, {
+      status: 200,
+      headers: {
+        "Content-Type": image.contentType,
+        "Content-Length": String(image.body.byteLength),
+        "Content-Disposition": "inline",
+        "Cache-Control":
+          "public, max-age=86400, s-maxage=604800, stale-while-revalidate=2592000",
+        "X-Content-Type-Options": "nosniff",
+        "X-Find-A-Place-Social-Image": image.source,
+      },
+    });
+  } catch (error) {
+    console.error("[stay social image] request failed", {
+      slug,
+      message:
+        error instanceof Error
+          ? error.message
+          : String(error),
+    });
+
+    return new Response(null, {
+      status: 503,
+      headers: {
+        "Cache-Control": "no-store",
+        "Retry-After": "30",
+      },
+    });
+  }
 }
