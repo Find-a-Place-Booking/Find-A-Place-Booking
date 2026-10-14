@@ -7,7 +7,9 @@ export default function robots(): MetadataRoute.Robots {
     rules: [
       {
         userAgent: "*",
-        allow: "/",
+        // Allow only the public social image endpoint within /api/.
+        // Longest matching path wins, so private API paths stay disallowed.
+        allow: ["/", "/api/public/stay-social-image/"],
         disallow: [
           "/admin/",
           "/host/",
