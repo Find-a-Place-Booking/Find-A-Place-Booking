@@ -1,32 +1,38 @@
-# Find A Place — make Facebook share use the MAIN listing photo
+# Find A Place Booking — Optional Insurance Resource Links
 
-Overlay prepared for the live Find A Place Booking Next.js 16 repository on 2026-10-14.
+**Overlay ZIP**: Extract into the *root of the Next.js repository* and merge/replace the matching paths. Commit and push as usual. The ZIP is NOT a script and doesn't change Stripe, holds, checkout calculations, booking policies, or reservations.
 
-## Install
+## What guests see
+- Low-key optional **Faye travel insurance** resource below checkout and on a successful reservation confirmation, plus the My Trip lookup page and public footer.
+- It is a separate third-party site, not something a guest must select to pay or make a booking.
 
-Extract this ZIP to your **repository root**, preserving folders, overwrite only these two existing files:
-- `lib/public/serve-stay-social-image.ts`
-- `app/stays/[slug]/opengraph-image.tsx`
+## What hosts see
+- Low-key optional **Proper short-term rental insurance** resource on Host Help & FAQ, plus a public footer link under For hosts.
+- No requirement to purchase or supply policy details.
 
-Then run `npm run typecheck && npm run build`, and commit/push the two files. Vercel deploys when the push succeeds. No SQL, pricing, booking, calendars or payments changes.
+## Click tracking
+- Every insurance link goes first to a *strictly allowlisted* first-party route (`/go/insurance/faye` or `/go/insurance/proper`) and then redirects to the insurer's user-provided main site.
+- Redirects do not prefetch. Logging runs **after** the redirect response and does not delay booking. The database table only contains `provider`, `placement`, `occurred_at` and a generated ID. No guests, host IDs, booking tokens, emails, IP addresses or user-agent strings.
+- All links also emit the existing Vercel Web Analytics `insurance_resource_click` custom event with public `provider`, `audience`, and `placement` properties (where permitted by the site's private-page analytics filter and Vercel plan). The Supabase counter is the primary reliable source on private routes.
+- The Supabase migration `20261014173500_insurance_resource_click_tracking.sql` has **already been applied to production** and is included here to keep the repository's schema history current; it is idempotent.
 
-## Why this works
+Read counts in Supabase:
+```sql
+select provider, placement, count(*) as clicks
+from public.insurance_resource_clicks
+group by provider, placement
+order by provider, placement;
+```
 
-The host's `Make primary` function orders photos by `property_images.sort_order`. The `public_listing_detail` RPC returns `image_paths` ordered by `sort_order, created_at`. Index 0 is the photo shown first in the public listing's gallery.
+## Privacy, coverage and scope
+- Insurance is optional, purchased externally if a guest/host chooses.
+- No affiliation, partnership, referral compensation, guaranteed coverage, or claim benefit is asserted.
+- Existing payment, checkout, and refund logic is unchanged.
 
-Previously the social endpoint tried up to eight photos and **skipped** to the next whenever the primary couldn't be rendered (for example if its original was too large). The replacement always downloads the first/primary photo and converts that image to a 1200x630 JPEG with Sharp; Next.js 16.3.5 already has `sharp@0.35.4` in its package lock as a Next.js optional dependency. The code does not try photo #2 if the main image fails; it returns a retryable 503 rather than silently selecting the wrong photo. PNGs and larger JPGs are converted reliably.
+## How to confirm after deployment
+1. Open checkout, a confirmed booking page, My Trip, and Host Help/FAQ and verify the optional resource is readable but discreet.
+2. Click one link to each provider. Each should open the insurer's official domain in a new tab.
+3. Run the query above to see the click counts increase. Server-side log insertion is scheduled using Next.js `after()` and should not delay the redirect.
+4. Confirm public footer links work on mobile and do not introduce any overlays or modal prompts.
 
-Next.js file-based `opengraph-image.tsx` takes precedence over the `generateMetadata` Open Graph image config in the page. The updated file uses `generateImageMetadata` with a hash of the primary image storage path as `id`, so when the host changes their primary photo the generated Facebook image URL changes, helping to clear stale image caches.
-
-## Verify after deployment
-
-1. Open one published stay and confirm photo #1 is the intended main photo. If not, use host Photo order -> Make primary to select it.
-2. Visit `https://www.findaplacebooking.com/stay-share/<slug>` and confirm it shows the **same photo as #1**. It should respond HTTP 200 `image/jpeg`, `X-Find-A-Place-Social-Image: primary-only-v4`.
-3. Open `https://developers.facebook.com/tools/debug/` with the stay URL, choose **Scrape Again**, confirm the selected og:image matches photo #1. Facebook might continue showing an earlier cached preview until a rescrape.
-4. Change a test listing's primary photo, confirm the generated Open Graph URL contains a different `?id=<hash>` value, rescrape and restore its desired cover.
-
-If the image endpoint responds HTTP 503, inspect `[public stay share] main photo unavailable` logs: we deliberately did NOT substitute a different photo. Confirm Sharp was installed by Vercel; it should be present via Next.js' optional dependencies. In a custom/npm omit-optional setup, add `sharp@0.35.4` as a direct dependency before deploying.
-
-## Safety
-
-Two code files, no SQL migration, and no changes to the host photo order, content, reservations or money flow. This patch is separate from the earlier homepage map/search and email patches.
+Source basis: repository `Find-a-Place-Booking/Find-A-Place-Booking` default branch as reviewed 2026-10-14. All files are full path replacements (no installer). TypeScript/TSX syntax checks passed. A full build and live end-to-end click test must follow deployment.

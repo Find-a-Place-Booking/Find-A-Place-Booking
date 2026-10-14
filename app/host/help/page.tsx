@@ -1,5 +1,6 @@
 import { DashboardShell } from "@/components/DashboardShell";
 import { HostHelpCenter } from "@/components/HostHelpCenter";
+import { InsuranceResourceNote } from "@/components/InsuranceResourceNote";
 
 export default async function HostHelpPage({
   searchParams,
@@ -15,6 +16,7 @@ export default async function HostHelpPage({
       eyebrow="Host support"
     >
       <HostHelpCenter initialTopic={params.topic || null} />
+      <InsuranceResourceNote provider="proper" placement="host_help" />
     </DashboardShell>
   );
 }

@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import { Footer } from "@/components/Footer";
 import { Header } from "@/components/Header";
+import { InsuranceResourceNote } from "@/components/InsuranceResourceNote";
 import { TripLookupForm } from "@/components/TripLookupForm";
 
 export default function TripLookupPage() {
@@ -31,6 +32,7 @@ export default function TripLookupPage() {
             <Link href="/stays">Find another stay →</Link>
           </div>
         </section>
+        <InsuranceResourceNote provider="faye" placement="my_trip" />
       </main>
       <Footer />
     </>

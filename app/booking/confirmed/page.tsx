@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import { BookingConfirmation } from "@/components/BookingConfirmation";
 import { Brand } from "@/components/Brand";
+import { InsuranceResourceNote } from "@/components/InsuranceResourceNote";
 
 export default async function ConfirmedPage({
   searchParams,
@@ -64,6 +65,10 @@ export default async function ConfirmedPage({
           Back to Find A Place
         </Link>
       </section>
+
+      {tripHref ? (
+        <InsuranceResourceNote provider="faye" placement="booking_confirmed" />
+      ) : null}
     </main>
   );
 }

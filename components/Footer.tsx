@@ -6,6 +6,7 @@ import {
 } from "@/lib/brand-links";
 import { Brand } from "./Brand";
 import { SocialIcon } from "./SocialIcon";
+import { TrackedLink } from "./TrackedLink";
 
 const socialRowStyle = {
   display: "flex",
@@ -86,6 +87,16 @@ export function Footer() {
           </Link>
           <Link href="/contact#advertising">Custom advertising</Link>
           <Link href="/host/sign-in">Host portal</Link>
+          <TrackedLink
+            href="/go/insurance/proper?source=footer_host"
+            target="_blank"
+            rel="noopener noreferrer"
+            prefetch={false}
+            eventName="insurance_resource_click"
+            eventData={{ provider: "proper", audience: "host", placement: "footer_host" }}
+          >
+            Optional host insurance ↗
+          </TrackedLink>
         </div>
 
         <div>
@@ -94,6 +105,16 @@ export function Footer() {
           <Link href="/property-policies">Property policies</Link>
           <Link href="/help">Help &amp; support</Link>
           <Link href="/contact">Contact us</Link>
+          <TrackedLink
+            href="/go/insurance/faye?source=footer_guest"
+            target="_blank"
+            rel="noopener noreferrer"
+            prefetch={false}
+            eventName="insurance_resource_click"
+            eventData={{ provider: "faye", audience: "guest", placement: "footer_guest" }}
+          >
+            Optional travel insurance ↗
+          </TrackedLink>
         </div>
       </div>
 
