@@ -1,9 +1,14 @@
-import { loadStaySocialImage } from "@/lib/public/stay-social-image";
+import { ImageResponse } from "next/og";
+import { createElement } from "react";
+
+import { loadStaySocialImageSource } from "@/lib/public/stay-social-image";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export const alt = "Property photo on Find A Place Booking";
+export const size = { width: 1200, height: 630 };
+export const contentType = "image/png";
 
 const SAFE_SLUG = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
@@ -19,31 +24,52 @@ export default async function OpenGraphImage({
   }
 
   try {
-    const image = await loadStaySocialImage(slug);
+    const source = await loadStaySocialImageSource(slug);
 
-    if (!image) {
+    if (!source) {
       return new Response(null, { status: 404 });
     }
 
-    return new Response(image.body, {
-      status: 200,
-      headers: {
-        "Content-Type": image.contentType,
-        "Content-Length": String(image.body.byteLength),
-        "Content-Disposition": "inline",
-        "Cache-Control":
-          "public, max-age=86400, s-maxage=604800, stale-while-revalidate=2592000",
-        "X-Content-Type-Options": "nosniff",
-        "X-Find-A-Place-Social-Image": image.source,
-      },
-    });
+    const response = new ImageResponse(
+      createElement(
+        "div",
+        {
+          style: {
+            width: "100%",
+            height: "100%",
+            display: "flex",
+            backgroundColor: "#e7e3db",
+            overflow: "hidden",
+          },
+        },
+        createElement("img", {
+          src: source.dataUrl,
+          alt: "",
+          width: 1200,
+          height: 630,
+          style: {
+            width: "100%",
+            height: "100%",
+            objectFit: "cover",
+          },
+        }),
+      ),
+      size,
+    );
+
+    response.headers.set(
+      "Cache-Control",
+      "public, max-age=3600, s-maxage=86400, stale-while-revalidate=604800",
+    );
+    response.headers.set("Content-Disposition", "inline");
+    response.headers.set("X-Content-Type-Options", "nosniff");
+    response.headers.set("X-Find-A-Place-Social-Image", "normalized-png");
+
+    return response;
   } catch (error) {
     console.error("[stay opengraph image] request failed", {
       slug,
-      message:
-        error instanceof Error
-          ? error.message
-          : String(error),
+      message: error instanceof Error ? error.message : String(error),
     });
 
     return new Response(null, {
