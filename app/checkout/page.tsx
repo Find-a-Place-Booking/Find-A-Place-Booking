@@ -7,6 +7,7 @@ import { GuestCheckout } from "@/components/GuestCheckout";
 import { getPublishedListingBySlug } from "@/lib/public/listings";
 import { createAdminClient } from "@/lib/supabase/admin";
 import styles from "./CheckoutSubtotal.module.css";
+import "./checkout-no-pets.css";
 
 type InitialQuote = {
   currency?: string;
@@ -162,6 +163,9 @@ export default async function CheckoutPage({
     0;
   const subtotalCents = Number(initialQuote?.pre_tax_total_cents || 0);
   const feeLines = initialQuote?.fee_lines ?? [];
+  const petsAllowed = property.policies.some((policy) =>
+    policy.trim().toLowerCase() === "pets allowed",
+  );
 
   return (
     <main className="checkout-page">
@@ -200,25 +204,32 @@ export default async function CheckoutPage({
           </section>
         ) : null}
 
-        <GuestCheckout
-          property={{
-            unitId: property.unitId,
-            slug: property.slug,
-            name: property.name,
-            location: property.location,
-            image: property.images[0] || null,
-            maxGuests: property.sleeps,
-            addOns: property.addOns,
-          }}
-          checkIn={params.checkIn}
-          checkOut={params.checkOut}
-          guests={guests}
-          publishableKey={publishableKey}
-          testMode={testMode}
-          turnstileSiteKey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || ""}
-          initialReservationId={params.reservationId || null}
-          initialCheckoutToken={params.checkoutToken || null}
-        />
+        <div className={petsAllowed ? undefined : "checkout-no-pets"}>
+          {!petsAllowed ? (
+            <p className="checkout-no-pets-notice" role="note">
+              <span aria-hidden="true">ⓘ</span> No pets allowed at this stay. Pet selection is unavailable.
+            </p>
+          ) : null}
+          <GuestCheckout
+            property={{
+              unitId: property.unitId,
+              slug: property.slug,
+              name: property.name,
+              location: property.location,
+              image: property.images[0] || null,
+              maxGuests: property.sleeps,
+              addOns: property.addOns,
+            }}
+            checkIn={params.checkIn}
+            checkOut={params.checkOut}
+            guests={guests}
+            publishableKey={publishableKey}
+            testMode={testMode}
+            turnstileSiteKey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || ""}
+            initialReservationId={params.reservationId || null}
+            initialCheckoutToken={params.checkoutToken || null}
+          />
+        </div>
       </div>
     </main>
   );

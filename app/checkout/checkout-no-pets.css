@@ -1,0 +1,15 @@
+/* In no-pets checkout, remove the pets select entirely. The server independently
+   rejects nonzero pets, including hand-crafted requests. */
+.checkout-no-pets [class*="guestGrid"] > label:has(> select) {
+  display: none;
+}
+.checkout-no-pets-notice {
+  color: #555f62;
+  font-size: 0.84rem;
+  margin: 1rem 0 0.5rem;
+  padding: 0.5rem 0.7rem;
+  background: #f0f1f0;
+  border: 1px solid #dedfdd;
+  border-radius: 0.65rem;
+}
+.checkout-no-pets-notice span { margin-right: 0.3rem; }

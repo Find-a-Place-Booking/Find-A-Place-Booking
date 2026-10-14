@@ -96,6 +96,38 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Enforcement belongs at the API boundary as well as in the UI. A
+    // modified browser request must not add pets to a no-pets property.
+    // Do this BEFORE consuming the one-use Turnstile token, so a policy
+    // validation error doesn't force a second security challenge.
+    const admin = createAdminClient();
+    if (pets > 0) {
+      const { data: petPolicy, error: petPolicyError } = await admin
+        .from("unit_policies")
+        .select("policy_code")
+        .eq("unit_id", body.unitId)
+        .eq("policy_code", "pets-allowed")
+        .maybeSingle();
+
+      if (petPolicyError) {
+        console.error("[booking hold] pet policy lookup unavailable", {
+          code: petPolicyError.code,
+          unitId: body.unitId,
+        });
+        return NextResponse.json(
+          { error: "We couldn't confirm this stay's pet policy. Please try again." },
+          { status: 503 },
+        );
+      }
+
+      if (!petPolicy) {
+        return NextResponse.json(
+          { error: "This property does not allow pets. Select 0 pets to continue." },
+          { status: 400 },
+        );
+      }
+    }
+
     const forwardedFor = request.headers.get("x-forwarded-for");
     const turnstile = await verifyBookingTurnstile({
       token: body.turnstileToken,
@@ -105,8 +137,6 @@ export async function POST(request: NextRequest) {
     if (!turnstile.success) {
       return NextResponse.json({ error: turnstile.error }, { status: 403 });
     }
-
-    const admin = createAdminClient();
 
     // Refresh connected calendars before taking a hold. ThinkReservations gets
     // its documented live availability check, and ResNexus gets the same

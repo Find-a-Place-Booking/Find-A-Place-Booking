@@ -6,8 +6,8 @@ export const SEARCH_RADIUS_OPTIONS = [15, 25, 40, 60, 100] as const;
 type Point = { lat: number; lng: number };
 type SearchResult = { properties: Property[]; usedNearby: boolean };
 
-// Geographic centers for the destination cards / popular searches. Generic
-// towns are geocoded below; this doesn't limit the search to these names.
+// Curated destination centers keep nearby search usable even if external
+// geocoding times out or is not configured. Mapbox handles other towns.
 const DESTINATION_CENTERS: Record<string, Point> = {
   "hot springs": { lat: 34.5037, lng: -93.0552 },
   "hot springs national park": { lat: 34.5037, lng: -93.0552 },
@@ -20,6 +20,9 @@ const DESTINATION_CENTERS: Record<string, Point> = {
   "branson": { lat: 36.6437, lng: -93.2185 },
   "hollister": { lat: 36.6212, lng: -93.2154 },
   "jasper": { lat: 36.0119, lng: -93.1866 },
+  "mountain home": { lat: 36.335345, lng: -92.385159 },
+  "calico rock": { lat: 36.1195143, lng: -92.1359867 },
+  "norfork": { lat: 36.22925, lng: -92.30672 },
 };
 
 function normalize(value: string) {
@@ -94,8 +97,8 @@ async function destinationCenter(destination: string, properties: Property[]) {
   const preset = DESTINATION_CENTERS[query];
   if (preset) return preset;
 
-  // For smaller towns with published inventory, use their approximate public
-  // map coordinates as a fast fallback even if Mapbox geocoding is unavailable.
+  // Smaller towns with listings can use the listings' approximate public map
+  // coordinates if Mapbox is unavailable. Never use precise private addresses.
   const exactTownProperties = properties.filter((property) =>
     cleanedPlace(property.city) === query && validPoint(property),
   );
@@ -135,8 +138,6 @@ export async function searchPublishedStaysNearby(
       : [];
   });
 
-  // Sort nearby options closest first; direct city/region matches are still
-  // kept even when public pins are missing or slightly outside the boundary.
   result.sort((a, b) => a.distance - b.distance || Number(b.directMatch) - Number(a.directMatch));
   return { properties: result.map(({ property }) => property), usedNearby: true };
 }
