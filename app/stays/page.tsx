@@ -4,7 +4,7 @@ import { Footer } from "@/components/Footer";
 import { Header } from "@/components/Header";
 import { SearchBar } from "@/components/SearchBar";
 import { StayResults } from "@/components/StayResults";
-import { propertyMatchesDestination } from "@/data/catalog";
+import { normalizeSearchRadiusMiles, searchPublishedStaysNearby } from "@/lib/public/nearby-destination-search";
 import { getPublishedProperties } from "@/lib/public/listings";
 import { copyBlock, loadManagedCopy } from "@/lib/public/managed-copy";
 
@@ -54,6 +54,7 @@ export default async function StaysPage({
     checkin?: string;
     checkout?: string;
     guests?: string;
+    radius?: string;
     filter?: string;
   }>;
 }) {
@@ -63,17 +64,15 @@ export default async function StaysPage({
   const checkout = params.checkout || "";
   const guests = params.guests || "2";
   const guestCount = Number.parseInt(guests, 10) || 2;
+  const radius = normalizeSearchRadiusMiles(params.radius);
 
   const [allProperties, content] = await Promise.all([
     getPublishedProperties({ checkIn: checkin, checkOut: checkout }),
     loadManagedCopy(defaults),
   ]);
 
-  const properties = allProperties.filter(
-    (property) =>
-      propertyMatchesDestination(property, where) &&
-      property.sleeps >= guestCount,
-  );
+  const search = await searchPublishedStaysNearby(allProperties, where, radius);
+  const properties = search.properties.filter((property) => property.sleeps >= guestCount);
 
   const summary = copyBlock(content, "stays.summary");
   const initialFilter =
@@ -110,6 +109,7 @@ export default async function StaysPage({
                 checkin={checkin}
                 checkout={checkout}
                 guests={guests}
+                radius={String(radius)}
               />
             </div>
             <p className="results-trip-line">{tripLine}</p>
@@ -120,7 +120,12 @@ export default async function StaysPage({
           <div className="results-head">
             <div>
               <h1>{heading}</h1>
-              <p>{summary.body}</p>
+              <p>
+                {summary.body}
+                {search.usedNearby
+                  ? ` Search covers roughly ${radius} miles around ${where}, including smaller nearby communities.`
+                  : null}
+              </p>
             </div>
             <div className="availability-fresh">
               <i />

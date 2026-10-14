@@ -10,12 +10,14 @@ export function SearchBar({
   checkin = "",
   checkout = "",
   guests = "2",
+  radius = "40",
 }: {
   compact?: boolean;
   where?: string;
   checkin?: string;
   checkout?: string;
   guests?: string;
+  radius?: string;
 }) {
   return (
     <>
@@ -34,6 +36,7 @@ export function SearchBar({
             has_destination: Boolean(destination),
             has_dates: Boolean(inDate && outDate),
             guests: String(data.get("guests") || "2"),
+            radius_miles: String(data.get("radius") || "40"),
           });
         }}
       >
@@ -46,6 +49,16 @@ export function SearchBar({
             aria-label="Destination"
             autoComplete="off"
           />
+        </label>
+        <label className="search-radius-field">
+          <span>Nearby area</span>
+          <select name="radius" defaultValue={radius} aria-label="Search within miles">
+            <option value="15">15 miles</option>
+            <option value="25">25 miles</option>
+            <option value="40">40 miles</option>
+            <option value="60">60 miles</option>
+            <option value="100">100 miles</option>
+          </select>
         </label>
         <label>
           <span>Check in</span>

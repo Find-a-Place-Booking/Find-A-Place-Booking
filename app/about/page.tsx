@@ -3,6 +3,7 @@ import Image from "next/image";
 import Link from "next/link";
 
 import { DeferredBackgroundVideo } from "@/components/DeferredBackgroundVideo";
+import { FindAPlacePartnerMap } from "@/components/FindAPlacePartnerMap";
 import { Footer } from "@/components/Footer";
 import { Header } from "@/components/Header";
 import { getSiteContentBlocks } from "@/lib/public/site-content";
@@ -480,40 +481,11 @@ export default async function AboutPage() {
           </div>
         </section>
 
-        <section className={styles.partnerMapSection}>
-          <div className="shell">
-            <div className={styles.partnerMapHeading}>
-              <div>
-                <p className="eyebrow dark">{mapIntro.eyebrow}</p>
-                <h2>{mapIntro.title}</h2>
-              </div>
-              <p>{mapIntro.body}</p>
-            </div>
-
-            <div className={styles.partnerMapFrame}>
-              <iframe
-                title="Find A Place partner locations"
-                src="https://www.google.com/maps/d/u/0/embed?mid=1znr--DZK2UInog1toBsweyTKqHtFPnU"
-                loading="lazy"
-                referrerPolicy="no-referrer-when-downgrade"
-                allowFullScreen
-              />
-            </div>
-
-            <div className={styles.partnerMapFooter}>
-              <span>
-                Partner locations are maintained by Find A Place in Google My Maps.
-              </span>
-              <a
-                href="https://www.google.com/maps/d/u/0/viewer?mid=1znr--DZK2UInog1toBsweyTKqHtFPnU"
-                target="_blank"
-                rel="noreferrer"
-              >
-                Open full partner map →
-              </a>
-            </div>
-          </div>
-        </section>
+        <FindAPlacePartnerMap
+          eyebrow={mapIntro.eyebrow}
+          title={mapIntro.title}
+          description={mapIntro.body}
+        />
 
         <section className="host-cta">
           <div className="shell host-cta-inner">

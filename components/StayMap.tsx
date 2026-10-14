@@ -55,10 +55,7 @@ function pointCoordinates(
 }
 
 function stayImage(stay: StayMapItem) {
-  return (
-    stay.image ||
-    `/api/public/stay-cover/${encodeURIComponent(stay.slug)}`
-  );
+  return `/api/public/stay-cover/${encodeURIComponent(stay.slug)}`;
 }
 
 function protectImage(image: HTMLImageElement) {

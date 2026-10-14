@@ -4,6 +4,7 @@ import Link from "next/link";
 
 import { DeferredBackgroundVideo } from "@/components/DeferredBackgroundVideo";
 import { DeferredStayMap } from "@/components/DeferredStayMap";
+import { FindAPlacePartnerMap } from "@/components/FindAPlacePartnerMap";
 import { Footer } from "@/components/Footer";
 import { Header } from "@/components/Header";
 import { PropertyCard } from "@/components/PropertyCard";
@@ -499,6 +500,12 @@ export default async function HomePage() {
             </div>
           </div>
         </section>
+
+        <FindAPlacePartnerMap
+          eyebrow="Across the Find A Place network"
+          title="Explore the original Find A Place partner map."
+          description="Discover stays, local partners and outdoor places across the Find A Place network. Explore the map, or open it full screen to plan your trip."
+        />
       </main>
 
       <Footer />
