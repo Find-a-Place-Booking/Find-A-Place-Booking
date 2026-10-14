@@ -4,41 +4,70 @@ type PublicListingSocialRow = {
   image_paths?: string[] | null;
 };
 
-export type SocialImagePayload = {
-  body: ArrayBuffer;
-  contentType: string;
-  source: "transformed" | "original";
+export type SocialImageSource = {
+  dataUrl: string;
+  contentType: "image/png" | "image/jpeg" | "image/webp" | "image/gif";
+  byteLength: number;
+  storagePath: string;
 };
 
-async function blobPayload(
-  blob: Blob,
-  source: SocialImagePayload["source"],
-): Promise<SocialImagePayload> {
-  const body = await blob.arrayBuffer();
-
-  if (!body.byteLength) {
-    throw new Error("Storage returned an empty image.");
-  }
-
-  const contentType =
-    blob.type?.split(";")[0]?.trim() || "image/jpeg";
-
-  if (!contentType.startsWith("image/")) {
-    throw new Error(
-      `Storage returned unexpected content type ${contentType}.`,
-    );
-  }
-
-  return {
-    body,
-    contentType,
-    source,
-  };
+function ascii(bytes: Uint8Array, start: number, length: number) {
+  return String.fromCharCode(...bytes.slice(start, start + length));
 }
 
-export async function loadStaySocialImage(
+function detectImageContentType(
+  bytes: Uint8Array,
+):
+  | "image/png"
+  | "image/jpeg"
+  | "image/webp"
+  | "image/gif"
+  | null {
+  if (
+    bytes.length >= 8 &&
+    bytes[0] === 0x89 &&
+    bytes[1] === 0x50 &&
+    bytes[2] === 0x4e &&
+    bytes[3] === 0x47 &&
+    bytes[4] === 0x0d &&
+    bytes[5] === 0x0a &&
+    bytes[6] === 0x1a &&
+    bytes[7] === 0x0a
+  ) {
+    return "image/png";
+  }
+
+  if (
+    bytes.length >= 3 &&
+    bytes[0] === 0xff &&
+    bytes[1] === 0xd8 &&
+    bytes[2] === 0xff
+  ) {
+    return "image/jpeg";
+  }
+
+  if (
+    bytes.length >= 12 &&
+    ascii(bytes, 0, 4) === "RIFF" &&
+    ascii(bytes, 8, 4) === "WEBP"
+  ) {
+    return "image/webp";
+  }
+
+  if (
+    bytes.length >= 6 &&
+    (ascii(bytes, 0, 6) === "GIF87a" ||
+      ascii(bytes, 0, 6) === "GIF89a")
+  ) {
+    return "image/gif";
+  }
+
+  return null;
+}
+
+export async function loadStaySocialImageSource(
   slug: string,
-): Promise<SocialImagePayload | null> {
+): Promise<SocialImageSource | null> {
   const admin = createAdminClient();
 
   const { data, error } = await admin.rpc(
@@ -70,71 +99,51 @@ export async function loadStaySocialImage(
     return null;
   }
 
-  const storage = admin.storage.from("property-images");
-
-  // Pull the image through the authenticated Storage client instead of
-  // generating a short-lived signed URL and then making a second fetch to it.
-  // Facebook always receives one stable Find A Place URL while the server
-  // retrieves the current primary property photo behind the scenes.
-  const {
-    data: transformed,
-    error: transformError,
-  } = await storage.download(storagePath, {
-    transform: {
-      width: 1200,
-      height: 630,
-      resize: "cover",
-      quality: 84,
-      format: "origin",
-    },
-  });
-
-  if (!transformError && transformed) {
-    try {
-      return await blobPayload(transformed, "transformed");
-    } catch (error) {
-      console.warn(
-        "[stay social image] transformed image unusable; trying original",
-        {
-          slug,
-          storagePath,
-          message:
-            error instanceof Error
-              ? error.message
-              : String(error),
-        },
-      );
-    }
-  } else {
-    console.warn(
-      "[stay social image] transformed download unavailable; trying original",
-      {
-        slug,
-        storagePath,
-        message: transformError?.message,
-      },
-    );
-  }
-
-  // If image transformations are disabled or unavailable, return the actual
-  // primary property photo rather than falling back to the platform logo.
+  // Download the real primary image without a storage transform. The route
+  // re-renders it into a standards-safe 1200x630 PNG with ImageResponse.
+  // This avoids passing an upstream blob/MIME combination straight through
+  // to social crawlers and guarantees the response bytes match image/png.
   const {
     data: original,
     error: originalError,
-  } = await storage.download(storagePath);
+  } = await admin.storage
+    .from("property-images")
+    .download(storagePath);
 
-  if (!originalError && original) {
-    return blobPayload(original, "original");
+  if (originalError || !original) {
+    console.error("[stay social image] primary photo download failed", {
+      slug,
+      storagePath,
+      message: originalError?.message,
+    });
+    throw new Error("The primary stay photo is temporarily unavailable.");
   }
 
-  console.error("[stay social image] primary photo download failed", {
-    slug,
-    storagePath,
-    message: originalError?.message,
-  });
+  const body = await original.arrayBuffer();
 
-  // Do not return the Find A Place logo for a stay that has a real photo.
-  // A temporary 503 lets crawlers retry instead of permanently caching the
-  // wrong brand image as this stay's thumbnail.
-  throw new Error("The primary stay photo is temporarily unavailable.");
+  if (!body.byteLength) {
+    throw new Error("Storage returned an empty primary image.");
+  }
+
+  const bytes = new Uint8Array(body);
+  const contentType = detectImageContentType(bytes);
+
+  if (!contentType) {
+    console.error("[stay social image] unsupported image signature", {
+      slug,
+      storagePath,
+      storageContentType: original.type || null,
+      byteLength: body.byteLength,
+    });
+    throw new Error("The primary stay photo format is not supported.");
+  }
+
+  return {
+    dataUrl: `data:${contentType};base64,${Buffer.from(bytes).toString(
+      "base64",
+    )}`,
+    contentType,
+    byteLength: body.byteLength,
+    storagePath,
+  };
 }
