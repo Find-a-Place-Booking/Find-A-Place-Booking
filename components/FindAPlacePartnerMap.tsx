@@ -8,19 +8,24 @@ export function FindAPlacePartnerMap({
   title = "See where our partners are.",
   description = "Explore the places and partners behind Find A Place, from local stays to outdoor destinations across Arkansas.",
 }: {
-  eyebrow?: string;
+  eyebrow?: string | null;
   title?: string;
-  description?: string;
+  description?: string | null;
 }) {
+  const displayEyebrow = eyebrow ?? "Across the Find A Place network";
+  const displayDescription =
+    description ??
+    "Explore the places and partners behind Find A Place, from local stays to outdoor destinations across Arkansas.";
+
   return (
     <section className={styles.partnerMapSection} aria-labelledby="find-a-place-partner-map-title">
       <div className="shell">
         <div className={styles.partnerMapHeading}>
           <div>
-            <p className="eyebrow dark">{eyebrow}</p>
+            <p className="eyebrow dark">{displayEyebrow}</p>
             <h2 id="find-a-place-partner-map-title">{title}</h2>
           </div>
-          <p>{description}</p>
+          <p>{displayDescription}</p>
         </div>
         <div className={styles.partnerMapFrame}>
           <iframe

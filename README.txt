@@ -1,32 +1,26 @@
-Find A Place Booking — Recovery re-hold fix
+Find A Place Booking - TS2322 build fix, Oct 14 2026
 
-What was happening:
-The email recovery URL was a GET route that immediately restored the reservation
-hold. That means revisiting the URL from browser history, an email link preview,
-or a mail/security scanner could put the same dates back on hold AFTER the guest
-had already left checkout again.
+This ZIP overlays EXACTLY ONE source file:
+  components/FindAPlacePartnerMap.tsx
 
-The live reservation event timeline showed exactly that pattern:
-- checkout hold released
-- then a recovery restore happened afterward
+It fixes the Vercel errors:
+  app/about/page.tsx(485,11): Type 'string | null' is not assignable to 'string | undefined'
+  app/about/page.tsx(487,11): Type 'string | null' is not assignable to 'string | undefined'
 
-This overlay makes recovery safe:
+Changes: the partner map component now accepts null or undefined copy values for
+'eyebrow' and 'description', and uses its existing fallback copy when values are null.
+No location, map, search, calendars, payments, CSS, or other files are changed.
 
-1. /checkout/recover is now a side-effect-free GET.
-2. It redirects to a small "Continue checkout" page.
-3. The dates are NOT held just by opening/scanning the email link.
-4. Only an explicit Continue checkout button sends a POST to
-   /api/booking/recover.
-5. The POST rechecks availability and restores the SAME reservation only if the
-   dates are still open.
-6. Leaving checkout again releases the hold normally.
-7. No second recovery email is required.
-8. Browser history, email scanners and link previews can no longer silently
-   re-hold inventory.
+To apply: unzip contents at the ROOT of your Find-A-Place-Booking repository,
+overwriting components/FindAPlacePartnerMap.tsx only.
 
-Also fixed:
-The old recovery route used `confirmationCode=` when redirecting to the booking
-confirmation page. The confirmation page expects `code=`. The new recovery API
-uses the correct parameter.
+Then run:
+  npm run typecheck
+  npm run build
+  git add components/FindAPlacePartnerMap.tsx
+  git commit -m "Fix nullable partner map copy TypeScript error"
+  git push origin main
 
-No database migration is required for this fix.
+If more TypeScript errors appear after these two, paste the next build log.
+Production is not changed until you commit and deploy. GitHub connector returned 403
+when attempting this direct edit, so it could not be committed automatically.
