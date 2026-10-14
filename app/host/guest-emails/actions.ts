@@ -79,6 +79,18 @@ function templateError(value: string) {
   return null;
 }
 
+/** The two property editors have fixed meanings. Never allow an edit to
+ * silently reassign the property, event or canonical type of an existing rule. */
+function canonicalRuleError(name: string, triggerEvent: string) {
+  if (name === "Pre-arrival instructions" && triggerEvent !== "BEFORE_CHECKIN") {
+    return "Pre-arrival instructions must be scheduled before check-in.";
+  }
+  if (name === "Post-stay thank you" && triggerEvent !== "AFTER_CHECKOUT") {
+    return "Post-stay emails must be scheduled after checkout.";
+  }
+  return null;
+}
+
 export async function saveGuestEmailRule(formData: FormData) {
   const returnTo = safeGuestEmailReturnPath(formData);
   let organizationId = field(formData, "organization_id", 100);
@@ -113,6 +125,9 @@ export async function saveGuestEmailRule(formData: FormData) {
   ) {
     go(returnTo, "error", "Check the automation name, timing, subject and message.");
   }
+
+  const canonicalError = canonicalRuleError(name, triggerEvent);
+  if (canonicalError) go(returnTo, "error", canonicalError);
 
   const invalidVariable =
     templateError(subjectTemplate) || templateError(bodyTemplate);
@@ -156,17 +171,65 @@ export async function saveGuestEmailRule(formData: FormData) {
   };
 
   if (ruleId) {
-    const { error } = await supabase
+    // A stale/incorrect form must not silently overwrite the other email.
+    // Check identity before saving AND repeat it as an UPDATE filter.
+    const { data: existingRule, error: lookupError } = await supabase
+      .from("host_guest_email_rules")
+      .select("id,property_id,trigger_event")
+      .eq("id", ruleId)
+      .eq("organization_id", organizationId)
+      .maybeSingle();
+
+    if (
+      lookupError ||
+      !existingRule ||
+      existingRule.property_id !== propertyId ||
+      existingRule.trigger_event !== triggerEvent
+    ) {
+      go(
+        returnTo,
+        "error",
+        "This email setup changed or its form is outdated. Refresh the page and try again; no other email was changed.",
+      );
+    }
+
+    let update = supabase
       .from("host_guest_email_rules")
       .update(values)
       .eq("id", ruleId)
-      .eq("organization_id", organizationId);
+      .eq("organization_id", organizationId)
+      .eq("trigger_event", triggerEvent);
+    if (propertyId) {
+      update = update.eq("property_id", propertyId);
+    } else {
+      update = update.is("property_id", null);
+    }
 
-    if (error) {
+    const { data: saved, error } = await update.select("id").maybeSingle();
+    if (error || !saved) {
       console.error("[saveGuestEmailRule:update]", error);
-      go(returnTo, "error", "The guest email automation could not be updated.");
+      go(returnTo, "error", "That email could not be updated. Refresh and try again.");
     }
   } else {
+    // A missing rule ID is a CREATE, never an update of whichever rule happens
+    // to exist first. The database enforces one canonical rule per event/property.
+    if (propertyId && (name === "Pre-arrival instructions" || name === "Post-stay thank you")) {
+      const { data: existing, error: lookupError } = await supabase
+        .from("host_guest_email_rules")
+        .select("id")
+        .eq("organization_id", organizationId)
+        .eq("property_id", propertyId)
+        .eq("trigger_event", triggerEvent)
+        .eq("name", name)
+        .maybeSingle();
+      if (lookupError) {
+        go(returnTo, "error", "Unable to check the email setup. Try again.");
+      }
+      if (existing) {
+        go(returnTo, "error", "This email already has a saved setup. Refresh the page before editing it.");
+      }
+    }
+
     const { error } = await supabase.from("host_guest_email_rules").insert({
       ...values,
       created_by: profileId,
@@ -174,7 +237,13 @@ export async function saveGuestEmailRule(formData: FormData) {
 
     if (error) {
       console.error("[saveGuestEmailRule:insert]", error);
-      go(returnTo, "error", "The guest email automation could not be created.");
+      go(
+        returnTo,
+        "error",
+        error.code === "23505"
+          ? "This email already exists. Refresh the page to edit it."
+          : "The guest email automation could not be created.",
+      );
     }
   }
 
