@@ -1,6 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-import { escapeHtml } from "@/lib/notifications/transactional-email";
+import { brandedEmailHtml, escapeHtml } from "@/lib/notifications/transactional-email";
 
 const REQUIRED_RECIPIENTS = [
   "findaplacebookingtech@gmail.com",
@@ -40,14 +40,8 @@ function feedbackSender() {
     process.env.EMAIL_FROM_HOST_FEEDBACK?.trim() ||
     process.env.EMAIL_FROM_BOOKINGS?.trim() ||
     "bookings";
-  const name =
-    process.env.EMAIL_PLATFORM_NAME?.trim() ||
-    "Find A Place Booking";
-
-  if (!domain) {
-    throw new Error("EMAIL_DOMAIN is not configured.");
-  }
-
+  const name = process.env.EMAIL_PLATFORM_NAME?.trim() || "Find A Place Booking";
+  if (!domain) throw new Error("EMAIL_DOMAIN is not configured.");
   return `${name} <${local}@${domain}>`;
 }
 
@@ -59,18 +53,12 @@ function humanHelpLabel(value: string) {
 }
 
 function line(value: string | null | undefined) {
-  const cleaned = value?.trim();
-  return cleaned || "No response";
+  return value?.trim() || "No response";
 }
 
-function contextLine(
-  context: Record<string, unknown> | null,
-  key: string,
-) {
+function contextLine(context: Record<string, unknown> | null, key: string) {
   const value = context?.[key];
-  if (Array.isArray(value)) {
-    return value.length ? value.join(", ") : "None";
-  }
+  if (Array.isArray(value)) return value.length ? value.join(", ") : "None";
   if (value == null || value === "") return "Not available";
   if (typeof value === "object") return JSON.stringify(value);
   return String(value);
@@ -80,56 +68,29 @@ function buildEmail(row: FeedbackRow) {
   const difficulties = row.difficulty_areas?.length
     ? row.difficulty_areas.join(", ")
     : "None selected";
-
-  const subject =
-    `[Host onboarding feedback] ${row.property_name} · ` +
-    `${row.overall_ease}/5 ease`;
-
+  const subject = `[Host onboarding feedback] ${row.property_name} · ${row.overall_ease}/5 ease`;
   const text = [
-    "HOST ONBOARDING FEEDBACK",
-    "",
+    "HOST ONBOARDING FEEDBACK", "",
     `Property: ${row.property_name}`,
     `Organization: ${row.organization_name || "Not available"}`,
     `Host/respondent: ${row.respondent_name || "Not available"}`,
     `Host email: ${row.respondent_email || "Not available"}`,
-    `Submitted: ${row.created_at}`,
-    "",
+    `Submitted: ${row.created_at}`, "",
     `Overall ease: ${row.overall_ease}/5`,
     `Problem areas: ${difficulties}`,
     `Needed human help: ${humanHelpLabel(row.human_help)}`,
     `Comfort adding another property alone: ${row.add_property_confidence}/5`,
     `Needs review: ${row.needs_review ? "YES" : "No"}`,
     `FAQ / tooltip candidate: ${row.faq_candidate ? "YES" : "No"}`,
-    `Don't Go Empty program: ${
-      row.dont_go_empty_interest === true
-        ? "YES - interested"
-        : row.dont_go_empty_interest === false
-          ? "NO - not right now"
-          : "Not answered"
-    }`,
-    "",
-    "Hardest or most confusing part:",
-    line(row.hardest_part),
-    "",
-    "What should the site explain better?",
-    line(row.explain_better),
-    "",
-    "What felt unnecessary or should be removed?",
-    line(row.unnecessary_part),
-    "",
-    "What was missing that would have made setup easier?",
-    line(row.missing_feature),
-    "",
-    "What did they need human help with?",
-    line(row.human_help_details),
-    "",
-    "If they could change one thing:",
-    line(row.one_change),
-    "",
-    "Anything else:",
-    line(row.additional_comments),
-    "",
-    "AUTOMATIC CONTEXT",
+    `Don't Go Empty program: ${row.dont_go_empty_interest === true ? "YES - interested" : row.dont_go_empty_interest === false ? "NO - not right now" : "Not answered"}`,
+    "", "Hardest or most confusing part:", line(row.hardest_part),
+    "", "What should the site explain better?", line(row.explain_better),
+    "", "What felt unnecessary or should be removed?", line(row.unnecessary_part),
+    "", "What was missing that would have made setup easier?", line(row.missing_feature),
+    "", "What did they need human help with?", line(row.human_help_details),
+    "", "If they could change one thing:", line(row.one_change),
+    "", "Anything else:", line(row.additional_comments),
+    "", "AUTOMATIC CONTEXT",
     `Calendar preference: ${contextLine(row.context, "calendar_preference")}`,
     `Calendar connections: ${contextLine(row.context, "calendar_connections")}`,
     `Stripe status: ${contextLine(row.context, "stripe_status")}`,
@@ -143,58 +104,47 @@ function buildEmail(row: FeedbackRow) {
       <td style="padding:8px 10px;border-bottom:1px solid #e8e4dc;white-space:pre-wrap">${escapeHtml(value)}</td>
     </tr>`;
 
-  const html = `
+  const content = `
     <div style="font-family:Arial,sans-serif;color:#263a40;max-width:760px;margin:0 auto">
-      <div style="background:#263a40;color:white;padding:22px 24px">
-        <div style="font-size:12px;letter-spacing:.12em;text-transform:uppercase;opacity:.8">Find A Place Booking</div>
-        <h1 style="font-size:24px;margin:7px 0 4px">Host onboarding feedback</h1>
-        <div>${escapeHtml(row.property_name)}</div>
-      </div>
-
-      <div style="padding:20px 0">
-        <table style="width:100%;border-collapse:collapse;font-size:14px">
-          ${answer("Organization", row.organization_name || "Not available")}
-          ${answer("Host / respondent", row.respondent_name || "Not available")}
-          ${answer("Host email", row.respondent_email || "Not available")}
-          ${answer("Overall ease", `${row.overall_ease}/5`)}
-          ${answer("Problem areas", difficulties)}
-          ${answer("Needed human help", humanHelpLabel(row.human_help))}
-          ${answer("Comfort adding another property", `${row.add_property_confidence}/5`)}
-          ${answer("Needs review", row.needs_review ? "YES" : "No")}
-          ${answer("FAQ / tooltip candidate", row.faq_candidate ? "YES" : "No")}
-          ${answer(
-            "Don't Go Empty program",
-            row.dont_go_empty_interest === true
-              ? "YES - interested"
-              : row.dont_go_empty_interest === false
-                ? "NO - not right now"
-                : "Not answered",
-          )}
-        </table>
-
-        <h2 style="font-size:18px;margin:26px 0 8px">Written feedback</h2>
-        <table style="width:100%;border-collapse:collapse;font-size:14px">
-          ${answer("Hardest / most confusing", line(row.hardest_part))}
-          ${answer("Explain better", line(row.explain_better))}
-          ${answer("Unnecessary / remove", line(row.unnecessary_part))}
-          ${answer("Missing / add", line(row.missing_feature))}
-          ${answer("Human help details", line(row.human_help_details))}
-          ${answer("One change", line(row.one_change))}
-          ${answer("Anything else", line(row.additional_comments))}
-        </table>
-
-        <h2 style="font-size:18px;margin:26px 0 8px">Automatic setup context</h2>
-        <table style="width:100%;border-collapse:collapse;font-size:14px">
-          ${answer("Property status", contextLine(row.context, "property_status"))}
-          ${answer("Calendar preference", contextLine(row.context, "calendar_preference"))}
-          ${answer("Calendar connections", contextLine(row.context, "calendar_connections"))}
-          ${answer("Stripe status", contextLine(row.context, "stripe_status"))}
-          ${answer("Onboarding status", contextLine(row.context, "onboarding_status"))}
-        </table>
-      </div>
+      <h1 style="font-size:24px;margin:7px 0 4px">Host onboarding feedback</h1>
+      <p>${escapeHtml(row.property_name)}</p>
+      <table role="presentation" style="width:100%;border-collapse:collapse;font-size:14px">
+        ${answer("Organization", row.organization_name || "Not available")}
+        ${answer("Host / respondent", row.respondent_name || "Not available")}
+        ${answer("Host email", row.respondent_email || "Not available")}
+        ${answer("Overall ease", `${row.overall_ease}/5`)}
+        ${answer("Problem areas", difficulties)}
+        ${answer("Needed human help", humanHelpLabel(row.human_help))}
+        ${answer("Comfort adding another property", `${row.add_property_confidence}/5`)}
+        ${answer("Needs review", row.needs_review ? "YES" : "No")}
+        ${answer("FAQ / tooltip candidate", row.faq_candidate ? "YES" : "No")}
+        ${answer("Don't Go Empty program", row.dont_go_empty_interest === true ? "YES - interested" : row.dont_go_empty_interest === false ? "NO - not right now" : "Not answered")}
+      </table>
+      <h2 style="font-size:18px;margin:26px 0 8px">Written feedback</h2>
+      <table role="presentation" style="width:100%;border-collapse:collapse;font-size:14px">
+        ${answer("Hardest / most confusing", line(row.hardest_part))}
+        ${answer("Explain better", line(row.explain_better))}
+        ${answer("Unnecessary / remove", line(row.unnecessary_part))}
+        ${answer("Missing / add", line(row.missing_feature))}
+        ${answer("Human help details", line(row.human_help_details))}
+        ${answer("One change", line(row.one_change))}
+        ${answer("Anything else", line(row.additional_comments))}
+      </table>
+      <h2 style="font-size:18px;margin:26px 0 8px">Automatic setup context</h2>
+      <table role="presentation" style="width:100%;border-collapse:collapse;font-size:14px">
+        ${answer("Property status", contextLine(row.context, "property_status"))}
+        ${answer("Calendar preference", contextLine(row.context, "calendar_preference"))}
+        ${answer("Calendar connections", contextLine(row.context, "calendar_connections"))}
+        ${answer("Stripe status", contextLine(row.context, "stripe_status"))}
+        ${answer("Onboarding status", contextLine(row.context, "onboarding_status"))}
+      </table>
     </div>`;
 
-  return { subject, text, html };
+  return {
+    subject,
+    text,
+    html: brandedEmailHtml({ subject, html: content, preheader: "New host onboarding survey submitted." }),
+  };
 }
 
 export async function sendHostOnboardingFeedbackEmail(
@@ -203,41 +153,23 @@ export async function sendHostOnboardingFeedbackEmail(
 ) {
   const { data, error } = await admin
     .from("host_onboarding_feedback")
-    .select(
-      "id,respondent_name,respondent_email,organization_name,property_name,property_slug,overall_ease,difficulty_areas,hardest_part,explain_better,unnecessary_part,missing_feature,human_help,human_help_details,add_property_confidence,one_change,additional_comments,dont_go_empty_interest,context,needs_review,faq_candidate,email_status,email_attempt_count,created_at",
-    )
+    .select("id,respondent_name,respondent_email,organization_name,property_name,property_slug,overall_ease,difficulty_areas,hardest_part,explain_better,unnecessary_part,missing_feature,human_help,human_help_details,add_property_confidence,one_change,additional_comments,dont_go_empty_interest,context,needs_review,faq_candidate,email_status,email_attempt_count,created_at")
     .eq("id", feedbackId)
     .maybeSingle();
-
-  if (error) {
-    throw new Error(
-      `Unable to load onboarding feedback email: ${error.message}`,
-    );
-  }
-
-  if (!data || data.email_status === "SENT") {
-    return { sent: false, skipped: true } as const;
-  }
+  if (error) throw new Error(`Unable to load onboarding feedback email: ${error.message}`);
+  if (!data || data.email_status === "SENT") return { sent: false, skipped: true } as const;
 
   const row = data as FeedbackRow;
   const attemptCount = Number(row.email_attempt_count || 0);
   const apiKey = process.env.RESEND_API_KEY?.trim();
-
   if (!apiKey) {
     const message = "RESEND_API_KEY is not configured.";
-    await admin
-      .from("host_onboarding_feedback")
-      .update({
-        email_status: "FAILED",
-        email_attempt_count: attemptCount + 1,
-        email_error: message,
-      })
+    await admin.from("host_onboarding_feedback")
+      .update({ email_status: "FAILED", email_attempt_count: attemptCount + 1, email_error: message })
       .eq("id", row.id);
     throw new Error(message);
   }
-
   const email = buildEmail(row);
-
   try {
     const response = await fetch("https://api.resend.com/emails", {
       method: "POST",
@@ -257,21 +189,9 @@ export async function sendHostOnboardingFeedbackEmail(
       cache: "no-store",
       signal: AbortSignal.timeout(10_000),
     });
-
-    const payload = (await response.json().catch(() => ({}))) as {
-      id?: string;
-      message?: string;
-    };
-
-    if (!response.ok || !payload.id) {
-      throw new Error(
-        payload.message ||
-          `Email provider returned HTTP ${response.status}.`,
-      );
-    }
-
-    const { error: updateError } = await admin
-      .from("host_onboarding_feedback")
+    const payload = (await response.json().catch(() => ({}))) as { id?: string; message?: string };
+    if (!response.ok || !payload.id) throw new Error(payload.message || `Email provider returned HTTP ${response.status}.`);
+    const { error: updateError } = await admin.from("host_onboarding_feedback")
       .update({
         email_status: "SENT",
         email_attempt_count: attemptCount + 1,
@@ -280,25 +200,13 @@ export async function sendHostOnboardingFeedbackEmail(
         emailed_at: new Date().toISOString(),
       })
       .eq("id", row.id);
-
     if (updateError) throw new Error(updateError.message);
-
     return { sent: true, skipped: false } as const;
   } catch (sendError) {
-    const message =
-      sendError instanceof Error
-        ? sendError.message.slice(0, 1000)
-        : "Feedback email failed.";
-
-    await admin
-      .from("host_onboarding_feedback")
-      .update({
-        email_status: "FAILED",
-        email_attempt_count: attemptCount + 1,
-        email_error: message,
-      })
+    const message = sendError instanceof Error ? sendError.message.slice(0, 1000) : "Feedback email failed.";
+    await admin.from("host_onboarding_feedback")
+      .update({ email_status: "FAILED", email_attempt_count: attemptCount + 1, email_error: message })
       .eq("id", row.id);
-
     throw sendError;
   }
 }
@@ -314,34 +222,19 @@ export async function retryHostOnboardingFeedbackEmails(
     .lt("email_attempt_count", 5)
     .order("updated_at", { ascending: true })
     .limit(limit);
-
-  if (error) {
-    throw new Error(
-      `Unable to load pending onboarding feedback emails: ${error.message}`,
-    );
-  }
-
+  if (error) throw new Error(`Unable to load pending onboarding feedback emails: ${error.message}`);
   let retried = 0;
   let sent = 0;
   let failed = 0;
-
   for (const row of data ?? []) {
     retried += 1;
     try {
-      const result = await sendHostOnboardingFeedbackEmail(
-        admin,
-        row.id,
-      );
+      const result = await sendHostOnboardingFeedbackEmail(admin, row.id);
       if (result.sent) sent += 1;
     } catch (retryError) {
       failed += 1;
-      console.error(
-        "[host onboarding feedback] retry failed",
-        row.id,
-        retryError,
-      );
+      console.error("[host onboarding feedback] retry failed", row.id, retryError);
     }
   }
-
   return { retried, sent, failed };
 }
