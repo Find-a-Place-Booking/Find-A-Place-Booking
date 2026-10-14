@@ -1,272 +1,190 @@
 #!/usr/bin/env python3
-"""Safe, deterministic source patch for Find A Place Booking Oct 14 issues.
-
-Run by a repo coding agent from the repository root; expects current main code.
-The deploy itself is separate. Aborts before writing if any patch does not match.
+"""Guarded, repeat-safe home partner map + nearby destination search overlay.
+Usage: python path/to/apply_overlay.py /path/to/Find-A-Place-Booking
 """
 from pathlib import Path
+import argparse
 import sys
-import hashlib
 
-root = Path(sys.argv[1]).resolve() if len(sys.argv) > 1 else Path.cwd()
-repo_files = {}
+ROOT = Path(__file__).resolve().parent
 
-def patch(path: str, old: str, new: str) -> None:
-    dest = root / path
-    if path not in repo_files:
-        repo_files[path] = dest.read_text(encoding="utf-8")
-    current = repo_files[path]
-    if new in current:
-        return  # Already applied; old may be a substring of new.
-    count = current.count(old)
+
+def exact_replace(contents: str, old: str, new: str, path: str) -> str:
+    if new in contents:
+        return contents
+    count = contents.count(old)
     if count != 1:
-        raise RuntimeError(f"Expected one matching anchor in {path}, found {count}. Source changed; review before applying.")
-    repo_files[path] = current.replace(old, new, 1)
+        raise RuntimeError(f"{path}: expected exactly one target anchor, found {count}: {old[:125]!r}")
+    return contents.replace(old, new, 1)
 
-# 1. Client-side restoration: current email only, no immediate DB writes.
-patch("app/host/guest-emails/[slug]/page.tsx",
-      'import { DashboardShell } from "@/components/DashboardShell";',
-      'import { DashboardShell } from "@/components/DashboardShell";\nimport { GuestEmailTemplateResetButton } from "@/components/GuestEmailTemplateResetButton";')
-patch("app/host/guest-emails/[slug]/page.tsx",
-      '''        </details>
 
-        <div className={styles.actionRow}>
-          <button className="button button-small" type="submit">''',
-      '''        </details>
+def patch_files(root: Path) -> list[str]:
+    replacements: dict[str, str] = {}
 
-        <GuestEmailTemplateResetButton
-          subject={isArrival ? defaultArrivalSubject : defaultPostStaySubject}
-          body={isArrival ? defaultArrivalBody : defaultPostStayBody}
-          defaultDayOffset={isArrival ? 3 : 1}
+    def file(path: str) -> str:
+        source = root / path
+        if not source.is_file():
+            raise RuntimeError(f"Missing repo source file: {source}")
+        return replacements.get(path, source.read_text(encoding="utf-8"))
+
+    def change(path: str, old: str, new: str) -> None:
+        replacements[path] = exact_replace(file(path), old, new, path)
+
+    about = "app/about/page.tsx"
+    change(about,
+           'import { DeferredBackgroundVideo } from "@/components/DeferredBackgroundVideo";',
+           'import { DeferredBackgroundVideo } from "@/components/DeferredBackgroundVideo";\nimport { FindAPlacePartnerMap } from "@/components/FindAPlacePartnerMap";')
+
+    # Extract the About-page partner map and replace with the *same* shared
+    # component used on the homepage. Both keep their own copy headings.
+    about_content = file(about)
+    start_anchor = '        <section className={styles.partnerMapSection}>'
+    next_anchor = '        <section className="host-cta">'
+    if start_anchor in about_content:
+        if about_content.count(start_anchor) != 1 or about_content.count(next_anchor) != 1:
+            raise RuntimeError("About page map anchors have unexpectedly changed.")
+        start = about_content.index(start_anchor)
+        stop = about_content.index(next_anchor, start)
+        old_map_section = about_content[start:stop]
+        if '1znr--DZK2UInog1toBsweyTKqHtFPnU' not in old_map_section:
+            raise RuntimeError("About page partner map ID does not match inspected source.")
+        new_map_section = '''        <FindAPlacePartnerMap
+          eyebrow={mapIntro.eyebrow}
+          title={mapIntro.title}
+          description={mapIntro.body}
         />
 
-        <div className={styles.actionRow}>
-          <button className="button button-small" type="submit">''')
+'''
+        change(about, old_map_section, new_map_section)
+    elif '<FindAPlacePartnerMap\n          eyebrow={mapIntro.eyebrow}' not in about_content:
+        raise RuntimeError("About page original partner-map section is missing.")
 
-# 2. Social links in shared mobile email shell, reusing website source of truth.
-patch("lib/notifications/transactional-email.ts",
-      'import type { SupabaseClient } from "@supabase/supabase-js";',
-      'import type { SupabaseClient } from "@supabase/supabase-js";\n\nimport { FIND_A_PLACE_NETWORK_URL, FIND_A_PLACE_SOCIAL_LINKS } from "@/lib/brand-links";')
-patch("lib/notifications/transactional-email.ts",
-      '''  const content = styleEmailLinks(input.html);
+    home = "app/page.tsx"
+    change(home,
+           'import { DeferredStayMap } from "@/components/DeferredStayMap";',
+           'import { DeferredStayMap } from "@/components/DeferredStayMap";\nimport { FindAPlacePartnerMap } from "@/components/FindAPlacePartnerMap";')
+    change(home,
+           '        </section>\n      </main>\n\n      <Footer />',
+           '''        </section>
 
-  return `<!doctype html>''',
-      '''  const content = styleEmailLinks(input.html);
-  const socialFooter = FIND_A_PLACE_SOCIAL_LINKS.map((social) =>
-    `<a href="${escapeHtml(social.href)}" style="color:#315f4b;text-decoration:underline;font-size:12px;display:inline-block;margin:4px 9px" rel="noopener noreferrer">${escapeHtml(social.label)}</a>`,
-  ).join(" ");
+        <FindAPlacePartnerMap
+          eyebrow="Across the Find A Place network"
+          title="Explore the original Find A Place partner map."
+          description="Discover stays, local partners and outdoor places across the Find A Place network. Explore the map, or open it full screen to plan your trip."
+        />
+      </main>
 
-  return `<!doctype html>''')
-patch("lib/notifications/transactional-email.ts",
-      '''                  >findaplacebooking.com</a>
-                </div>
-                <div style="margin-top:8px;font-size:10px;line-height:1.5;color:#929895">''',
-      '''                  >findaplacebooking.com</a>
-                </div>
-                <div style="margin-top:12px;font-size:12px;line-height:1.65">
-                  <a href="${homeUrl}/stays" style="color:#315f4b;text-decoration:underline;margin:0 8px">Find a stay</a>
-                  <a href="${homeUrl}/trip" style="color:#315f4b;text-decoration:underline;margin:0 8px">Manage a trip</a>
-                  <a href="${homeUrl}/help" style="color:#315f4b;text-decoration:underline;margin:0 8px">Get help</a>
-                </div>
-                <div style="margin-top:12px;font-size:12px;line-height:1.65">
-                  ${socialFooter}
-                </div>
-                <div style="margin-top:10px;font-size:11px;line-height:1.65">
-                  <a href="${escapeHtml(FIND_A_PLACE_NETWORK_URL)}" style="color:#315f4b;text-decoration:underline">Explore Find A Place Arkansas &amp; Beyond</a>
-                </div>
-                <div style="margin-top:8px;font-size:10px;line-height:1.5;color:#929895">''')
+      <Footer />''')
 
-# 3. Host onboarding feedback emails also use branded wrapper.
-patch("lib/notifications/host-onboarding-feedback.ts",
-      'import { escapeHtml } from "@/lib/notifications/transactional-email";',
-      'import { brandedEmailHtml, escapeHtml } from "@/lib/notifications/transactional-email";')
-patch("lib/notifications/host-onboarding-feedback.ts",
-      '''        subject: email.subject,
-        html: email.html,
-        text: email.text,''',
-      '''        subject: email.subject,
-        html: brandedEmailHtml({ subject: email.subject, html: email.html }),
-        text: email.text,''')
+    bar = "components/SearchBar.tsx"
+    change(bar, '  guests = "2",\n', '  guests = "2",\n  radius = "40",\n')
+    change(bar, '  guests?: string;\n', '  guests?: string;\n  radius?: string;\n')
+    change(bar, '            guests: String(data.get("guests") || "2"),\n',
+           '            guests: String(data.get("guests") || "2"),\n            radius_miles: String(data.get("radius") || "40"),\n')
+    change(bar, '        <label>\n          <span>Check in</span>', '''        <label className="search-radius-field">
+          <span>Nearby area</span>
+          <select name="radius" defaultValue={radius} aria-label="Search within miles">
+            <option value="15">15 miles</option>
+            <option value="25">25 miles</option>
+            <option value="40">40 miles</option>
+            <option value="60">60 miles</option>
+            <option value="100">100 miles</option>
+          </select>
+        </label>
+        <label>
+          <span>Check in</span>''')
 
-# 4. Hospitable is supported through iCal (not an API key), no migration needed.
-patch("app/host/calendar/page.tsx",
-      '''                  <option value="HOSTIFY">Hostify</option>
-                  <option value="BOOKING_COM">Booking.com</option>''',
-      '''                  <option value="HOSTIFY">Hostify</option>
-                  <option value="HOSPITABLE">Hospitable</option>
-                  <option value="BOOKING_COM">Booking.com</option>''')
-patch("app/host/calendar/page.tsx",
-      '''              <strong>Hostify:</strong> copy the listing&apos;s iCal export''',
-      '''              <strong>Hospitable:</strong> open Properties → your property → Export calendar,
-              then copy its Property Reservation iCal link. Select Hospitable above and save with
-              Test, connect &amp; sync. In Hospitable, use the corresponding
-              property&apos;s Add External iCal section to import Find A Place&apos;s
-              outbound calendar link. Do not paste an API key or ordinary website URL.
-            </p>
+    stays = "app/stays/page.tsx"
+    change(stays,
+           'import { propertyMatchesDestination } from "@/data/catalog";',
+           'import { normalizeSearchRadiusMiles, searchPublishedStaysNearby } from "@/lib/public/nearby-destination-search";')
+    change(stays, '    guests?: string;\n    filter?: string;',
+           '    guests?: string;\n    radius?: string;\n    filter?: string;')
+    change(stays,
+           '  const guestCount = Number.parseInt(guests, 10) || 2;',
+           '  const guestCount = Number.parseInt(guests, 10) || 2;\n  const radius = normalizeSearchRadiusMiles(params.radius);')
+    change(stays, '''  const properties = allProperties.filter(
+    (property) =>
+      propertyMatchesDestination(property, where) &&
+      property.sleeps >= guestCount,
+  );''', '''  const search = await searchPublishedStaysNearby(allProperties, where, radius);
+  const properties = search.properties.filter((property) => property.sleeps >= guestCount);''')
+    change(stays,
+           '                guests={guests}\n              />',
+           '                guests={guests}\n                radius={String(radius)}\n              />')
+    change(stays,
+           '              <p>{summary.body}</p>',
+           '''              <p>
+                {summary.body}
+                {search.usedNearby
+                  ? ` Search covers roughly ${radius} miles around ${where}, including smaller nearby communities.`
+                  : null}
+              </p>''')
 
-            <p className={styles.help}>
-              <strong>Hostify:</strong> copy the listing&apos;s iCal export''')
-patch("lib/host/calendar.ts",
-      '    HOSTIFY: "Hostify",',
-      '    HOSTIFY: "Hostify",\n    HOSPITABLE: "Hospitable",')
-patch("lib/calendar/diagnostics.ts",
-      '    HOSTIFY: "Hostify",',
-      '    HOSTIFY: "Hostify",\n    HOSPITABLE: "Hospitable",')
+    # A map popup was using temporary signed gallery images on the results
+    # page. Prefer the existing stable public stay-cover proxy so long-lived
+    # map sessions do not show expired images or an unnecessary brand fallback.
+    stay_map = "components/StayMap.tsx"
+    change(stay_map, '''function stayImage(stay: StayMapItem) {
+  return (
+    stay.image ||
+    `/api/public/stay-cover/${encodeURIComponent(stay.slug)}`
+  );
+}''', '''function stayImage(stay: StayMapItem) {
+  return `/api/public/stay-cover/${encodeURIComponent(stay.slug)}`;
+}''')
 
-# 5. Make partially degraded ThinkReservations reservation import impossible
-# to confuse with a complete two-way booking integration.
-patch("components/CalendarIntegrationPanel.tsx",
-      '''              {state.integration.lastError ? (
-                <div className={styles.errorBox}>{state.integration.lastError}</div>
-              ) : null}''',
-      '''              {state.integration.lastError ? (
-                <div className={styles.errorBox} role="alert">
-                  {state.integration.lastError.includes("RESERVATION_ENRICHMENT_DEGRADED")
-                    ? "Partial ThinkReservations sync: availability/blackouts have imported, but the reservation-details API is failing. Do not assume booked stays are mirrored between both systems. Verify existing reservations and resolve the ThinkReservations API response before relying on full synchronization."
-                    : state.integration.lastError}
-                </div>
-              ) : null}''')
-patch("components/CalendarIntegrationPanel.tsx",
-      '''                The Restricted API Key is encrypted server-side and is never
-                displayed again. This connector never calls ThinkReservations
-                rate or reservation-write endpoints.''',
-      '''                The Restricted API Key is encrypted server-side and is never
-                displayed again. This is a read-only availability import:
-                Find A Place bookings are not pushed into ThinkReservations.
-                The connector does not call rate or reservation-write endpoints.''')
+    layout = "app/layout.tsx"
+    change(layout,
+           'import "./guest-feedback-fixes.css";',
+           'import "./guest-feedback-fixes.css";\nimport "./nearby-search-controls.css";')
 
-# 6. Explain listing's required availability choice near publication action.
-patch("app/host/properties/[slug]/page.tsx",
-      '''              <div className="review-readiness-list">
-                {blockingIssues.map((issue) => (
-                  <span key={issue}>• {issue}</span>
-                ))}
-              </div>
-            </>
-          ) : missingCancellation ? (''',
-      '''              <div className="review-readiness-list">
-                {blockingIssues.map((issue) => (
-                  <span key={issue}>• {issue}</span>
-                ))}
-              </div>
-              {blockingIssues.some((issue) => issue.startsWith("Availability setup")) ? (
-                <p>
-                  Open the property editor and select the correct calendar preference.
-                  For Hospitable, choose iCal and connect the property&apos;s reservation
-                  feed under Host → Calendar. The feed must pass its first sync before
-                  the listing can be published.
-                </p>
-              ) : null}
-            </>
-          ) : missingCancellation ? (''')
+    # Validate *every* guarded replacement before writing anything.
+    # Existing new files from the overlay are copied only when absent or identical.
+    added = [
+        "components/FindAPlacePartnerMap.tsx",
+        "lib/public/nearby-destination-search.ts",
+        "app/nearby-search-controls.css",
+    ]
+    for name in added:
+        destination = root / name
+        source = ROOT / name
+        expected = source.read_bytes()
+        if destination.exists() and destination.read_bytes() != expected:
+            raise RuntimeError(f"{name}: existing destination differs; refusing to overwrite.")
 
-# 7. Facebook previews: use published source-photo identity, stable crawler-allowed
-# URL outside the restricted /api/ path, and one OG image source.
-patch("lib/public/listings.ts",
-      'import { redirect } from "next/navigation";',
-      'import { createHash } from "node:crypto";\nimport { redirect } from "next/navigation";')
-patch("lib/public/listings.ts",
-      '  images: string[];',
-      '  images: string[];\n  socialPhotoRevision: string | null;')
-patch("lib/public/listings.ts",
-      '  const imagePaths = (row.image_paths ?? []).slice(0, 25);',
-      '''  const imagePaths = (row.image_paths ?? []).slice(0, 25);
-  // A primary-photo change creates a new URL for social sharing caches.
-  // Do not use expiring signed gallery URLs to decide whether photos exist.
-  const socialPhotoRevision = imagePaths[0]
-    ? createHash("sha256").update(imagePaths[0]).digest("hex").slice(0, 12)
-    : null;''')
-patch("lib/public/listings.ts",
-      '    images,',
-      '    images,\n    socialPhotoRevision,')
-patch("app/stays/[slug]/page.tsx",
-      '''  const socialImage = property.images[0]
-    ? absoluteUrl(
-        `/api/public/stay-social-image/${encodeURIComponent(
-          property.slug,
-        )}`,
-      )
-    : absoluteUrl("/brand/find-a-place-seal.png");''',
-      '''  // Image source is versioned by the *stored* primary photo, not a signed
-  // gallery URL. The endpoint is public and not blocked by /api/ robots rules.
-  const socialImage = property.socialPhotoRevision
-    ? absoluteUrl(
-        `/stay-preview/${encodeURIComponent(property.slug)}?v=${property.socialPhotoRevision}`,
-      )
-    : absoluteUrl("/brand/find-a-place-seal.png");''')
-patch("lib/seo.ts",
-      r'''  "https://findaplacebooking.com"
-).replace(/\/+$/, "");''',
-      r'''  "https://www.findaplacebooking.com"
-)
-  .replace(/^https?:\/\/(?:www\.)?findaplacebooking\.com(?=\/|$)/i, "https://www.findaplacebooking.com")
-  .replace(/\/+$/, "");''')
+    changed: list[str] = []
+    for name, content in replacements.items():
+        dest = root / name
+        if dest.read_text(encoding="utf-8") != content:
+            dest.write_text(content, encoding="utf-8")
+            changed.append(name)
+    for name in added:
+        dest = root / name
+        if not dest.exists():
+            dest.parent.mkdir(parents=True, exist_ok=True)
+            dest.write_bytes((ROOT / name).read_bytes())
+            changed.append(name)
+    return changed
 
-# Validate existing action version before ANY writes. This guards against
-# accidentally overwriting unrelated fixes added after our source audit.
-source_root = Path(__file__).parent
-actions_destination = root / "app/host/guest-emails/actions.ts"
-actions_bytes = (source_root / "app/host/guest-emails/actions.ts").read_bytes()
-if actions_destination.exists():
-    current_actions = actions_destination.read_bytes()
-    git_blob = b"blob " + str(len(current_actions)).encode() + b"\x00" + current_actions
-    expected = "bfd414ac1e08c7e3d4d30d457a30a9d83de930d3"
-    if current_actions != actions_bytes and hashlib.sha1(git_blob).hexdigest() != expected:
-        raise RuntimeError("Guest email actions.ts changed since review; inspect newer changes before replacing it.")
 
-# Only remove the old file-based metadata image handler when it is exactly
-# the inspected version. Next.js otherwise prioritizes this conflicting image.
-obsolete = root / "app/stays/[slug]/opengraph-image.tsx"
-if obsolete.exists():
-    raw = obsolete.read_bytes()
-    blob = b"blob " + str(len(raw)).encode() + b"\x00" + raw
-    expected_sha = "962cecfbe41b8e5b266da8c5d269bf5d64a5358d"
-    if hashlib.sha1(blob).hexdigest() != expected_sha:
-        raise RuntimeError("File-based OG handler changed since review; inspect before removing.")
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("repo_root", type=Path)
+    args = parser.parse_args()
+    try:
+        changed = patch_files(args.repo_root.resolve())
+    except Exception as exc:
+        print(f"Overlay aborted: {exc}", file=sys.stderr)
+        return 1
+    if not changed:
+        print("Already applied: no changes needed.")
+    else:
+        print("Overlay prepared:")
+        for name in changed:
+            print("  ", name)
+    return 0
 
-# Validate new-file paths too; avoid partial application if a future repo
-# already contains an unrelated implementation of these features.
-for newfile in [
-    "components/GuestEmailTemplateResetButton.tsx",
-    "app/stay-preview/[slug]/route.ts",
-    "scripts/check-stay-social-preview.mjs",
-]:
-    source = source_root / newfile
-    destination = root / newfile
-    if destination.exists() and destination.read_bytes() != source.read_bytes():
-        raise RuntimeError(f"Existing {newfile} differs. Review before modifying the repository.")
 
-# Validate all modified targets before writing any existing file.
-for path, content in repo_files.items():
-    if not content.strip():
-        raise RuntimeError(f"Refusing blank file: {path}")
-for path, content in repo_files.items():
-    dest = root / path
-    dest.write_text(content, encoding="utf-8")
-
-# Add client component, checked action replacement, and source-controlled migration.
-for path in ["components/GuestEmailTemplateResetButton.tsx", "app/host/guest-emails/actions.ts", "supabase/migrations/20261013192000_protect_guest_email_rule_identity.sql"]:
-    source = source_root / path
-    destination = root / path
-    destination.parent.mkdir(parents=True, exist_ok=True)
-    if destination.exists() and path.endswith(".sql"):
-        continue
-    destination.write_bytes(source.read_bytes())
-# Expose the existing private-storage image proxy at a public, crawler-allowed URL.
-preview_source = source_root / "app/stay-preview/[slug]/route.ts"
-preview_target = root / "app/stay-preview/[slug]/route.ts"
-preview_target.parent.mkdir(parents=True, exist_ok=True)
-if preview_target.exists() and preview_target.read_bytes() != preview_source.read_bytes():
-    raise RuntimeError("Public stay-preview route changed. Inspect before overwrite.")
-preview_target.write_bytes(preview_source.read_bytes())
-if obsolete.exists():
-    obsolete.unlink()
-
-# Deploy-time check: fetch stay HTML and image as the Facebook crawler.
-smoke_source = source_root / "scripts/check-stay-social-preview.mjs"
-smoke_target = root / "scripts/check-stay-social-preview.mjs"
-smoke_target.parent.mkdir(parents=True, exist_ok=True)
-if smoke_target.exists() and smoke_target.read_bytes() != smoke_source.read_bytes():
-    raise RuntimeError("Social preview checker changed. Inspect before overwrite.")
-smoke_target.write_bytes(smoke_source.read_bytes())
-print("Reviewed Oct 14 fix plus Facebook social photo previews applied. Build and deploy.")
+if __name__ == "__main__":
+    raise SystemExit(main())
