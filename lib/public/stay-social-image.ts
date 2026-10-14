@@ -4,146 +4,117 @@ type PublicListingSocialRow = {
   image_paths?: string[] | null;
 };
 
+type SupportedImageType = "image/png" | "image/jpeg" | "image/webp" | "image/gif";
+
 export type SocialImageSource = {
   dataUrl: string;
-  contentType: "image/png" | "image/jpeg" | "image/webp" | "image/gif";
+  contentType: SupportedImageType;
   byteLength: number;
   storagePath: string;
 };
+
+// Do not feed multi-megabyte originals directly into the Open Graph renderer.
+// Social images are only 1200x630, so a larger downloaded image is not needed.
+const MAX_RENDER_INPUT_BYTES = 6 * 1024 * 1024;
+const MAX_PHOTOS_TO_TRY = 12;
 
 function ascii(bytes: Uint8Array, start: number, length: number) {
   return String.fromCharCode(...bytes.slice(start, start + length));
 }
 
-function detectImageContentType(
-  bytes: Uint8Array,
-):
-  | "image/png"
-  | "image/jpeg"
-  | "image/webp"
-  | "image/gif"
-  | null {
+function detectImageContentType(bytes: Uint8Array): SupportedImageType | null {
   if (
     bytes.length >= 8 &&
-    bytes[0] === 0x89 &&
-    bytes[1] === 0x50 &&
-    bytes[2] === 0x4e &&
-    bytes[3] === 0x47 &&
-    bytes[4] === 0x0d &&
-    bytes[5] === 0x0a &&
-    bytes[6] === 0x1a &&
-    bytes[7] === 0x0a
-  ) {
-    return "image/png";
-  }
+    bytes[0] === 0x89 && bytes[1] === 0x50 &&
+    bytes[2] === 0x4e && bytes[3] === 0x47 &&
+    bytes[4] === 0x0d && bytes[5] === 0x0a &&
+    bytes[6] === 0x1a && bytes[7] === 0x0a
+  ) return "image/png";
 
-  if (
-    bytes.length >= 3 &&
-    bytes[0] === 0xff &&
-    bytes[1] === 0xd8 &&
-    bytes[2] === 0xff
-  ) {
+  if (bytes.length >= 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) {
     return "image/jpeg";
   }
 
-  if (
-    bytes.length >= 12 &&
-    ascii(bytes, 0, 4) === "RIFF" &&
-    ascii(bytes, 8, 4) === "WEBP"
-  ) {
+  if (bytes.length >= 12 && ascii(bytes, 0, 4) === "RIFF" && ascii(bytes, 8, 4) === "WEBP") {
     return "image/webp";
   }
 
-  if (
-    bytes.length >= 6 &&
-    (ascii(bytes, 0, 6) === "GIF87a" ||
-      ascii(bytes, 0, 6) === "GIF89a")
-  ) {
+  if (bytes.length >= 6 && (ascii(bytes, 0, 6) === "GIF87a" || ascii(bytes, 0, 6) === "GIF89a")) {
     return "image/gif";
   }
 
   return null;
 }
 
-export async function loadStaySocialImageSource(
-  slug: string,
-): Promise<SocialImageSource | null> {
+export async function loadStaySocialImageSource(slug: string): Promise<SocialImageSource | null> {
   const admin = createAdminClient();
-
-  const { data, error } = await admin.rpc(
-    "public_listing_detail",
-    {
-      requested_slug: slug,
-    },
-  );
+  const { data, error } = await admin.rpc("public_listing_detail", {
+    requested_slug: slug,
+  });
 
   if (error) {
     console.error("[stay social image] listing lookup failed", {
-      slug,
-      code: error.code,
-      message: error.message,
+      slug, code: error.code, message: error.message,
     });
     throw new Error("Unable to load the stay.");
   }
 
-  const row = (Array.isArray(data) ? data[0] : data) as
-    | PublicListingSocialRow
-    | undefined;
+  const row = (Array.isArray(data) ? data[0] : data) as PublicListingSocialRow | undefined;
+  const paths = [...new Set((row?.image_paths ?? []).filter(Boolean))].slice(0, MAX_PHOTOS_TO_TRY);
 
-  const storagePath = row?.image_paths?.[0];
-
-  if (!storagePath) {
-    console.warn("[stay social image] listing has no primary photo", {
-      slug,
-    });
+  if (!paths.length) {
+    console.warn("[stay social image] listing has no photo", { slug });
     return null;
   }
 
-  // Download the real primary image without a storage transform. The route
-  // re-renders it into a standards-safe 1200x630 PNG with ImageResponse.
-  // This avoids passing an upstream blob/MIME combination straight through
-  // to social crawlers and guarantees the response bytes match image/png.
-  const {
-    data: original,
-    error: originalError,
-  } = await admin.storage
-    .from("property-images")
-    .download(storagePath);
+  const bucket = admin.storage.from("property-images");
 
-  if (originalError || !original) {
-    console.error("[stay social image] primary photo download failed", {
-      slug,
-      storagePath,
-      message: originalError?.message,
+  // On the Find A Place Supabase Pro project, ask Storage to resize the primary
+  // photo before it reaches the Vercel OG renderer. Keep an original-download
+  // fallback in case transformations are temporarily disabled/unavailable.
+  // If a photo cannot be made renderer-safe, try the next photo from the SAME stay.
+  for (const storagePath of paths) {
+    const transformed = await bucket.download(storagePath, {
+      transform: { width: 1200, height: 630, resize: "cover", quality: 78 },
     });
-    throw new Error("The primary stay photo is temporarily unavailable.");
-  }
 
-  const body = await original.arrayBuffer();
+    let image = transformed.data;
+    if (!image) {
+      const original = await bucket.download(storagePath);
+      image = original.data;
+      if (!image) {
+        console.warn("[stay social image] photo download failed", {
+          slug, storagePath,
+          transformError: transformed.error?.message,
+          originalError: original.error?.message,
+        });
+        continue;
+      }
+    }
 
-  if (!body.byteLength) {
-    throw new Error("Storage returned an empty primary image.");
-  }
+    const buffer = await image.arrayBuffer();
+    if (buffer.byteLength === 0 || buffer.byteLength > MAX_RENDER_INPUT_BYTES) {
+      console.warn("[stay social image] photo too large or empty", {
+        slug, storagePath, byteLength: buffer.byteLength,
+      });
+      continue;
+    }
 
-  const bytes = new Uint8Array(body);
-  const contentType = detectImageContentType(bytes);
+    const bytes = new Uint8Array(buffer);
+    const contentType = detectImageContentType(bytes);
+    if (!contentType) {
+      console.warn("[stay social image] unsupported photo format", { slug, storagePath });
+      continue;
+    }
 
-  if (!contentType) {
-    console.error("[stay social image] unsupported image signature", {
-      slug,
+    return {
+      dataUrl: `data:${contentType};base64,${Buffer.from(bytes).toString("base64")}`,
+      contentType,
+      byteLength: buffer.byteLength,
       storagePath,
-      storageContentType: original.type || null,
-      byteLength: body.byteLength,
-    });
-    throw new Error("The primary stay photo format is not supported.");
+    };
   }
 
-  return {
-    dataUrl: `data:${contentType};base64,${Buffer.from(bytes).toString(
-      "base64",
-    )}`,
-    contentType,
-    byteLength: body.byteLength,
-    storagePath,
-  };
+  console.error("[stay social image] no renderable photo found", { slug, tried: paths.length });
+  return null;
 }
