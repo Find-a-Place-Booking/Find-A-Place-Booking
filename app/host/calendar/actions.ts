@@ -26,7 +26,8 @@ function calendarRedirect(
   if (month) params.set("month", month);
   params.set("result", result);
   if (detail) params.set("detail", detail.slice(0, 260));
-  redirect(`/host/calendar?${params.toString()}`);
+  const focusIcal = result.startsWith("calendar-") || result === "connected-sync-error";
+  redirect(`/host/calendar?${params.toString()}${focusIcal ? "#ical-connections" : ""}`);
 }
 
 function refreshCalendar() {
@@ -195,6 +196,87 @@ export async function cancelOwnerBlock(formData: FormData) {
     "owner-block-removed",
     "Owner block removed.",
   );
+}
+
+/**
+ * In-page iCal connection. Unlike the legacy redirect action, this returns
+ * a visible result to the form, leaving the URL intact on a failed test.
+ * Server-side permissions and the canonical sync protections are unchanged.
+ */
+export async function connectIcalCalendarInline(formData: FormData): Promise<{
+  ok: boolean;
+  saved: boolean;
+  message: string;
+}> {
+  const unitId = field(formData, "unitId", 100);
+  const provider = field(formData, "provider", 40) || "OTHER_ICAL";
+  const label = field(formData, "label", 120);
+  const normalizedUrl = normalizeIcalUrl(field(formData, "feedUrl", 2000));
+
+  const failure = (message: string, saved = false) => ({
+    ok: false as const,
+    saved,
+    message,
+  });
+
+  try {
+    if (!unitId) return failure("Choose a property calendar first.");
+    if (!normalizedUrl) return failure("Paste a private iCal calendar export URL.");
+
+    const supabase = await createClient();
+    // Verify host access before fetching an arbitrary external URL.
+    const { data: allowed, error: accessError } = await supabase.rpc(
+      "can_manage_unit_calendar",
+      { target_unit_id: unitId },
+    );
+    if (accessError || !allowed) {
+      return failure("You do not have permission to change this property calendar. Sign in again if needed.");
+    }
+
+    await assertSafeCalendarUrl(normalizedUrl);
+    const timeZone = await calendarUnitTimeZone(unitId);
+    const diagnostic = await inspectIcalFeed(normalizedUrl, provider, timeZone);
+    if (!diagnostic.compatible) return failure(diagnostic.message);
+
+    const { data, error } = await supabase.rpc("create_ical_connection", {
+      target_unit_id: unitId,
+      provider_name: provider,
+      connection_label: label,
+      source_url: normalizedUrl,
+    });
+    if (error) return failure(error.message);
+    const connectionId = String(data ?? "");
+    if (!connectionId) {
+      return failure("The server did not confirm the connection ID. Check the connected sources list before trying again.", true);
+    }
+
+    // The connection is committed here; never tell the user to add it again.
+    let result: { ok: boolean; message: string };
+    try {
+      result = await syncConnectedCalendar(connectionId, unitId);
+    } catch (syncError) {
+      result = { ok: false, message: errorMessage(syncError) };
+    }
+    refreshCalendar();
+    if (!result.ok) {
+      console.warn("[calendar ical] connection saved but first sync failed", {
+        unitId, provider, reason: result.message,
+      });
+      return failure(
+        `The calendar was saved, but its first sync failed: ${result.message}`,
+        true,
+      );
+    }
+    return {
+      ok: true,
+      saved: true,
+      message: `${diagnostic.message} ${result.message}`,
+    };
+  } catch (error) {
+    const message = errorMessage(error);
+    console.warn("[calendar ical] connection not saved", { unitId, provider, reason: message });
+    return failure(message);
+  }
 }
 
 export async function connectIcalCalendar(formData: FormData) {

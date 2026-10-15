@@ -117,6 +117,7 @@ function providerName(provider: string) {
     RESNEXUS: "ResNexus",
     GUESTY: "Guesty",
     HOSTIFY: "Hostify",
+    HOSPITABLE: "Hospitable",
     GOOGLE: "Google Calendar",
     OTHER_ICAL: "iCal",
   };

@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import { CalendarCopyButton } from "@/components/CalendarCopyButton";
 import { CalendarIntegrationPanel } from "@/components/CalendarIntegrationPanel";
+import { HostIcalConnectForm } from "@/components/HostIcalConnectForm";
 import { CalendarUnitSelector } from "@/components/CalendarUnitSelector";
 import { HostCalendarBoard } from "@/components/HostCalendarBoard";
 import { DashboardShell } from "@/components/DashboardShell";
@@ -13,7 +14,6 @@ import {
 } from "@/lib/host/calendar";
 import { getResNexusSafetyRangesForHostCalendar } from "@/lib/host/resnexus-safety-display";
 import {
-  connectIcalCalendar,
   disconnectCalendar,
   ensureGeneralExport,
   rotateExportToken,
@@ -101,7 +101,9 @@ export default async function CalendarPage({
   const isError =
     params.result === "error" ||
     params.result === "connected-sync-error" ||
-    params.result === "calendar-test-error";
+    params.result === "calendar-test-error" ||
+    params.result === "calendar-sync-error" ||
+    params.result === "calendar-connect-error";
 
   if (!workspace.selected) {
     return (
@@ -310,6 +312,11 @@ export default async function CalendarPage({
             className={styles.sidePanel}
           >
             <h2>iCal / ICS calendar connections</h2>
+            {message && (params.result?.startsWith("calendar-") || params.result === "connected-sync-error") ? (
+              <div role={isError ? "alert" : "status"} className={`${styles.notice} ${isError ? styles.noticeError : ""}`}>
+                {message}
+              </div>
+            ) : null}
             <p>
               Import an availability-only iCal/ICS feed from Airbnb, Vrbo,
               Guesty, Hostify or another channel. Each source stays tied to
@@ -325,62 +332,7 @@ export default async function CalendarPage({
               </span>
             </div>
 
-            <form
-              action={connectIcalCalendar}
-              className={styles.connectForm}
-            >
-              <input
-                type="hidden"
-                name="unitId"
-                value={selected.unitId}
-              />
-              <input
-                type="hidden"
-                name="month"
-                value={workspace.month}
-              />
-
-              <label>
-                <span>Provider</span>
-                <select name="provider" defaultValue="AIRBNB">
-                  <option value="AIRBNB">Airbnb</option>
-                  <option value="VRBO">Vrbo</option>
-                  <option value="GUESTY">Guesty</option>
-                  <option value="HOSTIFY">Hostify</option>
-                  <option value="BOOKING_COM">Booking.com</option>
-                  <option value="LODGIFY">Lodgify</option>
-                  <option value="OWNEREZ">OwnerRez</option>
-                  <option value="GOOGLE">Google Calendar</option>
-                  <option value="OTHER_ICAL">Other iCal / ICS</option>
-                </select>
-              </label>
-
-              <label>
-                <span>Connection label</span>
-                <input
-                  name="label"
-                  required
-                  maxLength={120}
-                  placeholder="Guesty main calendar"
-                />
-              </label>
-
-              <label>
-                <span>Private iCal feed URL</span>
-                <input
-                  type="text"
-                  inputMode="url"
-                  name="feedUrl"
-                  required
-                  placeholder="https://…/calendar.ics or webcal://…"
-                  autoComplete="off"
-                />
-              </label>
-
-              <button className="button button-small" type="submit">
-                Test, connect & sync
-              </button>
-            </form>
+            <HostIcalConnectForm unitId={selected.unitId} month={workspace.month} />
 
             <p className={styles.help}>
               Before a new source is saved, Find A Place performs a

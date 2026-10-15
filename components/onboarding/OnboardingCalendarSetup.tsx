@@ -94,6 +94,7 @@ function providerLabel(value: string) {
     OWNEREZ: "OwnerRez",
     GUESTY: "Guesty",
     HOSTIFY: "Hostify",
+    HOSPITABLE: "Hospitable",
     OTHER_ICAL: "Other iCal",
     THINKRESERVATIONS: "ThinkReservations",
     RESNEXUS: "ResNexus",
@@ -306,7 +307,7 @@ export function OnboardingCalendarSetup({
       {normalized === "ICAL" ? (
         <>
           <div className={styles.multiNote}>
-            <strong>Use Airbnb, Vrbo, or more than one booking site?</strong>
+            <strong>Using Airbnb, Vrbo, Hospitable or multiple booking sites?</strong>
             <span>
               Add the private iCal feed for <b>each</b> site that controls this
               property. A date blocked by any connected calendar stays blocked
@@ -421,6 +422,7 @@ export function OnboardingCalendarSetup({
                     <option value="VRBO">Vrbo</option>
                     <option value="GUESTY">Guesty</option>
                     <option value="HOSTIFY">Hostify</option>
+                    <option value="HOSPITABLE">Hospitable</option>
                     <option value="BOOKING_COM">Booking.com</option>
                     <option value="LODGIFY">Lodgify</option>
                     <option value="OWNEREZ">OwnerRez</option>

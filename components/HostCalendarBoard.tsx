@@ -69,6 +69,7 @@ function providerLabel(provider: string) {
     RESNEXUS: "ResNexus",
     GUESTY: "Guesty",
     HOSTIFY: "Hostify",
+    HOSPITABLE: "Hospitable",
     THINKRESERVATIONS: "ThinkReservations",
     OTHER_ICAL: "Other iCal",
   };
