@@ -1,0 +1,162 @@
+/* Brand-native social discovery. Intentionally isolated from global site styles. */
+.ribbon {
+  position: relative;
+  z-index: 4;
+  margin-top: 2px;
+  padding: 9px 15px 9px 19px;
+  min-height: 55px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  border: 1px solid rgba(255,255,255,.24);
+  border-radius: 11px;
+  background: rgba(18, 39, 32, .70);
+  color: #fff;
+  box-shadow: 0 10px 25px rgba(10,28,20,.13);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+.ribbonMessage,
+.ribbonActions,
+.ribbonIcons {
+  display: flex;
+  align-items: center;
+}
+.ribbonMessage { min-width: 0; gap: 10px; flex-wrap: wrap; }
+.ribbonMark { color: #e8c98b; font-size: 1.12rem; line-height: 1; }
+.ribbonMessage strong { font-size: .83rem; color: #fff; font-weight: 800; white-space: nowrap; }
+.ribbonDescription { color: rgba(255,255,255,.72); font-size: .77rem; }
+.ribbonActions { flex: 0 0 auto; gap: 14px; }
+.ribbonIcons { gap: 7px; }
+.ribbonIcon {
+  display: inline-grid;
+  place-items: center;
+  width: 33px;
+  height: 33px;
+  color: #f5f6ef;
+  border: 1px solid rgba(255,255,255,.22);
+  border-radius: 999px;
+  background: rgba(255,255,255,.08);
+  transition: background .17s ease, transform .17s ease, border-color .17s ease;
+}
+.ribbonIcon svg { display: block; }
+.ribbonIcon:hover,
+.ribbonIcon:focus-visible { color: #173829; background: #f4dfb3; border-color: #f4dfb3; transform: translateY(-1px); }
+.ribbonStory {
+  color: #f5ddb0;
+  font-size: .77rem;
+  font-weight: 800;
+  white-space: nowrap;
+  text-decoration: none;
+}
+.ribbonStory:hover { color: #fff; text-decoration: underline; text-underline-offset: 3px; }
+
+.navSocialLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 10px;
+  margin: -8px -4px;
+  border-radius: 20px;
+  border: 1px solid rgba(117,123,100,.26);
+  background: rgba(250,246,230,.10);
+  white-space: nowrap;
+}
+.navSocialLink::before {
+  content: "";
+  display: inline-block;
+  height: 6px;
+  width: 6px;
+  border-radius: 50%;
+  background: #c9a467;
+  box-shadow: 0 0 0 3px rgba(201,164,103,.17);
+}
+.navSocialLink:hover { background: rgba(238,215,173,.18); }
+
+.featureSection { background: #f5f2e9; color: #21392e; padding: clamp(68px,7vw,106px) 0; }
+.featureOuter { max-width: 1190px; }
+.featureLayout { display: grid; grid-template-columns: minmax(0,.96fr) minmax(0,1.04fr); gap: clamp(42px,6vw,98px); align-items: center; }
+.photoGallery { position: relative; display: grid; grid-template-columns: minmax(0,1.5fr) minmax(0,1fr); grid-template-rows: repeat(2, minmax(0,1fr)); gap: 11px; min-height: 390px; padding: 0 0 20px 0; }
+.creatorPhoto { position: relative; overflow: hidden; border-radius: 9px; min-height: 178px; box-shadow: 0 12px 25px rgba(25,44,33,.13); isolation: isolate; }
+.creatorPhotoMain { grid-row: 1 / span 2; min-height: 371px; }
+.photoImage { object-fit: cover; object-position: center; transition: transform .4s ease; }
+.creatorPhoto:hover .photoImage { transform: scale(1.035); }
+.creatorPhoto::after { content: ""; position: absolute; inset: 42% 0 0; background: linear-gradient(transparent,rgba(12,30,20,.86)); pointer-events: none; }
+.creatorCaption { position: absolute; z-index: 1; left: 15px; right: 12px; bottom: 17px; display: grid; gap: 3px; color: #fff; }
+.creatorCaption strong { color: #fff; font-size: 1rem; }
+.creatorCaption small { color: rgba(255,255,255,.83); font-size: .68rem; line-height: 1.3; }
+.creatorPhotoMain .creatorCaption { left: 20px; bottom: 27px; }
+.creatorPhotoMain .creatorCaption strong { font-size: 1.15rem; }
+.photoNote { position: absolute; bottom: -1px; right: 0; color: #718074; font-size: .66rem; text-align: right; letter-spacing: .025em; }
+.eyebrow { display: flex; align-items: center; gap: 8px; margin: 0 0 14px; color: #43735c; font-weight: 850; font-size: .71rem; letter-spacing: .15em; text-transform: uppercase; }
+.eyebrow span { color: #ba915a; font-size: 1rem; }
+.featureCopy h2 { font-family: Georgia,"Times New Roman",serif; font-weight: 500; color: #233c2e; font-size: clamp(2.6rem,4.3vw,4.7rem); line-height: 1.08; letter-spacing: -.045em; max-width: 630px; margin: 0; }
+.featureCopy h2 em { color: #4f735d; font-style: italic; }
+.featureLead { color: #556459; font-size: 1.01rem; line-height: 1.8; margin: 23px 0 26px; max-width: 575px; }
+.featureSocials { display: flex; flex-wrap: wrap; align-items: center; gap: 9px; }
+.featureSocialLink {
+  display: flex; align-items: center; gap: 9px;
+  background: #fffdf8;
+  color: #274b38;
+  border: 1px solid #d8ddcf;
+  border-radius: 999px;
+  padding: 9px 13px;
+  font-size: .78rem;
+  font-weight: 800;
+  text-decoration: none;
+  transition: transform .17s ease, border-color .17s ease, box-shadow .17s ease;
+}
+.featureSocialLink:hover { color: #274b38; border-color: #90a890; box-shadow: 0 5px 12px rgba(42,74,52,.1); transform: translateY(-1px); }
+.featureSocialLink svg { flex-shrink: 0; }
+.outArrow { color: #a0ab9d; font-size: .86rem; }
+.featureActions { display: flex; gap: 24px; align-items: center; flex-wrap: wrap; margin-top: 29px; }
+.featurePrimary { display: inline-flex; align-items: center; gap: 10px; background: #2d5540; color: #fff !important; border-radius: 5px; padding: 13px 19px; font-size: .82rem; font-weight: 800; text-decoration: none; }
+.featurePrimary:hover { background: #234331; }
+.featureSecondary { color: #305e45; font-size: .82rem; font-weight: 800; text-decoration: none; }
+.featureSecondary:hover { text-decoration: underline; text-underline-offset: 3px; }
+
+@media(max-width:1100px) {
+  .ribbonDescription { display: none; }
+  .featureLayout { gap: 38px; }
+  .photoGallery { min-height: 340px; }
+  .creatorPhoto { min-height: 152px; }
+  .creatorPhotoMain { min-height: 315px; }
+}
+@media(max-width:760px) {
+  .featureLayout { grid-template-columns: 1fr; gap: 35px; }
+  .photoGallery { max-width: 570px; width: 100%; margin: auto; order: 1; }
+  .featureCopy { order: 0; }
+  .featureCopy h2 { max-width: 650px; }
+}
+@media(max-width:650px) {
+  .ribbon { min-height: 0; margin-top: 2px; padding: 12px 13px; align-items: flex-start; gap: 8px; }
+  .ribbonMessage { gap: 6px; padding-top: 9px; }
+  .ribbonMessage strong { font-size: .74rem; }
+  .ribbonMark { font-size: .95rem; }
+  .ribbonActions { gap: 9px; }
+  .ribbonIcon { height: 32px; width: 32px; }
+  .ribbonStory { display: none; }
+  .featureSection { padding: 60px 0; }
+  .featureCopy h2 { font-size: clamp(2.4rem,10vw,3.5rem); }
+  .featureLead { font-size: .94rem; }
+  .photoGallery { min-height: 284px; grid-template-columns: 1.45fr 1fr; gap: 7px; padding-bottom: 20px; }
+  .creatorPhoto { min-height: 127px; }
+  .creatorPhotoMain { min-height: 265px; }
+  .creatorCaption { left: 10px; bottom: 10px; }
+  .creatorPhotoMain .creatorCaption { left: 13px; bottom: 15px; }
+  .creatorCaption strong { font-size: .85rem; }
+  .creatorCaption small { font-size: .61rem; }
+  .photoNote { font-size: .57rem; }
+  .featureActions { gap: 16px; }
+}
+@media(max-width:375px) {
+  .ribbonMessage strong { max-width: 82px; white-space: normal; line-height: 1.2; }
+  .ribbonActions { gap: 0; }
+  .ribbonIcons { gap: 4px; }
+  .ribbonIcon { width: 30px; height: 30px; }
+  .featureSocialLink { padding: 8px 10px; }
+}
+@media(prefers-reduced-motion:reduce) {
+ .ribbonIcon,.creatorPhoto .photoImage,.featureSocialLink { transition: none; }
+}

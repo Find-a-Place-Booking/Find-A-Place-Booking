@@ -5,6 +5,7 @@ import {
   FIND_A_PLACE_SOCIAL_LINKS,
 } from "@/lib/brand-links";
 import { Brand } from "./Brand";
+import { HomeSocialFeature } from "./HomeSocialConnections";
 import { SocialIcon } from "./SocialIcon";
 import { TrackedLink } from "./TrackedLink";
 
@@ -38,90 +39,99 @@ const socialLinkStyle = {
 
 export function Footer() {
   return (
-    <footer className="footer">
-      <div className="shell footer-grid">
-        <div className="footer-brand">
-          <Brand compact />
-          <p>
-            Find a stay near the places you already want to go. Independent
-            cabins, cottages, RV stays and one-of-a-kind places across Arkansas,
-            Missouri and beyond.
-          </p>
+    <>
+      <HomeSocialFeature />
+      <footer className="footer">
+        <div className="shell footer-grid">
+          <div className="footer-brand">
+            <Brand compact />
+            <p>
+              Find a stay near the places you already want to go. Independent
+              cabins, cottages, RV stays and one-of-a-kind places across Arkansas,
+              Missouri and beyond.
+            </p>
 
-          <div className="footer-network-link">
-            <a href={FIND_A_PLACE_NETWORK_URL} target="_blank" rel="noreferrer">
-              Explore Find A Place Arkansas &amp; Beyond <span aria-hidden="true">↗</span>
-            </a>
-            <small>Travel inspiration, partner properties and the social community.</small>
-          </div>
-
-          <div className="footer-social" style={socialRowStyle} aria-label="Find A Place social media">
-            {FIND_A_PLACE_SOCIAL_LINKS.map((social) => (
-              <a
-                key={social.network}
-                href={social.href}
-                target="_blank"
-                rel="noreferrer"
-                aria-label={`Find A Place on ${social.label}`}
-                title={social.label}
-                style={socialLinkStyle}
-              >
-                <SocialIcon network={social.network} />
+            <div className="footer-network-link">
+              <a href={FIND_A_PLACE_NETWORK_URL} target="_blank" rel="noreferrer">
+                Explore Find A Place Arkansas &amp; Beyond <span aria-hidden="true">↗</span>
               </a>
-            ))}
+              <small>Travel inspiration, partner properties and the social community.</small>
+            </div>
+
+            <div className="footer-social" style={socialRowStyle} aria-label="Find A Place social media">
+              {FIND_A_PLACE_SOCIAL_LINKS.map((social) => (
+                <TrackedLink
+                  key={social.network}
+                  href={social.href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  prefetch={false}
+                  aria-label={`Find A Place on ${social.label}`}
+                  title={social.label}
+                  style={socialLinkStyle}
+                  eventName="social_link_click"
+                  eventData={{ platform: social.network, placement: "public_footer" }}
+                >
+                  <SocialIcon network={social.network} />
+                </TrackedLink>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <strong>Explore</strong>
+            <Link href="/stays">Find a stay</Link>
+            <a href="/#regions">Destinations</a>
+            <TrackedLink href="/social" eventName="social_navigation_click" eventData={{ placement: "footer" }}>
+              Our social community
+            </TrackedLink>
+            <Link href="/about">About Find A Place</Link>
+          </div>
+
+          <div>
+            <strong>For hosts</strong>
+            <Link href="/hosts">How hosting works</Link>
+            <Link href="/host/sign-up?next=%2Fhost%2Fonboarding">
+              List a property
+            </Link>
+            <Link href="/contact#advertising">Custom advertising</Link>
+            <Link href="/host/sign-in">Host portal</Link>
+            <TrackedLink
+              href="/go/insurance/proper?source=footer_host"
+              target="_blank"
+              rel="noopener noreferrer"
+              prefetch={false}
+              eventName="insurance_resource_click"
+              eventData={{ provider: "proper", audience: "host", placement: "footer_host" }}
+            >
+              Optional host insurance ↗
+            </TrackedLink>
+          </div>
+
+          <div>
+            <strong>Your trip</strong>
+            <Link href="/trip">Manage a trip</Link>
+            <Link href="/property-policies">Property policies</Link>
+            <Link href="/help">Help &amp; support</Link>
+            <Link href="/contact">Contact us</Link>
+            <TrackedLink
+              href="/go/insurance/faye?source=footer_guest"
+              target="_blank"
+              rel="noopener noreferrer"
+              prefetch={false}
+              eventName="insurance_resource_click"
+              eventData={{ provider: "faye", audience: "guest", placement: "footer_guest" }}
+            >
+              Optional travel insurance ↗
+            </TrackedLink>
           </div>
         </div>
 
-        <div>
-          <strong>Explore</strong>
-          <Link href="/stays">Find a stay</Link>
-          <a href="/#regions">Destinations</a>
-          <Link href="/about">About Find A Place</Link>
+        <div className="shell footer-bottom">
+          <span>© 2026 Find A Place Booking</span>
+          <span>Arkansas, Missouri &amp; beyond</span>
         </div>
-
-        <div>
-          <strong>For hosts</strong>
-          <Link href="/hosts">How hosting works</Link>
-          <Link href="/host/sign-up?next=%2Fhost%2Fonboarding">
-            List a property
-          </Link>
-          <Link href="/contact#advertising">Custom advertising</Link>
-          <Link href="/host/sign-in">Host portal</Link>
-          <TrackedLink
-            href="/go/insurance/proper?source=footer_host"
-            target="_blank"
-            rel="noopener noreferrer"
-            prefetch={false}
-            eventName="insurance_resource_click"
-            eventData={{ provider: "proper", audience: "host", placement: "footer_host" }}
-          >
-            Optional host insurance ↗
-          </TrackedLink>
-        </div>
-
-        <div>
-          <strong>Your trip</strong>
-          <Link href="/trip">Manage a trip</Link>
-          <Link href="/property-policies">Property policies</Link>
-          <Link href="/help">Help &amp; support</Link>
-          <Link href="/contact">Contact us</Link>
-          <TrackedLink
-            href="/go/insurance/faye?source=footer_guest"
-            target="_blank"
-            rel="noopener noreferrer"
-            prefetch={false}
-            eventName="insurance_resource_click"
-            eventData={{ provider: "faye", audience: "guest", placement: "footer_guest" }}
-          >
-            Optional travel insurance ↗
-          </TrackedLink>
-        </div>
-      </div>
-
-      <div className="shell footer-bottom">
-        <span>© 2026 Find A Place Booking</span>
-        <span>Arkansas, Missouri &amp; beyond</span>
-      </div>
-    </footer>
+      </footer>
+    </>
   );
 }

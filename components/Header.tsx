@@ -3,8 +3,11 @@
 import Link from "next/link";
 import { createPortal } from "react-dom";
 import { useEffect, useId, useState } from "react";
+import { usePathname } from "next/navigation";
 
 import { Brand } from "./Brand";
+import { HomeSocialRibbon } from "./HomeSocialConnections";
+import socialStyles from "./HomeSocialConnections.module.css";
 import { SavedStayNavLink } from "./SavedStayNavLink";
 import { TrackedLink } from "./TrackedLink";
 import mobileStyles from "./HeaderMobileMenu.module.css";
@@ -23,6 +26,7 @@ function linkPrefetch(href: string) {
 }
 
 export function Header({ light = false }: { light?: boolean }) {
+  const pathname = usePathname();
   const [menuOpen, setMenuOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
   const menuId = useId();
@@ -84,15 +88,28 @@ export function Header({ light = false }: { light?: boolean }) {
 
               <div className="mobile-menu-primary">
                 {primaryLinks.map(([label, href]) => (
-                  <Link
-                    key={label}
-                    href={href}
-                    prefetch={linkPrefetch(href)}
-                    onClick={closeMenu}
-                  >
-                    {href === "/social" ? "Find A Place Social Media" : label}
-                    <span>→</span>
-                  </Link>
+                  href === "/social" ? (
+                    <TrackedLink
+                      key={label}
+                      href={href}
+                      onClick={closeMenu}
+                      eventName="social_navigation_click"
+                      eventData={{ placement: "mobile_menu" }}
+                    >
+                      Find A Place Social Media
+                      <span>→</span>
+                    </TrackedLink>
+                  ) : (
+                    <Link
+                      key={label}
+                      href={href}
+                      prefetch={linkPrefetch(href)}
+                      onClick={closeMenu}
+                    >
+                      {label}
+                      <span>→</span>
+                    </Link>
+                  )
                 ))}
               </div>
 
@@ -137,11 +154,23 @@ export function Header({ light = false }: { light?: boolean }) {
             aria-label="Main navigation"
             style={{ gap: 14, fontSize: ".84rem" }}
           >
-            {primaryLinks.map(([label, href]) => (
-              <Link key={label} href={href} prefetch={linkPrefetch(href)}>
-                {label}
-              </Link>
-            ))}
+            {primaryLinks.map(([label, href]) =>
+              href === "/social" ? (
+                <TrackedLink
+                  key={label}
+                  href={href}
+                  className={socialStyles.navSocialLink}
+                  eventName="social_navigation_click"
+                  eventData={{ placement: "desktop_header" }}
+                >
+                  {label}
+                </TrackedLink>
+              ) : (
+                <Link key={label} href={href} prefetch={linkPrefetch(href)}>
+                  {label}
+                </Link>
+              ),
+            )}
           </nav>
 
           <div className="header-actions">
@@ -184,6 +213,8 @@ export function Header({ light = false }: { light?: boolean }) {
           </div>
         </div>
       </header>
+
+      {pathname === "/" ? <HomeSocialRibbon /> : null}
 
       {mobileMenu}
     </>
