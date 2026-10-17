@@ -14,6 +14,7 @@ const primaryLinks = [
   ["Meet the hosts", "/host-profiles"],
   ["Explore", "/#regions"],
   ["For hosts", "/hosts"],
+  ["Social media", "/social"],
   ["About Find A Place", "/about"],
 ];
 
@@ -89,7 +90,7 @@ export function Header({ light = false }: { light?: boolean }) {
                     prefetch={linkPrefetch(href)}
                     onClick={closeMenu}
                   >
-                    {label}
+                    {href === "/social" ? "Find A Place Social Media" : label}
                     <span>→</span>
                   </Link>
                 ))}
@@ -131,7 +132,11 @@ export function Header({ light = false }: { light?: boolean }) {
         <div className="shell header-inner">
           <Brand />
 
-          <nav className="main-nav" aria-label="Main navigation">
+          <nav
+            className="main-nav"
+            aria-label="Main navigation"
+            style={{ gap: 14, fontSize: ".84rem" }}
+          >
             {primaryLinks.map(([label, href]) => (
               <Link key={label} href={href} prefetch={linkPrefetch(href)}>
                 {label}

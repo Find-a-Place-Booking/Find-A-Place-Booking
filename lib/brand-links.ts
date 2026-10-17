@@ -5,12 +5,12 @@ export const FIND_A_PLACE_SOCIAL_LINKS = [
   {
     network: "facebook" as const,
     label: "Facebook",
-    href: "https://www.facebook.com/findaplacear",
+    href: "https://www.facebook.com/profile.php?id=61553527216315",
   },
   {
     network: "instagram" as const,
     label: "Instagram",
-    href: "https://www.instagram.com/findaplacear/",
+    href: "https://www.instagram.com/findaplacearkansas/",
   },
   {
     network: "tiktok" as const,
