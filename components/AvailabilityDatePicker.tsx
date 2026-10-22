@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import styles from "./AvailabilityDatePicker.module.css";
 
@@ -135,10 +135,16 @@ export function AvailabilityDatePicker({
   const [stayRules, setStayRules] = useState<StayRule[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const activeRequest = useRef<AbortController | null>(null);
 
   const calendar = useMemo(() => buildMonth(month), [month]);
 
   const loadAvailability = useCallback(async () => {
+    // Focus refreshes and retries must not allow an older request to win.
+    activeRequest.current?.abort();
+    const controller = new AbortController();
+    activeRequest.current = controller;
+    const requestTimeout = window.setTimeout(() => controller.abort(), 10_000);
     setLoading(true);
     setLoadError(null);
 
@@ -151,7 +157,7 @@ export function AvailabilityDatePicker({
 
       const response = await fetch(
         `/api/booking/availability?${query.toString()}`,
-        { cache: "no-store" },
+        { cache: "no-store", signal: controller.signal },
       );
 
       const payload = await response.json().catch(() => null);
@@ -162,34 +168,50 @@ export function AvailabilityDatePicker({
         );
       }
 
-      setBlockedRanges(payload.blockedRanges ?? []);
+      if (!Array.isArray(payload?.blockedRanges) || !Array.isArray(payload?.stayRules)) {
+        throw new Error("Incomplete calendar response. Please retry.");
+      }
+      if (activeRequest.current !== controller) return;
+
+      setBlockedRanges(payload.blockedRanges);
       setBaseMinimumStayNights(
         Math.max(
           1,
           Number(payload.minimumStayNights ?? minimumStayNights ?? 1),
         ),
       );
-      setStayRules(Array.isArray(payload.stayRules) ? payload.stayRules : []);
+      setStayRules(payload.stayRules);
     } catch (error) {
+      if (activeRequest.current !== controller) return;
       setLoadError(
-        error instanceof Error
-          ? error.message
-          : "Availability could not be refreshed.",
+        controller.signal.aborted
+          ? "The calendar is taking longer than expected. Please retry."
+          : error instanceof Error
+            ? error.message
+            : "Availability could not be refreshed.",
       );
     } finally {
-      setLoading(false);
+      window.clearTimeout(requestTimeout);
+      if (activeRequest.current === controller) {
+        activeRequest.current = null;
+        setLoading(false);
+      }
     }
   }, [maximumDate, minimumStayNights, today, unitId]);
 
   useEffect(() => {
-    loadAvailability();
+    void loadAvailability();
 
     function refreshOnFocus() {
-      loadAvailability();
+      void loadAvailability();
     }
 
     window.addEventListener("focus", refreshOnFocus);
-    return () => window.removeEventListener("focus", refreshOnFocus);
+    return () => {
+      window.removeEventListener("focus", refreshOnFocus);
+      activeRequest.current?.abort();
+      activeRequest.current = null;
+    };
   }, [loadAvailability]);
 
   const blockedNight = useCallback(
@@ -511,6 +533,15 @@ export function AvailabilityDatePicker({
                     )}.`
                   : "Choose check-in first."}
         </p>
+        {loadError && !loading ? (
+          <button
+            type="button"
+            className="button"
+            onClick={() => void loadAvailability()}
+          >
+            Retry availability
+          </button>
+        ) : null}
       </div>
     </div>
   );

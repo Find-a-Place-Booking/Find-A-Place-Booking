@@ -151,6 +151,8 @@ export function BookingCard({
     }
 
     const controller = new AbortController();
+    let cancelled = false;
+    const verificationTimeout = window.setTimeout(() => controller.abort(), 10_000);
     setDateVerification("checking");
 
     async function verifySelectedDates() {
@@ -175,12 +177,14 @@ export function BookingCard({
           throw new Error(payload?.error || "Availability check unavailable");
         }
 
-        const blockedRanges = Array.isArray(payload?.blockedRanges)
-          ? payload.blockedRanges
-          : [];
-        const stayRules = Array.isArray(payload?.stayRules)
-          ? payload.stayRules
-          : [];
+        // A malformed response is not proof that dates are available.
+        if (!Array.isArray(payload?.blockedRanges) || !Array.isArray(payload?.stayRules)) {
+          throw new Error("Incomplete availability response");
+        }
+        if (cancelled) return;
+
+        const blockedRanges = payload.blockedRanges;
+        const stayRules = payload.stayRules;
         const baseMinimum = Math.max(
           1,
           Number(payload?.minimumStayNights || minimumStayNights || 1),
@@ -225,6 +229,7 @@ export function BookingCard({
           }
         }
 
+        if (cancelled) return;
         if (nightsBetween(checkIn, checkOut) < requiredMinimum || blocked) {
           setDateVerification("invalid");
           return;
@@ -232,17 +237,28 @@ export function BookingCard({
 
         setDateVerification("valid");
       } catch (error) {
-        if (controller.signal.aborted) return;
+        if (cancelled) return;
 
-        // Do not dead-end a guest because this extra reassurance check failed.
-        // The existing reservation hold still performs the authoritative check.
+        // A preliminary check failure never marks dates as verified.
+        // The final hold still refreshes calendars and enforces availability.
+        console.warn("[guest availability] preliminary check failed", {
+          unitId,
+          timedOut: controller.signal.aborted,
+          reason: error instanceof Error ? error.message : "Unknown error",
+        });
         setDateVerification("fallback");
+      } finally {
+        window.clearTimeout(verificationTimeout);
       }
     }
 
     void verifySelectedDates();
 
-    return () => controller.abort();
+    return () => {
+      cancelled = true;
+      window.clearTimeout(verificationTimeout);
+      controller.abort();
+    };
   }, [
     checkIn,
     checkOut,
@@ -266,8 +282,12 @@ export function BookingCard({
     }
 
     const controller = new AbortController();
+    let cancelled = false;
+    let estimateTimeout: number | undefined;
     const timer = window.setTimeout(async () => {
+      if (cancelled) return;
       setEstimateLoading(true);
+      estimateTimeout = window.setTimeout(() => controller.abort(), 10_000);
 
       try {
         const response = await fetch("/api/booking/estimate", {
@@ -292,6 +312,7 @@ export function BookingCard({
           throw new Error(payload?.error || "Estimate unavailable");
         }
 
+        if (cancelled) return;
         setEstimate({
           quote: payload?.quote ?? null,
           taxTotalCents: Number(payload?.taxTotalCents || 0),
@@ -302,15 +323,24 @@ export function BookingCard({
               : "HOST_SELF_REMIT",
         });
       } catch (error) {
-        if (error instanceof DOMException && error.name === "AbortError") return;
-        setEstimateUnavailable(true);
+        if (!cancelled) {
+          console.warn("[guest estimate] estimate failed", {
+            unitId,
+            timedOut: controller.signal.aborted,
+            reason: error instanceof Error ? error.message : "Unknown error",
+          });
+          setEstimateUnavailable(true);
+        }
       } finally {
-        if (!controller.signal.aborted) setEstimateLoading(false);
+        if (estimateTimeout !== undefined) window.clearTimeout(estimateTimeout);
+        if (!cancelled) setEstimateLoading(false);
       }
     }, 220);
 
     return () => {
+      cancelled = true;
       window.clearTimeout(timer);
+      if (estimateTimeout !== undefined) window.clearTimeout(estimateTimeout);
       controller.abort();
     };
   }, [

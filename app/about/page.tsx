@@ -104,17 +104,6 @@ const teamMemberDefaults: TeamMember[] = [
       "Marcus is the face behind the Floating the Ozarks page and is an avid floater & camper and he will be significant in helping us as we expand our roots further into southern Missouri.",
   },
   {
-    contentKey: "about.team.tammy",
-    name: "Tammy",
-    subtitle: '"Arkansas Sole Sisters Hiking Group"',
-    image: "/about/team/tammy.webp",
-    imageAlt: "Tammy from Arkansas Sole Sisters Hiking Group",
-    href: "https://www.facebook.com/groups/2986082785014036",
-    linkLabel: "Facebook",
-    bio:
-      "Tammy is the founder of Arkansas Sole Sisters Hiking Group, In 2021 Arkansas Sole Sisters took their first hike, now many adventures later this hiking group inspires to help women build friendships, lift each other up as well as create an atmosphere of empowerment, all while going on fun filled adventures exploring the beautiful state.",
-  },
-  {
     contentKey: "about.team.aaron",
     name: "Aaron",
     subtitle: "Vinci Snaps",
@@ -135,17 +124,6 @@ const teamMemberDefaults: TeamMember[] = [
     linkLabel: "Facebook",
     bio:
       "Hilary is the founder of Explore MOAR. She has a passion for hiking, waterfalls, and scenic views, often traveling Southern MO and much of the Ozarks. AND she often travels with Chad with Chasing the Ozarks her partner in crime.",
-  },
-  {
-    contentKey: "about.team.ben",
-    name: "Ben",
-    subtitle: '"VP of Behind the Scenes" · Marketing Coordinator',
-    image: "/about/team/ben.webp",
-    imageAlt: "Ben, Find A Place marketing coordinator",
-    href: "https://www.facebook.com/share/19vCnpE2Ry/",
-    linkLabel: "Facebook",
-    bio:
-      "Ben will be spearheading many tasks behind the scenes for us. He is very fluent in social media and website automation and will be our marketing coordinator behind the scenes.",
   },
   {
     contentKey: "about.team.jake",
@@ -181,17 +159,6 @@ const teamMemberDefaults: TeamMember[] = [
       "Ricky and Tiffany together make Ozarks Uncovered. Based over in the heart of the Missouri Ozarks, their passion is uncovering and sharing the incredible rugged beauty of the region.",
   },
   {
-    contentKey: "about.team.ashley",
-    name: "Ashley",
-    subtitle: '"Arkansas Trail Diaries"',
-    image: "/about/team/ashley.webp",
-    imageAlt: "Ashley from Arkansas Trail Diaries",
-    href: "https://www.facebook.com/profile.php?id=61580335089451",
-    linkLabel: "Facebook",
-    bio:
-      "Ashley is the face behind Arkansas Trail Diaries and is passionate about hiking and nature. Her hope is to inspire other to explore, learn about, and help protect the outdoors and everything the Natural State has to offer.",
-  },
-  {
     contentKey: "about.team.mccarley",
     name: "McCarley",
     subtitle: '"McCarley Explores"',
@@ -208,11 +175,10 @@ const historyDefaults = [
   'Founding collaborators are Renea with "Renea and Jon\'s Travels", Mike with “Van Muir - For Life Outdoors”, Chad with “Chasing The Ozarks” and Gez with “Waterfalls in AR & Other Cool Places”.',
   'In June 2024 we welcomed Joey Hunter with the "Adventure Arkansas" page and "Bridges of Arkansas" Group aboard the Find A Place Arkansas team.',
   'In September 2024 we invited Marcus Allen with the "Floating the Ozarks" page.',
-  'In October 2024, Tammy Bradley from the "Arkansas Sole Sisters Group" joined our collaboration.',
   'In January 2025, Aaron with Vinci Snaps joined our team.',
-  'In February 2025, Hilary with "Explore MO*AR" and Ben our "VP of Behind the Scenes" or Marketing Coordinator joined the Find A Place Team.',
+  'In February 2025, Hilary with "Explore MO*AR" joined the Find A Place Team.',
   'In May 2026, Lobo with the Arkansas Outdoors page joined the Find A Place Team.',
-  'In July 2026, Ozarks Uncovered and Arkansas Trail Diaries joined the Find A Place Team.',
+  'In July 2026, Ozarks Uncovered joined the Find A Place Team.',
   'In September, McCarley Norway joined the Find A Place Team.',
 ];
 
