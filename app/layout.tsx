@@ -12,6 +12,7 @@ import "./property-editor-sidebar-fix.css";
 import "./guest-feedback-fixes.css";
 import "./nearby-search-controls.css";
 import "./ux-polish.css";
+import "./natural-brand-polish.css";
 
 import { BookingJourneyTracker } from "@/components/BookingJourneyTracker";
 import { JsonLd } from "@/components/JsonLd";

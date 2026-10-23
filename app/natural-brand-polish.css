@@ -1,0 +1,309 @@
+/*
+ * Find A Place — Natural Brand Polish, October 2026.
+ * Presentation-only layer applied after ux-polish.css.
+ * Retains the existing identity, page structure, booking UI, and mobile behavior.
+ * Changes no availability, payment, calendar, messaging, or form logic.
+ */
+
+/* One shared outdoor palette across the older global and newer FAP styles. */
+:root {
+  --ink: #252e29;
+  --muted: #58665d;
+  --paper: #f4f0e8;
+  --white: #fffcf7;
+  --pine: #253a32;
+  --pine2: #365247;
+  --clay: #a76448;
+  --line: #ded7cc;
+  --gold: #b79c72;
+  --shadow: 0 8px 24px rgba(32, 41, 35, .075);
+
+  --fap-charcoal: #182923;
+  --fap-charcoal-soft: #25352c;
+  --fap-cream: #f4f0e8;
+  --fap-paper: #ebe5da;
+  --fap-pine: #253a32;
+  --fap-pine-soft: #365247;
+  --fap-rust: #a76448;
+  --fap-sand: #d9c8aa;
+  --fap-line: rgba(37, 58, 50, .15);
+  --fap-shadow: 0 10px 28px rgba(32, 41, 35, .075);
+}
+
+body {
+  background: var(--paper);
+  color: var(--ink);
+}
+
+/* Less aggressive labels and navigation: keep all-caps only where useful. */
+.eyebrow {
+  letter-spacing: .105em;
+  font-weight: 700;
+}
+.eyebrow.dark {
+  color: #58665d;
+}
+.brand-copy strong {
+  font-weight: 800;
+  letter-spacing: .085em;
+}
+.brand-copy small {
+  font-weight: 700;
+  letter-spacing: .105em;
+}
+.main-nav,
+.main-nav a,
+.text-link {
+  font-weight: 650;
+}
+
+/* Natural paper header instead of the glassy, shadow-heavy treatment. */
+.site-header {
+  background: rgba(244, 240, 232, .96);
+  border-bottom-color: rgba(37, 58, 50, .12);
+  backdrop-filter: none;
+}
+.header-light {
+  background: rgba(244, 240, 232, .98);
+  border-bottom-color: rgba(37, 58, 50, .12);
+  box-shadow: 0 2px 10px rgba(25, 40, 33, .035);
+  backdrop-filter: none;
+}
+.header-light .button-outline {
+  background: transparent;
+  border-color: #9aaca0;
+  color: #253a32;
+}
+
+/* Calm, consistent primary actions; preserve light/quiet/outline variants. */
+.button {
+  border-radius: 9px;
+  font-weight: 700;
+  letter-spacing: 0;
+}
+.button:not(.button-quiet):not(.button-light):not(.button-outline) {
+  background: var(--pine);
+  border-color: var(--pine);
+  color: #fff;
+}
+.button:not(.button-quiet):not(.button-light):not(.button-outline):hover {
+  background: var(--pine2);
+  border-color: var(--pine2);
+  transform: none;
+}
+.button-quiet {
+  color: #253a32;
+  border-color: var(--line);
+  background: transparent;
+}
+.button-quiet:hover {
+  background: #ebe5da;
+  transform: none;
+}
+
+/* The landscape/video remain the hero; remove the decorative double frame. */
+.hero-featured-panel {
+  background: #f4f0e8;
+  box-shadow: 0 14px 32px rgba(7, 18, 12, .12);
+}
+.hero-featured-panel::before {
+  display: none;
+}
+.hero-featured-copy > span {
+  letter-spacing: .095em;
+  font-weight: 700;
+}
+
+/* Discovery surfaces: warm paper, real photos, crisp borders, restrained lift. */
+.search-panel,
+.results-search .search-panel {
+  background: #fffcf7;
+  border: 1px solid var(--line);
+  border-radius: 13px;
+  box-shadow: 0 8px 24px rgba(32, 41, 35, .08);
+}
+.search-panel label span,
+.property-kicker,
+.property-type {
+  letter-spacing: .07em;
+  font-weight: 700;
+}
+.property-type {
+  background: rgba(255, 252, 247, .96);
+  color: #253a32;
+}
+.property-card:hover {
+  transform: translateY(-1px);
+}
+.property-image-wrap,
+.home-property-grid .property-image-wrap,
+.result-grid .property-image-wrap {
+  border-radius: 13px;
+  box-shadow: none;
+}
+.heart {
+  background: rgba(255, 252, 247, .96);
+  box-shadow: 0 3px 10px rgba(18, 36, 26, .07);
+}
+
+.results-main {
+  background: #f4f0e8;
+}
+.stay-types-section {
+  background: #f4f0e8;
+  border-top-color: #e4ddd1;
+  border-bottom-color: #e4ddd1;
+}
+.stay-type-card {
+  background: #fffcf7;
+  border-color: #e0d8cd;
+  border-radius: 13px;
+  box-shadow: 0 3px 12px rgba(35, 45, 36, .035);
+}
+.stay-type-card:hover {
+  background: #fffdf9;
+  transform: none;
+  box-shadow: 0 7px 22px rgba(35, 45, 36, .075);
+}
+.stay-type-card strong {
+  color: #253a32;
+  font-weight: 750;
+}
+.stay-type-card > span {
+  font-weight: 700;
+}
+.regions-section {
+  background: #fffcf7;
+}
+.destination-card:hover {
+  transform: none;
+  box-shadow: 0 8px 20px rgba(25, 37, 29, .08);
+}
+.network-photo,
+.find-place-poster {
+  box-shadow: 0 8px 24px rgba(25, 37, 29, .07);
+}
+
+/* Copper becomes a small accent, not a giant saturated section. */
+.host-cta {
+  background: #f4f0e8;
+}
+.host-cta-inner {
+  background: #253a32;
+  border: 1px solid #445b4d;
+  border-top: 3px solid #a76448;
+  border-radius: 19px;
+  box-shadow: 0 9px 24px rgba(25, 40, 33, .09);
+}
+.host-cta .eyebrow {
+  color: #e7d4b6;
+}
+.host-cta .button-light {
+  background: #fffcf7;
+  border-color: #fffcf7;
+  color: #253a32;
+}
+.host-cta .button-light:hover {
+  background: #eae4d9;
+  border-color: #eae4d9;
+}
+
+/* Booking UI colors only; no interaction or transaction behavior changed. */
+.booking-card,
+.checkout-summary,
+.search-compact,
+.guest-state-card {
+  background: #fffcf7;
+  border-color: #ddd5c9;
+  box-shadow: 0 8px 24px rgba(32, 41, 35, .075);
+}
+.booking-card::before {
+  background: #a76448;
+}
+.booking-dates,
+.amenity-grid > span {
+  border-color: #ded7cc;
+}
+.amenity-grid > span {
+  background: #f7f4ed;
+}
+.checkout-page {
+  background: #f4f0e8;
+}
+
+/* Host workspace: a calmer, practical management surface. */
+.dashboard-layout,
+.admin-layout {
+  background: #f4f0e8;
+}
+.dash-sidebar,
+.admin-side {
+  background: #182923;
+}
+.dash-sidebar nav a {
+  color: #d4ded6;
+  font-weight: 650;
+}
+.dash-sidebar nav a.active,
+.dash-sidebar nav a:hover {
+  background: #314c3f;
+  color: #fff;
+}
+.side-note {
+  background: #253a32;
+}
+.dash-topbar {
+  border-bottom-color: #ded7cc;
+}
+.dash-topbar small,
+.admin-main > header small {
+  color: #59665e;
+}
+.metrics > div,
+.dashboard-layout .panel,
+.admin-layout .panel,
+.payment-status,
+.internal-mobile-nav {
+  background: #fffcf7;
+  border-color: #ded7cc;
+  box-shadow: 0 3px 14px rgba(33, 45, 37, .04);
+}
+.dashboard-layout .metrics > div {
+  border-radius: 11px;
+}
+.dashboard-layout .panel,
+.admin-layout .panel {
+  border-radius: 13px;
+}
+.internal-mobile-nav summary span {
+  color: #58665d;
+  letter-spacing: .075em;
+  font-weight: 700;
+}
+
+/* A warm, light touch for the existing message inbox (CSS-module classes). */
+[class*="ReservationChat"][class*="inboxGrid"] {
+  border-color: #ded7cc;
+  box-shadow: 0 4px 16px rgba(32, 41, 35, .055);
+}
+[class*="ReservationChat"][class*="conversationItemActive"] {
+  background: #eef1ea;
+}
+[class*="ReservationChat"][class*="thread"] {
+  background: #f8f6f1;
+}
+[class*="ReservationChat"][class*="composer"] {
+  background: #fffcf7;
+}
+
+/* Mobile inherits the exact same colors; no layout, width or scroll overrides. */
+.mobile-menu {
+  background: #fffcf7;
+  border-color: #ded7cc;
+  box-shadow: 0 12px 30px rgba(25, 40, 33, .11);
+}
+
+/* Keep accessible focus indications and existing success/warning/error semantics. */
+:where(a, button, input, select, textarea, summary):focus-visible {
+  outline-color: #365b47;
+}
