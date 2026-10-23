@@ -3,6 +3,7 @@ import Link from "next/link";
 
 import { signOutHost } from "@/app/auth/actions";
 import { HostHelpAssistant } from "@/components/HostHelpAssistant";
+import { HostInboxEnhancer } from "@/components/HostInboxEnhancer";
 import { HostOnboardingFeedbackCard } from "@/components/HostOnboardingFeedbackCard";
 import { HostRecoveryAlert } from "@/components/HostRecoveryAlert";
 import { HostReservationMessageLiveRefresh } from "@/components/HostReservationMessageLiveRefresh";
@@ -47,39 +48,24 @@ export async function DashboardShell({
       <HostReservationMessageLiveRefresh
         aggressive={active === "Messages"}
       />
+      {active === "Messages" ? <HostInboxEnhancer /> : null}
 
-      <HostSidebar
-        active={active}
-        messageAlertCount={messageAlertCount}
-      />
+      <HostSidebar active={active} messageAlertCount={messageAlertCount} />
       <main className="dash-main">
-        <HostMobileNav
-          active={active}
-          messageAlertCount={messageAlertCount}
-        />
+        <HostMobileNav active={active} messageAlertCount={messageAlertCount} />
         <header className="dash-topbar">
           <div>
             <small>{eyebrow || "Host dashboard"}</small>
             <h1>{title}</h1>
           </div>
           <div className="dash-actions">
-            <Link
-              className="button button-small button-quiet"
-              href="/contact#host"
-            >
+            <Link className="button button-small button-quiet" href="/contact#host">
               Get help
             </Link>
-            <Link
-              className="button button-small button-quiet dash-marketplace-link"
-              href="/"
-            >
+            <Link className="button button-small button-quiet dash-marketplace-link" href="/">
               View marketplace
             </Link>
-            <Link
-              className="notification"
-              href="/host/messages"
-              aria-label="Reservation messages"
-            >
+            <Link className="notification" href="/host/messages" aria-label="Reservation messages">
               •
             </Link>
             <Link
@@ -87,25 +73,17 @@ export async function DashboardShell({
               href="/host/settings"
               aria-label="Host account settings"
             >
-              {profile.avatarUrl ? (
-                <img src={profile.avatarUrl} alt="" />
-              ) : (
-                initials
-              )}
+              {profile.avatarUrl ? <img src={profile.avatarUrl} alt="" /> : initials}
             </Link>
             <form action={signOutHost}>
-              <button className="portal-signout" type="submit">
-                Sign out
-              </button>
+              <button className="portal-signout" type="submit">Sign out</button>
             </form>
           </div>
         </header>
 
         <HostHelpAssistant />
         <HostRecoveryAlert />
-
         {children}
-
         {onboardingFeedbackPrompt ? (
           <HostOnboardingFeedbackCard
             propertyId={onboardingFeedbackPrompt.propertyId}

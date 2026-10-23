@@ -1,0 +1,117 @@
+/* Targeted UI polish; leaves financial, booking and calendar behavior alone. */
+
+/* Unphotographed host experiences: a small illustrated landscape rather than a large initial. */
+[class*="NearbyExperiencesManager"][class*="placeholder"] {
+  position: relative;
+  isolation: isolate;
+  background: linear-gradient(145deg, #263a40 0%, #36544d 56%, #677963 100%);
+}
+[class*="NearbyExperiencesManager"][class*="placeholder"] > strong {
+  display: none;
+}
+[class*="NearbyExperiencesManager"][class*="placeholder"]::before {
+  content: "";
+  display: block;
+  width: 76px;
+  height: 58px;
+  margin: 0 auto 8px;
+  opacity: .9;
+  background: center / contain no-repeat url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 90' fill='none' stroke='%23ecf3ec' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='90' cy='24' r='9' opacity='.75'/%3E%3Cpath d='M6 72 39 23l25 34 15-20 35 35H6Z'/%3E%3Cpath d='m29 72 12-14 11 14M17 68V43m-10 12 10-18 10 18' opacity='.7'/%3E%3C/svg%3E");
+}
+
+/* Inbox: less visual chrome, roomier reading and more intentional action states. */
+[class*="ReservationChat"][class*="inboxGrid"] {
+  box-shadow: 0 8px 28px rgba(22, 33, 28, .05);
+}
+[class*="ReservationChat"][class*="conversationItem"] {
+  transition: background-color 120ms ease, border-color 120ms ease;
+}
+[class*="ReservationChat"][class*="thread"] {
+  scrollbar-gutter: stable;
+  scroll-behavior: auto;
+}
+[class*="ReservationChat"][class*="bubbleBody"] {
+  overflow-wrap: anywhere;
+  line-height: 1.55;
+  white-space: pre-wrap;
+}
+[class*="ReservationChat"][class*="composer"] textarea[name="body"] {
+  width: 100%;
+  max-height: 150px;
+  min-height: 52px;
+  resize: none;
+  border-radius: 13px;
+  background: #fff;
+  line-height: 1.45;
+  transition: border-color 120ms ease, box-shadow 120ms ease;
+}
+[class*="ReservationChat"][class*="composer"] textarea[name="body"]:focus-visible {
+  outline: 2px solid #5c8a72;
+  outline-offset: 1px;
+  box-shadow: 0 0 0 4px rgba(92, 138, 114, .12);
+}
+[class*="ReservationChat"][class*="sendButton"]:disabled {
+  cursor: progress;
+  opacity: .7;
+}
+
+/* Better phone-sized conversation: actual viewport-height thread + reachable send control. */
+@media (max-width: 760px) {
+  [class*="ReservationChat"][class*="mobileThreadOpen"] [class*="ReservationChat"][class*="centerPane"] {
+    height: min(800px, calc(100dvh - 140px));
+    min-height: 430px;
+    grid-template-rows: auto auto auto minmax(0, 1fr) auto;
+  }
+  [class*="ReservationChat"][class*="mobileThreadOpen"] [class*="ReservationChat"][class*="thread"] {
+    min-height: 0;
+    padding: 15px 12px;
+    overscroll-behavior: contain;
+  }
+  [class*="ReservationChat"][class*="mobileThreadOpen"] [class*="ReservationChat"][class*="composer"] {
+    position: relative;
+    z-index: 2;
+    padding: 10px 12px calc(12px + env(safe-area-inset-bottom, 0px));
+    box-shadow: 0 -5px 14px rgba(18, 31, 25, .055);
+    background: #fff;
+  }
+  [class*="ReservationChat"][class*="mobileBack"],
+  [class*="ReservationChat"][class*="reservationLink"],
+  [class*="ReservationChat"][class*="sendButton"] {
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+  [class*="ReservationChat"][class*="centerIdentity"] h2 {
+    font-size: 1.15rem;
+  }
+  [class*="NearbyExperiencesManager"][class*="rowCard"] input,
+  [class*="NearbyExperiencesManager"][class*="rowCard"] select,
+  [class*="NearbyExperiencesManager"][class*="rowCard"] button,
+  [class*="NearbyExperiencesManager"][class*="addCard"] input,
+  [class*="NearbyExperiencesManager"][class*="addCard"] select,
+  [class*="NearbyExperiencesManager"][class*="addCard"] button {
+    min-height: 44px;
+  }
+  .internal-mobile-nav summary {
+    min-height: 48px;
+  }
+  .internal-mobile-nav nav a,
+  .internal-mobile-nav nav button {
+    min-height: 44px;
+  }
+}
+@media (max-width: 460px) {
+  [class*="ReservationChat"][class*="mobileThreadOpen"] [class*="ReservationChat"][class*="composerNote"] {
+    font-size: .68rem;
+  }
+  [class*="ReservationChat"][class*="mobileThreadOpen"] [class*="ReservationChat"][class*="sendButton"] {
+    width: 100%;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  [class*="ReservationChat"][class*="conversationItem"],
+  [class*="ReservationChat"][class*="composer"] textarea[name="body"] {
+    transition: none;
+  }
+}

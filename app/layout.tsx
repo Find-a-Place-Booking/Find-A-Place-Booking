@@ -11,6 +11,7 @@ import "./photo-gallery-fixes.css";
 import "./property-editor-sidebar-fix.css";
 import "./guest-feedback-fixes.css";
 import "./nearby-search-controls.css";
+import "./ux-polish.css";
 
 import { BookingJourneyTracker } from "@/components/BookingJourneyTracker";
 import { JsonLd } from "@/components/JsonLd";
@@ -57,10 +58,7 @@ export const metadata: Metadata = {
     title: "Find A Place Booking | Cabins, RV Stays & Getaways",
     description: DEFAULT_DESCRIPTION,
     images: [
-      {
-        url: "/brand/find-a-place-seal.png",
-        alt: "Find A Place Booking",
-      },
+      { url: "/brand/find-a-place-seal.png", alt: "Find A Place Booking" },
     ],
   },
   twitter: {
@@ -82,24 +80,12 @@ export const metadata: Metadata = {
   },
   icons: {
     icon: [
-      {
-        url: "/favicon.ico",
-        type: "image/png",
-        sizes: "720x720",
-      },
-      {
-        url: "/brand/find-a-place-seal.png",
-        type: "image/png",
-        sizes: "720x720",
-      },
+      { url: "/favicon.ico", type: "image/png", sizes: "720x720" },
+      { url: "/brand/find-a-place-seal.png", type: "image/png", sizes: "720x720" },
     ],
     shortcut: "/favicon.ico",
     apple: [
-      {
-        url: "/brand/find-a-place-seal.png",
-        type: "image/png",
-        sizes: "720x720",
-      },
+      { url: "/brand/find-a-place-seal.png", type: "image/png", sizes: "720x720" },
     ],
   },
 };
@@ -126,9 +112,7 @@ const siteSchema = [
   },
 ];
 
-export default function RootLayout({
-  children,
-}: Readonly<{ children: React.ReactNode }>) {
+export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en" data-scroll-behavior="smooth">
       <body>

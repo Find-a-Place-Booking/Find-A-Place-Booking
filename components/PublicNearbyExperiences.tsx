@@ -1,4 +1,5 @@
 import { createAdminClient } from "@/lib/supabase/admin";
+import { NearbyExperienceArt } from "./NearbyExperienceArt";
 import styles from "./PublicNearbyExperiences.module.css";
 
 type PublicNearbyExperience = {
@@ -24,9 +25,10 @@ function validExternalUrl(value: string | null) {
 }
 
 function distanceLabel(row: PublicNearbyExperience) {
-  const miles = Number(row.distance_miles);
+  // Number(null) is zero; a missing distance should never display as "0 mi".
+  const miles = row.distance_miles == null ? NaN : Number(row.distance_miles);
   const parts: string[] = [];
-  if (Number.isFinite(miles)) {
+  if (Number.isFinite(miles) && miles >= 0) {
     parts.push(`${miles % 1 === 0 ? miles.toFixed(0) : miles.toFixed(1)} mi`);
   }
   if (typeof row.drive_minutes === "number" && row.drive_minutes > 0) {
@@ -35,17 +37,11 @@ function distanceLabel(row: PublicNearbyExperience) {
   return parts.join(" · ");
 }
 
-export async function PublicNearbyExperiences({
-  propertyId,
-}: {
-  propertyId: string;
-}) {
+export async function PublicNearbyExperiences({ propertyId }: { propertyId: string }) {
   const admin = createAdminClient();
   const { data, error } = await admin
     .from("property_nearby_experiences")
-    .select(
-      "id,title,category,description,distance_miles,drive_minutes,website_url,image_path,sort_order",
-    )
+    .select("id,title,category,description,distance_miles,drive_minutes,website_url,image_path,sort_order")
     .eq("property_id", propertyId)
     .eq("is_active", true)
     .order("sort_order", { ascending: true })
@@ -53,11 +49,8 @@ export async function PublicNearbyExperiences({
     .limit(12);
 
   if (error) {
-    // Keep the public listing healthy if nearby content is temporarily unavailable.
     console.error("[public nearby experiences] unavailable", {
-      propertyId,
-      code: error.code,
-      message: error.message,
+      propertyId, code: error.code, message: error.message,
     });
     return null;
   }
@@ -72,19 +65,12 @@ export async function PublicNearbyExperiences({
       const { data: signed, error: signedError } = await admin.storage
         .from("property-images")
         .createSignedUrl(row.image_path, 3600, {
-          transform: {
-            width: 720,
-            height: 480,
-            resize: "cover",
-            quality: 76,
-          },
+          transform: { width: 720, height: 480, resize: "cover", quality: 76 },
         });
-
       if (signed?.signedUrl && !signedError) {
         imageUrls.set(row.id, signed.signedUrl);
         return;
       }
-
       const { data: original } = await admin.storage
         .from("property-images")
         .createSignedUrl(row.image_path, 3600);
@@ -92,19 +78,13 @@ export async function PublicNearbyExperiences({
     }),
   );
 
-  const firstRows = rows.slice(0, 4);
-  const remainingRows = rows.slice(4);
-
   const renderCard = (row: PublicNearbyExperience) => {
     const image = imageUrls.get(row.id);
     const website = validExternalUrl(row.website_url);
     const distance = distanceLabel(row);
 
     return (
-      <article
-        className={`${styles.card} ${image ? "" : styles.cardNoImage}`}
-        key={row.id}
-      >
+      <article className={`${styles.card} ${image ? "" : styles.cardNoImage}`} key={row.id}>
         {image ? (
           <div className={styles.media}>
             <img src={image} alt="" loading="lazy" decoding="async" />
@@ -112,21 +92,18 @@ export async function PublicNearbyExperiences({
           </div>
         ) : (
           <div className={styles.noImage}>
+            <NearbyExperienceArt category={row.category} />
             <span>{row.category}</span>
-            <strong>{row.title.slice(0, 1).toUpperCase()}</strong>
           </div>
         )}
-
         <div className={styles.copy}>
           <div>
             <h3>{row.title}</h3>
             {distance ? <strong>{distance}</strong> : null}
           </div>
-
           {row.description ? <p>{row.description}</p> : null}
-
           {website ? (
-            <a href={website} target="_blank" rel="noreferrer">
+            <a href={website} target="_blank" rel="noopener noreferrer">
               More information ↗
             </a>
           ) : null}
@@ -140,27 +117,19 @@ export async function PublicNearbyExperiences({
       <div className={styles.heading}>
         <div>
           <p className="eyebrow dark">Near this stay</p>
-          <h2>Things worth doing nearby</h2>
-          <p>
-            Local favorites and trip draws picked by the host, so you can see
-            what is around the stay before you book.
-          </p>
+          <h2>Things to do nearby</h2>
+          <p>Local spots your host recommends, from trails and waterways to places to eat.</p>
         </div>
         <span className={styles.count}>
           {rows.length} place{rows.length === 1 ? "" : "s"}
         </span>
       </div>
-
-      <div className={styles.grid}>{firstRows.map(renderCard)}</div>
-
-      {remainingRows.length ? (
+      <div className={styles.grid}>{rows.slice(0, 4).map(renderCard)}</div>
+      {rows.length > 4 ? (
         <details className={styles.more}>
-          <summary>
-            See all {rows.length} nearby experiences
-            <span aria-hidden="true">＋</span>
-          </summary>
+          <summary>See all {rows.length} nearby experiences <span aria-hidden="true">＋</span></summary>
           <div className={`${styles.grid} ${styles.moreGrid}`}>
-            {remainingRows.map(renderCard)}
+            {rows.slice(4).map(renderCard)}
           </div>
         </details>
       ) : null}
