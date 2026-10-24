@@ -14,151 +14,161 @@ type Props = {
 
 type SortMode = "recommended" | "price-low" | "price-high" | "rating";
 
+type ExpandedBubble = {
+  stays: StayMapItem[];
+  totalInBubble: number;
+};
+
 /**
- * A lightweight interface around the existing live Mapbox map. It does not
- * replace or re-initialize Mapbox when the visitor enlarges the map.
+ * Keep the ORIGINAL stay map and its small Mapbox cluster bubbles.
+ * The added "Expand bubble" action turns just that cluster into a roomy,
+ * scrollable panel inside the same map frame; it never enlarges the map or
+ * opens a separate map screen. Back to map closes the panel and restores pins.
  *
- * The current cluster popup is owned by StayMap. Enhance only its existing
- * "Zoom into this area" footer so no changes to map data or booking code are
- * needed. Mapbox can recreate popup DOM; the MutationObserver handles that.
+ * The existing StayMap component owns its popup DOM, so we attach the action
+ * to the existing bubble rather than replacing or re-initializing Mapbox.
  */
 export function ExpandableStayMap({ stays, className = "", emptyMessage }: Props) {
   const frameRef = useRef<HTMLDivElement | null>(null);
-  const mapButtonRef = useRef<HTMLButtonElement | null>(null);
   const backButtonRef = useRef<HTMLButtonElement | null>(null);
-  const [expanded, setExpanded] = useState(false);
-  const [areaStays, setAreaStays] = useState<StayMapItem[] | null>(null);
+  const [expandedBubble, setExpandedBubble] = useState<ExpandedBubble | null>(null);
   const [sort, setSort] = useState<SortMode>("recommended");
 
-  // Don't remount the underlying map when expanding or viewing stay details.
   useEffect(() => {
     const frame = frameRef.current;
     if (!frame) return;
 
     const stayBySlug = new Map(stays.map((stay) => [stay.slug, stay]));
 
-    const enhanceClusterPopups = () => {
+    const enhanceClusterBubbles = () => {
       for (const popup of frame.querySelectorAll<HTMLElement>(".mapboxgl-popup")) {
         const zoomButton = Array.from(popup.querySelectorAll<HTMLButtonElement>("button"))
           .find((button) => button.textContent?.trim() === "Zoom into this area");
         const footer = zoomButton?.parentElement;
-        if (!footer || footer.querySelector("[data-fap-map-expand]")) continue;
+        if (!footer || footer.querySelector("[data-fap-expand-bubble]")) continue;
 
         const button = document.createElement("button");
         button.type = "button";
-        button.textContent = "Open larger view";
-        button.dataset.fapMapExpand = "1";
-        button.setAttribute("aria-label", "View stays from this cluster in a larger map");
+        button.textContent = "Expand this bubble";
+        button.dataset.fapExpandBubble = "1";
+        button.setAttribute("aria-label", "Expand the stays in this map bubble");
+
         button.addEventListener("click", (event) => {
           event.preventDefault();
           event.stopPropagation();
 
-          const seen = new Set<string>();
           const matched: StayMapItem[] = [];
+          const foundSlugs = new Set<string>();
           for (const link of popup.querySelectorAll<HTMLAnchorElement>('a[href^="/stays/"]')) {
-            const slug = decodeURIComponent(link.pathname.split("/").filter(Boolean).at(-1) ?? "");
+            const rawSlug = link.pathname.split("/").filter(Boolean).at(-1) ?? "";
+            let slug = rawSlug;
+            try {
+              slug = decodeURIComponent(rawSlug);
+            } catch {
+              continue;
+            }
             const stay = stayBySlug.get(slug);
-            if (stay && !seen.has(slug)) {
-              seen.add(slug);
+            if (stay && !foundSlugs.has(slug)) {
+              foundSlugs.add(slug);
               matched.push(stay);
             }
           }
-          if (!matched.length) return;
+          if (matched.length === 0) return;
 
-          // Close the small bubble; the same Mapbox map remains mounted behind
-          // the expanded panel, keeping its location and zoom level.
+          const heading = popup.querySelector("strong")?.textContent ?? "";
+          const parsedCount = Number.parseInt(heading, 10);
+          const totalInBubble = Number.isFinite(parsedCount)
+            ? Math.max(parsedCount, matched.length)
+            : matched.length;
+
+          // Close the small bubble, but DO NOT change the Mapbox viewport,
+          // the size of the map, or the map component's mounted state.
           popup.querySelector<HTMLButtonElement>(".mapboxgl-popup-close-button")?.click();
           setSort("recommended");
-          setAreaStays(matched);
-          setExpanded(true);
-          track("map_cluster_expanded", { surface: "home_map", count: matched.length });
+          setExpandedBubble({ stays: matched, totalInBubble });
+          track("map_cluster_bubble_expanded", {
+            surface: "home_map",
+            count: matched.length,
+          });
         });
+
         footer.classList.add(styles.enhancedFooter);
         footer.appendChild(button);
       }
     };
 
-    const observer = new MutationObserver(enhanceClusterPopups);
-    observer.observe(frame, { subtree: true, childList: true });
-    enhanceClusterPopups();
+    const observer = new MutationObserver(enhanceClusterBubbles);
+    observer.observe(frame, { childList: true, subtree: true });
+    enhanceClusterBubbles();
     return () => observer.disconnect();
   }, [stays]);
 
   useEffect(() => {
-    if (!expanded) return;
-    const previous = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => { document.body.style.overflow = previous; };
-  }, [expanded]);
+    if (!expandedBubble) return;
+    backButtonRef.current?.focus();
+  }, [expandedBubble]);
 
   useEffect(() => {
-    if (!expanded) return;
-    const onEscape = (event: KeyboardEvent) => {
+    if (!expandedBubble) return;
+    const onKeyDown = (event: KeyboardEvent) => {
       if (event.key !== "Escape") return;
-      if (areaStays) setAreaStays(null);
-      else setExpanded(false);
+      setExpandedBubble(null);
+      frameRef.current?.focus();
     };
-    window.addEventListener("keydown", onEscape);
-    return () => window.removeEventListener("keydown", onEscape);
-  }, [expanded, areaStays]);
-
-  useEffect(() => {
-    if (areaStays) backButtonRef.current?.focus();
-  }, [areaStays]);
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [expandedBubble]);
 
   const sortedStays = useMemo(() => {
-    const result = [...(areaStays ?? [])];
+    const result = [...(expandedBubble?.stays ?? [])];
     if (sort === "price-low") result.sort((a, b) => a.price - b.price);
     if (sort === "price-high") result.sort((a, b) => b.price - a.price);
     if (sort === "rating") result.sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0));
     return result;
-  }, [areaStays, sort]);
+  }, [expandedBubble, sort]);
+
+  function closeBubble() {
+    setExpandedBubble(null);
+    // Return keyboard focus to the existing map, not a different screen.
+    frameRef.current?.focus();
+  }
 
   return (
     <div
       ref={frameRef}
-      className={`stay-map ${className} ${styles.frame} ${expanded ? styles.fullscreen : ""}`}
+      tabIndex={-1}
+      className={`stay-map ${className} ${styles.frame}`}
       aria-label="Find A Place stay map"
     >
-      <StayMap stays={stays} emptyMessage={emptyMessage} className={styles.mapCanvas} />
+      <div className={styles.mapCanvas} inert={Boolean(expandedBubble)}>
+        <StayMap stays={stays} emptyMessage={emptyMessage} className={styles.innerMap} />
+      </div>
 
-      <button
-        ref={mapButtonRef}
-        type="button"
-        className={styles.mapToggle}
-        onClick={() => {
-          if (expanded) {
-            setAreaStays(null);
-            setExpanded(false);
-          } else {
-            setExpanded(true);
-            track("map_fullscreen_open", { surface: "home_map" });
-          }
-        }}
-        aria-label={expanded ? "Close larger map" : "Open larger map"}
-        aria-expanded={expanded}
-      >
-        {expanded ? "× Close map" : "⛶ Larger map"}
-      </button>
-
-      {areaStays ? (
-        <section className={styles.areaPanel} aria-label="Stays in this map area">
-          <div className={styles.panelHeader}>
+      {expandedBubble ? (
+        <section
+          className={styles.expandedBubble}
+          aria-label="Expanded list of stays in this map bubble"
+        >
+          <header className={styles.bubbleHeader}>
             <button
               ref={backButtonRef}
-              type="button"
               className={styles.backButton}
-              onClick={() => {
-                setAreaStays(null);
-                mapButtonRef.current?.focus();
-              }}
+              type="button"
+              onClick={closeBubble}
             >
               ← Back to map
             </button>
-            <h3>Stays in this area</h3>
-            <p>{areaStays.length} {areaStays.length === 1 ? "place" : "places"} to explore</p>
+            <div className={styles.bubbleHeading}>
+              <span className={styles.eyebrow}>Explore this area</span>
+              <h3>Stays in this bubble</h3>
+              <p>
+                {expandedBubble.totalInBubble > expandedBubble.stays.length
+                  ? `${expandedBubble.stays.length} of ${expandedBubble.totalInBubble} stays shown`
+                  : `${expandedBubble.stays.length} ${expandedBubble.stays.length === 1 ? "stay" : "stays"} to explore`}
+              </p>
+            </div>
             <label className={styles.sortRow}>
-              <span>Sort stays</span>
+              <span>Sort by</span>
               <select value={sort} onChange={(event) => setSort(event.target.value as SortMode)}>
                 <option value="recommended">Recommended</option>
                 <option value="price-low">Price: low to high</option>
@@ -166,18 +176,21 @@ export function ExpandableStayMap({ stays, className = "", emptyMessage }: Props
                 <option value="rating">Guest rating</option>
               </select>
             </label>
-          </div>
-          <div className={styles.stayList}>
+          </header>
+
+          <div className={styles.bubbleList}>
             {sortedStays.map((stay) => (
               <a
                 href={`/stays/${encodeURIComponent(stay.slug)}`}
                 className={styles.stayCard}
                 key={stay.slug}
-                onClick={() => track("property_click", {
-                  slug: stay.slug,
-                  surface: "map_expanded",
-                  trigger: "cluster_list",
-                })}
+                onClick={() =>
+                  track("property_click", {
+                    slug: stay.slug,
+                    surface: "map_bubble_expanded",
+                    trigger: "expanded_bubble_stay",
+                  })
+                }
               >
                 <img
                   src={`/api/public/stay-cover/${encodeURIComponent(stay.slug)}`}
@@ -194,7 +207,8 @@ export function ExpandableStayMap({ stays, className = "", emptyMessage }: Props
                 <span className={styles.stayCopy}>
                   <strong>{stay.name}</strong>
                   <small>{stay.location}</small>
-                  <b>${Math.max(0, Math.round(stay.price))}/night
+                  <b>
+                    ${Math.max(0, Math.round(stay.price))}/night
                     {stay.rating && stay.reviews ? ` · ★ ${stay.rating.toFixed(1)}` : ""}
                   </b>
                   <em>View stay →</em>
