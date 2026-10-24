@@ -528,11 +528,29 @@ export function AvailabilityDatePicker({
               : activeField === "checkIn"
                 ? "Choose an available check-in date."
                 : checkIn
-                  ? `${selectedMinimumStay}-night minimum for this check-in · earliest checkout ${friendly(
+                  ? `${selectedMinimumStay}-night minimum · for ${selectedMinimumStay} nights, check out ${friendly(
                       earliestSelectedCheckout,
-                    )}.`
+                    )} (checkout day is not a night stayed).`
                   : "Choose check-in first."}
         </p>
+        {!loading &&
+        !loadError &&
+        checkIn &&
+        checkOut &&
+        checkOut > earliestSelectedCheckout &&
+        earliestSelectedCheckout <= maximumDate &&
+        rangeAvailable(checkIn, earliestSelectedCheckout) ? (
+          <button
+            type="button"
+            className="button button-small"
+            onClick={() => {
+              onChange({ checkIn, checkOut: earliestSelectedCheckout });
+              setActiveField("checkOut");
+            }}
+          >
+            Use {selectedMinimumStay}-night stay · check out {friendly(earliestSelectedCheckout)}
+          </button>
+        ) : null}
         {loadError && !loading ? (
           <button
             type="button"
