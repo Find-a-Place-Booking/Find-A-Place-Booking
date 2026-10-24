@@ -42,14 +42,40 @@ export function ExpandableStayMap({ stays, className = "", emptyMessage }: Props
 
     const enhanceClusterBubbles = () => {
       for (const popup of frame.querySelectorAll<HTMLElement>(".mapboxgl-popup")) {
-        const zoomButton = Array.from(popup.querySelectorAll<HTMLButtonElement>("button"))
-          .find((button) => button.textContent?.trim() === "Zoom into this area");
-        const footer = zoomButton?.parentElement;
-        if (!footer || footer.querySelector("[data-fap-expand-bubble]")) continue;
+        // Identify a cluster by its accessible sort selector, not by a
+        // footer button that can be pushed out of view on short maps.
+        const sortSelect = popup.querySelector<HTMLSelectElement>(
+          'select[aria-label="Sort stays in this map area"]',
+        );
+        const heading = sortSelect?.parentElement;
+        const root = heading?.parentElement;
+        const list = heading?.nextElementSibling as HTMLElement | null;
+        if (!heading || !root || !list || heading.querySelector("[data-fap-expand-bubble]")) continue;
+
+        // Size the scrolling list to the existing map frame and keep the
+        // expand action in the ALWAYS VISIBLE popup header.
+        root.style.setProperty(
+          "--fap-map-frame-height",
+          `${Math.max(280, Math.round(frame.getBoundingClientRect().height))}px`,
+        );
+        root.classList.add(styles.fittedClusterPopup);
+        heading.classList.add(styles.enhancedHeading);
+        list.classList.add(styles.scrollablePopupList);
+
+        // Mapbox listens for wheel / touch / drag gestures on the map.
+        // Keep those events inside the popup list so scrolling the stays
+        // doesn't pan or zoom the underlying map.
+        const keepScrollInList = (event: Event) => event.stopPropagation();
+        list.addEventListener("wheel", keepScrollInList, { passive: true });
+        list.addEventListener("touchstart", keepScrollInList, { passive: true });
+        list.addEventListener("touchmove", keepScrollInList, { passive: true });
+        list.addEventListener("pointerdown", keepScrollInList);
+        list.addEventListener("mousedown", keepScrollInList);
 
         const button = document.createElement("button");
         button.type = "button";
-        button.textContent = "Expand this bubble";
+        button.textContent = "Expand this bubble ↗";
+        button.className = styles.popupExpandButton;
         button.dataset.fapExpandBubble = "1";
         button.setAttribute("aria-label", "Expand the stays in this map bubble");
 
@@ -92,8 +118,7 @@ export function ExpandableStayMap({ stays, className = "", emptyMessage }: Props
           });
         });
 
-        footer.classList.add(styles.enhancedFooter);
-        footer.appendChild(button);
+        heading.appendChild(button);
       }
     };
 

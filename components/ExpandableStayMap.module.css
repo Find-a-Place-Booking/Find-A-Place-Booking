@@ -16,20 +16,62 @@
 }
 
 /* Preserve existing small cluster bubbles, with a simple second action. */
-.enhancedFooter {
-  flex-wrap: wrap;
-  gap: 8px;
-  justify-content: flex-end;
+/* Cluster popup: fit within the original map instead of running off-screen.
+   The header (including Expand) and footer stay visible; only stays scroll. */
+.fittedClusterPopup {
+  max-height: min(460px, calc(var(--fap-map-frame-height, 500px) - 60px), calc(100dvh - 125px)) !important;
+  grid-template-rows: auto minmax(0, 1fr) auto !important;
+  min-height: 0;
+  overflow: hidden;
 }
-.enhancedFooter > span { flex: 1 0 100%; }
-.enhancedFooter > button { flex: 1 1 auto; min-height: 36px; }
-.enhancedFooter > button[data-fap-expand-bubble] {
-  background: #37614d;
-  color: white;
+.enhancedHeading {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) auto !important;
+  grid-template-areas: "title action" "sort sort";
+  align-items: center !important;
+  column-gap: 10px !important;
+  row-gap: 8px !important;
+  padding: 12px 42px 10px 12px !important;
 }
-.enhancedFooter > button[data-fap-expand-bubble]:hover,
-.enhancedFooter > button[data-fap-expand-bubble]:focus-visible {
-  background: #254c3a;
+.enhancedHeading > div { grid-area: title; min-width: 0; }
+.enhancedHeading > select {
+  grid-area: sort;
+  width: 100%;
+  min-width: 0 !important;
+}
+.popupExpandButton {
+  grid-area: action;
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 38px;
+  max-width: 148px;
+  padding: 7px 9px;
+  border: 0;
+  border-radius: 8px;
+  background: #2b5342;
+  color: #fff;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.2;
+  text-align: center;
+  white-space: normal;
+  touch-action: manipulation;
+  cursor: pointer;
+}
+.popupExpandButton:hover,
+.popupExpandButton:focus-visible { background: #1e4233; }
+.scrollablePopupList {
+  min-height: 0 !important;
+  max-height: min(280px, calc(var(--fap-map-frame-height, 500px) - 195px), calc(100dvh - 260px)) !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
 }
 
 /* The expanded bubble is an IN-MAP overlay, not a new page or fullscreen map. */
@@ -123,6 +165,8 @@
 }
 
 .bubbleList {
+  touch-action: pan-y;
+  -webkit-overflow-scrolling: touch;
   flex: 1 1 auto;
   min-height: 0;
   display: grid;
@@ -191,7 +235,8 @@
   .stayCard > img { width: 91px; height: 94px; }
   .stayCopy strong { font-size: 13px; }
   .stayCopy small, .stayCopy b, .stayCopy em { font-size: 11px; }
-  .enhancedFooter > button { font-size: 10px; }
+  .popupExpandButton { max-width: 124px; min-height: 40px; font-size: 10px; }
+  .scrollablePopupList { max-height: min(210px, calc(var(--fap-map-frame-height, 500px) - 195px)) !important; }
 }
 
 @keyframes bubbleGrow {
@@ -201,4 +246,11 @@
 @media (prefers-reduced-motion: reduce) {
   .expandedBubble { animation: none; }
   .stayCard { transition: none; }
+}
+
+@media (max-width: 430px) {
+  .enhancedHeading { row-gap: 5px !important; padding-top: 9px !important; padding-bottom: 9px !important; }
+  .popupExpandButton { max-width: 117px; font-size: 10px; }
+  .bubbleHeader { gap: 8px; }
+  .bubbleList { overscroll-behavior: contain; }
 }
