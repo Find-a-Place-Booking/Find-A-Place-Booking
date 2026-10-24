@@ -2,7 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 
-import { StayMap, type StayMapItem } from "./StayMap";
+import type { StayMapItem } from "./StayMap";
+import { ExpandableStayMap } from "./ExpandableStayMap";
 
 type Props = {
   stays: StayMapItem[];
@@ -73,7 +74,7 @@ export function DeferredStayMap({
 
   if (ready) {
     return (
-      <StayMap
+      <ExpandableStayMap
         stays={stays}
         className={className}
         emptyMessage={emptyMessage}
