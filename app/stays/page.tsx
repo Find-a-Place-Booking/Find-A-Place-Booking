@@ -6,6 +6,7 @@ import { SearchBar } from "@/components/SearchBar";
 import { StayResults } from "@/components/StayResults";
 import { normalizeSearchRadiusMiles, searchPublishedStaysNearby } from "@/lib/public/nearby-destination-search";
 import { getPublishedProperties } from "@/lib/public/listings";
+import { isCampingOrRv } from "@/lib/public/stay-type-order";
 import { copyBlock, loadManagedCopy } from "@/lib/public/managed-copy";
 
 export const metadata: Metadata = {
@@ -72,7 +73,11 @@ export default async function StaysPage({
   ]);
 
   const search = await searchPublishedStaysNearby(allProperties, where, radius);
-  const properties = search.properties.filter((property) => property.sleeps >= guestCount);
+  const properties = search.properties
+    .filter((property) => property.sleeps >= guestCount)
+    .sort((a, b) =>
+      Number(isCampingOrRv(a.type, a.name)) - Number(isCampingOrRv(b.type, b.name)),
+    );
 
   const summary = copyBlock(content, "stays.summary");
   const initialFilter =
