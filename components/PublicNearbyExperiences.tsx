@@ -1,5 +1,6 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { NearbyExperienceArt } from "./NearbyExperienceArt";
+import { LocalAreaGuideLink } from "./LocalAreaGuideLink";
 import styles from "./PublicNearbyExperiences.module.css";
 
 type PublicNearbyExperience = {
@@ -39,24 +40,39 @@ function distanceLabel(row: PublicNearbyExperience) {
 
 export async function PublicNearbyExperiences({ propertyId }: { propertyId: string }) {
   const admin = createAdminClient();
-  const { data, error } = await admin
-    .from("property_nearby_experiences")
-    .select("id,title,category,description,distance_miles,drive_minutes,website_url,image_path,sort_order")
-    .eq("property_id", propertyId)
-    .eq("is_active", true)
-    .order("sort_order", { ascending: true })
-    .order("created_at", { ascending: true })
-    .limit(12);
+  const [nearbyResult, propertyResult] = await Promise.all([
+    admin
+      .from("property_nearby_experiences")
+      .select("id,title,category,description,distance_miles,drive_minutes,website_url,image_path,sort_order")
+      .eq("property_id", propertyId)
+      .eq("is_active", true)
+      .order("sort_order", { ascending: true })
+      .order("created_at", { ascending: true })
+      .limit(12),
+    admin
+      .from("properties")
+      .select("city,region_code")
+      .eq("id", propertyId)
+      .maybeSingle(),
+  ]);
+  const { data, error } = nearbyResult;
+  const localGuide = (
+    <LocalAreaGuideLink
+      city={propertyResult.data?.city}
+      state={propertyResult.data?.region_code}
+      placement="stay"
+    />
+  );
 
   if (error) {
     console.error("[public nearby experiences] unavailable", {
       propertyId, code: error.code, message: error.message,
     });
-    return null;
+    return localGuide;
   }
 
   const rows = (data ?? []) as PublicNearbyExperience[];
-  if (!rows.length) return null;
+  if (!rows.length) return localGuide;
 
   const imageUrls = new Map<string, string>();
   await Promise.all(
@@ -113,6 +129,7 @@ export async function PublicNearbyExperiences({ propertyId }: { propertyId: stri
   };
 
   return (
+    <>
     <section className={styles.section} id="nearby-experiences">
       <div className={styles.heading}>
         <div>
@@ -134,5 +151,7 @@ export async function PublicNearbyExperiences({ propertyId }: { propertyId: stri
         </details>
       ) : null}
     </section>
+    {localGuide}
+    </>
   );
 }

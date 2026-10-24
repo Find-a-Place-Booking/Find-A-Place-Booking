@@ -82,6 +82,16 @@ export function Footer() {
             <strong>Explore</strong>
             <Link href="/stays">Find a stay</Link>
             <a href="/#regions">Destinations</a>
+            <TrackedLink
+              href="https://www.naturalstatetourismproject.org"
+              target="_blank"
+              rel="noopener noreferrer"
+              prefetch={false}
+              eventName="local_tourism_guide_click"
+              eventData={{ guide: "network", placement: "footer" }}
+            >
+              Local area guides ↗
+            </TrackedLink>
             <TrackedLink href="/social" eventName="social_navigation_click" eventData={{ placement: "footer" }}>
               Our social community
             </TrackedLink>

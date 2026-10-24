@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { BookingReceipt } from "@/components/BookingReceipt";
 import { Footer } from "@/components/Footer";
 import { GuestTripTools } from "@/components/GuestTripTools";
+import { LocalAreaGuideLink } from "@/components/LocalAreaGuideLink";
 import { Header } from "@/components/Header";
 import { PrintReceiptButton } from "@/components/PrintReceiptButton";
 import chatStyles from "@/components/ReservationChat.module.css";
@@ -180,6 +181,13 @@ export default async function TripPage({
                 </small>
               </div>
             </div>
+            {reservation.status === "CONFIRMED" ? (
+              <LocalAreaGuideLink
+                city={property?.city}
+                state={property?.region_code}
+                placement="trip"
+              />
+            ) : null}
           </section>
 
           <section className="panel">
