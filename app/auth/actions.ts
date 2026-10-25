@@ -18,6 +18,14 @@ function value(formData: FormData, key: string) {
   return typeof raw === "string" ? raw.trim() : "";
 }
 
+function requireAuthCaptcha(formData: FormData, path: string, next?: string): string {
+  const token = value(formData, "captcha_token");
+  if (!token || token.length > 4096) {
+    authError(path, "Complete the security check before continuing.", next);
+  }
+  return token;
+}
+
 function authError(
   path: string,
   message: string,
@@ -105,6 +113,7 @@ export async function signInHost(
     );
   }
 
+  const captchaToken = requireAuthCaptcha(formData, "/host/sign-in", next);
   await clearLocalSupabaseSession();
 
   const supabase = await createClient();
@@ -112,6 +121,7 @@ export async function signInHost(
     await supabase.auth.signInWithPassword({
       email,
       password,
+      options: { captchaToken },
     });
 
   if (error) {
@@ -222,6 +232,7 @@ export async function signUpHost(
     );
   }
 
+  const captchaToken = requireAuthCaptcha(formData, "/host/sign-up", next);
   await clearLocalSupabaseSession();
 
   const acceptedAt = new Date().toISOString();
@@ -236,6 +247,7 @@ export async function signUpHost(
     email,
     password,
     options: {
+      captchaToken,
       emailRedirectTo: siteUrl(),
       data: {
         full_name: fullName,
@@ -336,6 +348,7 @@ export async function signInAdmin(
     );
   }
 
+  const captchaToken = requireAuthCaptcha(formData, "/admin/sign-in");
   await clearLocalSupabaseSession();
 
   const supabase = await createClient();
@@ -343,6 +356,7 @@ export async function signInAdmin(
     await supabase.auth.signInWithPassword({
       email,
       password,
+      options: { captchaToken },
     });
 
   if (error || !data.user) {
@@ -398,6 +412,14 @@ export async function requestPasswordReset(
     );
   }
 
+  const captchaToken = value(formData, "captcha_token");
+  if (!captchaToken || captchaToken.length > 4096) {
+    recoveryError(
+      "/auth/password-reset",
+      "Complete the security check before continuing.",
+      portal,
+    );
+  }
   const supabase = await createClient();
 
   const redirectTo =
@@ -408,7 +430,7 @@ export async function requestPasswordReset(
   const { error } =
     await supabase.auth.resetPasswordForEmail(
       email,
-      { redirectTo },
+      { redirectTo, captchaToken },
     );
 
   if (error) {

@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import { signInHost } from "@/app/auth/actions";
 import { AuthShell } from "@/components/AuthShell";
+import { AuthCaptcha } from "@/components/AuthCaptcha";
 import { safeInternalPath } from "@/lib/auth/paths";
 
 export default async function HostSignInPage({
@@ -72,6 +73,8 @@ export default async function HostSignInPage({
             required
           />
         </label>
+
+        <AuthCaptcha action="host_login" />
 
         <button
           className="button button-full"

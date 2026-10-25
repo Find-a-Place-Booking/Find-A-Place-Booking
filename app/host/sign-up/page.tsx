@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 
 import { signUpHost } from "@/app/auth/actions";
 import { AuthShell } from "@/components/AuthShell";
+import { AuthCaptcha } from "@/components/AuthCaptcha";
 import { HostSignupPolicyReview } from "@/components/HostSignupPolicyReview";
 import { safeInternalPath } from "@/lib/auth/paths";
 import {
@@ -51,6 +52,7 @@ export default async function HostSignUpPage({
         </div>
 
         <HostSignupPolicyReview />
+        <AuthCaptcha action="host_signup" />
 
         <p className="auth-form-note">Creating an account does not grant the 5% partner commission. Existing Find A Place partners are verified separately during onboarding.</p>
         <button className="button button-full" type="submit">Create host account</button>

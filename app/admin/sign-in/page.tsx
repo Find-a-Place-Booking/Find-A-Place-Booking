@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import { signInAdmin } from "@/app/auth/actions";
 import { AuthShell } from "@/components/AuthShell";
+import { AuthCaptcha } from "@/components/AuthCaptcha";
 
 export default async function AdminSignInPage({
   searchParams,
@@ -54,6 +55,8 @@ export default async function AdminSignInPage({
             required
           />
         </label>
+
+        <AuthCaptcha action="admin_login" />
 
         <button
           className="button button-full"

@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import { requestPasswordReset } from "@/app/auth/actions";
 import { AuthShell } from "@/components/AuthShell";
+import { AuthCaptcha } from "@/components/AuthCaptcha";
 
 export default async function PasswordResetPage({
   searchParams,
@@ -43,6 +44,7 @@ export default async function PasswordResetPage({
             <span>Email address</span>
             <input name="email" type="email" autoComplete="email" required />
           </label>
+          <AuthCaptcha action="password_reset" />
           <button className="button button-full" type="submit">
             Send recovery link
           </button>
