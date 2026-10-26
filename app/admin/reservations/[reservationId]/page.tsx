@@ -161,6 +161,15 @@ export default async function AdminReservationDetailPage({
     "FINANCE_ADMIN",
   ]);
 
+  const { data: offerPropertyAccess } = await supabase.rpc(
+    "can_manage_property", { target_property_id: reservation.property_id },
+  );
+  const canOffer = environment === "LIVE" && offerPropertyAccess === true &&
+    Boolean(reservation.guest_email) &&
+    ["HOLD", "PAYMENT_PENDING", "PAYMENT_FAILED", "EXPIRED"].includes(reservation.status) &&
+    !["SUCCEEDED", "PROCESSING", "REFUNDED", "DISPUTED"].includes(reservation.payment_status) &&
+    reservation.check_in > new Date().toISOString().slice(0, 10);
+
   return (
     <AdminShell
       active="reservations"
@@ -180,6 +189,19 @@ export default async function AdminReservationDetailPage({
       ) : null}
       {query.error ? (
         <div className="admin-message error">{query.error}</div>
+      ) : null}
+
+      {canOffer ? (
+        <section className="panel" style={{ marginBottom: 16, display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
+          <div>
+            <p className="eyebrow dark">Unfinished checkout</p>
+            <strong>Offer this guest a one-time discount</strong>
+            <p className="muted">Owner-approved. One guest at a time. No changes to this booking or its calendar.</p>
+          </div>
+          <Link className="button button-small" href={`/admin/reservations/${reservation.id}/offer`}>
+            Send special offer
+          </Link>
+        </section>
       ) : null}
 
       <div className="dash-grid metrics">

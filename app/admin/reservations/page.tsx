@@ -126,6 +126,16 @@ export default async function AdminReservationsPage({
     ]),
   );
 
+  // Only suggest manual discounts to admins who are active owners/managers.
+  // The send action independently verifies can_manage_property under their session.
+  const { data: offerManagers } = await supabase
+    .from("organization_members")
+    .select("organization_id,role")
+    .eq("profile_id", context.profileId)
+    .eq("status", "ACTIVE")
+    .in("role", ["OWNER", "MANAGER"]);
+  const offerManageableOrgs = new Set((offerManagers ?? []).map((member) => member.organization_id));
+
   const q = (params.q ?? "").trim();
   const status = (params.status ?? "").trim();
   const payment = (params.payment ?? "").trim();
@@ -283,6 +293,7 @@ export default async function AdminReservationsPage({
         {filtered.length ? (
           <div className="admin-list compact">
             {filtered.map((reservation) => (
+              <div key={reservation.id}>
               <Link
                 className="admin-list-row"
                 href={`/admin/reservations/${reservation.id}`}
@@ -319,6 +330,21 @@ export default async function AdminReservationsPage({
                   <b>Open support view →</b>
                 </span>
               </Link>
+              {offerManageableOrgs.has(reservation.organization_id) &&
+               ["HOLD", "PAYMENT_PENDING", "PAYMENT_FAILED", "EXPIRED"].includes(reservation.status) &&
+               !["SUCCEEDED", "PROCESSING", "REFUNDED", "DISPUTED"].includes(reservation.payment_status) &&
+               reservation.guest_email &&
+               reservation.check_in > new Date().toISOString().slice(0, 10) ? (
+                <div style={{ display: "flex", justifyContent: "flex-end", margin: "0 0 12px" }}>
+                  <Link
+                    className="button button-small button-quiet"
+                    href={`/admin/reservations/${reservation.id}/offer`}
+                  >
+                    Send special offer
+                  </Link>
+                </div>
+              ) : null}
+              </div>
             ))}
           </div>
         ) : (
