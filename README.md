@@ -1,40 +1,48 @@
-# Find A Place Booking — Individual Special Offer overlay
+# Find A Place Booking — Host missed-checkout offers
 
-Applies only to admin reservation UI and uses the existing host recovery emails, guest offer page and promotion-code storage. No schema migration; no modifications to payments, taxes, checkout or calendar code.
+## Purpose
 
-## Important: Installation takes TWO steps
+Renea's request is for individual percentage-off emails from the **regular host dashboard**, not just the Admin → Reservations view or an aggregated 3-day automated recovery alert.
 
-1. **Extract the contents of this ZIP over the existing Find A Place Booking repository root**, preserving the directories. New files go under `app/admin/reservations/[reservationId]/offer`, `lib/bookings` and `components`.
-2. **Run `APPLY_OVERLAY.bat` once on Windows**, or `python3 apply_special_offer_overlay.py .` from the repository root on macOS/Linux. This is REQUIRED to add the **Send special offer** links to the two existing admin reservation screens. Merely uploading/extracting the ZIP does not modify those existing pages.
-3. `npm run typecheck` and `npm run build`. Do not push if either fails.
-4. Commit and push. Vercel will deploy as usual. **Do not email real guests for testing.** First open an eligible reservation in admin, confirm the preview/eligibility before sending any offer.
+This is a **drop-in overlay**: extract into the repository root, preserving paths and overwriting `components/DashboardShell.tsx`. No Python script, SQL migration, build command hook, or patch runner is required.
 
-## What changes
+## Contents
 
-- `app/admin/reservations/page.tsx`: existing clickable booking rows preserved, small Send special offer link below eligible unfinished rows, only for managed properties.
-- `app/admin/reservations/[reservationId]/page.tsx`: a contextual offer card above financial metrics for eligible bookings.
-- New `app/admin/reservations/[reservationId]/offer/page.tsx`: branded admin review page with original booking total, lodging subtotal, guest and dates, and 5/10/15/20% discount options.
-- New action and server-only offering service: verifies active admin session AND actual management permission, published property, live environment, open future stay dates, guest email, payment not succeeded/processing, active recovery settings and email opt-out status. Confirms availability via the existing fail-closed calendar check before sending.
-- One-use 48-hour fixed-amount code based on ORIGINAL lodging price only, with the existing branded recovery email and its unsubscribe link. The guest clicks the existing recovery-offer page, copies the code and checks out through unchanged pricing/payment/calendar flows.
-- One offer per email+unit+date range: reuses the existing uniqueness constraint and notification dedupe; earlier sent offers are blocked and records do not get bulk-email campaigns.
+- `components/DashboardShell.tsx` — the same dashboard shell with one conditional, scoped panel on **Overview**, **Reservations**, and **Booking recovery** only.
+- `components/HostMissedCheckoutOffers.tsx` and `.module.css` — safe, scoped list of recent incomplete checkouts with guest, stay dates, original total, status and a **Offer % off** action for viable review candidates. Groups duplicate reservation attempts for the *same email, unit and stay dates*. Does not claim all unfinished checkouts are contactable or available.
+- `app/host/recovery/individual/[reservationId]/page.tsx` — host-facing preview of individual offer, reusing existing pricing and email form.
+- `app/host/recovery/individual/[reservationId]/actions.ts` — host authenticated send action, reusing the existing individual targeted offer service and all of its database checks.
 
-## Operational notes
+## Prerequisites
 
-- No guests are contacted during installation.
-- Only an active, signed-in admin who can manage the property can send a manual offer. An admin viewing another host's booking cannot discount it.
-- The feature requires Booking recovery enabled for that property and discount follow-ups not set to OFF.
-- The offer is **not a booking**, and availability is not held by sending it. The final checkout price can change if taxes/rates/extra charges change; the discount remains a fixed dollar amount based on the guest's original lodging.
-- No new database tables or environment variables required, as long as the existing recovery email system and Resend settings work.
-- The overlay does not alter the pre-existing automatic booking-recovery job.
-- The selected host owns the discount (same promotion-code ownership as the existing host recovery feature).
+**The previous Individual Special Offer Overlay must be present** (the repo currently has it):
+- `components/AdminRecoveryOfferForm.tsx`
+- `lib/bookings/manual-targeted-offer.ts`
 
-## Source files included
+## Install
 
-- `app/admin/reservations/[reservationId]/offer/page.tsx` (new)
-- `app/admin/reservations/[reservationId]/offer/actions.ts` (new)
-- `components/AdminRecoveryOfferForm.tsx` (new)
-- `lib/bookings/manual-targeted-offer.ts` (new)
-- `apply_special_offer_overlay.py` (one-time guarded patch of two existing pages)
-- `APPLY_OVERLAY.bat` (Windows one-click runner)
+1. Unzip to the project root with **overwrite existing files**. `DashboardShell.tsx` is intentionally replaced by its drop-in updated copy.
+2. Run `npx tsc --noEmit` and `npm run build` in the normal repository.
+3. Commit and push. Vercel will deploy. No database migrations.
+4. Sign in with Renea's **Fancy Hill host account**, not the tech or Gez admin accounts, and open `/host` (top panel), `/host/reservations` (complete list), or `/host/recovery`.
+5. Choose **Offer % off** next to an eligible checkout. Review the actual guest and quote, select 5%, 10%, 15% or 20%, confirm, send. Check delivery on a controlled test before offering to guests.
 
-The patcher checks every insertion point BEFORE modifying either existing file and is idempotent. If the source files no longer match these anchors, it stops without changing them rather than overwriting newer work.
+## Safeguards
+
+- Only `OWNER` or `MANAGER` organizations are loaded for the host-side list, and all rows are read under the host's RLS-scoped user session.
+- Every send is authorized independently by `can_manage_property()` under the authenticated session through `loadManualOfferContext()`.
+- Server validates prior payment/confirmation, published property, recovery opt-in, guest email, past stays, duplicate offers, unsubscribes, and current calendar availability.
+- No emails are sent by opening the screen, no booking hold is created by sending an offer, and no payment, tax, Stripe, checkout, calendar, notification or existing recovery engine code is modified.
+- Older attempts are visible for context, but past check-in dates and disabled recovery settings do not get an action. The `Offer % off` button opens a **review page**, not an immediate send.
+- The panel fails silently if its optional list query fails, so the other host dashboard remains operational. Investigate error codes in logs rather than exposing details to hosts.
+
+## Caveats
+
+- The list includes only attempted reservations with a recorded guest email, not anonymous price-check events. Several checkout records may represent one traveler retrying the same stay/dates.
+- The list uses the latest 120 days and shows up to 300 source rows / 100 guest-date combinations. Renea's claim of ~20 attempts does not necessarily equal 20 eligible email recipients.
+- Availability is verified on the review page and again at send, not guaranteed by the list.
+- This overlay's full application build and end-to-end email delivery must be verified in your repo/Vercel; they cannot be confirmed by static checks alone.
+
+## Rollback
+
+Delete the two new components and the two files under `app/host/recovery/individual/[reservationId]/`, and revert `components/DashboardShell.tsx` to its previous GitHub version. The preexisting admin individual-offer tool is unaffected.

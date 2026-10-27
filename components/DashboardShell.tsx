@@ -4,6 +4,7 @@ import Link from "next/link";
 import { signOutHost } from "@/app/auth/actions";
 import { HostHelpAssistant } from "@/components/HostHelpAssistant";
 import { HostInboxEnhancer } from "@/components/HostInboxEnhancer";
+import { HostMissedCheckoutOffers } from "@/components/HostMissedCheckoutOffers";
 import { HostOnboardingFeedbackCard } from "@/components/HostOnboardingFeedbackCard";
 import { HostRecoveryAlert } from "@/components/HostRecoveryAlert";
 import { HostReservationMessageLiveRefresh } from "@/components/HostReservationMessageLiveRefresh";
@@ -83,6 +84,9 @@ export async function DashboardShell({
 
         <HostHelpAssistant />
         <HostRecoveryAlert />
+        {(active === "Overview" || active === "Reservations" || active === "Booking recovery") ? (
+          <HostMissedCheckoutOffers compact={active === "Overview"} />
+        ) : null}
         {children}
         {onboardingFeedbackPrompt ? (
           <HostOnboardingFeedbackCard

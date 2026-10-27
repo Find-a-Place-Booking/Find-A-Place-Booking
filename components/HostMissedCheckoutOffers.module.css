@@ -1,0 +1,22 @@
+.section{margin:0 0 20px;background:#fff;border:1px solid #ddd6cb;border-radius:12px;padding:20px;box-shadow:0 3px 14px #263a4009}
+.head{display:flex;justify-content:space-between;gap:14px;align-items:flex-start;margin-bottom:14px}
+.kicker{color:#667a6f;font-size:.66rem;font-weight:800;text-transform:uppercase;letter-spacing:.10em;margin:0 0 6px}
+.head h2{font-family:Georgia,'Times New Roman',serif;font-weight:500;color:#263a40;font-size:1.3rem;margin:0 0 5px}
+.subhead{color:#68716d;font-size:.76rem;line-height:1.5;margin:0}
+.counter{flex-shrink:0;background:#edf3ee;border:1px solid #d9e5da;color:#34634c;border-radius:30px;font-size:.67rem;font-weight:800;padding:7px 10px}
+.list{display:grid;gap:0}
+.item{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr) minmax(110px,.65fr) auto;gap:12px;align-items:center;border-top:1px solid #eeeae4;padding:14px 0}
+.col{display:grid;gap:3px;min-width:0}
+.col strong{color:#263a40;font-size:.8rem;overflow-wrap:anywhere}
+.col small{color:#6b7670;font-size:.67rem;overflow-wrap:anywhere;line-height:1.4}
+.money{font-variant-numeric:tabular-nums;font-size:.86rem}
+.state{font-size:.68rem;color:#65766a;font-weight:750}
+.disabled{color:#8d7d70}
+.action{justify-self:end;background:#263a40;border-radius:7px;padding:9px 12px;color:#fff!important;text-align:center;text-decoration:none!important;font-weight:800;font-size:.68rem;white-space:nowrap}
+.action:hover{background:#3d5b56}
+.noAction{justify-self:end;color:#8d8278;font-size:.67rem;max-width:130px;text-align:right}
+.foot{margin:13px 0 0;color:#7d817a;font-size:.67rem;line-height:1.45}
+.more{font-weight:800;color:#315f4b;text-decoration:underline;text-underline-offset:3px;font-size:.72rem;display:inline-block;margin-top:10px}
+.empty{font-size:.76rem;color:#727e75;padding:12px 0;border-top:1px solid #eeeae4}
+@media(max-width:960px){.item{grid-template-columns:minmax(0,1fr) minmax(0,1fr);row-gap:8px}.action,.noAction{justify-self:end}.head{flex-wrap:wrap}}
+@media(max-width:550px){.section{padding:15px}.item{grid-template-columns:minmax(0,1fr) auto}.col:nth-child(2){grid-column:1;grid-row:2}.col:nth-child(3){grid-column:1;grid-row:3}.action,.noAction{grid-column:2;grid-row:1/span 3;white-space:normal;max-width:116px}.counter{font-size:.61rem}}
