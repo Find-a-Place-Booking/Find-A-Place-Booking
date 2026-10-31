@@ -1,0 +1,21 @@
+.wrap { border-top: 1px solid #e4dfd5; margin-top: 32px; padding-top: 34px; }
+.head {display:flex; align-items:end; justify-content:space-between; gap:14px; margin-bottom:17px;}
+.head h2 {margin:4px 0 0;}
+.note {font-size:.75rem; color:#66706b; line-height:1.65; }
+.grid {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-bottom:20px;}
+.card {border:1px solid #e0dbd1;background:#fff;border-radius:14px;padding:18px;}
+.cardTop {display:flex;justify-content:space-between;gap:12px;color:#5b665f;}
+.cardTop strong {color:#243b34;}
+.card p {white-space:pre-wrap;color:#44554d;line-height:1.6;margin:12px 0 0;}
+.label {display:inline-block;border:1px solid #d9d6cb;border-radius:4px;font-size:.66rem;padding:4px 7px;margin-top:12px;color:#5f655e;}
+.form {max-width:850px;background:#f7f6f1;border:1px solid #e1ddd2;border-radius:12px;padding:22px;display:grid;gap:13px;}
+.form h3 {font-family:Georgia,serif;font-weight:500;margin:0;font-size:1.25rem;}
+.form p {margin:0;color:#536057;line-height:1.6;}
+.twoCol {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;}
+.form label {display:grid;gap:6px;color:#394941;font-size:.8rem;font-weight:650;}
+.form input,.form select,.form textarea {font:inherit;font-size:.87rem;border:1px solid #c7cfc6;border-radius:6px;background:#fff;padding:10px;min-width:0;width:100%;color:#222;}
+.form textarea {resize:vertical;}
+.form .error {color:#8b2525;}
+.form .success {color:#28553b;}
+.honey {position:absolute!important;left:-10000px;opacity:0;pointer-events:none;}
+@media(max-width:680px){.twoCol,.grid {grid-template-columns:1fr;}.form {padding:16px;}}

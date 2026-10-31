@@ -14,6 +14,7 @@ const nav: NavItem[] = [
   { label: "Overview", href: "/admin", key: "overview" },
   { label: "Hosts", href: "/admin/hosts", key: "hosts" },
   { label: "Properties", href: "/admin/properties", key: "properties" },
+  { label: "Host reviews", href: "/admin/host-reviews", key: "host-reviews" },
   { label: "Calendars", href: "/admin/calendars", key: "calendars" },
   {
     label: "Reservations",

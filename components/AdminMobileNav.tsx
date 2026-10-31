@@ -14,6 +14,7 @@ const links: MobileLink[] = [
   ["Overview", "/admin", "overview"],
   ["Hosts", "/admin/hosts", "hosts"],
   ["Properties", "/admin/properties", "properties"],
+  ["Host reviews", "/admin/host-reviews", "host-reviews"],
   ["Calendars", "/admin/calendars", "calendars"],
   ["Reservations", "/admin/reservations", "reservations"],
   ["Booking health", "/admin/booking-health", "booking-health"],

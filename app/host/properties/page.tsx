@@ -88,7 +88,9 @@ export default async function PropertiesPage({
         <div>
           <p>
             Manage your listings and control which published properties are
-            currently visible in the Find A Place marketplace.
+            currently visible in the Find A Place marketplace. Open a draft
+            to finish its setup, then use Publish listing in Marketplace visibility
+            near the bottom of its editor. Eligible listings go live immediately.
           </p>
         </div>
         <div className="property-toolbar-actions">
@@ -279,7 +281,7 @@ export default async function PropertiesPage({
                       className={styles.edit}
                       href={`/host/properties/${property.slug}`}
                     >
-                      Edit property
+                      {isLive || isPaused ? "Edit property" : "Finish & publish"}
                     </Link>
                   </div>
                 </div>

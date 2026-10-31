@@ -7,6 +7,7 @@ import { Footer } from "@/components/Footer";
 import { Header } from "@/components/Header";
 import { JsonLd } from "@/components/JsonLd";
 import { PublicHostInquiryForm } from "@/components/PublicHostInquiryForm";
+import { PublicHostCommunityReviews } from "@/components/PublicHostCommunityReviews";
 import { StarRating } from "@/components/StarRating";
 import {
   getPublicHostPageBySlug,
@@ -251,6 +252,12 @@ export default async function PublicHostPage({
             </div>
           )}
         </section>
+
+        <PublicHostCommunityReviews
+          organizationId={host.organizationId}
+          hostSlug={host.slug}
+          hostName={host.name}
+        />
 
         <section
           className={`shell ${styles.messageSection}`}
