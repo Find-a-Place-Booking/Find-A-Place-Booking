@@ -145,6 +145,25 @@ export default async function AdminCalendarsPage() {
         <section className="panel">
           <div className="panel-head">
             <div>
+              <p className="eyebrow dark">Booking calendar safety</p>
+              <h2>Check live calendar coverage and ResNexus worker status</h2>
+            </div>
+            <Link className="button button-small" href="/admin/calendars/attention">
+              Review safety checks
+            </Link>
+          </div>
+          <p className="muted">
+            Review overdue browser workers, manual-only published listings,
+            overlapping paid reservations, and missing reservation calendar blocks.
+            These checks cannot edit bookings or calendars.
+          </p>
+        </section>
+      ) : null}
+
+      {canUseTestLab ? (
+        <section className="panel">
+          <div className="panel-head">
+            <div>
               <p className="eyebrow dark">Testing tools</p>
               <h2>Need a fake iCal feed?</h2>
             </div>
