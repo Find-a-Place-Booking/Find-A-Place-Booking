@@ -22,6 +22,8 @@ type Props = {
   stays: StayMapItem[];
   className?: string;
   emptyMessage?: string;
+  /** Full cluster contents, requested only when the visitor expands a bubble. */
+  onClusterExpand?: (stays: StayMapItem[], totalInBubble: number) => void;
 };
 
 type MapPointFeature = {
@@ -124,6 +126,7 @@ function clusterPopupNode(
   stays: StayMapItem[],
   pointCount: number,
   onZoom: () => void,
+  onExpand: (() => Promise<void>) | undefined,
   onEnter: () => void,
   onLeave: () => void,
 ) {
@@ -156,6 +159,31 @@ function clusterPopupNode(
     sort.appendChild(option);
   });
   heading.append(titleWrap, sort);
+
+  // The compact popup can show a preview; expanding must request ALL leaves,
+  // not scrape only the displayed links (previously 24 mobile / 40 desktop).
+  if (onExpand) {
+    const expand = document.createElement("button");
+    expand.type = "button";
+    expand.textContent = "Expand this bubble ↗";
+    expand.dataset.fapExpandBubble = "1";
+    expand.setAttribute("aria-label", "Expand all stays in this map bubble");
+    expand.addEventListener("click", async (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      if (expand.disabled) return;
+      expand.disabled = true;
+      expand.textContent = "Loading stays…";
+      try {
+        await onExpand();
+      } catch (error) {
+        console.error("[stay map cluster] expansion failed", error);
+        expand.textContent = "Try expanding again";
+        expand.disabled = false;
+      }
+    });
+    heading.appendChild(expand);
+  }
 
   const list = document.createElement("div");
   list.className = styles.clusterList;
@@ -227,6 +255,7 @@ export function StayMap({
   stays,
   className = "",
   emptyMessage = "No mapped stays are available yet.",
+  onClusterExpand,
 }: Props) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const token = process.env.NEXT_PUBLIC_MAPBOX_TOKEN?.trim() || "";
@@ -513,10 +542,62 @@ export function StayMap({
             }
           };
 
+          // Fetch the full cluster lazily only on Expand. Keep the familiar
+          // 24/40-card preview fast, and page through all cluster leaves so
+          // larger areas do not silently drop stays from the expanded list.
+          const expandCluster = onClusterExpand
+            ? async () => {
+                cancelClusterClose();
+                const fullStays: StayMapItem[] = [];
+                const seen = new Set<string>();
+                const total = Math.min(
+                  Math.max(pointCount || clusterStays.length, clusterStays.length),
+                  mappedStays.length,
+                );
+                const batchSize = 200;
+                for (let offset = 0; offset < total; offset += batchSize) {
+                  const requested = Math.min(batchSize, total - offset);
+                  const page = await new Promise<any[]>((resolve, reject) => {
+                    source.getClusterLeaves(
+                      clusterId,
+                      requested,
+                      offset,
+                      (pageError, features) => {
+                        if (pageError) reject(pageError);
+                        else resolve(features || []);
+                      },
+                    );
+                  });
+                  if (disposed) return;
+                  for (const leaf of page) {
+                    const slug = String(leaf.properties?.slug ?? "");
+                    const stay = stayBySlug.get(slug);
+                    if (stay && !seen.has(slug)) {
+                      seen.add(slug);
+                      fullStays.push(stay);
+                    }
+                  }
+                  if (page.length < requested) break;
+                }
+                if (disposed || activeClusterId !== clusterId || !clusterPopup.isOpen()) {
+                  // The visitor closed the bubble or moved to another cluster
+                  // while the full list was loading. Never reopen a stale one.
+                  return;
+                }
+                if (fullStays.length !== total) {
+                  throw new Error(`Only ${fullStays.length} of ${total} stays loaded. Please retry.`);
+                }
+                clusterPopup.remove();
+                activeClusterId = null;
+                onClusterExpand(fullStays, pointCount || fullStays.length);
+              }
+            : undefined;
+
           const node = clusterPopupNode(
             clusterStays,
             pointCount || clusterStays.length,
             () => void zoomIn(),
+            expandCluster,
             cancelClusterClose,
             scheduleClusterClose,
           );
@@ -597,7 +678,7 @@ export function StayMap({
       disposed = true;
       cleanup?.();
     };
-  }, [mappedStays, token]);
+  }, [mappedStays, token, onClusterExpand]);
 
   if (!token) {
     return (

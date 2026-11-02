@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { track } from "@vercel/analytics";
 
 import { StayMap, type StayMapItem } from "./StayMap";
@@ -25,8 +25,8 @@ type ExpandedBubble = {
  * scrollable panel inside the same map frame; it never enlarges the map or
  * opens a separate map screen. Back to map closes the panel and restores pins.
  *
- * The existing StayMap component owns its popup DOM, so we attach the action
- * to the existing bubble rather than replacing or re-initializing Mapbox.
+ * StayMap owns the popup action and requests every cluster leaf on demand;
+ * this wrapper owns only the expanded panel and compact-popup styling.
  */
 export function ExpandableStayMap({ stays, className = "", emptyMessage }: Props) {
   const frameRef = useRef<HTMLDivElement | null>(null);
@@ -34,26 +34,32 @@ export function ExpandableStayMap({ stays, className = "", emptyMessage }: Props
   const [expandedBubble, setExpandedBubble] = useState<ExpandedBubble | null>(null);
   const [sort, setSort] = useState<SortMode>("recommended");
 
+  const openExpandedBubble = useCallback((clusterStays: StayMapItem[], totalInBubble: number) => {
+    setSort("recommended");
+    setExpandedBubble({ stays: clusterStays, totalInBubble });
+    track("map_cluster_bubble_expanded", {
+      surface: "home_map",
+      count: clusterStays.length,
+    });
+  }, []);
+
   useEffect(() => {
     const frame = frameRef.current;
     if (!frame) return;
 
-    const stayBySlug = new Map(stays.map((stay) => [stay.slug, stay]));
-
+    // Styling is the only DOM enhancement now. The actual expand handler is
+    // owned by StayMap so it can retrieve all map data, not just popup links.
     const enhanceClusterBubbles = () => {
       for (const popup of frame.querySelectorAll<HTMLElement>(".mapboxgl-popup")) {
-        // Identify a cluster by its accessible sort selector, not by a
-        // footer button that can be pushed out of view on short maps.
         const sortSelect = popup.querySelector<HTMLSelectElement>(
           'select[aria-label="Sort stays in this map area"]',
         );
         const heading = sortSelect?.parentElement;
         const root = heading?.parentElement;
         const list = heading?.nextElementSibling as HTMLElement | null;
-        if (!heading || !root || !list || heading.querySelector("[data-fap-expand-bubble]")) continue;
+        if (!heading || !root || !list || heading.dataset.fapEnhanced === "1") continue;
+        heading.dataset.fapEnhanced = "1";
 
-        // Size the scrolling list to the existing map frame and keep the
-        // expand action in the ALWAYS VISIBLE popup header.
         root.style.setProperty(
           "--fap-map-frame-height",
           `${Math.max(280, Math.round(frame.getBoundingClientRect().height))}px`,
@@ -61,64 +67,15 @@ export function ExpandableStayMap({ stays, className = "", emptyMessage }: Props
         root.classList.add(styles.fittedClusterPopup);
         heading.classList.add(styles.enhancedHeading);
         list.classList.add(styles.scrollablePopupList);
+        const expand = heading.querySelector<HTMLButtonElement>("[data-fap-expand-bubble]");
+        if (expand) expand.classList.add(styles.popupExpandButton);
 
-        // Mapbox listens for wheel / touch / drag gestures on the map.
-        // Keep those events inside the popup list so scrolling the stays
-        // doesn't pan or zoom the underlying map.
         const keepScrollInList = (event: Event) => event.stopPropagation();
         list.addEventListener("wheel", keepScrollInList, { passive: true });
         list.addEventListener("touchstart", keepScrollInList, { passive: true });
         list.addEventListener("touchmove", keepScrollInList, { passive: true });
         list.addEventListener("pointerdown", keepScrollInList);
         list.addEventListener("mousedown", keepScrollInList);
-
-        const button = document.createElement("button");
-        button.type = "button";
-        button.textContent = "Expand this bubble ↗";
-        button.className = styles.popupExpandButton;
-        button.dataset.fapExpandBubble = "1";
-        button.setAttribute("aria-label", "Expand the stays in this map bubble");
-
-        button.addEventListener("click", (event) => {
-          event.preventDefault();
-          event.stopPropagation();
-
-          const matched: StayMapItem[] = [];
-          const foundSlugs = new Set<string>();
-          for (const link of popup.querySelectorAll<HTMLAnchorElement>('a[href^="/stays/"]')) {
-            const rawSlug = link.pathname.split("/").filter(Boolean).at(-1) ?? "";
-            let slug = rawSlug;
-            try {
-              slug = decodeURIComponent(rawSlug);
-            } catch {
-              continue;
-            }
-            const stay = stayBySlug.get(slug);
-            if (stay && !foundSlugs.has(slug)) {
-              foundSlugs.add(slug);
-              matched.push(stay);
-            }
-          }
-          if (matched.length === 0) return;
-
-          const heading = popup.querySelector("strong")?.textContent ?? "";
-          const parsedCount = Number.parseInt(heading, 10);
-          const totalInBubble = Number.isFinite(parsedCount)
-            ? Math.max(parsedCount, matched.length)
-            : matched.length;
-
-          // Close the small bubble, but DO NOT change the Mapbox viewport,
-          // the size of the map, or the map component's mounted state.
-          popup.querySelector<HTMLButtonElement>(".mapboxgl-popup-close-button")?.click();
-          setSort("recommended");
-          setExpandedBubble({ stays: matched, totalInBubble });
-          track("map_cluster_bubble_expanded", {
-            surface: "home_map",
-            count: matched.length,
-          });
-        });
-
-        heading.appendChild(button);
       }
     };
 
@@ -126,7 +83,7 @@ export function ExpandableStayMap({ stays, className = "", emptyMessage }: Props
     observer.observe(frame, { childList: true, subtree: true });
     enhanceClusterBubbles();
     return () => observer.disconnect();
-  }, [stays]);
+  }, []);
 
   useEffect(() => {
     if (!expandedBubble) return;
@@ -166,7 +123,7 @@ export function ExpandableStayMap({ stays, className = "", emptyMessage }: Props
       aria-label="Find A Place stay map"
     >
       <div className={styles.mapCanvas} inert={Boolean(expandedBubble)}>
-        <StayMap stays={stays} emptyMessage={emptyMessage} className={styles.innerMap} />
+        <StayMap stays={stays} emptyMessage={emptyMessage} className={styles.innerMap} onClusterExpand={openExpandedBubble} />
       </div>
 
       {expandedBubble ? (
