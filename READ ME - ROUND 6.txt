@@ -1,0 +1,31 @@
+FIND A PLACE BOOKING - ROUND 6: MANUAL BOOKING HOLDS
+
+DIRECT OVERLAY: No scripts, no installer, no BAT, no SQL migration.
+
+Installation:
+1. Extract this ZIP into the root of your Find A Place Booking Next.js project.
+2. Allow it to merge the app and components folders. This overlay adds a new route
+   and replaces only the two host navigation components.
+3. Commit/push in GitHub and allow Vercel to deploy it.
+4. Log in as a host, choose Manual holds in the sidebar/mobile navigation,
+   create a short test hold for AVAILABLE dates, verify on the normal calendar,
+   and release it again. Do NOT choose real booked dates for testing.
+
+Added route: /host/calendar/manual-holds
+- Browse current manual holds across all properties/units under your host account.
+- Create labeled temporary/offline reservations as OWNER_BLOCK records, protected
+  by the EXACT SAME Supabase RPC and unit-level booking conflict checks as the
+  existing Host Calendar. This is NOT a paid reservation.
+- Release only OWNER_BLOCK rows, never external imports or confirmed bookings.
+- Shows ResNexus overdue/failing account warnings with a link to connection settings.
+- Clear instructions that blocks protect FAP only and are not sent to Airbnb,
+  Vrbo or ResNexus; hosts must maintain calendars on other channels.
+
+Changes do not touch Stripe, taxes, payouts, database schema, worker, or existing
+checkout logic. They do not write anything until a host explicitly submits a hold
+or confirmed release form.
+
+Base repository main reviewed: 5aa72ea4e3bb6a1f6287625bf4676ea36da8290c.
+
+Validation: replacement source files passed TSX transpile syntax checks. Live
+Vercel browser verification is required AFTER applying, before calling it live.

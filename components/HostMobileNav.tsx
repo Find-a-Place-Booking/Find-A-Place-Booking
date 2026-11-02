@@ -7,6 +7,7 @@ const links = [
   ["Overview", "/host"],
   ["Properties", "/host/properties"],
   ["Calendar", "/host/calendar"],
+  ["Manual holds", "/host/calendar/manual-holds"],
   ["Reservations", "/host/reservations"],
   ["Guest emails", "/host/guest-emails"],
   ["Booking recovery", "/host/recovery"],
