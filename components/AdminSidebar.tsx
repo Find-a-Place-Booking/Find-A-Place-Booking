@@ -16,68 +16,26 @@ const nav: NavItem[] = [
   { label: "Properties", href: "/admin/properties", key: "properties" },
   { label: "Host reviews", href: "/admin/host-reviews", key: "host-reviews" },
   { label: "Calendars", href: "/admin/calendars", key: "calendars" },
-  {
-    label: "Reservations",
-    href: "/admin/reservations",
-    key: "reservations",
-  },
-  {
-    label: "Booking health",
-    href: "/admin/booking-health",
-    key: "booking-health",
-  },
+  { label: "Reservations", href: "/admin/reservations", key: "reservations" },
+  { label: "Booking health", href: "/admin/booking-health", key: "booking-health" },
+  { label: "Email delivery", href: "/admin/notification-health", key: "notification-health", roles: ["SUPER_ADMIN", "OPERATIONS_ADMIN"] },
   { label: "Reports", href: "/admin/reports", key: "reports" },
-  {
-    label: "Property taxes",
-    href: "/admin/taxes",
-    key: "taxes",
-    roles: ["SUPER_ADMIN", "FINANCE_ADMIN"],
-  },
-  {
-    label: "Site content",
-    href: "/admin/content",
-    key: "content",
-    roles: ["SUPER_ADMIN", "OPERATIONS_ADMIN"],
-  },
-  {
-    label: "Partner rates",
-    href: "/admin/partners",
-    key: "partners",
-    roles: ["SUPER_ADMIN", "PARTNER_ADMIN"],
-  },
-  {
-    label: "Activity log",
-    href: "/admin/audit",
-    key: "audit",
-  },
+  { label: "Property taxes", href: "/admin/taxes", key: "taxes", roles: ["SUPER_ADMIN", "FINANCE_ADMIN"] },
+  { label: "Site content", href: "/admin/content", key: "content", roles: ["SUPER_ADMIN", "OPERATIONS_ADMIN"] },
+  { label: "Partner rates", href: "/admin/partners", key: "partners", roles: ["SUPER_ADMIN", "PARTNER_ADMIN"] },
+  { label: "Activity log", href: "/admin/audit", key: "audit" },
 ];
 
-export function AdminSidebar({
-  active,
-  roles,
-}: {
-  active: string;
-  roles: AdminRole[];
-}) {
-  const visibleNav = nav.filter(
-    (item) =>
-      !item.roles ||
-      item.roles.some((role) => roles.includes(role)),
-  );
-
+export function AdminSidebar({ active, roles }: { active: string; roles: AdminRole[] }) {
+  const visibleNav = nav.filter(item => !item.roles || item.roles.some(role => roles.includes(role)));
   return (
     <aside className="admin-side">
       <Brand compact />
       <p className="admin-label">Find A Place team</p>
       <nav>
-        {visibleNav.map((item) => (
-          <Link
-            className={active === item.key ? "active" : ""}
-            href={item.href}
-            key={item.key}
-          >
-            {item.label}
-            <span>›</span>
+        {visibleNav.map(item => (
+          <Link className={active === item.key ? "active" : ""} href={item.href} key={item.key}>
+            {item.label}<span>›</span>
           </Link>
         ))}
       </nav>
