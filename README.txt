@@ -1,38 +1,35 @@
-FIND A PLACE BOOKING — ROUND 4: MAP BUBBLE EXPANSION
-DIRECT OVERLAY — NO SCRIPTS OR INSTALLERS
+Find A Place Booking — Whitetail Property Name / URL Save Guard
+November 3, 2026
 
-Prepared from the current GitHub main versions of these two files:
-- components/StayMap.tsx (original blob aa6e182d2de21b196513c3e753164794e9d9d5e0)
-- components/ExpandableStayMap.tsx (original blob 8a43520648d047e0e83f95ab56667fd21ad0b334)
+DIRECT OVERLAY: Extract the ZIP at the ROOT of the existing GitHub repository,
+allow the single code file to replace the same path, then commit and push.
+No scripts, BAT files, database migrations or manual patch commands included.
 
-HOW TO APPLY
-1. Back up your local project or make sure local changes are committed.
-2. Open this ZIP and drag the "components" folder into the ROOT of your
-   Find-A-Place-Booking repository (the folder with package.json).
-3. Allow the TWO existing component files to be replaced.
-4. Commit and push your normal GitHub changes to deploy through Vercel.
-5. After deployment, test a cluster on desktop and on your phone:
-   - Tap a cluster to open the usual small popup.
-   - Tap "Expand this bubble" to open a full scrollable list inside the map.
-   - Use Back to map to return to the same map, without resetting it.
-   - Check a group of more than 40 stays, if available.
+REPLACES:
+  app/host/properties/actions.ts
 
-WHAT CHANGED
-- The old expanded panel scraped only the stays displayed in the mini popup
-  (24 on mobile, 40 on desktop) even when the cluster held more.
-- Expand now fetches EVERY cluster member from the Mapbox source in batches
-  of 200 and opens the existing in-map panel only when all are available.
-- The mini popup retains its limited quick preview and responsive scrolling.
-- Failed or interrupted expanded fetches leave the mini popup available for
-  retry instead of showing a misleading partial list.
-- Existing sort, cards, analytics, Back to map and keyboard Escape remain.
-- No Supabase, Stripe, bookings, calendar holds, tax logic or route changes.
-- This ZIP does NOT replace your already-applied calendar/email overlays.
+FIX:
+- The listing title is not required to change the booking URL.
+- When a host attempts to save a URL already used by another listing, including
+  an archived listing, the existing canonical slug is fetched using the host's
+  own authenticated Supabase client.
+- The same existing save_property_setup database RPC is retried once with that
+  unit's current slug, preserving the existing booking link and saving the
+  listing name and other edits if the remainder of the form is valid.
+- The editor gets the saved canonical slug and a plain-language notice that
+  its requested URL was not changed.
+- No database schema changes. No existing guest bookings, redirects, Stripe,
+  rates or calendar blocks are changed by installing this update.
 
-VERIFICATION
-- Original source blobs matched verified GitHub main versions.
-- Syntax checked both patched TSX files with TypeScript.
-- Internal patch invariants checked (expand callback, page iteration and
-  unchanged control behavior).
-- Full Next.js build and browser smoke test could not be performed here.
-- This ZIP has not been deployed; deployment requires your normal push.
+SPECIFIC CASE:
+An archived Whitetail Cabin listing still owns
+  /stays/whitetail-cabin-at-crystal-ridge
+The published Whitetail Cabin uses
+  /stays/whitetail-cabin-at-crystal-ridge-2
+Do not repurpose the archived URL. Hosts can change their public listing name
+without losing the working -2 booking URL.
+
+VALIDATION:
+- Exact original Git blob verified: a75affe4207620997257937df28b36e9889d5ddb
+- Modified TypeScript source transpile syntax diagnostics: 0
+- Full Next.js project build and production deployment: not performed.

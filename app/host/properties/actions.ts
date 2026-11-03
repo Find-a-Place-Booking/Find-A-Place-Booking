@@ -263,12 +263,39 @@ export async function savePropertyListing(
   }
 
   const supabase = await requireHostSession();
-  const { data, error } = await supabase.rpc("save_property_setup", {
+  let { data, error } = await supabase.rpc("save_property_setup", {
     target_property_id: payload.propertyId,
     listing_data: sanitizeForm(payload.form ?? {}),
     selected_amenities: sanitizeSelection(payload.amenities ?? []),
     selected_policies: sanitizeSelection(payload.policies ?? []),
   });
+
+  // Listing titles and booking URLs are independent. If a host chooses a URL
+  // already owned by another (including archived) listing, keep this unit's
+  // existing URL and save the rest of their edits using the same validated RPC.
+  // No slug history, reservations or public links are altered in this case.
+  let keptExistingBookingUrl = false;
+  if (error?.message?.includes("listing URL is already in use")) {
+    const { data: primaryUnit, error: unitError } = await supabase
+      .from("property_units")
+      .select("slug")
+      .eq("property_id", payload.propertyId)
+      .eq("is_primary", true)
+      .maybeSingle();
+
+    const existingSlug = primaryUnit?.slug?.trim();
+    if (!unitError && existingSlug && existingSlug !== payload.form?.slug?.trim()) {
+      const retry = await supabase.rpc("save_property_setup", {
+        target_property_id: payload.propertyId,
+        listing_data: sanitizeForm({ ...(payload.form ?? {}), slug: existingSlug }),
+        selected_amenities: sanitizeSelection(payload.amenities ?? []),
+        selected_policies: sanitizeSelection(payload.policies ?? []),
+      });
+      data = retry.data;
+      error = retry.error;
+      keptExistingBookingUrl = !retry.error;
+    }
+  }
 
   if (error) {
     console.error("[savePropertyListing] RPC failed", {
@@ -333,6 +360,11 @@ export async function savePropertyListing(
       mapMessage === "Property saved."
         ? "Live property updated."
         : mapMessage.replace(/^Property saved/, "Live property updated");
+  }
+
+  if (keptExistingBookingUrl) {
+    mapMessage +=
+      " Your edits were saved, but the requested booking URL was already used by another listing. We kept your existing booking link instead.";
   }
 
   return {
