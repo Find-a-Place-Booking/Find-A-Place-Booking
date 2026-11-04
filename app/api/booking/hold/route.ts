@@ -16,6 +16,13 @@ import { createAdminClient } from "@/lib/supabase/admin";
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
+function missingGuestFeeFunction(error: { code?: string; message?: string } | null) {
+  return Boolean(error && (
+    error.code === "PGRST202" || error.code === "42883" ||
+    /could not find the function|does not exist/i.test(error.message || "")
+  ));
+}
+
 export async function POST(request: NextRequest) {
   try {
     requireBookingCheckout();
@@ -175,22 +182,28 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { data, error } = await admin.rpc(
-      "create_guest_taxed_reservation_hold",
-      {
-        target_unit_id: body.unitId,
-        requested_check_in: body.checkIn,
-        requested_check_out: body.checkOut,
-        requested_guest_count: guests,
-        requested_pet_count: pets,
-        requested_add_on_ids: addOnIds,
-        requested_promotion_code: body.promotionCode?.trim() || null,
-        requested_guest_name: guestName,
-        requested_guest_email: guestEmail,
-        requested_guest_phone: guestPhone,
-        requested_payment_environment: paymentEnvironment,
-      },
+    const holdArgs = {
+      target_unit_id: body.unitId,
+      requested_check_in: body.checkIn,
+      requested_check_out: body.checkOut,
+      requested_guest_count: guests,
+      requested_pet_count: pets,
+      requested_add_on_ids: addOnIds,
+      requested_promotion_code: body.promotionCode?.trim() || null,
+      requested_guest_name: guestName,
+      requested_guest_email: guestEmail,
+      requested_guest_phone: guestPhone,
+      requested_payment_environment: paymentEnvironment,
+    };
+    // A new, staged wrapper only changes the fee payer for TEST transactions
+    // while LIVE remains disabled. The same booking/tax RPC runs underneath.
+    let { data, error } = await admin.rpc(
+      "fap_create_guest_taxed_reservation_hold_v2",
+      holdArgs,
     );
+    if (missingGuestFeeFunction(error)) {
+      ({ data, error } = await admin.rpc("create_guest_taxed_reservation_hold", holdArgs));
+    }
 
     if (error) {
       console.error("[booking hold] RPC failed", error);
@@ -214,6 +227,8 @@ export async function POST(request: NextRequest) {
       tax_status: string;
       platform_tax_retained_cents: number;
       platform_commission_cents: number;
+      guest_service_fee_cents?: number;
+      fee_payer?: string;
       commission_rate_bps: number;
       quote?: unknown;
     };
@@ -230,6 +245,8 @@ export async function POST(request: NextRequest) {
         result.platform_tax_retained_cents || 0,
       ),
       platformCommissionCents: Number(result.platform_commission_cents),
+      guestServiceFeeCents: Number(result.guest_service_fee_cents || 0),
+      feePayer: result.fee_payer || "HOST",
       commissionRateBps: Number(result.commission_rate_bps),
       quote: result.quote ?? null,
     });

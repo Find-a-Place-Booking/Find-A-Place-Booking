@@ -4,10 +4,18 @@ import {
   guestFacingBookingError,
   requireBookingCheckout,
   sameOrigin,
+  stripeEnvironment,
 } from "@/lib/payments/booking-runtime";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export const runtime = "nodejs";
+
+function missingGuestFeeFunction(error: { code?: string; message?: string } | null) {
+  return Boolean(error && (
+    error.code === "PGRST202" || error.code === "42883" ||
+    /could not find the function|does not exist/i.test(error.message || "")
+  ));
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -56,18 +64,25 @@ export async function POST(request: NextRequest) {
     }
 
     const admin = createAdminClient();
-    const { data, error } = await admin.rpc(
-      "quote_guest_checkout_estimate",
-      {
-        target_unit_id: body.unitId,
-        check_in_date: body.checkIn,
-        check_out_date: body.checkOut,
-        guest_count: guests,
-        pet_count: pets,
-        selected_add_on_ids: addOnIds,
-        promotion_code: body.promotionCode?.trim() || null,
-      },
-    );
+    const args = {
+      target_unit_id: body.unitId,
+      check_in_date: body.checkIn,
+      check_out_date: body.checkOut,
+      guest_count: guests,
+      pet_count: pets,
+      selected_add_on_ids: addOnIds,
+      promotion_code: body.promotionCode?.trim() || null,
+    };
+    // A staged deployment must remain compatible with an unapplied migration.
+    // LIVE guest-paid fees stay disabled in the migration until test checkout
+    // and service-fee tax treatment are verified.
+    let { data, error } = await admin.rpc("fap_quote_guest_checkout_estimate_v2", {
+      ...args,
+      requested_payment_environment: stripeEnvironment(),
+    });
+    if (missingGuestFeeFunction(error)) {
+      ({ data, error } = await admin.rpc("quote_guest_checkout_estimate", args));
+    }
 
     if (error) {
       return NextResponse.json(
@@ -88,6 +103,8 @@ export async function POST(request: NextRequest) {
       quote?: unknown;
       tax_total_cents?: number;
       guest_total_cents?: number;
+      guest_service_fee_cents?: number;
+      fee_payer?: string;
       collection_mode?: string;
       tax_lines?: unknown;
     };
@@ -97,6 +114,8 @@ export async function POST(request: NextRequest) {
         quote: result.quote ?? null,
         taxTotalCents: Number(result.tax_total_cents || 0),
         guestTotalCents: Number(result.guest_total_cents || 0),
+        guestServiceFeeCents: Number(result.guest_service_fee_cents || 0),
+        feePayer: result.fee_payer || "HOST",
         collectionMode: result.collection_mode || "HOST_SELF_REMIT",
         taxLines: result.tax_lines ?? [],
         estimateOnly: true,

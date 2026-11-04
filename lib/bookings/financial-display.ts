@@ -58,6 +58,7 @@ export function guestReceiptLines(
   const cleaningCents = cents(pricing, "cleaning_fee_cents");
   const petCents = cents(pricing, "pet_fee_cents");
   const extraGuestCents = cents(pricing, "extra_guest_fee_cents");
+  const guestServiceFeeCents = cents(pricing, "guest_service_fee_cents");
   const addOnSubtotal = cents(pricing, "add_on_subtotal_cents");
   const addOns = Array.isArray(pricing.add_on_lines)
     ? pricing.add_on_lines
@@ -102,6 +103,12 @@ export function guestReceiptLines(
     lines.push(...addOnLines);
   } else if (addOnSubtotal > 0) {
     lines.push({ label: "Add-ons", amountCents: addOnSubtotal });
+  }
+
+  // Snapshot-only: earlier bookings contain no guest service fee, so their
+  // receipts remain exactly as they were when purchased.
+  if (guestServiceFeeCents > 0) {
+    lines.push({ label: "Find A Place service fee", amountCents: guestServiceFeeCents });
   }
 
   if (!lines.length && fallbackPreTaxTotalCents > 0) {

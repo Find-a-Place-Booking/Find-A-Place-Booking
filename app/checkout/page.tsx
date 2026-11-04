@@ -3,8 +3,10 @@ import Link from "next/link";
 import { Brand } from "@/components/Brand";
 import { CheckoutBrandExit } from "@/components/CheckoutBrandExit";
 import { CheckoutExitLink } from "@/components/CheckoutExitLink";
+import { DirectBookingValue } from "@/components/DirectBookingValue";
 import { GuestCheckout } from "@/components/GuestCheckout";
 import { getPublishedListingBySlug } from "@/lib/public/listings";
+import { stripeEnvironment } from "@/lib/payments/booking-runtime";
 import { createAdminClient } from "@/lib/supabase/admin";
 import styles from "./CheckoutSubtotal.module.css";
 import "./checkout-no-pets.css";
@@ -22,6 +24,12 @@ type InitialQuote = {
   pre_tax_total_cents?: number;
 };
 
+type InitialEstimate = {
+  quote: InitialQuote;
+  guest_total_cents?: number;
+  tax_total_cents?: number;
+};
+
 function money(cents: number, currency = "USD") {
   return new Intl.NumberFormat("en-US", {
     style: "currency",
@@ -34,11 +42,10 @@ async function getInitialQuote(input: {
   checkIn: string;
   checkOut: string;
   guests: number;
-}) {
+}): Promise<InitialEstimate | null> {
   try {
     const admin = createAdminClient();
-
-    const { data, error } = await admin.rpc("quote_unit_stay", {
+    const args = {
       target_unit_id: input.unitId,
       check_in_date: input.checkIn,
       check_out_date: input.checkOut,
@@ -46,17 +53,37 @@ async function getInitialQuote(input: {
       pet_count: 0,
       selected_add_on_ids: [],
       promotion_code: null,
+    };
+    // The staged fee quote includes mandatory guest fees in the displayed total.
+    // Do not expose an incomplete service-fee breakdown if the new RPC fails.
+    const { data, error } = await admin.rpc("fap_quote_guest_checkout_estimate_v2", {
+      ...args,
+      requested_payment_environment: stripeEnvironment(),
     });
 
-    if (error || !data) {
-      console.warn("[checkout subtotal] initial quote unavailable", {
-        code: error?.code,
-        message: error?.message,
-      });
-      return null;
+    if (!error && data) {
+      const estimate = data as {
+        quote?: InitialQuote;
+        guest_total_cents?: number;
+        tax_total_cents?: number;
+      };
+      if (estimate.quote) return { ...estimate, quote: estimate.quote };
     }
 
-    return data as InitialQuote;
+    // Backwards compatible with the production DB before migration runs.
+    if (error && (error.code === "PGRST202" || error.code === "42883" ||
+      /could not find the function|does not exist/i.test(error.message || ""))) {
+      const legacy = await admin.rpc("quote_unit_stay", args);
+      if (!legacy.error && legacy.data) {
+        return { quote: legacy.data as InitialQuote };
+      }
+    }
+
+    console.warn("[checkout subtotal] initial quote unavailable", {
+      code: error?.code,
+      message: error?.message,
+    });
+    return null;
   } catch (error) {
     // Price preview is helpful, but it must never become a booking gate.
     console.warn("[checkout subtotal] initial quote failed", error);
@@ -149,12 +176,13 @@ export default async function CheckoutPage({
     Math.min(property.sleeps, Number(params.guests || 1) || 1),
   );
 
-  const initialQuote = await getInitialQuote({
+  const initialEstimate = await getInitialQuote({
     unitId: property.unitId,
     checkIn: params.checkIn,
     checkOut: params.checkOut,
     guests,
   });
+  const initialQuote = initialEstimate?.quote ?? null;
 
   const currency = initialQuote?.currency || "USD";
   const lodgingCents =
@@ -162,6 +190,8 @@ export default async function CheckoutPage({
     initialQuote?.lodging_subtotal_cents ??
     0;
   const subtotalCents = Number(initialQuote?.pre_tax_total_cents || 0);
+  const estimatedTotalCents = Number(initialEstimate?.guest_total_cents || 0);
+  const taxTotalCents = Number(initialEstimate?.tax_total_cents || 0);
   const feeLines = initialQuote?.fee_lines ?? [];
   const petsAllowed = property.policies.some((policy) =>
     policy.trim().toLowerCase() === "pets allowed",
@@ -183,9 +213,9 @@ export default async function CheckoutPage({
             aria-label="Estimated stay subtotal"
           >
             <div className={styles.subtotalLead}>
-              <span>Stay subtotal</span>
-              <strong>{money(subtotalCents, currency)}</strong>
-              <small>Before taxes and extras.</small>
+              <span>{estimatedTotalCents > 0 ? "Estimated total with taxes" : "Stay subtotal"}</span>
+              <strong>{money(estimatedTotalCents > 0 ? estimatedTotalCents : subtotalCents, currency)}</strong>
+              <small>For these dates and guests, before optional extras. The final total is shown before payment.</small>
             </div>
 
             <div className={styles.breakdown}>
@@ -194,15 +224,23 @@ export default async function CheckoutPage({
                 <b>{money(lodgingCents, currency)}</b>
               </div>
 
-              {feeLines.map((line) => (
-                <div key={line.id}>
+              {feeLines.map((line, index) => (
+                <div key={line.id || `${line.type}-${index}`}>
                   <span>{line.label}</span>
                   <b>{money(Number(line.amount_cents || 0), currency)}</b>
                 </div>
               ))}
+              {estimatedTotalCents > 0 ? (
+                <div>
+                  <span>Estimated taxes</span>
+                  <b>{money(taxTotalCents, currency)}</b>
+                </div>
+              ) : null}
             </div>
           </section>
         ) : null}
+
+        <DirectBookingValue compact unitId={property.unitId} checkIn={params.checkIn} checkOut={params.checkOut} guests={guests} currency={currency} />
 
         <div className={petsAllowed ? undefined : "checkout-no-pets"}>
           {!petsAllowed ? (
