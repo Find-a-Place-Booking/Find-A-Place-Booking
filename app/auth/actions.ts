@@ -192,6 +192,41 @@ export async function signUpHost(
     );
   }
 
+  // A non-interactive honeypot catches basic automated form submissions.
+  // Keep this on the server action itself, not only the signup page, so a
+  // direct action request cannot bypass the screening.
+  if (value(formData, "contact_website")) {
+    console.warn("[host signup] hidden-field submission rejected");
+    authError(
+      "/host/sign-up",
+      "We couldn't verify this signup. Refresh the page and try again.",
+      next,
+    );
+  }
+
+  if (fullName.length < 2 || fullName.length > 120 || email.length > 254) {
+    authError(
+      "/host/sign-up",
+      "Enter your name and a valid email address.",
+      next,
+    );
+  }
+
+  // Hosts need a usable contact number before being given an account.
+  // Formatting is flexible for US and international hosts.
+  const digits = phone.replace(/\D/g, "");
+  if (
+    phone.length > 40 ||
+    digits.length < 10 || digits.length > 15 ||
+    !/^[+\d().\s-]+$/.test(phone)
+  ) {
+    authError(
+      "/host/sign-up",
+      "Enter a valid contact phone number (10–15 digits).",
+      next,
+    );
+  }
+
   const currentVersionsMatch =
     acceptedHostVersion === HOST_AGREEMENT_VERSION &&
     acceptedPlatformVersion === GUEST_TERMS_VERSION &&

@@ -41,11 +41,17 @@ export default async function HostSignUpPage({
         <input type="hidden" name="cancellation_policy_version" value={CANCELLATION_POLICY_VERSION} />
         <input type="hidden" name="privacy_notice_version" value={PRIVACY_NOTICE_VERSION} />
 
-        <div className="auth-field-grid">
-          <label><span>Your name</span><input name="full_name" autoComplete="name" required /></label>
-          <label><span>Phone <small>optional</small></span><input name="phone" type="tel" autoComplete="tel" /></label>
+        {/* Human visitors never see or interact with this bot-trap field. */}
+        <div aria-hidden="true" style={{ position: "absolute", left: "-10000px", width: 1, height: 1, overflow: "hidden" }}>
+          <label htmlFor="signup-contact-website">Website</label>
+          <input id="signup-contact-website" name="contact_website" type="text" autoComplete="off" tabIndex={-1} defaultValue="" />
         </div>
-        <label><span>Email address</span><input name="email" type="email" autoComplete="email" required /></label>
+
+        <div className="auth-field-grid">
+          <label><span>Your name</span><input name="full_name" autoComplete="name" maxLength={120} required /></label>
+          <label><span>Contact phone</span><input name="phone" type="tel" autoComplete="tel" minLength={10} maxLength={40} required /></label>
+        </div>
+        <label><span>Email address</span><input name="email" type="email" autoComplete="email" maxLength={254} required /></label>
         <div className="auth-field-grid">
           <label><span>Password</span><input name="password" type="password" autoComplete="new-password" minLength={8} required /></label>
           <label><span>Confirm password</span><input name="confirm_password" type="password" autoComplete="new-password" minLength={8} required /></label>

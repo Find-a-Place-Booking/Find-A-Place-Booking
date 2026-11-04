@@ -35,6 +35,41 @@ function trackedPagePath(metadata: Record<string, unknown> | undefined) {
   return trimmed.startsWith("/") ? trimmed.slice(0, 500) : "";
 }
 
+/**
+ * The date picker aborts an obsolete fetch when a guest changes dates,
+ * returns to the tab, or leaves the listing. That is not an availability
+ * failure. Only reclassify explicit abort errors that finish quickly.
+ *
+ * Genuine HTTP failures (including ResNexus 503), uncategorized network
+ * errors, and the full 10-second client timeout remain failure events.
+ * This also handles already-cached clients without requiring a UI release.
+ */
+function isSupersededAvailabilityRequest(input: {
+  eventName: string;
+  success?: boolean | null;
+  statusCode?: number | null;
+  errorCode?: string | null;
+  errorMessage?: string | null;
+  metadata?: Record<string, unknown>;
+}) {
+  if (
+    input.eventName !== "availability_failed" ||
+    input.success !== false ||
+    input.errorCode !== "network_error" ||
+    (input.statusCode != null && input.statusCode > 0)
+  ) return false;
+
+  const message = input.errorMessage || "";
+  if (!/^(?:Fetch is aborted|signal is aborted without reason|The operation was aborted\.?|This operation was aborted\.?|AbortError)(?:\s.*)?$/i.test(message)) {
+    return false;
+  }
+
+  // The normal client timeout is 10 seconds. Do not hide slow timeouts.
+  const duration = input.metadata?.duration_ms;
+  return typeof duration === "number" &&
+    Number.isFinite(duration) && duration >= 0 && duration < 3000;
+}
+
 export async function POST(request: NextRequest) {
   if (!sameOrigin(request)) {
     return NextResponse.json(
@@ -88,21 +123,26 @@ export async function POST(request: NextRequest) {
   const userAgent = request.headers.get("user-agent");
   const referrer = request.headers.get("referer");
 
+  const isCancelledAvailability = isSupersededAvailabilityRequest({
+    ...body,
+    eventName,
+  });
+
   await recordBookingAttemptEvent({
     attemptId: body.attemptId,
-    eventName,
+    eventName: isCancelledAvailability ? "availability_cancelled" : eventName,
     stage,
     unitId: body.unitId || null,
     reservationId: body.reservationId || null,
-    success:
+    success: isCancelledAvailability ? null :
       typeof body.success === "boolean" ? body.success : null,
-    statusCode:
-      Number.isInteger(body.statusCode)
-        ? Number(body.statusCode)
-        : null,
-    errorCode: body.errorCode || null,
-    errorMessage: body.errorMessage || null,
-    metadata: body.metadata || {},
+    statusCode: isCancelledAvailability ? null :
+      Number.isInteger(body.statusCode) ? Number(body.statusCode) : null,
+    errorCode: isCancelledAvailability ? null : body.errorCode || null,
+    errorMessage: isCancelledAvailability ? null : body.errorMessage || null,
+    metadata: isCancelledAvailability
+      ? { ...(body.metadata || {}), cancellation_kind: "superseded_request" }
+      : body.metadata || {},
     path,
     userAgent,
     referrer,
