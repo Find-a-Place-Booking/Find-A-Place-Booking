@@ -1,25 +1,31 @@
-# Find A Place Booking — Host publishing clarity + community host reviews
-Reviewed against repository main as of 2026-10-31.
+# Find A Place — Admin Stripe Connect refresh patch
 
-## Little Wolf Cabins — verified current state
-Host account: Toni Gebers. 3 published and calendar-connected cabins (#1 Cedar Creek Cabin, #2 Lofted Pine, #5 Buckeye). #3 Blue Spruce is DRAFT, with no active calendar connection. The host has a ready live Stripe account. Do NOT force-publish Blue Spruce before the host confirms availability configuration.
+This overlay is based on `main` commit `3c84ae22041fbcc7c98f52c20282545c5b8afea4` and the **simple V2** publishing overlay.
 
-Hosts publish themselves: Host > Properties > open the draft > scroll to Marketplace visibility > Publish listing. It becomes public immediately if the platform checks succeed; no admin approval/waiting period. This overlay also clarifies the path in the listing overview, labeling draft links “Finish & publish.”
+## Installation
 
-## Public host reviews
-- Existing reservation-verified guest reviews remain unchanged, and keep their own rating.
-- Public host profiles now get a second section: community experiences, which can be submitted without booking through FAP.
-- These are not labeled verified. The public section does not contribute to the verified guest rating or structured rating markup.
-- Full name, email, experience type, rating and review are required; email remains private.
-- Cloudflare Turnstile is required with action host_review and the existing Turnstile environment variables. No bypass if not configured.
-- Submissions are private PENDING until approved at Admin > Host reviews by a Super or Operations Admin; reviewers cannot self-publish. One review per normalized email per host, plus a honeypot.
-- Rejections remain in audit history; review status is not editable by hosts. No changes to payments, property publication rules, stays, refunds, calendars, or verified reviews.
+Extract ZIP over repository root and push normally. This replaces ONLY:
 
-## Install safely
-1. Extract the ZIP to your local repository root, merging folders.
-2. Run APPLY_OVERLAY.bat once on Windows, or `python3 apply_overlay.py .` from repository root. Extracting alone does not hook into the four existing components.
-3. Run `npm run typecheck` and `npm run build` and push only if both pass.
-4. Vercel deploys from GitHub. Browse a live /hosts/[slug] profile, submit a test review, then sign into Admin > Host reviews and approve it. Confirm it displays only under Community experiences, not Verified guest feedback.
-5. The new table's migration was ALREADY APPLIED in production Supabase under version 20261031080310. The migration is included as a record; do not manually apply it a second time.
+- `app/admin/publishing/actions.ts`
+- `app/admin/publishing/[propertyId]/page.tsx`
 
-Important: The GitHub integration currently returns 403 to write operations. These frontend changes cannot be considered deployed until the ZIP is merged and pushed to GitHub. No guest test reviews were sent.
+No database migration, environment variables, booking, Stripe payment processing, tax, calendar or host account configuration changes.
+
+## What it adds
+
+The admin publishing detail screen shows stored Stripe card-payments status (if unavailable or not ready) and a **Refresh Stripe status** button. It calls the SAME server-side `syncStripePaymentAccount` function the host uses. `SUPER_ADMIN` and `OPERATIONS_ADMIN` only, admin cookie authorization, and `LIVE` account selected from the host organization. The saved account is updated ONLY from Stripe's current API response. It never changes account routing or enables Stripe capabilities manually.
+
+## How to use
+
+1. Deploy overlay.
+2. Admin > Get listings live > The Cabin at Dobbers Corner.
+3. Click **Refresh Stripe status**.
+4. If Stripe returns READY, the publishing checklist updates. If still restricted, review the outstanding Stripe requirements with the host. Connected does not mean live card payments are active.
+
+## Safety
+
+Do NOT manually set `charges_enabled` or `payouts_enabled` true in Supabase. This would permit bookings that Stripe may reject. The backend publication guard is unchanged.
+
+## Known limitation
+
+No live authenticated Stripe refresh was possible from this session. The available Stripe connector lacks permission to read the host account. Deploy and click the admin refresh button using the site's own configured Stripe credentials.

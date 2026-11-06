@@ -5,6 +5,9 @@ import { redirect } from "next/navigation";
 
 import { getAdminContext, hasAnyAdminRole } from "@/lib/admin/context";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { syncStripePaymentAccount } from "@/lib/payments/sync-stripe-account";
+import { stripeEnvironment } from "@/lib/payments/booking-runtime";
 
 function value(formData: FormData, name: string, max = 5000) {
   const entry = formData.get(name);
@@ -133,3 +136,61 @@ export async function finishAndPublishAdminListing(formData: FormData) {
   redirect(returnPath(propertyId, "saved", "Listing approved and published. No checkout or calendar safeguards were bypassed."));
 }
 
+
+/**
+ * Re-read live Stripe Connect V2 merchant capability status using the SAME
+ * sync helper already used by the host's Stripe setup. This never creates a
+ * Stripe account, rewrites payouts, or marks an account ready by hand.
+ * Limited to Operations/Super Admin and the LIVE/TEST environment in use.
+ */
+export async function refreshAdminListingStripe(formData: FormData) {
+  await authorize();
+  const propertyId = value(formData, "property_id", 90);
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(propertyId)) {
+    redirect("/admin/publishing?error=Invalid%20property");
+  }
+
+  const admin = createAdminClient();
+  const { data: property, error: propertyError } = await admin
+    .from("properties")
+    .select("organization_id")
+    .eq("id", propertyId)
+    .maybeSingle();
+  if (propertyError || !property) {
+    redirect(returnPath(propertyId, "error", "Property not found."));
+  }
+
+  const environment = stripeEnvironment();
+  const { data: account, error: accountError } = await admin
+    .from("payment_accounts")
+    .select("id,provider_account_id,status")
+    .eq("organization_id", property.organization_id)
+    .eq("provider", "STRIPE")
+    .eq("environment", environment)
+    .eq("is_default", true)
+    .neq("status", "DISABLED")
+    .limit(1)
+    .maybeSingle();
+  if (accountError || !account?.provider_account_id) {
+    redirect(returnPath(propertyId, "error", "No connected Stripe account is available for this listing. The host needs to connect Stripe."));
+  }
+
+  let status: "READY" | "RESTRICTED" | "PENDING";
+  try {
+    const refreshed = await syncStripePaymentAccount(
+      admin, account.id, account.provider_account_id,
+    );
+    status = refreshed.status;
+  } catch (error) {
+    console.error("[admin stripe refresh] sync failed", error);
+    redirect(returnPath(propertyId, "error", "Stripe status could not be refreshed. No account flags were changed. Check Stripe permissions or retry."));
+  }
+
+  revalidatePath("/admin/publishing");
+  revalidatePath(`/admin/publishing/${propertyId}`);
+  revalidatePath(`/admin/properties/${propertyId}`);
+  revalidatePath("/host/payments");
+  redirect(returnPath(propertyId, "saved", status === "READY"
+    ? "Stripe now confirms live card payments are active. Review the listing and publish when ready."
+    : `Stripe was contacted, but card payments are still ${status.toLowerCase()}. The host needs to finish Stripe's listed requirements.`));
+}

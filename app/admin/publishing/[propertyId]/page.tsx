@@ -15,6 +15,7 @@ import {
   finishAndPublishAdminListing,
   saveAdminListingSetup,
   toggleAdminListingCheckout,
+  refreshAdminListingStripe,
 } from "../actions";
 import styles from "../PublishingFlow.module.css";
 
@@ -85,6 +86,20 @@ export default async function AdminFinishListing({
   const paused = property.status === "PAUSED";
   const ownerId = ownerResult.data?.[0]?.profile_id || null;
   const hostLink = ownerId ? `/admin/hosts/${ownerId}` : "/admin/hosts";
+  const { data: stripeAccount } = await admin.from("payment_accounts")
+    .select("id,status,charges_enabled,payouts_enabled,updated_at,metadata")
+    .eq("organization_id", property.organization_id)
+    .eq("provider", "STRIPE")
+    .eq("environment", "LIVE")
+    .eq("is_default", true)
+    .neq("status", "DISABLED")
+    .limit(1).maybeSingle();
+  const cardStatus = typeof stripeAccount?.metadata?.card_payments_status === "string"
+    ? stripeAccount.metadata.card_payments_status : null;
+  const outstanding = stripeAccount?.metadata?.outstanding_requirement_count;
+  const stripeNeedsAttention = !stripeAccount || stripeAccount.status !== "READY" ||
+    !stripeAccount.charges_enabled || !stripeAccount.payouts_enabled;
+
   const [ratesResult, photosResult, calendarsResult] = await Promise.all([
     unit ? admin.from("unit_rate_settings").select("weeknight_cents,weekend_cents").eq("unit_id", unit.id).maybeSingle() : Promise.resolve({ data: null }),
     unit ? admin.from("property_images").select("id", { count: "exact", head: true }).eq("unit_id", unit.id) : Promise.resolve({ count: 0 }),
@@ -135,6 +150,30 @@ export default async function AdminFinishListing({
           ) : null}
         </section>
 
+        {stripeNeedsAttention && property.status !== "ARCHIVED" ? (
+          <section className="panel" aria-labelledby="stripe-refresh-title">
+            <h2 id="stripe-refresh-title" className={styles.sectionHeading}>Stripe connection</h2>
+            <p className={styles.sectionLead}>
+              {stripeAccount
+                ? `An account is connected, but the last saved status is ${stripeAccount.status.toLowerCase()}.`
+                : "No active default Stripe account is saved for this host."}
+              {cardStatus ? ` Stripe card payments: ${cardStatus}.` : ""}
+              {typeof outstanding === "number" && outstanding > 0
+                ? ` ${outstanding} requirements were outstanding at the last check.` : ""}
+            </p>
+            {stripeAccount?.updated_at ? <p className={styles.muted}>
+              Last refreshed: {new Date(stripeAccount.updated_at).toLocaleString("en-US", {dateStyle:"medium",timeStyle:"short"})}.
+            </p> : null}
+            <form action={refreshAdminListingStripe} className={styles.form}>
+              <input type="hidden" name="property_id" value={property.id} />
+              <button className="button button-small" type="submit">Refresh Stripe status</button>
+              <small className={styles.helper}>
+                Rechecks Stripe directly. It cannot enable charges or payouts unless Stripe reports them ready.
+              </small>
+            </form>
+            <div className={styles.quickLinks}><Link href={hostLink}>Host account</Link></div>
+          </section>
+        ) : null}
         {!checkError && problems.length > 0 ? (
           <section className="panel" aria-labelledby="what-to-fix-title">
             <h2 id="what-to-fix-title" className={styles.sectionHeading}>What needs fixing</h2>
