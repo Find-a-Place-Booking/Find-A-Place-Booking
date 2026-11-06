@@ -38,9 +38,10 @@ export async function saveHostDraftAssistance(data: FormData) {
     const value = field(data, name, name === "description" || name === "cancellation" ? 5000 : 250);
     // Empty fields are not submitted: this cannot accidentally erase a host's
     // previously saved data. Intentional blanking is left to host support.
-    if (value) patch[name] = value;
+    const previouslyShown = data.get(`original_${name}`);
+    if (value && (typeof previouslyShown !== "string" || previouslyShown.trim() !== value)) patch[name] = value;
   }
-  if (!Object.keys(patch).length) redirect(back(orgId, "error", "Nothing was entered to save."));
+  if (!Object.keys(patch).length) redirect(back(orgId, "error", "Nothing changed. Edit a value before saving."));
   const db = await createClient();
   const { error } = await db.rpc("admin_patch_host_onboarding_draft", {
     target_organization_id: orgId, patch, reason,

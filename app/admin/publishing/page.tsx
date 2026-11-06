@@ -3,9 +3,14 @@ import { redirect } from "next/navigation";
 
 import { AdminShell } from "@/components/AdminShell";
 import { getAdminContext, hasAnyAdminRole } from "@/lib/admin/context";
-import { cleanStatus } from "@/lib/admin/format";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
+import {
+  explainPublishingIssue,
+  sortPublishingIssues,
+  issueOwnerLabel,
+} from "@/lib/admin/publishing-steps";
+import styles from "./PublishingFlow.module.css";
 
 export const dynamic = "force-dynamic";
 
@@ -15,148 +20,171 @@ type Listing = {
   name: string;
   status: string;
   updated_at: string;
-  live_checkout_enabled: boolean;
 };
+
+type QueueItem = {
+  property: Listing;
+  issues: string[];
+  checkFailed: boolean;
+};
+
+function statusFor(item: QueueItem) {
+  if (item.property.status === "PAUSED") return "paused" as const;
+  if (item.property.status === "REJECTED") return "needs" as const;
+  if (item.checkFailed || item.issues.length) return "needs" as const;
+  return "ready" as const;
+}
 
 export default async function AdminPublishingQueue({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string }>;
+  searchParams: Promise<{ view?: string; q?: string; error?: string }>;
 }) {
   const context = await getAdminContext();
   if (!hasAnyAdminRole(context, ["SUPER_ADMIN", "OPERATIONS_ADMIN"])) redirect("/admin");
-  const admin = createAdminClient();
-  const userClient = await createClient();
-  const params = await searchParams;
-  const { data, error } = await admin.from("properties")
-    .select("id,organization_id,name,status,updated_at,live_checkout_enabled")
-    .in("status", ["DRAFT", "PENDING_REVIEW", "CHANGES_REQUESTED", "APPROVED", "PAUSED", "REJECTED"])
-    .order("updated_at", { ascending: false })
-    .limit(150);
-  const properties = (data || []) as Listing[];
-  const organizationIds = [...new Set(properties.map((property) => property.organization_id))];
-  const draftsResult = await admin.from("host_onboarding_drafts")
-    .select("organization_id,status,current_step,created_property_id,updated_at,host_policy_accepted_at,authority_confirmed")
-    .eq("status", "IN_PROGRESS").order("updated_at", { ascending: false }).limit(100);
-  const incompleteDrafts = (draftsResult.data || []).filter((draft) =>
-    !draft.created_property_id || properties.some((property) => property.id === draft.created_property_id));
+  const [{ view: rawView, q: rawSearch, error: errorMessage }, admin, client] = await Promise.all([
+    searchParams,
+    Promise.resolve(createAdminClient()),
+    createClient(),
+  ]);
+  const view = ["all", "ready", "needs", "paused"].includes(rawView || "") ? rawView! : "all";
+  const search = (rawSearch || "").trim().toLowerCase();
 
-  // A published listing can still be blocked at checkout by a stale external
-  // PMS. Report that separately from the unpublished property queue.
-  const { data: calendarAlerts } = await admin.from("calendar_connections")
-    .select("unit_id,provider,sync_status,last_success_at,connection_kind")
-    .eq("is_active", true).limit(400);
-  const alerts = (calendarAlerts || []).filter((c) => {
-    if (c.sync_status !== "HEALTHY") return true;
-    if (!c.last_success_at) return true;
-    const age = Date.now() - Date.parse(c.last_success_at);
-    const maxAgeHours = c.connection_kind === "ICAL" ? 48 : 24;
-    return Number.isFinite(age) && age > maxAgeHours * 3600_000;
-  });
-  const alertUnitIds = [...new Set(alerts.map((c) => c.unit_id))];
-  const { data: alertUnits } = alertUnitIds.length
-    ? await admin.from("property_units").select("id,property_id").in("id", alertUnitIds)
+  const [{ data: propertiesData, error: propertyError }, { data: draftsData, error: draftError }] = await Promise.all([
+    admin.from("properties")
+      .select("id,organization_id,name,status,updated_at")
+      .in("status", ["DRAFT", "PENDING_REVIEW", "CHANGES_REQUESTED", "APPROVED", "PAUSED", "REJECTED"])
+      .order("updated_at", { ascending: false }).limit(150),
+    admin.from("host_onboarding_drafts")
+      .select("organization_id,current_step,created_property_id,updated_at")
+      .eq("status", "IN_PROGRESS")
+      .is("created_property_id", null)
+      .order("updated_at", { ascending: false }).limit(100),
+  ]);
+  const properties = (propertiesData || []) as Listing[];
+  const drafts = draftsData || [];
+  const organizationIds = [...new Set([
+    ...properties.map((property) => property.organization_id),
+    ...drafts.map((draft) => draft.organization_id),
+  ])];
+  const { data: organizations } = organizationIds.length
+    ? await admin.from("organizations").select("id,name").in("id", organizationIds)
     : { data: [] };
-  const propIdsWithWarning = [...new Set((alertUnits || []).map((u) => u.property_id))];
-  const { data: publishedWithAlerts } = propIdsWithWarning.length
-    ? await admin.from("properties").select("id,name,status")
-      .in("id", propIdsWithWarning).eq("status", "PUBLISHED")
-    : { data: [] };
-  const unitPropId = new Map((alertUnits || []).map((u) => [u.id, u.property_id]));
-  const calendarIssueCounts = new Map<string, number>();
-  for (const connection of alerts) {
-    const id = unitPropId.get(connection.unit_id);
-    if (id) calendarIssueCounts.set(id, (calendarIssueCounts.get(id) || 0) + 1);
-  }
-  const additionalOrgIds = incompleteDrafts.map((d) => d.organization_id);
-  const allOrgIds = [...new Set([...organizationIds, ...additionalOrgIds])];
-  const { data: queueOrganizations } = allOrgIds.length
-    ? await admin.from("organizations").select("id,name,commission_tier,partner_status").in("id", allOrgIds)
-    : { data: [] };
-  const orgById = new Map((queueOrganizations || []).map((row) => [row.id, row]));
-  const organizationsById = orgById;
+  const organizationNames = new Map((organizations || []).map((org) => [org.id as string, org.name as string]));
 
-  const readiness = await Promise.all(properties.map(async (property) => {
-    const { data: issues, error: issueError } = await userClient.rpc(
-      "admin_property_publication_issues", { target_property_id: property.id });
-    return { property, issues: (issues ?? []) as string[], error: issueError };
+  const queue: QueueItem[] = await Promise.all(properties.map(async (property) => {
+    // This RPC is the same authoritative check used immediately before publishing.
+    const { data: issues, error } = await client.rpc("admin_property_publication_issues", {
+      target_property_id: property.id,
+    });
+    return { property, issues: (issues || []) as string[], checkFailed: Boolean(error) };
   }));
-  const ready = readiness.filter((item) => !item.error && item.issues.length === 0);
-  const incomplete = readiness.filter((item) => item.error || item.issues.length);
+  const counts = {
+    ready: queue.filter((item) => statusFor(item) === "ready").length,
+    needs: queue.filter((item) => statusFor(item) === "needs").length,
+    paused: queue.filter((item) => statusFor(item) === "paused").length,
+  };
+  const selected = queue
+    .filter((item) => view === "all" || statusFor(item) === view)
+    .filter((item) => !search || [item.property.name, organizationNames.get(item.property.organization_id) || ""]
+      .some((value) => value.toLowerCase().includes(search)))
+    .sort((a, b) => {
+      const weight = { ready: 0, needs: 1, paused: 2 };
+      return weight[statusFor(a)] - weight[statusFor(b)];
+    });
 
   return (
-    <AdminShell active="publishing" eyebrow="Host setup operations" title="Complete & publish listings" context={context}>
-      <section className="panel">
-        <p className="eyebrow dark">Publication queue</p>
-        <h2>{ready.length} ready to publish · {incomplete.length} need attention</h2>
-        <p className="muted">
-          This checks the actual property fields, photos, cancellation terms, calendar choice,
-          Stripe readiness, address and tax/state requirements. Finishing a listing does not
-          mean accepting the Host Agreement for the host or overriding payment protections.
-        </p>
-        <p className="muted">For existing live listings, use <Link href="/admin/properties">Properties</Link>. Published listings cannot be changed with the draft-completion editor.</p>
-      </section>
-      {params.error ? <div className="admin-message error">{params.error}</div> : null}
-      {error ? <div className="admin-message error">Unable to load the publishing queue: {error.message}</div> : null}
-      {!error && !properties.length ? (
-        <section className="panel"><strong>No unpublished properties found.</strong></section>
-      ) : null}
-      {incompleteDrafts.length ? <section className="panel" style={{ display: "grid", gap: 12 }}>
-        <p className="eyebrow dark">Earlier in onboarding</p>
-        <h2>{incompleteDrafts.length} host setup drafts need follow-up</h2>
-        <p className="muted">Admins can complete factual details and prepare a draft property. Host Agreement, authority confirmation, taxes and Stripe still require the proper owner or provider.</p>
-        {incompleteDrafts.map((draft) => (
-          <div key={draft.organization_id} style={{ display: "flex", flexWrap: "wrap", gap: 10, alignItems: "center", justifyContent: "space-between", borderTop: "1px solid var(--line)", paddingTop: 10 }}>
-            <div><strong>{orgById.get(draft.organization_id)?.name || "Host account"}</strong>
-              <div className="muted">Step {Number(draft.current_step) + 1} of 11 · {draft.created_property_id ? "Property started" : "No property record"}
-              {!draft.host_policy_accepted_at ? " · Agreement outstanding" : ""}</div>
+    <AdminShell active="publishing" eyebrow="Host operations" title="Get listings live" context={context}>
+      <div className={styles.page}>
+        <div className={styles.intro}>
+          <h2>Find the listing. See the problem. Fix it.</h2>
+          <p>Ready listings come first. Open any listing to see what is stopping publication and go straight to the fix.</p>
+        </div>
+        {errorMessage ? <div className="admin-message error">{errorMessage}</div> : null}
+        {propertyError ? <div className="admin-message error">Couldn't load property records. Refresh and try again.</div> : null}
+        <nav className={styles.metrics} aria-label="Filter listings by readiness">
+          {([
+            ["ready", "Ready to publish", counts.ready],
+            ["needs", "Need help", counts.needs],
+            ["paused", "Paused", counts.paused],
+          ] as const).map(([key, label, count]) => (
+            <Link key={key} href={`/admin/publishing?view=${key}`}
+              aria-current={view === key ? "page" : undefined}
+              className={`${styles.metric} ${view === key ? styles.metricActive : ""}`}>
+              <strong>{count}</strong><span>{label}</span>
+            </Link>
+          ))}
+        </nav>
+        <section className="panel">
+          <div className={styles.toolbar}>
+            <div>
+              <h2 className={styles.sectionHeading}>{view === "ready" ? "Ready to go live" : view === "needs" ? "Listings needing help" : view === "paused" ? "Paused listings" : "Unpublished listings"}</h2>
+              <p className={styles.sectionLead}>
+                {view === "all" ? "Showing publishable listings first." : ""} {selected.length} shown
+                {view !== "all" ? <> · <Link href="/admin/publishing">Show all</Link></> : null}
+              </p>
             </div>
-            <Link className="button button-small button-quiet" href={`/admin/host-assist/${draft.organization_id}`}>Help this host</Link>
+            <form className={styles.search} action="/admin/publishing" method="get">
+              <input type="hidden" name="view" value={view} />
+              <input name="q" aria-label="Search listings or hosts" defaultValue={rawSearch || ""} placeholder="Search property or host…" />
+              <button className="button button-small button-quiet" type="submit">Search</button>
+            </form>
           </div>
-        ))}
-      </section> : null}
-      {publishedWithAlerts?.length ? <section className="panel" style={{ display: "grid", gap: 12 }}>
-        <p className="eyebrow dark">Calendar attention</p>
-        <h2>{publishedWithAlerts.length} live listings have external calendar warnings</h2>
-        <p className="muted">A listing can be public even when guest booking checks correctly block unavailable or unverifiable calendars. Resolve credentials and verify new successful syncs before accepting bookings.</p>
-        {publishedWithAlerts.slice(0, 25).map((property) => (
-          <div key={property.id} style={{ display: "flex", flexWrap: "wrap", justifyContent: "space-between", gap: 10, borderTop: "1px solid var(--line)", paddingTop: 10 }}>
-            <span><strong>{property.name}</strong> · {calendarIssueCounts.get(property.id) || 0} calendar warning(s)</span>
-            <Link href={`/admin/properties/${property.id}`} className="button button-small button-quiet">Inspect listing</Link>
-          </div>
-        ))}
-        <Link href="/admin/calendars">Go to calendar diagnostics →</Link>
-      </section> : null}
-      <section className="panel" style={{ display: "grid", gap: 16 }}>
-        <h2>Properties waiting to go live</h2>
-        {readiness.map(({ property, issues, error: readinessError }) => {
-          const org = organizationsById.get(property.organization_id);
-          const isReady = !readinessError && issues.length === 0;
-          return (
-            <div key={property.id} style={{ borderTop: "1px solid var(--line)", paddingTop: 14, display: "grid", gap: 8 }}>
-              <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
-                <div>
-                  <strong>{property.name}</strong>
-                  <div className="muted">{org?.name || "Unknown host"} · {cleanStatus(property.status)}</div>
+          {selected.length ? (
+            <div className={styles.list}>
+              {selected.map((item) => {
+                const state = statusFor(item);
+                const lead = sortPublishingIssues(item.issues.map(explainPublishingIssue))[0];
+                const isRejected = item.property.status === "REJECTED";
+                const stateText = isRejected ? "Previously rejected" : state === "ready" ? "Ready to publish" : state === "paused" ? "Paused by choice" : item.checkFailed ? "Needs admin review" : `${item.issues.length} ${item.issues.length === 1 ? "thing" : "things"} to fix`;
+                return (
+                  <div className={styles.listRow} key={item.property.id}>
+                    <div>
+                      <h3>{item.property.name}</h3>
+                      <div className={styles.eyeline}>{organizationNames.get(item.property.organization_id) || "Host not found"}</div>
+                      <p className={state === "ready" ? styles.ready : state === "paused" ? styles.paused : item.checkFailed ? styles.error : styles.needs}>
+                        <strong>{stateText}</strong>
+                        {state === "needs" && !isRejected && !item.checkFailed && lead ? <> · {lead.title.toLowerCase()} <span className={styles.muted}>({issueOwnerLabel(lead.owner).toLowerCase()})</span></> : null}
+                        {item.checkFailed ? " · Publishing check could not run" : null}
+                        {isRejected ? " · Review the previous decision before any approval" : null}
+                        {state === "paused" ? " · Review with host before reactivating" : null}
+                      </p>
+                    </div>
+                    <Link className={`button button-small ${state === "ready" ? "" : "button-quiet"}`}
+                      href={`/admin/publishing/${item.property.id}`}>
+                      {state === "ready" ? "Review & publish" : isRejected ? "Review rejection" : state === "paused" ? "Review paused stay" : "See what to fix"}
+                    </Link>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <p className={styles.empty}>{search ? "No listings match that search." : "No listings in this category."}</p>
+          )}
+        </section>
+        <details className={styles.details}>
+          <summary>Hosts who haven't finished their first listing ({drafts.length})</summary>
+          <div className={styles.detailsContent}>
+            {draftError ? <p className="admin-message error">Couldn't load unfinished host setups.</p> : null}
+            <p className={styles.muted}>These hosts started onboarding but don't have a property to publish yet. Help prepare a draft without signing agreements or connecting accounts for them.</p>
+            {drafts.length ? <div className={styles.list}>
+              {drafts.map((draft) => (
+                <div className={styles.listRow} key={draft.organization_id}>
+                  <div><strong>{organizationNames.get(draft.organization_id) || "Host account"}</strong>
+                    <div className={styles.eyeline}>Saved at step {Number(draft.current_step) + 1} of 11</div>
+                  </div>
+                  <Link className="button button-small button-quiet" href={`/admin/host-assist/${draft.organization_id}`}>Help finish setup</Link>
                 </div>
-                <div><strong>{isReady ? "Ready to publish" : readinessError ? "Unable to verify" : `${issues.length} requirements outstanding`}</strong></div>
-              </div>
-              {!isReady ? (
-                <ul style={{ marginTop: 0, marginBottom: 0 }}>
-                  {(readinessError ? ["Publishing check unavailable. Do not publish until this is resolved."] : issues)
-                    .slice(0, 7).map((issue) => <li key={issue}>{issue}</li>)}
-                </ul>
-              ) : <p className="muted">All required checks passed. Review and publish from the property detail page.</p>}
-              <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-                <Link href={`/admin/publishing/${property.id}`} className="button button-small">
-                  {isReady ? "Review & publish" : "Fix setup"}
-                </Link>
-                <Link href={`/admin/properties/${property.id}`} className="button button-small button-quiet">Existing property record</Link>
-              </div>
-            </div>
-          );
-        })}
-      </section>
+              ))}
+            </div> : <p>No unfinished host drafts without a property record.</p>}
+          </div>
+        </details>
+        <div className={styles.quickLinks}>
+          <Link href="/admin/properties">All properties</Link>
+          <Link href="/admin/calendars">Calendar health</Link>
+          <Link href="/admin/hosts">Host accounts</Link>
+        </div>
+      </div>
     </AdminShell>
   );
 }

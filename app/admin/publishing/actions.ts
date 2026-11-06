@@ -27,6 +27,11 @@ async function authorize() {
   return context;
 }
 
+function fieldWasUnchanged(data: FormData, key: string, current: string) {
+  const original = data.get(`original_${key}`);
+  return typeof original === "string" && original.trim() === current;
+}
+
 function priceInCents(raw: string): number | null {
   if (!raw) return null;
   if (!/^(?:\d{1,6})(?:\.\d{1,2})?$/.test(raw)) return null;
@@ -47,11 +52,11 @@ export async function saveAdminListingSetup(formData: FormData) {
   for (const field of fields) {
     // A blank text box preserves the original value; explicit changes are audited.
     const text = value(formData, field, field === "description" ? 10000 : 5000);
-    if (text) details[field] = text;
+    if (text && !fieldWasUnchanged(formData, field, text)) details[field] = text;
   }
 
   const maxGuests = value(formData, "max_guests", 5);
-  if (maxGuests) {
+  if (maxGuests && !fieldWasUnchanged(formData, "max_guests", maxGuests)) {
     const n = Number(maxGuests);
     if (!Number.isInteger(n) || n < 1 || n > 100) {
       redirect(returnPath(propertyId, "error", "Maximum guests must be between 1 and 100."));
@@ -61,7 +66,7 @@ export async function saveAdminListingSetup(formData: FormData) {
 
   for (const field of ["weeknight_price", "weekend_price"] as const) {
     const raw = value(formData, field, 15);
-    if (!raw) continue;
+    if (!raw || fieldWasUnchanged(formData, field, raw)) continue;
     const cents = priceInCents(raw);
     if (cents == null) {
       redirect(returnPath(propertyId, "error", "Nightly rates must be positive dollar amounts with no more than two decimals."));
@@ -70,7 +75,7 @@ export async function saveAdminListingSetup(formData: FormData) {
   }
 
   if (!Object.keys(details).length) {
-    redirect(returnPath(propertyId, "error", "No changes were entered."));
+    redirect(returnPath(propertyId, "error", "No changes were made. Edit a value, then save."));
   }
   const reason = value(formData, "reason", 500);
   if (reason.length < 8) {
