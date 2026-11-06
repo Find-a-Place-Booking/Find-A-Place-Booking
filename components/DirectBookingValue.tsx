@@ -2,6 +2,17 @@
 
 import { useEffect, useState } from "react";
 
+import styles from "./DirectBookingValue.module.css";
+
+type Breakdown = {
+  lodgingCents: number;
+  cleaningCents: number;
+  extraGuestCents: number;
+  guestServiceFeeCents: number;
+  includedOtherCents: number;
+  preTaxTotalCents: number;
+};
+
 type Comparison = {
   available: boolean;
   comparisonType?: "VERIFIED" | "ESTIMATED";
@@ -13,17 +24,27 @@ type Comparison = {
   currency?: string;
   priceBasis?: "BEFORE_TAXES";
   airbnbHostFeeAssumptionBps?: number;
+  fapHostFeeAssumptionBps?: number;
   assumptions?: "SAME_HOST_PROCEEDS_BEFORE_PROCESSING";
+  breakdown?: Breakdown | null;
+  hostFeeComparison?: {
+    fapHostCommissionCents: number;
+    modeledAirbnbHostFeeCents: number;
+  };
 };
 
-/**
- * VERIFIED: the exact Airbnb listing, dates, and party size with a recent quote.
- * ESTIMATED: a non-Airbnb-connected listing, modeled from published fees.
- * Missing / unmatched linked Airbnb quotes NEVER become estimated savings.
- * Does not change the price charged at checkout.
- */
+function isMoney(value: unknown): value is number {
+  return typeof value === "number" && Number.isSafeInteger(value) && value >= 0;
+}
+
+/** Does not alter the price charged to the guest. Purely informative. */
 export function DirectBookingValue({
-  unitId, checkIn, checkOut, guests, currency = "USD", compact = false,
+  unitId,
+  checkIn,
+  checkOut,
+  guests,
+  currency = "USD",
+  compact = false,
   receiptPreTaxTotalCents,
 }: {
   unitId?: string;
@@ -32,123 +53,148 @@ export function DirectBookingValue({
   guests?: number;
   currency?: string;
   compact?: boolean;
-  // Accepted for compatibility with existing checkout and receipt call sites.
+  // Retained for existing call-site compatibility.
   fapTotalCents?: number;
-  /** On receipts, only render a comparison if today's exact-dates quote agrees
-   * with the actual reservation snapshot. Otherwise hide the comparison. */
   receiptPreTaxTotalCents?: number;
 }) {
   const [comparison, setComparison] = useState<Comparison | null>(null);
   const [checking, setChecking] = useState(false);
-  const ready = Boolean(unitId && checkIn && checkOut && Number.isInteger(guests) && guests! > 0);
+  const ready = Boolean(
+    unitId && checkIn && checkOut && Number.isInteger(guests) && guests! > 0,
+  );
 
   useEffect(() => {
     setComparison(null);
     if (!ready) { setChecking(false); return; }
     const controller = new AbortController();
-    const params = new URLSearchParams({
-      unitId: unitId!, checkIn: checkIn!, checkOut: checkOut!, guests: String(guests),
+    const q = new URLSearchParams({
+      unitId: unitId!, checkIn: checkIn!, checkOut: checkOut!,
+      guests: String(guests),
     });
     setChecking(true);
-    fetch(`/api/booking/airbnb-comparison?${params.toString()}`, {
+    fetch(`/api/booking/airbnb-comparison?${q}`, {
       cache: "no-store", signal: controller.signal,
     })
-      .then(async (response) => response.ok ? await response.json() as Comparison : null)
-      .then((payload) => { if (!controller.signal.aborted) setComparison(payload); })
-      .catch(() => { /* An unavailable price provider must not interrupt checkout. */ })
+      .then(async response => response.ok ? await response.json() as Comparison : null)
+      .then(result => { if (!controller.signal.aborted) setComparison(result); })
+      .catch(() => { /* A comparison failure must never block payment. */ })
       .finally(() => { if (!controller.signal.aborted) setChecking(false); });
     return () => controller.abort();
   }, [ready, unitId, checkIn, checkOut, guests]);
 
-  const validTotals = comparison?.available &&
-    comparison.priceBasis === "BEFORE_TAXES" &&
-    (comparison.comparisonType === "VERIFIED" || comparison.comparisonType === "ESTIMATED") &&
-    Number.isSafeInteger(comparison.airbnbTotalCents) &&
-    Number.isSafeInteger(comparison.findAPlaceTotalCents) &&
-    Number(comparison.airbnbTotalCents) > 0 &&
-    Number(comparison.findAPlaceTotalCents) > 0 &&
-    comparison.currency === currency &&
-    (receiptPreTaxTotalCents === undefined ||
-      comparison.findAPlaceTotalCents === receiptPreTaxTotalCents);
-
-  if (!validTotals || !comparison) {
-    return ready && checking ? (
-      <div role="status" style={{ margin: compact ? "8px 0" : "12px 0", fontSize: 13, opacity: .72 }}>
-        Checking direct-booking value…
-      </div>
-    ) : null;
+  if (checking && ready && !comparison) {
+    return (
+      <p className={styles.checking} role="status">
+        Comparing booking costs…
+      </p>
+    );
   }
 
-  const isEstimated = comparison.comparisonType === "ESTIMATED";
-  // The model is only shown with its explicit assumptions. Older cached
-  // payloads that omit the model basis cannot be rendered as estimates.
-  if (isEstimated && (
-    comparison.assumptions !== "SAME_HOST_PROCEEDS_BEFORE_PROCESSING" ||
-    comparison.airbnbHostFeeAssumptionBps !== 1550
-  )) return null;
-  if (!isEstimated && !comparison.observedAt) return null;
+  if (!comparison?.available || comparison.priceBasis !== "BEFORE_TAXES" ||
+    !isMoney(comparison.findAPlaceTotalCents) ||
+    !isMoney(comparison.airbnbTotalCents) ||
+    comparison.findAPlaceTotalCents === 0 || comparison.airbnbTotalCents === 0 ||
+    comparison.currency !== currency ||
+    (receiptPreTaxTotalCents !== undefined &&
+      comparison.findAPlaceTotalCents !== receiptPreTaxTotalCents)) return null;
 
-  const fapCents = comparison.findAPlaceTotalCents!;
-  const airbnbCents = comparison.airbnbTotalCents!;
-  const differenceCents = airbnbCents - fapCents;
-  const money = (cents: number) => new Intl.NumberFormat("en-US", {
-    style: "currency", currency,
-  }).format(cents / 100);
+  const isEstimated = comparison.comparisonType === "ESTIMATED";
+  if (isEstimated && (comparison.assumptions !== "SAME_HOST_PROCEEDS_BEFORE_PROCESSING" ||
+    comparison.airbnbHostFeeAssumptionBps !== 1550)) return null;
+  if (!isEstimated && (comparison.comparisonType !== "VERIFIED" || !comparison.observedAt)) return null;
+
+  const money = (value: number) => new Intl.NumberFormat("en-US", {
+    style: "currency", currency, maximumFractionDigits: 2,
+  }).format(value / 100);
+  const difference = comparison.airbnbTotalCents - comparison.findAPlaceTotalCents;
+  const lowerHere = difference > 0;
+  const headline = isEstimated
+    ? lowerHere
+      ? `Estimated savings: ${money(difference)}`
+      : "Airbnb-style fee comparison"
+    : lowerHere
+      ? `Save ${money(difference)} booking direct`
+      : difference < 0
+        ? `Airbnb is ${money(-difference)} less for these dates`
+        : "Both options have the same pre-tax total";
+  const subhead = isEstimated
+    ? "A similar stay priced for equal host earnings, not an actual Airbnb quote."
+    : "Same Airbnb listing, dates and guest count; recent before-tax price.";
+  const details = comparison.breakdown;
   const observed = comparison.observedAt
-    ? new Date(comparison.observedAt).toLocaleString("en-US", {
-        dateStyle: "medium", timeStyle: "short",
-      })
+    ? new Date(comparison.observedAt)
     : null;
 
-  const title = isEstimated
-    ? differenceCents > 0
-      ? `Estimated savings: ${money(differenceCents)}`
-      : "Estimated Airbnb fee comparison"
-    : differenceCents > 0
-      ? `Save ${money(differenceCents)} booking here`
-      : differenceCents < 0
-        ? `Airbnb is ${money(-differenceCents)} less for these dates`
-        : "The quoted price is the same on Airbnb";
-
   return (
-    <aside aria-label={isEstimated ? "Estimated Airbnb fee comparison" : "Verified Airbnb listing price comparison"}
-      style={{
-        margin: compact ? "9px 0 13px" : "14px 0 18px",
-        padding: compact ? "12px 14px" : "18px 20px",
-        border: "1px solid rgba(133,111,85,.28)",
-        background: "#f8f5ee", borderRadius: 9, color: "#392f28",
-      }}>
-      <p style={{ margin: "0 0 9px", fontSize: compact ? 15 : 17, fontWeight: 700 }}>
-        {title}
-      </p>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr auto", columnGap: 12, rowGap: 8 }}>
-        <span>Find A Place</span>
-        <strong>{money(fapCents)}</strong>
-        <span>{isEstimated ? "Modeled Airbnb-equivalent price" : "Airbnb quoted price"}</span>
-        <strong>{money(airbnbCents)}</strong>
+    <aside className={`${styles.card} ${compact ? styles.compact : ""}`}
+      aria-label={isEstimated ? "Estimated Airbnb-style booking comparison" : "Same listing Airbnb price comparison"}>
+      <div className={styles.topline}>
+        <span>Compare your stay</span>
+        <span className={styles.kind}>{isEstimated ? "Illustrative estimate" : "Same Airbnb listing"}</span>
       </div>
-      {isEstimated ? (
-        <small style={{ display: "block", opacity: .8, lineHeight: 1.5, marginTop: 11 }}>
-          Illustration only, not an Airbnb price quote or guaranteed savings.
-          Assumes a host sets an Airbnb price to keep the same earnings after
-          Airbnb&apos;s typical 15.5% host service fee. Actual host pricing,
-          payment-processing costs and Airbnb fees can vary. Comparing the
-          selected stay before taxes, with no optional pets, add-ons or discounts.
-        </small>
-      ) : (
-        <small style={{ display: "block", opacity: .8, lineHeight: 1.5, marginTop: 11 }}>
-          Same property, {checkIn} to {checkOut}, {guests} {guests === 1 ? "guest" : "guests"}.
-          Before taxes, without optional pets or add-ons. Airbnb prices can change.
-          {observed ? ` Price checked ${observed}.` : ""}
-        </small>
-      )}
-      {!isEstimated && comparison.airbnbListingUrl ? (
-        <a href={comparison.airbnbListingUrl} target="_blank" rel="noopener noreferrer"
-          style={{ display: "inline-block", marginTop: 7, fontSize: 13,
-            textDecoration: "underline", color: "inherit" }}>
-          Check this listing on Airbnb
-        </a>
-      ) : null}
+
+      <h3 className={styles.headline}>{headline}</h3>
+      <p className={styles.subhead}>{subhead}</p>
+
+      <div className={styles.priceRows}>
+        <div className={styles.priceRow}>
+          <span>Find A Place</span>
+          <strong className={styles.ourPrice}>{money(comparison.findAPlaceTotalCents)}</strong>
+        </div>
+        <div className={styles.priceRow}>
+          <span>{isEstimated ? "Similar Airbnb-style stay" : "Airbnb price"}</span>
+          <strong>{money(comparison.airbnbTotalCents)}</strong>
+        </div>
+      </div>
+
+      <details className={styles.details}>
+        <summary>See the price breakdown</summary>
+        {details ? (
+          <div className={styles.breakdown}>
+            <span>Nightly lodging subtotal</span><strong>{money(details.lodgingCents)}</strong>
+            <span>Cleaning fee</span><strong>{money(details.cleaningCents)}</strong>
+            {details.extraGuestCents > 0 ? <><span>Extra guest fees</span><strong>{money(details.extraGuestCents)}</strong></> : null}
+            {details.guestServiceFeeCents > 0 ? <><span>Guest service fee</span><strong>{money(details.guestServiceFeeCents)}</strong></> : null}
+            {details.includedOtherCents > 0 ? <><span>Other included fees</span><strong>{money(details.includedOtherCents)}</strong></> : null}
+            <span className={styles.totalLabel}>Find A Place before taxes</span>
+            <strong className={styles.totalLabel}>{money(comparison.findAPlaceTotalCents)}</strong>
+          </div>
+        ) : null}
+        {isEstimated && comparison.hostFeeComparison ? (
+          <div className={styles.feeModel}>
+            <span>Host-side marketplace fees, not added at checkout</span>
+            <div><span>Find A Place host fee</span><strong>{money(comparison.hostFeeComparison.fapHostCommissionCents)}</strong></div>
+            <div><span>Modeled Airbnb host fee</span><strong>{money(comparison.hostFeeComparison.modeledAirbnbHostFeeCents)}</strong></div>
+          </div>
+        ) : null}
+        {isEstimated ? (
+          <p className={styles.finePrint}>
+            Estimated Airbnb-style pricing is modeled from this stay&apos;s required
+            pre-tax charges and a 15.5% illustrative Airbnb host service fee,
+            assuming the host earns the same amount after marketplace fees.
+            It is not a market survey, quote from Airbnb, or guaranteed saving.
+            Actual prices, host fee arrangements, and payment costs can differ.
+          </p>
+        ) : (
+          <p className={styles.finePrint}>
+            Compared for {checkIn} to {checkOut}, {guests} {guests === 1 ? "guest" : "guests"}.
+            {observed && !Number.isNaN(observed.getTime())
+              ? ` Airbnb price checked ${observed.toLocaleString("en-US", { dateStyle: "medium", timeStyle: "short" })}.`
+              : ""}
+            {" "}Airbnb prices can change.
+          </p>
+        )}
+        <p className={styles.finePrint}>
+          Both figures exclude lodging taxes, pets, optional add-ons and promo discounts.
+          Your actual checkout total is shown separately above.
+        </p>
+        {!isEstimated && comparison.airbnbListingUrl ? (
+          <a className={styles.external} href={comparison.airbnbListingUrl}
+            target="_blank" rel="noreferrer noopener">
+            View the same stay on Airbnb
+          </a>
+        ) : null}
+      </details>
     </aside>
   );
 }

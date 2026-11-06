@@ -1,8 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 
-import { createAdminClient } from "@/lib/supabase/admin";
+import { fetchInHouseAirbnbQuote } from "@/lib/bookings/airbnb-direct-pricing";
+import {
+  estimateAirbnbDifference,
+  TYPICAL_AIRBNB_HOST_FEE_BPS,
+} from "@/lib/bookings/airbnb-savings-estimate";
 import { stripeEnvironment } from "@/lib/payments/booking-runtime";
-import { estimateAirbnbDifference, TYPICAL_AIRBNB_HOST_FEE_BPS } from "@/lib/bookings/airbnb-savings-estimate";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -11,171 +15,115 @@ export const maxDuration = 45;
 const NO_STORE = { "Cache-Control": "private, no-store, max-age=0" };
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
-const CURRENCY = "USD";
 const TTL_MS = 2 * 60 * 60 * 1000;
+const USD = "USD";
 
-type JsonObj = Record<string, unknown>;
-
-type SavedPrice = {
+type Data = Record<string, unknown>;
+type StoredQuote = {
   listing_id: string | null;
   total_cents: number | null;
   currency: string;
   observed_at: string | null;
   price_basis: string;
+  source: string | null;
 };
 
-function obj(value: unknown): JsonObj {
-  return value && typeof value === "object" && !Array.isArray(value)
-    ? value as JsonObj : {};
-}
+type Breakdown = {
+  lodgingCents: number;
+  cleaningCents: number;
+  extraGuestCents: number;
+  guestServiceFeeCents: number;
+  includedOtherCents: number;
+  preTaxTotalCents: number;
+};
 
-function dateIsValid(value: string) {
-  if (!DATE_RE.test(value)) return false;
-  const actual = new Date(`${value}T00:00:00.000Z`);
-  return !Number.isNaN(actual.getTime()) && actual.toISOString().slice(0, 10) === value;
+function data(v: unknown): Data {
+  return v && typeof v === "object" && !Array.isArray(v) ? v as Data : {};
 }
-
-function empty() {
-  return NextResponse.json({ available: false }, { headers: NO_STORE });
-}
-
-function numberOrNull(value: unknown): number | null {
-  const n = typeof value === "number" ? value : typeof value === "string" ? Number(value) : NaN;
-  return Number.isFinite(n) && n > 0 ? n : null;
-}
-
-function nonnegativeSafeCents(value: unknown): number | null {
-  const n = typeof value === "number" ? value : typeof value === "string" ? Number(value) : NaN;
+function cents(v: unknown): number | null {
+  const n = typeof v === "number" ? v : typeof v === "string" && v.trim() ? Number(v) : NaN;
   return Number.isSafeInteger(n) && n >= 0 ? n : null;
 }
-
-
-/**
- * Reads the configured Apify Actor's exact-date, exact-listing price quote.
- * A quotation is deliberately rejected when its listing, dates, currency or
- * availability do not match. Airbnb's US visitor price basis is pre-tax;
- * taxes/optional extras must not be quietly compared with an all-in FAP total.
- * Never trust a nightly rate as a total for the whole trip.
- */
-function parseActorQuote(
-  raw: unknown, listingId: string, from: string, to: string, guests: number,
-) {
-  if (!Array.isArray(raw)) return null;
-  for (const item of raw.slice(0, 10)) {
-    const record = obj(item);
-    const price = obj(record.price);
-    const url = String(record.url ?? record.listing_url ?? "");
-    const matchId = url.match(/airbnb\.com\/rooms\/(\d+)/)?.[1];
-    const returnedId = String(record.listing_id ?? record.airbnb_id ?? record.id ?? matchId ?? "");
-    if (returnedId !== listingId) continue;
-    // Do not show "verified savings" unless the provider explicitly reports
-    // that the amount is for our exact dates and guest count.
-    const reportedIn = record.checkIn ?? record.check_in ?? price.checkIn ?? price.check_in;
-    const reportedOut = record.checkOut ?? record.check_out ?? price.checkOut ?? price.check_out;
-    const reportedGuests = record.adults ?? record.guests ?? price.adults ?? price.guests;
-    if (reportedIn !== from || reportedOut !== to || Number(reportedGuests) !== guests) continue;
-    if (price.is_available === false || record.available === false || record.is_available === false) continue;
-    if (price.taxes_included === true || record.taxes_included === true) continue;
-    // Accept only a specifically labeled total BEFORE taxes; an unqualified
-    // 'total' might include taxes or represent a per-night amount.
-    const dollars = numberOrNull(record.total_before_taxes ?? price.total_before_taxes);
-    const currency = String(record.currency ?? price.currency ?? CURRENCY).toUpperCase();
-    if (!dollars || currency !== CURRENCY || dollars > 100_000) continue;
-    const cents = Math.round(dollars * 100);
-    if (cents <= 0 || !Number.isSafeInteger(cents)) continue;
-    return { cents, checkedAt: new Date().toISOString() };
-  }
-  return null;
+function positiveCents(v: unknown): number | null {
+  const n = cents(v);
+  return n !== null && n > 0 ? n : null;
+}
+function validDate(v: string): boolean {
+  if (!DATE_RE.test(v)) return false;
+  const date = new Date(`${v}T00:00:00.000Z`);
+  return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === v;
+}
+function unavailable() {
+  return NextResponse.json({ available: false }, { headers: NO_STORE });
+}
+function breakdownFromQuote(pricing: Data, preTax: number): Breakdown | null {
+  const lodging = cents(pricing.lodging_subtotal_cents);
+  const cleaning = cents(pricing.cleaning_fee_cents ?? 0);
+  const extra = cents(pricing.extra_guest_fee_cents ?? 0);
+  const guestService = cents(pricing.guest_service_fee_cents ?? 0);
+  if ([lodging, cleaning, extra, guestService].some(n => n === null)) return null;
+  const includedOther = preTax - lodging! - cleaning! - extra! - guestService!;
+  if (includedOther < 0) return null;
+  return {
+    lodgingCents: lodging!, cleaningCents: cleaning!,
+    extraGuestCents: extra!, guestServiceFeeCents: guestService!,
+    includedOtherCents: includedOther, preTaxTotalCents: preTax,
+  };
 }
 
-async function fetchAirbnbQuote(
-  token: string, listingId: string, checkIn: string, checkOut: string, guests: number,
-) {
-  // The Apify actor has a date/guest-specific public pricing-data interface.
-  // Its availability and data formatting must be tested with a real API token
-  // before this comparison should be treated as production-ready.
-  const response = await fetch(
-    "https://api.apify.com/v2/acts/thelastscraper~airbnb-scraper/run-sync-get-dataset-items",
-    {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        where: [`https://www.airbnb.com/rooms/${listingId}`],
-        checkIn, checkOut, adults: guests, children: 0, infants: 0, pets: 0,
-        currency: CURRENCY, proxyCountry: "US", maxListings: 1,
-        dataLevel: "details", outputFormat: "spreadsheet", marketReport: "off",
-      }),
-      signal: AbortSignal.timeout(25_000),
-      cache: "no-store",
-    },
-  );
-  if (!response.ok) throw new Error(`Airbnb pricing provider returned ${response.status}`);
-  const payload = await response.json();
-  return parseActorQuote(payload, listingId, checkIn, checkOut, guests);
-}
-
-function clientPayload(saved: SavedPrice, comparisonTotalCents: number, listingId: string, checkIn: string, checkOut: string, guests: number) {
+function verifiedResponse(input: {
+  quote: StoredQuote;
+  listingId: string;
+  checkIn: string;
+  checkOut: string;
+  guests: number;
+  fapCents: number;
+  breakdown: Breakdown | null;
+}) {
+  const { quote, listingId, checkIn, checkOut, guests, fapCents, breakdown } = input;
   return NextResponse.json({
     available: true,
     comparisonType: "VERIFIED",
-    airbnbTotalCents: saved.total_cents,
-    findAPlaceTotalCents: comparisonTotalCents,
-    savingsCents: Number(saved.total_cents) - comparisonTotalCents,
-    currency: CURRENCY,
+    airbnbTotalCents: quote.total_cents,
+    findAPlaceTotalCents: fapCents,
+    savingsCents: Number(quote.total_cents) - fapCents,
+    currency: USD,
     priceBasis: "BEFORE_TAXES",
-    observedAt: saved.observed_at,
-    airbnbListingUrl: `https://www.airbnb.com/rooms/${listingId}?check_in=${encodeURIComponent(checkIn)}&check_out=${encodeURIComponent(checkOut)}&adults=${guests}`,
+    observedAt: quote.observed_at,
+    airbnbListingUrl: `https://www.airbnb.com/rooms/${listingId}?check_in=${checkIn}&check_out=${checkOut}&adults=${guests}`,
+    breakdown,
   }, { headers: NO_STORE });
 }
 
 export async function GET(request: NextRequest) {
-  // The browser never supplies a comparison number. Each side is looked up
-  // on the server from the authenticated database/OTA source.
   const q = request.nextUrl.searchParams;
-  const unitId = q.get("unitId") || "";
-  const checkIn = q.get("checkIn") || "";
-  const checkOut = q.get("checkOut") || "";
+  const unitId = q.get("unitId") ?? "";
+  const checkIn = q.get("checkIn") ?? "";
+  const checkOut = q.get("checkOut") ?? "";
   const guests = Number(q.get("guests"));
-  if (!UUID_RE.test(unitId) || !dateIsValid(checkIn) || !dateIsValid(checkOut) ||
-      !Number.isInteger(guests) || guests < 1 || guests > 16) return empty();
-
+  if (!UUID_RE.test(unitId) || !validDate(checkIn) || !validDate(checkOut)
+    || !Number.isInteger(guests) || guests < 1 || guests > 16) return unavailable();
   const nights = (Date.parse(`${checkOut}T00:00:00Z`) - Date.parse(`${checkIn}T00:00:00Z`)) / 86_400_000;
   const today = new Date().toISOString().slice(0, 10);
-  const oneYear = new Date(Date.parse(`${today}T00:00:00Z`) + 365 * 86_400_000).toISOString().slice(0, 10);
-  if (nights < 1 || nights > 28 || checkIn < today || checkIn > oneYear) return empty();
+  const lastAllowed = new Date(Date.parse(`${today}T00:00:00Z`) + 365 * 86_400_000).toISOString().slice(0, 10);
+  if (nights < 1 || nights > 28 || checkIn < today || checkIn > lastAllowed) return unavailable();
 
   try {
     const admin = createAdminClient();
-    const { data: unit } = await admin.from("property_units")
-      .select("id,property_id,is_active")
+    const { data: unit, error: unitError } = await admin
+      .from("property_units").select("id,property_id,is_active")
       .eq("id", unitId).eq("is_active", true).maybeSingle();
-    if (!unit) return empty();
-    const { data: property } = await admin.from("properties")
-      .select("status,organization_id")
+    if (unitError || !unit) return unavailable();
+    const { data: property, error: propertyError } = await admin
+      .from("properties").select("status,organization_id")
       .eq("id", unit.property_id).eq("status", "PUBLISHED").maybeSingle();
-    if (!property) return empty();
+    if (propertyError || !property) return unavailable();
 
-    // The iCal connection is used ONLY to identify the same Airbnb listing.
-    // Its secret URL never goes to the browser or to logs. A missing connection
-    // leads to an explicitly labeled fee-model estimate, never a fake OTA quote.
-    const { data: connection, error: connectionError } = await admin.from("calendar_connections")
-      .select("feed_url")
-      .eq("unit_id", unitId).eq("is_active", true).eq("provider", "AIRBNB")
-      .limit(1).maybeSingle();
-    // A database lookup failure must not turn a connected Airbnb listing into
-    // an "unlinked" listing with modeled savings.
-    if (connectionError) return empty();
-    const listingId = connection
-      ? String(connection.feed_url || "").match(/\/ical\/(\d+)\.ics/i)?.[1]
-      : null;
-
-    // Server-calculated guest subtotal, same dates and guests on FAP. Never
-    // accept a browser-supplied price or strip a mandatory service fee.
-    const { data: fapQuote, error: quoteError } = await admin.rpc(
-      "fap_quote_guest_checkout_estimate_v2", {
+    const [{ data: connected, error: connectionError }, { data: quoteResult, error: quoteError }] = await Promise.all([
+      admin.from("calendar_connections").select("feed_url")
+        .eq("unit_id", unitId).eq("provider", "AIRBNB")
+        .eq("is_active", true).limit(1).maybeSingle(),
+      admin.rpc("fap_quote_guest_checkout_estimate_v2", {
         target_unit_id: unitId,
         check_in_date: checkIn,
         check_out_date: checkOut,
@@ -184,105 +132,104 @@ export async function GET(request: NextRequest) {
         selected_add_on_ids: [],
         promotion_code: null,
         requested_payment_environment: stripeEnvironment(),
-      },
-    );
-    if (quoteError) return empty();
-    const pricing = obj(obj(fapQuote).quote);
-    if (String(pricing.currency ?? CURRENCY).toUpperCase() !== CURRENCY) return empty();
-    const comparisonTotalCents = numberOrNull(pricing.pre_tax_total_cents);
-    if (!comparisonTotalCents || !Number.isSafeInteger(comparisonTotalCents)) return empty();
+      }),
+    ]);
+    // Never silently treat an Airbnb-linked property as unlinked if the lookup fails.
+    if (connectionError || quoteError) return unavailable();
+    const price = data(data(quoteResult).quote);
+    if (String(price.currency || USD).toUpperCase() !== USD) return unavailable();
+    const fapCents = positiveCents(price.pre_tax_total_cents);
+    if (!fapCents) return unavailable();
+    const breakdown = breakdownFromQuote(price, fapCents);
 
-    if (!connection) {
-      const lodgingBaseCents = nonnegativeSafeCents(pricing.commission_base_cents);
-      const guestServiceFeeCents = nonnegativeSafeCents(pricing.guest_service_fee_cents ?? 0);
-      const feePayer = pricing.fee_payer === "GUEST" ? "GUEST" : "HOST";
-      if (lodgingBaseCents === null || guestServiceFeeCents === null || !property.organization_id) return empty();
-
-      const { data: organization, error: tierError } = await admin.from("organizations")
+    if (!connected) {
+      // A model for a comparable booking cost; not an Airbnb listing quote.
+      const lodgingBase = cents(price.commission_base_cents);
+      const guestFee = cents(price.guest_service_fee_cents ?? 0);
+      const feePayer = price.fee_payer === "GUEST" ? "GUEST" : "HOST";
+      if (lodgingBase === null || guestFee === null) return unavailable();
+      const { data: host, error: hostError } = await admin.from("organizations")
         .select("commission_tier")
         .eq("id", property.organization_id).maybeSingle();
-      if (tierError || !organization) return empty();
-      const rateBps = organization.commission_tier === "PARTNER_5" ? 500 : 700;
-      const estimate = estimateAirbnbDifference({
-        fapPreTaxTotalCents: comparisonTotalCents,
-        lodgingBaseCents,
-        guestServiceFeeCents,
-        fapHostCommissionBps: rateBps,
+      if (hostError || !host) return unavailable();
+      const feeBps = host.commission_tier === "PARTNER_5" ? 500 : 700;
+      const model = estimateAirbnbDifference({
+        fapPreTaxTotalCents: fapCents,
+        lodgingBaseCents: lodgingBase,
+        guestServiceFeeCents: guestFee,
+        fapHostCommissionBps: feeBps,
         feePayer,
       });
-      if (!estimate) return empty();
-
+      if (!model) return unavailable();
       return NextResponse.json({
         available: true,
         comparisonType: "ESTIMATED",
-        airbnbTotalCents: estimate.airbnbEquivalentTotalCents,
-        findAPlaceTotalCents: comparisonTotalCents,
-        savingsCents: estimate.estimatedSavingsCents,
-        currency: CURRENCY,
+        airbnbTotalCents: model.airbnbEquivalentTotalCents,
+        findAPlaceTotalCents: fapCents,
+        savingsCents: model.estimatedSavingsCents,
+        currency: USD,
         priceBasis: "BEFORE_TAXES",
+        assumptions: model.assumptions,
         airbnbHostFeeAssumptionBps: TYPICAL_AIRBNB_HOST_FEE_BPS,
-        assumptions: estimate.assumptions,
+        fapHostFeeAssumptionBps: feeBps,
+        hostFeeComparison: {
+          fapHostCommissionCents: feePayer === "HOST"
+            ? Math.round(lodgingBase * feeBps / 10_000) : 0,
+          modeledAirbnbHostFeeCents: Math.round(
+            model.airbnbEquivalentTotalCents * TYPICAL_AIRBNB_HOST_FEE_BPS / 10_000,
+          ),
+        },
+        breakdown,
       }, { headers: NO_STORE });
     }
-    // An Airbnb integration exists: never disguise a missing verified quote
-    // with an estimate. Prices remain unavailable until the real provider works.
-    if (!listingId) return empty();
 
-    const lookup = () => admin.from("airbnb_price_comparisons")
-      .select("listing_id,total_cents,currency,observed_at,price_basis")
+    // A connected Airbnb calendar identifies the same listing, but includes no prices.
+    const listingId = String(connected.feed_url ?? "").match(/\/ical\/(\d{5,25})\.ics/i)?.[1];
+    if (!listingId) return unavailable();
+    const loadCached = () => admin.from("airbnb_price_comparisons")
+      .select("listing_id,total_cents,currency,observed_at,price_basis,source")
       .eq("unit_id", unitId).eq("check_in", checkIn)
-      .eq("check_out", checkOut).eq("guests", guests)
-      .maybeSingle();
-    const cached = await lookup();
-    const value = cached.data as SavedPrice | null;
-    const fresh = value?.observed_at && Date.now() - Date.parse(value.observed_at) < TTL_MS;
-    if (fresh && value?.listing_id === listingId && value.currency === CURRENCY &&
-        value.price_basis === "BEFORE_TAXES" && value.total_cents && value.total_cents > 0) {
-      return clientPayload(value, comparisonTotalCents, listingId, checkIn, checkOut, guests);
+      .eq("check_out", checkOut).eq("guests", guests).maybeSingle();
+
+    const { data: cached, error: cacheError } = await loadCached();
+    if (cacheError) return unavailable();
+    const previous = cached as StoredQuote | null;
+    const isFresh = previous?.observed_at &&
+      Date.now() - Date.parse(previous.observed_at) >= 0 &&
+      Date.now() - Date.parse(previous.observed_at) < TTL_MS;
+    if (isFresh && previous?.listing_id === listingId && previous.currency === USD &&
+      previous.price_basis === "BEFORE_TAXES" && positiveCents(previous.total_cents)) {
+      return verifiedResponse({ quote: previous, listingId, checkIn, checkOut, guests, fapCents, breakdown });
     }
 
-    // No paid provider is contacted until a server-side token is configured.
-    // No guest-provided number, fee guess, or stale price is shown instead.
-    const token = process.env.APIFY_API_TOKEN?.trim();
-    if (!token) return empty();
+    // Existing DB throttles: 30 minute cooldown per dates/party combination,
+    // 6 new lookups per unit per hour, 120 platform-wide per hour.
+    const { data: claimed, error: claimError } = await admin.rpc("claim_airbnb_price_comparison", {
+      target_unit_id: unitId, target_check_in: checkIn,
+      target_check_out: checkOut, target_guests: guests,
+    });
+    if (claimError || claimed !== true) return unavailable();
 
-    const { data: claimed, error: claimError } = await admin.rpc(
-      "claim_airbnb_price_comparison", {
-        target_unit_id: unitId, target_check_in: checkIn,
-        target_check_out: checkOut, target_guests: guests,
-      },
-    );
-    if (claimError || claimed !== true) return empty();
-
-    let foundPrice: Awaited<ReturnType<typeof fetchAirbnbQuote>> = null;
-    try {
-      foundPrice = await fetchAirbnbQuote(token, listingId, checkIn, checkOut, guests);
-    } catch (error) {
-      console.warn("[airbnb comparison] provider lookup unavailable", {
-        unitId, reason: error instanceof Error ? error.name : "unknown",
-      });
-    }
-
-    if (!foundPrice) return empty();
-    const { error: persistError } = await admin.from("airbnb_price_comparisons")
-      .upsert({
-        unit_id: unitId, check_in: checkIn, check_out: checkOut,
-        guests, listing_id: listingId, currency: CURRENCY,
-        total_cents: foundPrice.cents,
-        price_basis: "BEFORE_TAXES", source: "APIFY",
-        observed_at: foundPrice.checkedAt, updated_at: new Date().toISOString(),
-      }, { onConflict: "unit_id,check_in,check_out,guests" });
-    if (persistError) return empty();
-
-    return clientPayload({
-      listing_id: listingId, total_cents: foundPrice.cents,
-      currency: CURRENCY, observed_at: foundPrice.checkedAt,
-      price_basis: "BEFORE_TAXES",
-    }, comparisonTotalCents, listingId, checkIn, checkOut, guests);
+    const quote = await fetchInHouseAirbnbQuote({ listingId, checkIn, checkOut, guests });
+    if (!quote) return unavailable();
+    const now = new Date().toISOString();
+    const { error: saveError } = await admin.from("airbnb_price_comparisons").upsert({
+      unit_id: unitId, check_in: checkIn, check_out: checkOut, guests,
+      listing_id: listingId, total_cents: quote.cents, currency: USD,
+      price_basis: "BEFORE_TAXES", source: quote.source,
+      observed_at: quote.observedAt, updated_at: now,
+    }, { onConflict: "unit_id,check_in,check_out,guests" });
+    if (saveError) return unavailable();
+    return verifiedResponse({
+      quote: { listing_id: listingId, total_cents: quote.cents, currency: USD,
+        observed_at: quote.observedAt, price_basis: "BEFORE_TAXES", source: quote.source },
+      listingId, checkIn, checkOut, guests, fapCents, breakdown,
+    });
   } catch (error) {
-    console.warn("[airbnb comparison] quote temporarily unavailable", {
+    console.warn("[direct booking comparison] price unavailable", {
       reason: error instanceof Error ? error.name : "unknown",
     });
-    return empty();
+    // Price comparisons never block or change a real checkout.
+    return unavailable();
   }
 }
