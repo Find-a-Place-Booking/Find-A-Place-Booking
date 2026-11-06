@@ -1,85 +1,52 @@
-# Find A Place Booking — In-house Airbnb comparison + cleaner checkout card
+# Find A Place — Clean Checkout & Single Guest-Paid 7% Fee
 
-Prepared against production GitHub main commit `cd69a03f669c9b34bf167c5340149355f9bd1078` (November 4, 2026).
+Prepared against GitHub main `b94b80ff723417e178a2649565aa2fb69c06e57e` (November 5, 2026 local time).
 
-## What to do
+## Already completed on the LIVE database
 
-Unzip into the **root of the Find-A-Place-Booking repository**, preserving folder paths and overwriting the matching files. This is a **drop-in replacement**: do not run BAT/Python/apply scripts.
+- 31 host organizations now have `STANDARD_7`. Future bookings snapshot the 7% lodging-based fee from each organization.
+- `fap_guest_fee_rollout.live_enabled=true` was already enabled and remains enabled. The guest pays the service fee.
+- The retired `admin_set_partner_commission` RPC can no longer be executed by public or signed-in users. A database trigger prevents the old 5% tier being assigned again to organizations.
+- Managed host marketing copy and payment policy now describe the guest-paid 7% fee.
+- Host Agreement was versioned as **2026-11-05-v7**. Hosts who accepted v6 should review and reaccept the updated policy through their normal host portal.
+- Historical booking snapshots, prior charges, calendar availability, refunds and payout processing were **not** changed.
 
-Then in the project root:
+The matching migration source is included at `supabase/migrations/20261106090000_single_7_percent_guest_fee.sql` for source control. **Do not run it manually again on the connected production database.** It is forward-only and intentionally keeps the historic `PARTNER_5` enum because old reservations may reference it.
 
-```bash
-npm ci
-npm run typecheck
-npm run build
-node --test tests/airbnb-direct-pricing.test.mjs tests/booking-comparison-route.test.mjs
-```
+## UI changes in this overlay
 
-If the checks pass, commit and push. Vercel will build and deploy from GitHub. This ZIP is not itself a deployment.
+- Compact, branded booking comparison using the existing Find A Place seal. Airbnb is a plain-text label to avoid suggesting an endorsement.
+- Savings/estimated difference is the focus; before-tax amounts in two clean rows; full fee assumptions under a single disclosure.
+- Estimated comparisons are clearly labeled hypothetical rather than real Airbnb quotes.
+- Checkout total uses warmer neutrals and consistent border radii; no price calculation is changed here.
+- Light sitewide polish: less aggressive letter spacing, balanced headings, consistent background surfaces, softer shadows, and focus outlines; no major layout changes.
+- Retired the old 5% / 7% admin rate screen, action and desktop/mobile navigation entry; simplified host payment/marketing copy, host admin rows and in-house comparison model to 7%.
+- Updated the source fallback text for the Host Agreement (database managed copy is already updated).
 
-## What changed
+## REQUIRED installation (extracting alone is not enough)
 
-- `app/api/booking/airbnb-comparison/route.ts` — full replacement of the previous Apify-coupled comparison endpoint; uses the existing rate-limited database table, signed-in-independent public quotes, and an in-house data collector. Does not change checkout or Stripe amounts.
-- `lib/bookings/airbnb-direct-pricing.ts` — **new** first-party quote collector. It tries a configured host-authorized price feed first, then (unless disabled) the publicly reachable Airbnb listing page. Does not log in, rotate proxies, bypass CAPTCHA or other protections. Parses an all-in BEFORE-TAX guest price only when listing ID, check-in, check-out, guest count and currency match; otherwise returns no comparison.
-- `components/DirectBookingValue.tsx` — full replacement. Shows a compact, brand-matched comparison card and a collapsible Find A Place price and modeled host-fee breakdown; preserves props already used by checkout and booking receipt.
-- `components/DirectBookingValue.module.css` — **new** responsive styling.
-- `tests/` — automated parser, backend, cache, throttling, mismatched-price and fallback tests.
+1. Back up your repository, then **extract the entire ZIP into the ROOT of the Find-A-Place-Booking Git repository**. Keep the `app/`, `components/`, `supabase/` and other directory structure and overwrite matching files.
+2. **Double-click `APPLY_OVERLAY.bat` once** on Windows, or run `bash APPLY_OVERLAY.sh` on macOS/Linux. This updates the other existing source files without rewriting them wholesale. The script validates all expected source anchors before modifying any existing files, and is safe to rerun.
+3. Run **`npm run typecheck`**, then **`npm run build`** in the same repository. If either fails, don't push; share the error.
+4. `git add . && git commit -m "Polish booking comparison and standardize guest fee UI" && git push origin main`.
+5. Verify Vercel production deploys to READY, then test a real checkout with a host previously on 5% and one formerly on 7%. Confirm **7% of discounted lodging** is shown as a guest fee and the same amount flows to Stripe application fee. Test tax and cancellation snapshots as well.
+6. Ask current hosts to review and accept the updated Host Agreement v7 on Host → Onboarding / Host policies. Existing reservations keep original terms.
 
-The existing `components/DirectBookingValue` is **already used in `app/checkout/page.tsx`**, and also on a booking receipt. Neither call site needs editing.
+**Do not execute SQL in the browser or turn off Turnstile, Stripe webhooks, or calendar safety checks to verify these changes.**
 
-## Current data sources / limitations
+## Validation completed
 
-**Airbnb-connected properties**: Use the existing Airbnb iCal connection *only to identify the same listing*. iCal does **not** contain prices. The server attempts to retrieve the matching before-tax guest total from publicly available structured price data if accessible, or from the optional **host-authorized** price feed below. Any stale, incomplete, nightly-only, tax-inclusive or mismatched data is rejected. Without an exact validated price the widget hides the numerical claim. It NEVER estimates the "actual" Airbnb price.
+- Checked every installer anchor against GitHub main: one match each.
+- Component TypeScript (strict stubbed isolated test) passed.
+- CSS parsed with PostCSS.
+- Guarded installer regression ran twice and passed; idempotent and fails without writing original files if a source anchor changed.
+- Static fee-scope checks passed.
+- Database tier, agreement revision, saved content and RPC permissions verified after migration.
 
-**Non-Airbnb-connected properties**: Continue to use the already-shipped, explicitly labeled *estimated* comparison based on equivalent host proceeds and Airbnb's **typical 15.5% host-paid service fee** versus Find A Place's actual 5% or 7% host fee. This is a fee-model example of a comparable stay, **not** Airbnb market-price research, and should not be marketed as a guaranteed or observed saving. Airbnb has exceptions and service fees can change.
+**Not verified:** Full Next.js production build, end-to-end Stripe guest checkout with the new 7% host tiers, authenticated host re-acceptance, and production visuals after the pending GitHub push. GitHub integration remains read-only (writes rejected), so the frontend ZIP is not deployed just by being generated.
 
-**Airbnb's published Terms restrict automated collection.** This in-house reader is a best-effort integration, not an approved Airbnb API. Review permission/terms before enabling the public-page collector in production. It uses ordinary requests only; it will *not* bypass restrictions. There is no guarantee Airbnb includes any full guest prices in the returned HTML; a JS-rendered page may provide none. In that case a host-authorized pricing feed or licensed API is required. Never claim automatic "actual" savings if no matched quote exists.
+## Rollback / important cautions
 
-This means **no one can accurately guarantee guest prices directly from Airbnb using iCal alone**. The new collector supports direct collection *when genuine price data is available*, but its effectiveness must be tested against a real Airbnb listing before reporting it as operational.
+The UI patch is reversible through Git. The database fee change is intentionally forward-only; changing booked financial snapshots retroactively is not a rollback option. If a new-booking issue arises, use the established checkout maintenance controls and investigate transaction snapshots before applying any fee rollback. Avoid turning off guest fees while payment and checkout are processing.
 
-## Optional Vercel server-only configuration
-
-- `AIRBNB_PUBLIC_PAGE_LOOKUP=false` — turn off the direct public-page fetch if collection isn't authorized. The default is to try it after the DB rate-limit permits a check, without anti-bot evasion.
-- `AIRBNB_PRICE_FEED_URL=https://your-approved-source.example/quote` — optional endpoint you control, sourcing **authorized** host price data; invoked ahead of the public-page fetch.
-- `AIRBNB_PRICE_FEED_TOKEN=...` — optional Bearer credential for that endpoint; store exclusively in Vercel server-side environment variables. **Never send credentials in the chat or commit them to GitHub.**
-
-The authorized feed must respond with `Content-Type: application/json` and the **exact** dimensions. Example for illustration, not a real quote:
-
-```json
-{
-  "listing_id": "12345678",
-  "check_in": "2026-12-11",
-  "check_out": "2026-12-14",
-  "adults": 2,
-  "currency": "USD",
-  "available": true,
-  "total_before_taxes": 650.42
-}
-```
-
-The server validates these fields independently; fields the browser sends cannot set Airbnb or FAP totals.
-
-## Caching and guardrails
-
-The existing `airbnb_price_comparisons` table and `claim_airbnb_price_comparison` function were already migrated in production on November 4. **No new migration** is necessary.
-
-The DB caps new checks to one per unit/dates/party in 30 minutes, six per unit/hour, and 120 across the platform/hour; accepted quotes are cached for two hours. Each HTTP fetch has a 10-second timeout and bounded response size. The comparison fails closed and cannot block booking/Stripe/payment or calendar operations.
-
-## What was validated
-
-- 19 local automated tests passed, including exact match, mismatched dates/guests/IDs, rejection of a nightly-only or opaque total, prevention of adjacent-listing price contamination, caching, no-quote behavior, and unlinked estimated fallback.
-- Strict isolated TypeScript typecheck passed for the edited files with interface stubs, and TS/TSX syntax checked.
-- Full Next.js build **was not run** (complete repository dependencies/source not accessible inside the editing container).
-- **Live Airbnb source access and production Vercel deployment were not tested.** You must run the full build and test one known Airbnb price on the checkout page after pushing. The direct website may not expose enough data; keep the widget hidden rather than assuming a saving.
-
-## QA after deploying
-
-1. Unlinked property: enter future dates and party size. Confirm estimate appears, is labeled *Illustrative estimate*, and expands for breakdown/assumptions.
-2. Linked Airbnb property: enter future dates and party size. Confirm **no unverified numeric claim** if direct source can't supply full guest price. If one appears, manually confirm the same Airbnb listing, dates, guests, currency and pre-tax total.
-3. Recheck with different dates/guests; ensure no stale result is displayed.
-4. Confirm mobile layout, that the actual guest subtotal/total remain unchanged, and that booking still works normally.
-5. Revalidate the booking receipt: only show comparison when the stored pre-tax price is still exactly equal to the current FAP quote.
-
-## Files deliberately NOT changed
-
-Payment processing, host payout logic, Stripe integration, tax calculation, reservation creation, calendar import/export, host rates, marketplace fees, and database schema.
+Hosted property partner badges/statuses are preserved as marketing labels; they no longer confer a discounted commission. Historical migrations still mention the legacy model for audit integrity, and should not be deleted.

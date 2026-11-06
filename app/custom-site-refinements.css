@@ -1,0 +1,40 @@
+/* Restrained Find A Place visual refinement: no changes to layout logic, Stripe, or calendars. */
+:root {
+  --fap-quiet-ink: #26392e;
+  --fap-quiet-border: #ddd6cb;
+  --fap-quiet-surface: #fffcf7;
+}
+/* Keep familiar editorial display type. Make supporting type less loud and consistent. */
+body { font-synthesis: none; -webkit-font-smoothing: antialiased; }
+:where(.property-title h1, .section-heading h2, .hero-copy h1, .checkout-form h1, .confirm-card h1) {
+  letter-spacing: -.032em;
+  text-wrap: balance;
+}
+:where(.eyebrow, .property-kicker, .search-panel label span, .checkout-header small, .dash-topbar small, .admin-main > header small) {
+  letter-spacing: .075em;
+  font-weight: 700;
+}
+:where(.brand-copy strong, .brand-copy small) { letter-spacing: .075em; }
+:where(.main-nav a, .mobile-menu a) { font-weight: 650; }
+/* Small tactile refinements rather than a new visual system. */
+:where(.property-card, .stay-type-card, .booking-card, .checkout-summary, .guest-state-card) {
+  border-color: var(--fap-quiet-border);
+}
+:where(.property-card, .stay-type-card) {
+  box-shadow: 0 3px 16px rgba(31, 45, 35, .055);
+}
+:where(.property-card, .stay-type-card):hover {
+  box-shadow: 0 8px 21px rgba(31, 45, 35, .075);
+}
+:where(.checkout-page, .dashboard-layout, .admin-layout) { background: #f4f0e8; }
+:where(.checkout-summary, .guest-state-card, .dashboard-layout .panel, .admin-layout .panel) {
+  background: var(--fap-quiet-surface);
+}
+:where(.button, .button-small) { letter-spacing: .004em; }
+:where(.button):active { transform: translateY(0); }
+:where(input, textarea, select):focus-visible { outline: 2px solid #547b64; outline-offset: 2px; }
+/* Checkout summary and comparison share the same warm-paper palette. */
+.checkout-page :where(.checkout-summary, .guest-state-card) { border-color: #dcd6cc; }
+@media (prefers-reduced-motion: reduce) {
+  :where(.property-card, .stay-type-card, .button) { transition-duration: 0s; }
+}

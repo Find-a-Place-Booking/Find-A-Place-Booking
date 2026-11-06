@@ -1,51 +1,68 @@
 .card {
-  margin: 18px 0;
-  padding: 18px 19px;
-  border: 1px solid #dcded7;
-  border-radius: 14px;
-  background: #fbfaf6;
-  color: #293832;
-  box-shadow: 0 2px 10px rgba(30, 48, 40, .035);
+  margin: 10px 0 16px;
+  padding: 18px 20px 15px;
+  border: 1px solid #dcd7cd;
+  border-radius: 13px;
+  background: #fffcf7;
+  box-shadow: 0 2px 10px rgba(31, 46, 38, .035);
+  color: #243b30;
 }
-.compact { margin: 12px 0; padding: 14px 16px; }
-.topline { display: flex; flex-wrap: wrap; gap: 8px; justify-content: space-between;
-  align-items: center; color: #53685e; font-size: .72rem; font-weight: 750; letter-spacing: .015em; }
-.kind { border: 1px solid #dce5dc; background: #f1f6f1; color: #416451;
-  padding: 3px 8px; border-radius: 999px; font-size: .63rem; white-space: nowrap; }
-.headline { margin: 10px 0 5px; color: #233e32;
-  font-family: Georgia, 'Times New Roman', serif; font-weight: 500; line-height: 1.2;
-  font-size: clamp(1.06rem, 2vw, 1.35rem); }
-.subhead { margin: 0 0 14px; color: #68756d; line-height: 1.5; font-size: .73rem; }
-.priceRows { display: grid; border-radius: 9px; overflow: hidden; border: 1px solid #e5e9e2;
-  background: #fff; }
-.priceRow { min-width: 0; display: flex; justify-content: space-between; align-items: center;
-  gap: 10px; padding: 10px 12px; font-size: .79rem; }
-.priceRow + .priceRow { border-top: 1px solid #ebeee9; }
-.priceRow span { color: #68736c; }
-.priceRow strong { font-variant-numeric: tabular-nums; color: #34443b; white-space: nowrap; }
-.priceRow .ourPrice { color: #315d46; }
-.details { margin-top: 11px; font-size: .73rem; }
-.details summary { color: #416653; cursor: pointer; font-size: .72rem; font-weight: 700;
-  width: fit-content; padding: 4px 0; }
+.compact { margin: 8px 0 12px; padding: 15px 18px 12px; }
+.intro { display: flex; align-items: flex-start; gap: 16px; justify-content: space-between; }
+.intro > div { min-width: 0; }
+.kicker {
+  margin: 0 0 5px; color: #5e695f; font-size: .68rem;
+  letter-spacing: .045em; font-weight: 700;
+}
+.headline {
+  margin: 0; color: #203e32; font-family: Georgia, 'Times New Roman', serif;
+  font-size: clamp(1.15rem, 2vw, 1.48rem); line-height: 1.22;
+  letter-spacing: -.014em; font-weight: 500;
+}
+.subhead { margin: 6px 0 14px; color: #68736c; font-size: .75rem; line-height: 1.45; }
+.label {
+  flex-shrink: 0; margin-top: 2px; color: #657168; font-size: .65rem;
+  font-weight: 600; white-space: nowrap;
+}
+.prices {
+  border-top: 1px solid #e7e1d8;
+  border-bottom: 1px solid #e7e1d8;
+  padding: 2px 0;
+}
+.price { min-width: 0; display: flex; align-items: center; gap: 11px; padding: 9px 1px; }
+.price + .price { border-top: 1px solid rgba(39, 60, 49, .08); }
+.brandSeal { width: 34px; height: 34px; object-fit: contain; flex: 0 0 34px; border-radius: 50%; }
+.airbnbWordmark {
+  flex: 0 0 43px; width: 43px; text-align: center; font-size: .68rem;
+  font-weight: 800; letter-spacing: -.04em; color: #c45655;
+}
+.priceName { display: grid; min-width: 0; gap: 1px; }
+.priceName strong { font-size: .8rem; color: #35473c; font-weight: 700; }
+.priceName small { color: #7a8079; font-size: .66rem; line-height: 1.2; }
+.amount { margin-left: auto; font-size: .93rem; font-weight: 750; font-variant-numeric: tabular-nums; white-space: nowrap; color: #334239; }
+.direct .amount { color: #264b3b; }
+.details { margin-top: 10px; font-size: .76rem; }
+.details summary { cursor: pointer; color: #315b47; font-size: .73rem; font-weight: 700; width: fit-content; padding: 3px 0; }
 .details summary:hover, .external:hover { text-decoration: underline; }
-.breakdown { margin: 12px 0 0; padding: 12px 0; border-top: 1px solid #e3e7df;
-  display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 7px 14px;
-  color: #68756d; font-size: .72rem; }
-.breakdown strong { font-variant-numeric: tabular-nums; color: #3f4d44; text-align: right; }
-.totalLabel { color: #293e32 !important; font-weight: 750; margin-top: 3px; }
-.finePrint { line-height: 1.55; margin: 10px 0 0; color: #69756e; font-size: .69rem; }
-.external { display: inline-block; margin-top: 11px; color: #335f49; font-weight: 700;
-  font-size: .73rem; text-underline-offset: 3px; }
-.checking { margin: 10px 0; color: #76827a; font-size: .73rem; }
-@media (max-width: 480px) {
-  .card { padding: 14px 13px; border-radius: 12px; }
-  .topline { align-items: start; }
-  .priceRow { padding: 10px; font-size: .75rem; }
-  .priceRow span { max-width: 63%; line-height: 1.4; }
+.details summary:focus-visible { outline: 2px solid #416c54; outline-offset: 4px; border-radius: 2px; }
+.expanded { padding: 11px 0 0; }
+.breakdown {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px 18px; padding: 13px 0; border-top: 1px solid #e7e1d8;
+  font-size: .73rem; color: #637168;
 }
-
-.feeModel { margin: 9px 0 0; padding: 11px 0; border-top: 1px solid #e5e8e2; }
-.feeModel > span { color: #5e6d64; font-size: .68rem; font-weight: 700; display: block; margin-bottom: 7px; }
-.feeModel > div { display: flex; justify-content: space-between; gap: 12px; margin: 5px 0;
-  color: #68756d; font-size: .7rem; }
-.feeModel strong { font-variant-numeric: tabular-nums; color: #34493d; white-space: nowrap; }
+.breakdown strong { color: #35493d; white-space: nowrap; font-variant-numeric: tabular-nums; text-align: right; }
+.breakdown .total { padding-top: 6px; border-top: 1px solid #e7e1d8; color: #294a38; font-weight: 750; }
+.explanation { font-size: .7rem; line-height: 1.55; color: #637168; margin: 8px 0 0; }
+.external { display: inline-block; margin-top: 12px; color: #2d5842; text-decoration: underline; text-underline-offset: 3px; font-size: .72rem; font-weight: 700; }
+.checking { font-size: .73rem; margin: 8px 0 12px; color: #647269; }
+@media (max-width: 560px) {
+  .card, .compact { padding: 15px 15px 12px; border-radius: 12px; }
+  .intro { display: block; }
+  .label { display: block; margin: -7px 0 10px; }
+  .headline { font-size: 1.22rem; }
+  .subhead { margin-bottom: 10px; }
+  .price { gap: 9px; }
+  .priceName strong { font-size: .75rem; }
+  .amount { font-size: .83rem; }
+}

@@ -1,4 +1,5 @@
-#!/bin/sh
-cd "$(dirname "$0")" || exit 1
-python3 apply_overlay.py . || exit 1
-echo 'Now run npm run typecheck and npm run build before pushing.'
+#!/usr/bin/env bash
+set -euo pipefail
+cd "$(dirname "$0")"
+python3 apply_overlay.py .
+printf '\nNext: npm run typecheck && npm run build\n'

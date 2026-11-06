@@ -110,7 +110,7 @@ export function DirectBookingValue({
   const lowerHere = difference > 0;
   const headline = isEstimated
     ? lowerHere
-      ? `Estimated savings: ${money(difference)}`
+      ? `About ${money(difference)} below our estimate`
       : "Airbnb-style fee comparison"
     : lowerHere
       ? `Save ${money(difference)} booking direct`
@@ -118,82 +118,88 @@ export function DirectBookingValue({
         ? `Airbnb is ${money(-difference)} less for these dates`
         : "Both options have the same pre-tax total";
   const subhead = isEstimated
-    ? "A similar stay priced for equal host earnings, not an actual Airbnb quote."
-    : "Same Airbnb listing, dates and guest count; recent before-tax price.";
+    ? "Modeled against a similar stay, before taxes."
+    : "The same listing, dates and guests, before taxes.";
   const details = comparison.breakdown;
   const observed = comparison.observedAt
     ? new Date(comparison.observedAt)
     : null;
 
   return (
-    <aside className={`${styles.card} ${compact ? styles.compact : ""}`}
-      aria-label={isEstimated ? "Estimated Airbnb-style booking comparison" : "Same listing Airbnb price comparison"}>
-      <div className={styles.topline}>
-        <span>Compare your stay</span>
-        <span className={styles.kind}>{isEstimated ? "Illustrative estimate" : "Same Airbnb listing"}</span>
+    <aside
+      className={`${styles.card} ${compact ? styles.compact : ""}`}
+      aria-label={isEstimated ? "Estimated Airbnb-style booking comparison" : "Same-listing Airbnb price comparison"}
+    >
+      <div className={styles.intro}>
+        <div>
+          <p className={styles.kicker}>Booking comparison</p>
+          <h3 className={styles.headline}>{headline}</h3>
+          <p className={styles.subhead}>{subhead}</p>
+        </div>
+        <span className={styles.label}>
+          {isEstimated ? "Estimate, not a quote" : "Same listing"}
+        </span>
       </div>
 
-      <h3 className={styles.headline}>{headline}</h3>
-      <p className={styles.subhead}>{subhead}</p>
-
-      <div className={styles.priceRows}>
-        <div className={styles.priceRow}>
-          <span>Find A Place</span>
-          <strong className={styles.ourPrice}>{money(comparison.findAPlaceTotalCents)}</strong>
+      <div className={styles.prices}>
+        <div className={`${styles.price} ${styles.direct}`}>
+          <img
+            className={styles.brandSeal}
+            src="/brand/find-a-place-seal.png"
+            width={34}
+            height={34}
+            alt=""
+            aria-hidden="true"
+          />
+          <span className={styles.priceName}>
+            <strong>Find A Place</strong>
+            <small>Book directly</small>
+          </span>
+          <strong className={styles.amount}>{money(comparison.findAPlaceTotalCents)}</strong>
         </div>
-        <div className={styles.priceRow}>
-          <span>{isEstimated ? "Similar Airbnb-style stay" : "Airbnb price"}</span>
-          <strong>{money(comparison.airbnbTotalCents)}</strong>
+        <div className={styles.price}>
+          <span className={styles.airbnbWordmark} aria-hidden="true">Airbnb</span>
+          <span className={styles.priceName}>
+            <strong>{isEstimated ? "Airbnb-style estimate" : "Airbnb"}</strong>
+            <small>{isEstimated ? "Similar stay · modeled price" : "Same stay and dates"}</small>
+          </span>
+          <strong className={styles.amount}>{money(comparison.airbnbTotalCents)}</strong>
         </div>
       </div>
 
       <details className={styles.details}>
-        <summary>See the price breakdown</summary>
-        {details ? (
-          <div className={styles.breakdown}>
-            <span>Nightly lodging subtotal</span><strong>{money(details.lodgingCents)}</strong>
-            <span>Cleaning fee</span><strong>{money(details.cleaningCents)}</strong>
-            {details.extraGuestCents > 0 ? <><span>Extra guest fees</span><strong>{money(details.extraGuestCents)}</strong></> : null}
-            {details.guestServiceFeeCents > 0 ? <><span>Guest service fee</span><strong>{money(details.guestServiceFeeCents)}</strong></> : null}
-            {details.includedOtherCents > 0 ? <><span>Other included fees</span><strong>{money(details.includedOtherCents)}</strong></> : null}
-            <span className={styles.totalLabel}>Find A Place before taxes</span>
-            <strong className={styles.totalLabel}>{money(comparison.findAPlaceTotalCents)}</strong>
-          </div>
-        ) : null}
-        {isEstimated && comparison.hostFeeComparison ? (
-          <div className={styles.feeModel}>
-            <span>Host-side marketplace fees, not added at checkout</span>
-            <div><span>Find A Place host fee</span><strong>{money(comparison.hostFeeComparison.fapHostCommissionCents)}</strong></div>
-            <div><span>Modeled Airbnb host fee</span><strong>{money(comparison.hostFeeComparison.modeledAirbnbHostFeeCents)}</strong></div>
-          </div>
-        ) : null}
-        {isEstimated ? (
-          <p className={styles.finePrint}>
-            Estimated Airbnb-style pricing is modeled from this stay&apos;s required
-            pre-tax charges and a 15.5% illustrative Airbnb host service fee,
-            assuming the host earns the same amount after marketplace fees.
-            It is not a market survey, quote from Airbnb, or guaranteed saving.
-            Actual prices, host fee arrangements, and payment costs can differ.
+        <summary>{isEstimated ? "How we estimated this" : "View comparison details"}</summary>
+        <div className={styles.expanded}>
+          {details ? (
+            <div className={styles.breakdown}>
+              <span>Lodging</span><strong>{money(details.lodgingCents)}</strong>
+              {details.cleaningCents > 0 ? <><span>Cleaning</span><strong>{money(details.cleaningCents)}</strong></> : null}
+              {details.extraGuestCents > 0 ? <><span>Additional guests</span><strong>{money(details.extraGuestCents)}</strong></> : null}
+              {details.guestServiceFeeCents > 0 ? <><span>Find A Place guest service fee</span><strong>{money(details.guestServiceFeeCents)}</strong></> : null}
+              {details.includedOtherCents > 0 ? <><span>Other required charges</span><strong>{money(details.includedOtherCents)}</strong></> : null}
+              <span className={styles.total}>Find A Place before taxes</span>
+              <strong className={styles.total}>{money(comparison.findAPlaceTotalCents)}</strong>
+            </div>
+          ) : null}
+          {isEstimated && comparison.hostFeeComparison ? (
+            <p className={styles.explanation}>
+              The modeled Airbnb amount includes an illustrative host-side Airbnb fee of {money(comparison.hostFeeComparison.modeledAirbnbHostFeeCents)}. This is not an additional Find A Place charge.
+            </p>
+          ) : null}
+          <p className={styles.explanation}>
+            {isEstimated
+              ? "This example assumes an equivalent stay and equal host proceeds with an illustrative 15.5% Airbnb host service fee. It is not an actual Airbnb price or guaranteed savings; host pricing and fees can differ."
+              : `Comparison for ${checkIn} to ${checkOut}, ${guests} ${guests === 1 ? "guest" : "guests"}.${observed && !Number.isNaN(observed.getTime()) ? ` Airbnb price checked ${observed.toLocaleString("en-US", { dateStyle: "medium", timeStyle: "short" })}.` : ""} Actual prices can change.`}
           </p>
-        ) : (
-          <p className={styles.finePrint}>
-            Compared for {checkIn} to {checkOut}, {guests} {guests === 1 ? "guest" : "guests"}.
-            {observed && !Number.isNaN(observed.getTime())
-              ? ` Airbnb price checked ${observed.toLocaleString("en-US", { dateStyle: "medium", timeStyle: "short" })}.`
-              : ""}
-            {" "}Airbnb prices can change.
+          <p className={styles.explanation}>
+            Both amounts are before lodging taxes, pets, optional extras and promotions. Your final total appears in checkout before payment.
           </p>
-        )}
-        <p className={styles.finePrint}>
-          Both figures exclude lodging taxes, pets, optional add-ons and promo discounts.
-          Your actual checkout total is shown separately above.
-        </p>
-        {!isEstimated && comparison.airbnbListingUrl ? (
-          <a className={styles.external} href={comparison.airbnbListingUrl}
-            target="_blank" rel="noreferrer noopener">
-            View the same stay on Airbnb
-          </a>
-        ) : null}
+          {!isEstimated && comparison.airbnbListingUrl ? (
+            <a className={styles.external} href={comparison.airbnbListingUrl} target="_blank" rel="noopener noreferrer">
+              View the same property on Airbnb
+            </a>
+          ) : null}
+        </div>
       </details>
     </aside>
   );
