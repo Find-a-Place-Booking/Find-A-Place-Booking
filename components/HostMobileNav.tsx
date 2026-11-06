@@ -14,6 +14,7 @@ const links = [
   ["Integrations", "/host/integrations/resnexus"],
   ["Rates & fees", "/host/rates"],
   ["Payments & taxes", "/host/payments"],
+  ["Marketing", "/host/marketing"],
   ["Messages", "/host/messages"],
   ["Reviews", "/host/reviews"],
   ["Reports", "/host/reports"],
@@ -36,7 +37,6 @@ export function HostMobileNav({
         <strong>{active}</strong>
         <b aria-hidden="true">⌄</b>
       </summary>
-
       <nav>
         {links.map(([label, href]) => (
           <Link
@@ -58,12 +58,10 @@ export function HostMobileNav({
             </span>
           </Link>
         ))}
-
         <Link href="/">
           Booking marketplace
           <span>↗</span>
         </Link>
-
         <form action={signOutHost}>
           <button className="internal-mobile-signout" type="submit">
             Sign out

@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 import { DashboardShell } from "@/components/DashboardShell";
 import { HostOnboardingWizard } from "@/components/HostOnboardingWizard";
 import { HostPolicyAcceptance } from "@/components/HostPolicyAcceptance";
@@ -24,34 +26,12 @@ export default async function OnboardingPage({
   ]);
 
   return (
-    <DashboardShell
-      active="Properties"
-      title="Host & property setup"
-      eyebrow="Host setup"
-    >
-      {params.profileSaved ? (
-        <div className="admin-message success">
-          Public host profile saved.
-        </div>
-      ) : null}
-      {params.avatarSaved ? (
-        <div className="admin-message success">
-          Public host profile photo updated.
-        </div>
-      ) : null}
-      {params.avatarRemoved ? (
-        <div className="admin-message success">
-          Public host profile photo removed.
-        </div>
-      ) : null}
-      {params.profileError ? (
-        <div className="admin-message error">
-          {decodeURIComponent(params.profileError)}
-        </div>
-      ) : null}
-
+    <DashboardShell active="Properties" title="Host & property setup" eyebrow="Host setup">
+      {params.profileSaved ? <div className="admin-message success">Public host profile saved.</div> : null}
+      {params.avatarSaved ? <div className="admin-message success">Public host profile photo updated.</div> : null}
+      {params.avatarRemoved ? <div className="admin-message success">Public host profile photo removed.</div> : null}
+      {params.profileError ? <div className="admin-message error">{decodeURIComponent(params.profileError)}</div> : null}
       <OnboardingPublicHostProfile profile={profile} />
-
       <HostPolicyAcceptance
         organizationId={onboarding.organizationId}
         accepted={onboarding.policyAccepted}
@@ -59,8 +39,13 @@ export default async function OnboardingPage({
         versions={onboarding.currentPolicyVersions}
         error={params.policyError || null}
       />
-
       <HostOnboardingWizard initial={onboarding} />
+      <section className="panel">
+        <p className="eyebrow dark">Optional after your listing setup</p>
+        <h2>Interested in promotions?</h2>
+        <p>Tell us whether you'd consider three discounted stays or additional social media advertising. We'll follow up on dates and details first; this won't change your rates or charge you for anything.</p>
+        <Link href="/host/marketing" className="button button-small button-quiet">Marketing options & partner status →</Link>
+      </section>
     </DashboardShell>
   );
 }

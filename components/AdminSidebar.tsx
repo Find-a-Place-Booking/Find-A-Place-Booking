@@ -13,6 +13,7 @@ type NavItem = {
 const nav: NavItem[] = [
   { label: "Overview", href: "/admin", key: "overview" },
   { label: "Hosts", href: "/admin/hosts", key: "hosts" },
+  { label: "Complete & publish", href: "/admin/publishing", key: "publishing", roles: ["SUPER_ADMIN", "OPERATIONS_ADMIN"] },
   { label: "Signup security", href: "/admin/signup-security", key: "signup-security", roles: ["SUPER_ADMIN", "OPERATIONS_ADMIN"] },
   { label: "Properties", href: "/admin/properties", key: "properties" },
   { label: "Host reviews", href: "/admin/host-reviews", key: "host-reviews" },

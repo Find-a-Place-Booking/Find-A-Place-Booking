@@ -16,6 +16,7 @@ const links = [
   ["Integrations", "/host/integrations/resnexus"],
   ["Rates & fees", "/host/rates"],
   ["Payments & taxes", "/host/payments"],
+  ["Marketing", "/host/marketing"],
   ["Messages", "/host/messages"],
   ["Inquiries", "/host/messages/inquiries"],
   ["Reviews", "/host/reviews"],
@@ -29,29 +30,23 @@ async function livePropertyLabel() {
   const { data: claimsData } = await supabase.auth.getClaims();
   const profileId = claimsData?.claims?.sub;
   if (!profileId) return "No properties live yet";
-
   const { data: memberships } = await supabase
     .from("organization_members")
     .select("organization_id")
     .eq("profile_id", profileId)
     .eq("status", "ACTIVE");
-
   const organizationIds = (memberships ?? []).map(
     (row: { organization_id: string }) => row.organization_id,
   );
   if (!organizationIds.length) return "No properties live yet";
-
   const { count } = await supabase
     .from("properties")
     .select("id", { count: "exact", head: true })
     .in("organization_id", organizationIds)
     .eq("status", "PUBLISHED");
-
   const published = count ?? 0;
   return published
-    ? `${published} ${
-        published === 1 ? "property" : "properties"
-      } live`
+    ? `${published} ${published === 1 ? "property" : "properties"} live`
     : "No properties live yet";
 }
 
@@ -63,7 +58,6 @@ export async function HostSidebar({
   messageAlertCount?: number;
 }) {
   const liveLabel = await livePropertyLabel();
-
   return (
     <aside className={`dash-sidebar ${styles.scrollableSidebar}`}>
       <Brand compact />
@@ -72,7 +66,6 @@ export async function HostSidebar({
         <strong>Host account</strong>
         <small>{liveLabel}</small>
       </div>
-
       <nav>
         {links.map(([label, href]) => (
           <Link
@@ -95,7 +88,6 @@ export async function HostSidebar({
           </Link>
         ))}
       </nav>
-
       <div className={`side-note ${styles.helpCard}`}>
         <strong>Need help?</strong>
         <p>
