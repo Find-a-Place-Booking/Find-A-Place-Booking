@@ -1,5 +1,5 @@
-#!/usr/bin/env bash
-set -euo pipefail
+#!/usr/bin/env sh
+set -eu
 cd "$(dirname "$0")"
 python3 apply_overlay.py .
-printf '\nNext: npm run typecheck && npm run build\n'
+echo "Run npm run typecheck and npm run build, then commit/push."

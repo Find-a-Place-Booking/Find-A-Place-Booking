@@ -1,0 +1,14 @@
+.menu { position: relative; display: inline-flex; align-items: center; font: inherit; }
+.trigger { display: inline-flex; align-items: center; gap: 6px; padding: 9px 2px; cursor: pointer; list-style: none; font: inherit; color: inherit; opacity: .88; user-select: none; }
+.trigger::-webkit-details-marker { display: none; }
+.trigger:hover, .menu[open] .trigger { opacity: 1; }
+.chevron { display: inline-block; width: 6px; height: 6px; border-right: 1.6px solid currentColor; border-bottom: 1.6px solid currentColor; transform: rotate(45deg) translateY(-2px); margin-left: 2px; transition: transform .16s ease; }
+.menu[open] .chevron { transform: rotate(225deg) translateY(-1px); }
+.panel { position: absolute; z-index: 30; top: calc(100% + 11px); left: -15px; width: 254px; display: grid; padding: 7px; border: 1px solid #d9d4c9; border-radius: 12px; background: #fffcf7; color: #253a32; box-shadow: 0 14px 34px rgba(26,43,34,.15); }
+.panel::before { content: ""; position: absolute; height: 12px; left: 0; right: 0; top: -12px; }
+.panel a { display: grid; gap: 3px; padding: 10px 11px; border-radius: 7px; text-decoration: none; opacity: 1; }
+.panel a:hover, .panel a:focus-visible { background: #f0eee6; }
+.panel strong { font-size: .85rem; font-weight: 700; letter-spacing: -.01em; }
+.panel small { font-size: .72rem; color: #627068; font-weight: 400; }
+.trigger:focus-visible, .panel a:focus-visible { outline: 2px solid #486a56; outline-offset: 3px; }
+@media(max-width:1000px) { .menu { display: none; } }

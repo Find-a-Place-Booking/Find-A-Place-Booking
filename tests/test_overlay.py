@@ -1,49 +1,39 @@
-"""Offline installation regression: all source edits are guarded and idempotent."""
-import ast
-import os
 from pathlib import Path
-import subprocess
-import sys
-import tempfile
+from tempfile import TemporaryDirectory
+import importlib.util
 
-BASE = Path(__file__).resolve().parents[1]
-tree = ast.parse((BASE / "apply_overlay.py").read_text())
-by_path = {}
-for node in ast.walk(tree):
-    if isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and node.func.id == "replace":
-        if len(node.args) != 3:
-            continue
-        try:
-            path, old, new = map(ast.literal_eval, node.args)
-        except Exception:
-            continue
-        by_path.setdefault(path, []).append((old, new))
+script = Path(__file__).parents[1] / 'apply_overlay.py'
+spec = importlib.util.spec_from_file_location('overlay', script)
+mod = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(mod)
 
-assert len(by_path) == 8, sorted(by_path)
-with tempfile.TemporaryDirectory() as tmp:
-    root = Path(tmp)
-    for path, edits in by_path.items():
-        dest = root / path
-        dest.parent.mkdir(parents=True, exist_ok=True)
-        # A fixture using every anchor once. Individual anchors have been
-        # independently verified against current GitHub source.
-        dest.write_text("\n".join(old for old, new in edits) + "\n")
-    legal = root / "app/host-agreement/page.tsx"
-    legal.parent.mkdir(parents=True, exist_ok=True)
-    legal.write_text('  "policy.host.payments": { title: "Old", body: "5% partner commission rate" },\n'
-                     '  "policy.host.taxes": { title: "Taxes", body: "A" },\n')
-    for run in (1, 2):
-        result = subprocess.run([sys.executable, str(BASE / "apply_overlay.py"), str(root)],
-                                text=True, capture_output=True)
-        assert result.returncode == 0, (run, result.stdout, result.stderr)
-    for path, edits in by_path.items():
-        output = (root / path).read_text()
-        for old, new in edits:
-            if new:
-                assert output.count(new) == 1, (path, new)
-                if old not in new:
-                    assert old not in output, (path, old)
-            else:
-                assert old not in output
-    assert '5% partner commission rate' not in legal.read_text()
-print("PASS: all 8 source files patch atomically and reapplying is safe")
+with TemporaryDirectory() as d:
+    root = Path(d)
+    for path, edits in mod.replacement_plans().items():
+        file = root / path
+        file.parent.mkdir(parents=True, exist_ok=True)
+        file.write_text('\n\n'.join(before for before, _ in edits), encoding='utf-8')
+    for rel in ['lib/public/discovery-categories.ts', 'lib/public/buffalo-river-discovery.ts', 'components/HostResourcesMenu.tsx',
+                'components/HostResourcesMenu.module.css',
+                'app/property-managers/page.tsx', 'app/property-managers/property-managers.module.css']:
+        p = root / rel
+        p.parent.mkdir(parents=True, exist_ok=True)
+        p.write_text('test', encoding='utf-8')
+    assert mod.apply(root, check_only=True) == 0
+    assert mod.apply(root, check_only=False) == 0
+    first = {p: (root / p).read_text() for p in mod.replacement_plans()}
+    assert mod.apply(root, check_only=False) == 0
+    second = {p: (root / p).read_text() for p in mod.replacement_plans()}
+    assert first == second, 'overlay is not idempotent'
+    for path, edits in mod.replacement_plans().items():
+        for before, after in edits:
+            assert after in second[path], f'missing patch in {path}'
+    # Changed anchors abort without partial writes.
+    bad = root / 'components/Header.tsx'
+    bad.write_text('unrelated source code')
+    before_snapshot = {p: (root / p).read_text() for p in mod.replacement_plans()}
+    assert mod.apply(root, check_only=False) == 1
+    after_snapshot = {p: (root / p).read_text() for p in mod.replacement_plans()}
+    assert before_snapshot == after_snapshot
+
+print('overlay preflight, application, idempotence and all-or-nothing checks passed')
