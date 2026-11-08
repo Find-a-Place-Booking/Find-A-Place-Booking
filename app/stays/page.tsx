@@ -31,6 +31,9 @@ function prettyDate(value?: string) {
 
 const collectionHeadings: Record<string, string> = {
   Cabin: "Cabins",
+  "Sleeps 8+": "Group getaways for eight or more",
+  "Unique stays": "One-of-a-kind stays",
+  "Buffalo National River": "Stays near the Buffalo National River",
   "RV Site": "RV stays",
   "Hot tub": "Stays with hot tubs",
   "Pet friendly": "Pet-friendly stays",
@@ -88,6 +91,7 @@ export default async function StaysPage({
     ? `${start}–${end} · ${guests} guests`
     : `${guests} guests`;
   const collectionHeading = initialFilter ? collectionHeadings[initialFilter] : "";
+  const buffaloRiverSearch = /^(buffalo( national)? river( country| area)?)$/i.test(where.trim());
   const heading = where && collectionHeading
     ? `${collectionHeading} near ${where}`
     : where
@@ -128,7 +132,9 @@ export default async function StaysPage({
               <p>
                 {summary.body}
                 {search.usedNearby
-                  ? ` Search covers roughly ${radius} miles around ${where}, including smaller nearby communities.`
+                  ? buffaloRiverSearch
+                    ? ` Search covers stays roughly ${radius} miles from several access areas along the Buffalo National River; distances are approximate.`
+                    : ` Search covers roughly ${radius} miles around ${where}, including smaller nearby communities.`
                   : null}
               </p>
             </div>
@@ -143,6 +149,7 @@ export default async function StaysPage({
 
         <StayResults
           properties={properties}
+          radiusMiles={radius}
           destination=""
           guests={1}
           initialFilter={initialFilter}

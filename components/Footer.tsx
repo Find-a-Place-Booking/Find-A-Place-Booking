@@ -101,6 +101,7 @@ export function Footer() {
           <div>
             <strong>For hosts</strong>
             <Link href="/hosts">How hosting works</Link>
+            <Link href="/property-managers">For property managers</Link>
             <Link href="/host/sign-up?next=%2Fhost%2Fonboarding">
               List a property
             </Link>

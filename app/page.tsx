@@ -20,6 +20,21 @@ export const metadata: Metadata = {
 
 const stayCollections = [
   {
+    label: "Buffalo National River",
+    detail: "Cabins, cottages and stays along the Buffalo River country.",
+    filter: "Buffalo National River",
+  },
+  {
+    label: "Unique stays",
+    detail: "Glamping, tiny homes and stays that are a little different.",
+    filter: "Unique stays",
+  },
+  {
+    label: "Group getaways",
+    detail: "Cabins and homes with room for eight or more.",
+    filter: "Sleeps 8+",
+  },
+  {
     label: "Cabins",
     detail: "Wooded weekends, porches and a little room to unplug.",
     filter: "Cabin",

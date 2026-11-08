@@ -3,6 +3,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { track } from "@vercel/analytics";
 import { PropertyCard } from "./PropertyCard";
+import { isLargeGroupStay, isUniqueStay } from "@/lib/public/discovery-categories";
+import { searchBuffaloRiverStays } from "@/lib/public/buffalo-river-discovery";
 import { DeferredStayMap } from "./DeferredStayMap";
 import {
   propertyMatchesDestination,
@@ -10,6 +12,9 @@ import {
 } from "@/data/catalog";
 
 const filterOptions = [
+  "Buffalo National River",
+  "Unique stays",
+  "Sleeps 8+",
   "Cabin",
   "RV Site",
   "Hot tub",
@@ -29,6 +34,7 @@ export function StayResults({
   initialFilter = "",
   inventoryAvailable = properties.length > 0,
   availabilityConfirmed = false,
+  radiusMiles = 40,
 }: {
   properties: Property[];
   destination: string;
@@ -36,6 +42,7 @@ export function StayResults({
   initialFilter?: string;
   inventoryAvailable?: boolean;
   availabilityConfirmed?: boolean;
+  radiusMiles?: number;
 }) {
   const [filters, setFilters] = useState<string[]>(() =>
     filterOptions.includes(initialFilter) ? [initialFilter] : [],
@@ -174,6 +181,9 @@ export function StayResults({
   }, [browseReady, filters, mapOpen, sort]);
 
   const filtered = useMemo(() => {
+    const buffaloSlugs = filters.includes("Buffalo National River")
+      ? new Set(searchBuffaloRiverStays(properties, "Buffalo National River", radiusMiles).map((property) => property.slug))
+      : null;
     let result = properties.filter((property) => {
       const destinationMatch = propertyMatchesDestination(
         property,
@@ -184,6 +194,9 @@ export function StayResults({
 
       return filters.every((filter) => {
         if (filter === "Cabin") return property.type === "Cabin";
+        if (filter === "Buffalo National River") return buffaloSlugs?.has(property.slug) ?? false;
+        if (filter === "Sleeps 8+") return isLargeGroupStay(property);
+        if (filter === "Unique stays") return isUniqueStay(property);
         if (filter === "RV Site") return property.type === "RV Site";
         if (filter === "Under $150") return property.price < 150;
         if (filter === "2+ bedrooms") return property.bedrooms >= 2;
@@ -198,7 +211,7 @@ export function StayResults({
       result = [...result].sort((a, b) => b.rating - a.rating);
     }
     return result;
-  }, [destination, filters, guests, properties, sort]);
+  }, [destination, filters, guests, properties, radiusMiles, sort]);
 
   const toggleFilter = (filter: string) => {
     setFilters((current) =>

@@ -1,4 +1,5 @@
 import { propertyMatchesDestination, type Property } from "@/data/catalog";
+import { isBuffaloRiverSearch, searchBuffaloRiverStays } from "@/lib/public/buffalo-river-discovery";
 
 export const DEFAULT_SEARCH_RADIUS_MILES = 40;
 export const SEARCH_RADIUS_OPTIONS = [15, 25, 40, 60, 100] as const;
@@ -121,6 +122,10 @@ export async function searchPublishedStaysNearby(
   radiusMiles: number,
 ): Promise<SearchResult> {
   if (!destination.trim()) return { properties, usedNearby: false };
+
+  if (isBuffaloRiverSearch(destination)) {
+    return { properties: searchBuffaloRiverStays(properties, destination, radiusMiles), usedNearby: true };
+  }
 
   const center = await destinationCenter(destination, properties);
   if (!center) {

@@ -6,6 +6,7 @@ import { useEffect, useId, useState } from "react";
 import { usePathname } from "next/navigation";
 
 import { Brand } from "./Brand";
+import { HostResourcesMenu } from "./HostResourcesMenu";
 import { HomeSocialRibbon } from "./HomeSocialConnections";
 import socialStyles from "./HomeSocialConnections.module.css";
 import { SavedStayNavLink } from "./SavedStayNavLink";
@@ -125,6 +126,9 @@ export function Header({ light = false }: { light?: boolean }) {
                 >
                   Host sign in
                 </Link>
+                <Link href="/property-managers" onClick={closeMenu}>
+                  Property managers
+                </Link>
               </div>
 
               <TrackedLink
@@ -155,7 +159,9 @@ export function Header({ light = false }: { light?: boolean }) {
             style={{ gap: 14, fontSize: ".84rem" }}
           >
             {primaryLinks.map(([label, href]) =>
-              href === "/social" ? (
+              href === "/hosts" ? (
+                <HostResourcesMenu key={label} />
+              ) : href === "/social" ? (
                 <TrackedLink
                   key={label}
                   href={href}
