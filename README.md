@@ -1,34 +1,36 @@
-# Find A Place Booking — Remaining Priorities Overlay
+# Find A Place — Targeted Search Buttons & Property Manager Overlay
 
-Targets reviewed: GitHub main `adb34887af2e6be2edbd960b0c49a5d86086493d` (November 5, 2026). The installation script also checks its exact anchors before touching existing source files.
+**This replaces the previous `Find_A_Place_Discovery_Property_Managers_Booking_Audit_Overlay.zip`. Use this corrected ZIP instead of applying both.**
 
-## What's included
+The homepage **Browse by stay type** section and the **Find a Stay** filter-chip row now include these three options in the *same design as the existing search options*:
 
-- **Buffalo National River:** New editorial destination on the homepage; searches use NPS access-point coordinates in three river districts instead of a single circle around Jasper. Respects the existing 15/25/40/60/100-mile controls. Existing Jasper search remains available, but the homepage swaps Jasper's separate card for a broader Buffalo River card, preserving the clean six-card grid.
-- **Unique stays:** Adds a homepage collection and Find a Stay chip; matches explicit property types/tags such as Glamping, Tiny Home, Treehouse or Yurt, not arbitrary property names.
-- **Group getaways:** Adds a homepage collection and Find a Stay chip for accommodation sleeping 8 or more. Excludes camping/RV/unknown-type listings, so a 25-person campsite is not marketed as a large house.
-- **Property managers:** Desktop "For hosts" dropdown, one extra link in the mobile menu and footer, plus a new `/property-managers` informational page linked to existing authenticated host tools.
-- **Booking QA:** `docs/BOOKING_AUDIT_2026-11-05.md` lists code checks, read-only production results and hands-on test steps. No payment or calendar code was changed.
+- **Buffalo National River** — opens `/stays?filter=Buffalo%20National%20River`. Matches existing stays within the selected radius of multiple Buffalo National River access areas, not just Jasper. Also supports typing Buffalo National River in location search.
+- **Unique stays** — opens `/stays?filter=Unique%20stays`, showing explicitly tagged types (glamping, tiny homes, etc.).
+- **Group getaways** — opens `/stays?filter=Sleeps%208%2B`, showing cabins/homes accommodating 8+, not campground capacity numbers.
 
-## How to install (IMPORTANT)
+These **are NOT separate homepage feature sections, promotional cards, or an extra destination tile**. The original destination grid, including Jasper, is preserved. These three use the exact existing `stay-type-card` and filter-chip components.
 
-1. Open the checked-out Find A Place Booking GitHub repository on your computer.
-2. Extract this ZIP into that **repository root**, preserving `app/`, `components/`, `lib/`, `tests/` and `docs/`. If asked, overwrite matching **overlay installer** files. It does not contain complete copies of existing `Header.tsx`, `StayResults.tsx` or `app/page.tsx`.
-3. **Double-click `APPLY_OVERLAY.bat` on Windows**, or use `bash APPLY_OVERLAY.sh` on macOS/Linux. This is REQUIRED: extracting files alone does not wire the new features into the existing pages. The installer is idempotent and preflights all source anchors before any writes. Use `python apply_overlay.py . --check` first if you want a dry run.
-4. Run `npm run typecheck`, then `npm run build`. If a command fails, do not push; send the error output. The tests `python tests/test_overlay.py` and `node tests/test_discovery.cjs` are available when Python 3 and TypeScript are installed.
-5. Commit the changed files and push `main`. Confirm Vercel deploys to READY.
-6. Check `/stays?where=Buffalo%20National%20River&radius=40`, `/stays?filter=Unique%20stays`, `/stays?filter=Sleeps%208%2B`, `/property-managers`, and the desktop/mobile header.
+Also retains the other pending features from the previous overlay: small **For hosts** dropdown, mobile/footer links to `/property-managers`, and the booking audit report. Existing checkout, calendar sync, taxes, prices, Stripe and booking hold code remain unchanged.
 
-This overlay includes **no Supabase migration or fee changes**; it can be installed separately after the 7%-fee/frontend polish overlay from the previous task.
+## Installation
 
-## What wasn't verified
+1. Extract this ZIP into the **root of your Find A Place Booking repository**. Keep the folder structure.
+2. Double-click **`APPLY_OVERLAY.bat`** on Windows (or `bash APPLY_OVERLAY.sh` on macOS/Linux). **Extraction alone does not connect these new buttons to the existing site.** The script checks all required source anchors before changing any file, and supports a repository with or without the previous overlay already applied.
+3. Run `npm run typecheck` and `npm run build`. Do not push if either fails. Run `node tests/test_discovery.cjs` and `python tests/test_overlay.py` to run the included targeted tests.
+4. Commit the changed files and push to `main`, then confirm the Vercel deployment reports READY.
 
-The script's exact anchors were checked against the current GitHub source, and isolated parsing, classification, regional-search and repeat-installation tests passed. We could not run a full application build against the entire checked-out GitHub repository, or perform authenticated payment, host login and production ResNexus tests from the connected tools. The connected GitHub integration is read-only for writes.
+## Checks after deploying
 
-## Important: Fancy Hill ResNexus
+- Homepage: **Browse by stay type** contains all three buttons in the same visual style as the other seven. The existing destination grid still includes Jasper.
+- `/stays?filter=Buffalo%20National%20River` — chip is selected and only matching Buffalo corridor listings appear. Test a 15-, 40- and 100-mile search radius.
+- `/stays?filter=Unique%20stays` and `/stays?filter=Sleeps%208%2B` — selected chips produce matching types. Camping sites with large occupancy are excluded from Group getaways.
+- Selecting an additional filter works normally; clearing filters returns the full matching results. Check desktop and mobile layouts.
+- `/property-managers` and the existing host menu still work.
 
-The live audit found all 10 Fancy Hill ResNexus feeds reporting saved-login rejection as of Nov 5, 2026. That requires an updated login from a user authorized to manage that account at `/host/integrations/resnexus`. The current availability/payment system is intentionally conservative about unverified ResNexus calendars. Do not disable it to make a booking succeed. See the booking audit in `docs/`.
+No live financial, booking, or calendar changes are in this overlay.
 
-## Sources for regional search points
+## Scope and testing
 
-National Park Service, Buffalo National River, "Getting Around": https://www.nps.gov/buff/planyourvisit/getting-around.htm . The three points are publicly documented campground/access coordinates, not private property addresses.
+The anchor patch was validated against the repository source at GitHub main `adb34887af2e6be2edbd960b0c49a5d86086493d`, checked for idempotence, and isolated source parsing and discovery tests were run. A complete application build and authenticated booking test require the local checkout/deployment. The GitHub connection available to ChatGPT cannot push changes to your repository.
+
+**Operational reminder:** As of the latest read-only audit, Fancy Hill ResNexus connections still needed credential reconnection. This overlay deliberately does not bypass that availability protection.

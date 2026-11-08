@@ -44,3 +44,20 @@ const p=(slug,lat,lng,city='Ozarks')=>({slug,lat,lng,city,location:city,state:'A
  assert.equal(small.length,3);
  console.log('TS/TSX parsed; unique/group filters and 3-district Buffalo search passed');
 })().catch(e=>{console.error(e); process.exit(1)});
+
+// After APPLY_OVERLAY, confirm these are real browse chips and existing
+// homepage stay-type buttons, not extra destination cards or plain text.
+const home = fs.readFileSync(path.join(root,'app/page.tsx'),'utf8');
+const staysPage = fs.readFileSync(path.join(root,'app/stays/page.tsx'),'utf8');
+const results = fs.readFileSync(path.join(root,'components/StayResults.tsx'),'utf8');
+for (const label of ['Buffalo National River','Unique stays','Group getaways']) {
+  assert.ok(home.includes(`label: "${label}"`), `Missing homepage button: ${label}`);
+}
+for (const label of ['Buffalo National River','Unique stays','Sleeps 8+']) {
+  assert.ok(results.includes(`"${label}"`), `Missing search-results chip: ${label}`);
+  assert.ok(staysPage.includes(`"${label}":`), `Missing heading for filter: ${label}`);
+}
+assert.ok(home.includes('className="stay-type-card"'), 'Must reuse existing targeted buttons');
+assert.ok(home.includes('{destinations.map('), 'Existing destinations must remain intact');
+assert.ok(!home.includes('destination.name !== "Jasper"'), 'Jasper destination should not be hidden');
+console.log('Homepage button + results chip wiring checked for all three categories');
