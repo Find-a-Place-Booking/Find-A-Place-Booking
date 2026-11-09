@@ -1,36 +1,34 @@
-# Find A Place — Targeted Search Buttons & Property Manager Overlay
+# Find A Place Booking — Public header / For hosts dropdown repair
 
-**This replaces the previous `Find_A_Place_Discovery_Property_Managers_Booking_Audit_Overlay.zip`. Use this corrected ZIP instead of applying both.**
+Prepared November 9, 2026, against the GitHub `main` versions of:
 
-The homepage **Browse by stay type** section and the **Find a Stay** filter-chip row now include these three options in the *same design as the existing search options*:
+- `components/Header.tsx` (blob `cc587f358eee7a19483a0d5ae486dd18e77d2485`)
+- `components/HostResourcesMenu.tsx` (blob `30bcb8192e690c601d9a9a63baaa954af4cd9103`)
+- `components/HostResourcesMenu.module.css` (blob `db1855d0b7ae7c8d4c557a22789a3c2d8b60e14e`)
 
-- **Buffalo National River** — opens `/stays?filter=Buffalo%20National%20River`. Matches existing stays within the selected radius of multiple Buffalo National River access areas, not just Jasper. Also supports typing Buffalo National River in location search.
-- **Unique stays** — opens `/stays?filter=Unique%20stays`, showing explicitly tagged types (glamping, tiny homes, etc.).
-- **Group getaways** — opens `/stays?filter=Sleeps%208%2B`, showing cabins/homes accommodating 8+, not campground capacity numbers.
+## Install — direct replacement, no installer
 
-These **are NOT separate homepage feature sections, promotional cards, or an extra destination tile**. The original destination grid, including Jasper, is preserved. These three use the exact existing `stay-type-card` and filter-chip components.
+1. Open the `Find-A-Place-Booking` repository on your computer.
+2. Extract this ZIP **into the repository root**, preserving the `components/` folder. Approve overwriting only the three existing component files. The fourth component file, `HeaderNavigationFix.module.css`, is new.
+3. Verify these four files are part of the Git commit:
+   - `components/Header.tsx`
+   - `components/HeaderNavigationFix.module.css`
+   - `components/HostResourcesMenu.tsx`
+   - `components/HostResourcesMenu.module.css`
+4. Run `npm run typecheck` and `npm run build`, and push to GitHub only after they succeed. Verify the new deployment is READY. Make sure your local branch wasn't changed in the meantime.
+5. Hard-refresh the homepage and test the dropdown on the homepage, the About page, the For Hosts page, `/stays`, at desktop width and with the hamburger menu on a tablet/phone.
 
-Also retains the other pending features from the previous overlay: small **For hosts** dropdown, mobile/footer links to `/property-managers`, and the booking audit report. Existing checkout, calendar sync, taxes, prices, Stripe and booking hold code remain unchanged.
+## Exact bugs addressed
 
-## Installation
+- The header is beige but `.header-light` left non-anchor nav labels inheriting **white**. Set an explicit dark color for standard public headers, retaining white only on the dark host-marketing hero.
+- The dropdown was inside `home-hero`/`aboutHero` or other overflow/stacking contexts. The dropdown now renders through a React portal into `document.body`, at the button's measured viewport position, with a clear high z-index. It closes on outside click, Escape, page scroll, link click, and resize.
+- The social button's negative margins, mixed anchor heights, nav gaps and inline styles produced uneven nav vertical alignment. The new CSS module sets common control heights and measured gaps.
+- On laptop widths the desktop header tried to show a long brand, six nav links and four account actions. It now switches to the existing hamburger menu at widths **1550px and under**. The same value is used in JavaScript and responsive styles, and the portaled menu works at the extended widths.
 
-1. Extract this ZIP into the **root of your Find A Place Booking repository**. Keep the folder structure.
-2. Double-click **`APPLY_OVERLAY.bat`** on Windows (or `bash APPLY_OVERLAY.sh` on macOS/Linux). **Extraction alone does not connect these new buttons to the existing site.** The script checks all required source anchors before changing any file, and supports a repository with or without the previous overlay already applied.
-3. Run `npm run typecheck` and `npm run build`. Do not push if either fails. Run `node tests/test_discovery.cjs` and `python tests/test_overlay.py` to run the included targeted tests.
-4. Commit the changed files and push to `main`, then confirm the Vercel deployment reports READY.
+## Safety
 
-## Checks after deploying
+Presentation and navigation only. No Stripe, fee, guest checkout, Supabase, calendar, host data, admin, tax or reservation code is modified. No package dependencies or migrations. Original links and mobile options are retained.
 
-- Homepage: **Browse by stay type** contains all three buttons in the same visual style as the other seven. The existing destination grid still includes Jasper.
-- `/stays?filter=Buffalo%20National%20River` — chip is selected and only matching Buffalo corridor listings appear. Test a 15-, 40- and 100-mile search radius.
-- `/stays?filter=Unique%20stays` and `/stays?filter=Sleeps%208%2B` — selected chips produce matching types. Camping sites with large occupancy are excluded from Group getaways.
-- Selecting an additional filter works normally; clearing filters returns the full matching results. Check desktop and mobile layouts.
-- `/property-managers` and the existing host menu still work.
+## Verification status
 
-No live financial, booking, or calendar changes are in this overlay.
-
-## Scope and testing
-
-The anchor patch was validated against the repository source at GitHub main `adb34887af2e6be2edbd960b0c49a5d86086493d`, checked for idempotence, and isolated source parsing and discovery tests were run. A complete application build and authenticated booking test require the local checkout/deployment. The GitHub connection available to ChatGPT cannot push changes to your repository.
-
-**Operational reminder:** As of the latest read-only audit, Fancy Hill ResNexus connections still needed credential reconnection. This overlay deliberately does not bypass that availability protection.
+Syntax and CSS parsing pass in isolation, with automated source tests. A full Next.js production build and live-browser click tests are still required in your repository; they cannot be verified from this ZIP alone. Not deployed by ChatGPT.

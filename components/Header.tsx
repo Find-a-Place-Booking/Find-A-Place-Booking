@@ -12,6 +12,10 @@ import socialStyles from "./HomeSocialConnections.module.css";
 import { SavedStayNavLink } from "./SavedStayNavLink";
 import { TrackedLink } from "./TrackedLink";
 import mobileStyles from "./HeaderMobileMenu.module.css";
+import headerStyles from "./HeaderNavigationFix.module.css";
+
+// Keep in sync with the breakpoint in HeaderNavigationFix.module.css.
+const MOBILE_NAV_BREAKPOINT = 1550;
 
 const primaryLinks = [
   ["Find a stay", "/stays"],
@@ -47,7 +51,7 @@ export function Header({ light = false }: { light?: boolean }) {
     };
 
     const onResize = () => {
-      if (window.innerWidth > 1000) closeMenu();
+      if (window.innerWidth > MOBILE_NAV_BREAKPOINT) closeMenu();
     };
 
     window.addEventListener("keydown", onKeyDown);
@@ -63,7 +67,7 @@ export function Header({ light = false }: { light?: boolean }) {
   const mobileMenu =
     mounted && menuOpen
       ? createPortal(
-          <div className="mobile-menu-shell" data-open="true">
+          <div className={`mobile-menu-shell ${headerStyles.mobileShell}`} data-open="true">
             <button
               className="mobile-menu-backdrop"
               type="button"
@@ -149,15 +153,11 @@ export function Header({ light = false }: { light?: boolean }) {
 
   return (
     <>
-      <header className={`site-header ${light ? "header-light" : ""}`}>
+      <header className={`site-header ${headerStyles.header} ${light ? "header-light" : ""}`}>
         <div className="shell header-inner">
           <Brand />
 
-          <nav
-            className="main-nav"
-            aria-label="Main navigation"
-            style={{ gap: 14, fontSize: ".84rem" }}
-          >
+          <nav className="main-nav" aria-label="Main navigation">
             {primaryLinks.map(([label, href]) =>
               href === "/hosts" ? (
                 <HostResourcesMenu key={label} />

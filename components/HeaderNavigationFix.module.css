@@ -1,0 +1,156 @@
+/* Scoped public-header repair. No checkout, host dashboard, or page-body styles. */
+.header { position: relative; z-index: 50; color: #253a32; }
+:global(.hosts-hero) .header { color: #fff; }
+.header :global(.header-inner) {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: clamp(16px, 1.4vw, 28px);
+  width: min(1830px, calc(100% - 48px));
+  max-width: none;
+}
+.header :global(.brand) { flex: 0 0 auto; }
+.header :global(.main-nav) {
+  display: flex;
+  flex: 1 1 auto;
+  min-width: 0;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(12px, .95vw, 19px);
+  white-space: nowrap;
+  line-height: 1.2;
+  font-size: .85rem;
+}
+.header :global(.main-nav > a) {
+  min-height: 42px;
+  display: inline-flex;
+  align-items: center;
+  white-space: nowrap;
+}
+.header :global(.main-nav > a[href="/social"]) {
+  min-height: 42px;
+  margin: 0;
+  padding: 8px 11px;
+  border-radius: 22px;
+}
+.header :global(.header-actions) {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: clamp(10px, .85vw, 16px);
+  white-space: nowrap;
+}
+.header :global(.header-actions > a) { min-height: 42px; display: inline-flex; align-items: center; }
+.header :global(.header-actions .header-list-property) { padding: 10px 15px; }
+
+/* Switch to the existing full-featured mobile menu BEFORE the desktop row crowds. */
+@media (max-width: 1550px) {
+  .header :global(.main-nav) { display: none; }
+  .header :global(.mobile-menu-toggle) { display: flex; }
+  .header :global(.header-actions > .text-link),
+  .header :global(.header-actions > .header-list-property) { display: none; }
+  .header :global(.header-inner) { gap: 14px; }
+  .mobileShell[data-open="true"] {
+    position: fixed;
+    inset: 92px 0 0;
+    z-index: 11000;
+    display: block;
+  }
+  .mobileShell :global(.mobile-menu-backdrop) {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    border: 0;
+    padding: 0;
+    background: rgba(12,18,15,.48);
+  }
+  .mobileShell :global(.mobile-menu) {
+    position: relative;
+    z-index: 1;
+    width: min(460px, 100%);
+    max-height: 100%;
+    margin-left: auto;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    background: #fffdfa;
+    color: #253a32;
+    border-left: 1px solid #ddd4c6;
+    box-shadow: -24px 28px 60px rgba(16,23,19,.22);
+    padding: 18px 20px 24px;
+    display: grid;
+  }
+  .mobileShell :global(.mobile-menu-heading) {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    min-height: 42px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid #ded7cc;
+  }
+  .mobileShell :global(.mobile-menu-heading > span) {
+    text-transform: uppercase;
+    letter-spacing: .1em;
+    color: #70746f;
+    font-size: .66rem;
+    font-weight: 850;
+  }
+  .mobileShell :global(.mobile-menu-close) {
+    width: 40px;
+    height: 40px;
+    display: grid;
+    place-items: center;
+    border: 1px solid #d9d4cb;
+    border-radius: 50%;
+    background: #fff;
+    color: #253a32;
+    font-size: 1.6rem;
+  }
+  .mobileShell :global(.mobile-menu-primary) { display: grid; }
+  .mobileShell :global(.mobile-menu-primary > a) {
+    min-height: 56px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 14px;
+    border-bottom: 1px solid #e7e1d8;
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: 1.15rem;
+    font-weight: 600;
+  }
+  .mobileShell :global(.mobile-menu-primary > a span) { color: #7f4e3b; }
+  .mobileShell :global(.mobile-menu-secondary) {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+    margin: 18px 0;
+  }
+  .mobileShell :global(.mobile-menu-secondary a) {
+    min-height: 46px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 10px;
+    background: #fff;
+    border: 1px solid #d8d2c8;
+    border-radius: 10px;
+    font-size: .8rem;
+    font-weight: 700;
+  }
+  .mobileShell :global(.mobile-menu .button-full) { min-height: 48px; }
+}
+@media (max-width: 700px) {
+  .header :global(.header-inner) { width: calc(100% - 24px); height: 74px; gap: 10px; }
+  .header :global(.brand) { min-width: 0; }
+  .mobileShell[data-open="true"] { inset: 74px 0 0; padding: 8px; }
+  .mobileShell :global(.mobile-menu) {
+    width: 100%;
+    max-height: calc(100dvh - 90px);
+    margin: 0;
+    border: 1px solid #ddd4c6;
+    border-radius: 16px;
+    padding: 16px 16px 20px;
+  }
+  .mobileShell :global(.mobile-menu-secondary) { grid-template-columns: 1fr; }
+}
