@@ -8,7 +8,7 @@ Changed the intended cheap price to $4.99/month or $39.99/year and provisioned t
 
 Applied only the new admin verification RPC to production; no host partner records were altered and no customer was subscribed/charged. Read-only checks confirmed the host-access table/Stripe columns/canonical calendar and pricing functions exist. Confirmed guest role cannot execute the verification RPC and ordinary organizations RLS exposes SELECT only.
 
-Validation: 33 security/billing tests and guest/host DOM flow tests pass. Next compilation/typecheck pass; full local prerender remains blocked by missing server Supabase settings at the existing /host-profiles route. No screenshot/device or real payment lifecycle validation completed.
+Validation after QA corrections: fresh install, TypeScript, 72 automated tests and seven DOM flow groups passed. Full Next.js 16.4.6 production build completed (106 pages) using isolated database fixtures. Dependency audit reported zero known vulnerabilities. Real browser/device, deployed database and live subscription lifecycle checks remain pending. See WEBAPP_QA_REPORT.md. Corrected source in this package supersedes the earlier web overlay.
 
 The earlier native package remains historical. The new web overlay omits native projects and push setup. Preserve existing site header fixes; this change only adds app links to current admin/host navigation.
 

@@ -49,7 +49,7 @@ test('configured price amount cannot exceed advertised price',async()=>{const s=
 function eventHarness({status='active',storedOrg='org',canonicalCustomer='cus'}={}){
  const updates=[];const sub={id:'sub',customer:canonicalCustomer,metadata:{fap_product:'HOST_MOBILE',organization_id:'org'},status,cancel_at_period_end:false,items:{data:[{current_period_end:Math.floor(Date.now()/1000)+3600}]}};
  const row={organization_id:storedOrg,stripe_subscription_id:'sub',stripe_subscription_status:'active',subscription_expires_at:future};
- const q={then:(resolve,reject)=>Promise.resolve({data:row,error:null}).then(resolve,reject),select(){return q},eq(){return q},maybeSingle(){return Promise.resolve({data:row,error:null})},update(data){updates.push(data);return q}};
+ const q={then:(resolve,reject)=>Promise.resolve({data:row,error:null}).then(resolve,reject),select(){return q},eq(){return q},or(){return q},maybeSingle(){return Promise.resolve({data:row,error:null})},update(data){updates.push(data);return q}};
  const admin={from:()=>q};const sdk={subscriptions:{retrieve:async()=>sub}};
  const mod=load('lib/payments/host-app-events.ts',{'@/lib/payments/stripe-checkout':{getStripeClient:()=>sdk},'@/lib/supabase/admin':{createAdminClient:()=>admin}});
  return {mod,updates};

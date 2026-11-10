@@ -1,5 +1,9 @@
 /** Server-authoritative access rules, deliberately independent of booking commission. */
-export type HostMobileAccessMode = "PARTNER" | "SUBSCRIBED" | "TRIAL" | "LOCKED";
+export type HostMobileAccessMode =
+  | "PARTNER"
+  | "SUBSCRIBED"
+  | "TRIAL"
+  | "LOCKED";
 
 function future(value: string | null | undefined, now: number) {
   if (!value) return false;
@@ -22,7 +26,8 @@ export function hostMobileAccessMode(input: {
     (input.stripeSubscriptionStatus === "active" ||
       input.stripeSubscriptionStatus === "trialing") &&
     future(input.subscriptionExpiresAt, now)
-  ) return "SUBSCRIBED";
+  )
+    return "SUBSCRIBED";
   if (future(input.trialExpiresAt, now)) return "TRIAL";
   return "LOCKED";
 }

@@ -4,15 +4,15 @@
   "files": [
     {
       "path": "README_WEB_APPS.md",
-      "sha256": "c97775c2cb94ac6073db346b6f57d753c271e0a912bfd0e8de3794b86b434820"
+      "sha256": "3660373c0992b0dd75bffbc23774927fecc5cb3efde2d5021f677be8ed0b0204"
     },
     {
       "path": "app/admin/host-app/actions.ts",
-      "sha256": "c05b3de42ac3fdceca18b5ab1e9d7ee1432fe114564d09cbe06b35ad0f6d509a"
+      "sha256": "aa7139ba9d16763261458c65a4c643b48078ef6102cfbe255435bdf91bfa8e8f"
     },
     {
       "path": "app/admin/host-app/page.tsx",
-      "sha256": "1cbb20d3c62c75153ee4c9db7e0904741490efb4e4f7c596733c02aadf0bc689"
+      "sha256": "a7c58de239ea066f964c536df34c8bf06beca282470829ed118c78f41c78a38d"
     },
     {
       "path": "app/admin/partners/page.tsx",
@@ -20,75 +20,75 @@
     },
     {
       "path": "app/api/cron/host-mobile-billing/route.ts",
-      "sha256": "188455e293b2cc26c1b63497913de13ac942919b06b5d33c60ad32705ea4a870"
+      "sha256": "fa19c056485e91a25757d4bea826549378d9de4e8876f9d8bb433da4dd71d193"
     },
     {
       "path": "app/api/mobile/v1/host/access/route.ts",
-      "sha256": "c637558bbf0cef988d4a5ccfc5763a1f0f46032508ec3aefc7a91b21fbd67da2"
+      "sha256": "ec92940f49ce5b5fbb5aa10e72601343ea3daf0cc43e467833516199648ae605"
     },
     {
       "path": "app/api/mobile/v1/host/blocks/route.ts",
-      "sha256": "eebda665bd6ac8e6198b7742b8210251c2a3b9b5f56f59352330c692469641ac"
+      "sha256": "05604d2547b40f643ac4684d21562ab719cd183d31c69dfcebb1ca025bf2d8e3"
     },
     {
       "path": "app/api/mobile/v1/host/calendar/route.ts",
-      "sha256": "40d8e471808df532140d7496f3b514a4115b6ebb8f9b82072c45fc2c0575ee28"
+      "sha256": "ea6906f4ef2899da34dacd59aeed1891434b6d30f9a6a2fbeb5c9be7afac44ab"
     },
     {
       "path": "app/api/mobile/v1/host/messages/route.ts",
-      "sha256": "a9e33b570a7ca43c2e86529ce5337d08c1e4eed6774533085874997fb2c8b97a"
+      "sha256": "dfb200077e70c6a8030b79d62ba7b2e639b635f03000d841caf9df02539826f8"
     },
     {
       "path": "app/api/mobile/v1/host/overview/route.ts",
-      "sha256": "0ce077c0bf2e6a4646487f7c2ab283122c80162e39de07edf9bbe51ce117a087"
+      "sha256": "3ceddfa1e0f1a72e497fa8264c86f3f75cb0bba3ee3bdc923db7d5e7f87e15ec"
     },
     {
       "path": "app/api/mobile/v1/host/pricing/route.ts",
-      "sha256": "5a081e0520fc51f4cc357acecfdd525f9e3b68f20505ce061e72c1e6bb3c9438"
+      "sha256": "d6edefd59bd9789d9082c3095c17d74c8cf576b344c984591eb151aa6219d4dd"
     },
     {
       "path": "app/api/mobile/v1/host/properties/route.ts",
-      "sha256": "689e4cb92a7ab5b7388dffaff5d524761a1fc39ab1aef80a22ab0488ecb14ece"
+      "sha256": "080dc32c574de11d04c8887783ab6d69a7a5cfbbda95449b3d95d75b10a75efd"
     },
     {
       "path": "app/api/mobile/v1/host/reservations/route.ts",
-      "sha256": "a9c46526517f3b74a313a97a469a6295cdefd50a8a87e8bba334f057f0400df6"
+      "sha256": "f80774ccd16b648383613c32476144ef50038884545517b83806c43e8f5ddad3"
     },
     {
       "path": "app/api/mobile/v1/host/trial/route.ts",
-      "sha256": "2a32331bb01c372f4fff75e385d1aa52ced72c59eeef2b8a3a9458ff3bf60e79"
+      "sha256": "9742bbef608b0abf78ed666e82e774751d20e3fba02f7562a4b930c83024909f"
     },
     {
       "path": "app/api/mobile/v1/stays/[slug]/route.ts",
-      "sha256": "63134536a017299e0bd9d489d80191a4225fa3a641ba41081f027046c7b8bf6d"
+      "sha256": "a20f1c4f61097baf06602390f35dd6864eb40d0741dac5de7e4f9ad115e884f4"
     },
     {
       "path": "app/api/mobile/v1/stays/route.ts",
-      "sha256": "af2872616877d7b424a3d1463edc4510655dda0aa91d98004120be87e784609d"
+      "sha256": "aa50723281862475466d8209ff985d37c4d2163927efbcd45a0c3f826bf17096"
     },
     {
       "path": "app/api/mobile/v1/trip/cancellation/route.ts",
-      "sha256": "6bf69523e35e4c291f4846fc54af009612c937d24fb689b065e508af2cc02615"
+      "sha256": "0b75e4c3010cb2d076d26c5e11013826061036b577fafcfc568b5a003c2a5ad4"
     },
     {
       "path": "app/api/mobile/v1/trip/change-request/route.ts",
-      "sha256": "7e69d4405f8262f158bc773eee0e4ce080ec183dd0b0ed1e7db754b812d86d90"
+      "sha256": "cbe46c52fa88fddbf45efdc0263d94861fe49cd12dfeb8d23e5a33b4b63d5f64"
     },
     {
       "path": "app/api/mobile/v1/trip/lookup/route.ts",
-      "sha256": "f2a014ea974889309133512f36e2053096a5a8f71c3e7d4687f15fc497a02be0"
+      "sha256": "43e14d815fe81860c1f2882c69ffa61fab7a3a0dbb20bf085a72a5c3b06564ea"
     },
     {
       "path": "app/api/mobile/v1/trip/messages/route.ts",
-      "sha256": "627ea827f531e30a4af6a6a06eadbc58602b87ebabd1632be566154fbd21c3d2"
+      "sha256": "eb407040b962801dee5e53375b7cc761004c3aaa502ebe0156ea83078478ebe5"
     },
     {
       "path": "app/api/mobile/v1/trip/review/route.ts",
-      "sha256": "26325efa2e4caf0ba05bbdafecb6818bb051240547f6da9eaa0dc5a895fa75c1"
+      "sha256": "5f3864d02e732dfba5912afe8ac6a32f87895124b39fac499e4f52ab27c34589"
     },
     {
       "path": "app/api/mobile/v1/trip/summary/route.ts",
-      "sha256": "016a7cd1ac2d45b9f17795f70f11091529716732d89f54a8d7a0dd885fc9e7cc"
+      "sha256": "e197c1d5faed3e4e5c7ba33283247ce60bb016bc53538372dd45435030cfb719"
     },
     {
       "path": "app/api/stripe/host-mobile-webhook/route.ts",
@@ -116,7 +116,11 @@
     },
     {
       "path": "app/host/mobile/actions.ts",
-      "sha256": "73ac7d3765d910bdc12142873812d42827c919fa45a0bdf092008141ce99123c"
+      "sha256": "5140d3d6078ebc8b89fb776f3c3c6cb4e5db7890a1bfafce551f89594d43328d"
+    },
+    {
+      "path": "app/host/mobile/error.tsx",
+      "sha256": "006ead0f98038bd0bb3113c127053634601da24df3a6fde0fc4f71ca201cf4db"
     },
     {
       "path": "app/host/mobile/mobile.module.css",
@@ -124,11 +128,11 @@
     },
     {
       "path": "app/host/mobile/page.tsx",
-      "sha256": "fb01f74bdd90673e6686c1ed5c08b81c685739d4118c93ce6fa690a129c0b346"
+      "sha256": "bdb60abe342a17b85efa46ff0bb27a214125c93af2fe357edb90c0380247a164"
     },
     {
       "path": "app/host/mobile/workspace/page.tsx",
-      "sha256": "305c4c1e99ad70580a3ca184991d43383d7a05b725eca77cad84d88fa34f2d5c"
+      "sha256": "efcfc824c51edab1140654b29dd1677963397c2bc16fc4cbadc2dd2abfaf42b0"
     },
     {
       "path": "components/AdminMobileNav.tsx",
@@ -148,39 +152,39 @@
     },
     {
       "path": "components/webapp/Calendar.tsx",
-      "sha256": "c8615663d4c9b5d253aead00d5bdd74412a323c4d302714fd926253eebdc8316"
+      "sha256": "5b1c2f66f919f0332c38f5f3e9e66bfbc3dcab39210495d16061ff6a26d45cde"
     },
     {
       "path": "components/webapp/GuestWebApp.tsx",
-      "sha256": "385e4380ccfd5f31f1d68452573db0e8c266f59521e0477dfd07b7078199d982"
+      "sha256": "fec10f05ad861b00e054f52799156f5e4625f4222322ddcd0985f2a42a2849b6"
     },
     {
       "path": "components/webapp/HostWebApp.tsx",
-      "sha256": "287db0bd4b531d9c7a88cfa0fe8c93d0381c0e67200a23a83f7837aade5669ac"
+      "sha256": "ee98f1f6ab15d77c8852dcfe1c285b7522f0694c57b25ebe53ab082089623d8a"
     },
     {
       "path": "components/webapp/InstallWebApp.tsx",
-      "sha256": "c347bdc242c19598716a6614b72b1d7d069cc2242b9cf1573bd68e03451ce71f"
+      "sha256": "78808bf1400d38fe90b8c4c7225944e9c37e1a2dce7446c6cd9b8b740c7861b2"
     },
     {
       "path": "components/webapp/Messages.tsx",
-      "sha256": "0f088d9dcc5f95abb99f18f40d8252f06ca89441cf566bd93522ffe9f5b529d9"
+      "sha256": "c8b33d35870e8e61424ab2d4c89973e13873802407d5faf4a90164d089ffd3b0"
     },
     {
       "path": "components/webapp/Rates.tsx",
-      "sha256": "65ee4bc16a147439b4ab4c6d0331a08c9a04b62ee7582192c23503ceab77774a"
+      "sha256": "93a33b42896ee58bde4caad8bf5063449b6e7388ecadf4aed17a913adf187adf"
     },
     {
       "path": "components/webapp/StayMap.tsx",
-      "sha256": "66b1cd6c4e2fb4ac29797bad683ba03432b840419b1ad839f740ec501e2d57f6"
+      "sha256": "309a97bbff576514559889bc78ef0fd269ced435f4d08329e06f6b6e589df60a"
     },
     {
       "path": "components/webapp/Trips.tsx",
-      "sha256": "8d3aef0013cc13b89ab34320d693d1f3dccc10a5db7ab278a80940d271241309"
+      "sha256": "d6d7a8546aa8e99237e06ea715d9e7eb12aa01b69d510aefd4682704516c7ad7"
     },
     {
       "path": "components/webapp/api.ts",
-      "sha256": "f8615c388d1bfbf603c6cc6bea09bfac02d891eadcb99d902fae98184da2e1ef"
+      "sha256": "8579182f7da2212d93707b1565a1fd43bbe85b58fe44eee76b5853ea89bb4983"
     },
     {
       "path": "components/webapp/webapp.css",
@@ -188,51 +192,55 @@
     },
     {
       "path": "docs/handoff/WEBAPP_CONTINUATION.md",
-      "sha256": "9654dc36ef291009341adeb4839264f0d50e0346f0ef041cdd0c87a8b273eae7"
+      "sha256": "aad88bc356c5ba53174c8e4a65ef7f5dbd8c7c92525d6b3c450568438af66e04"
+    },
+    {
+      "path": "docs/handoff/WEBAPP_QA_REPORT.md",
+      "sha256": "5e5ce06e7a403c28865d5f04841ead12ff836074fbe38aeef77cb59c1d05b12d"
     },
     {
       "path": "lib/host/mobile-access-policy.ts",
-      "sha256": "f1975b5c2a28678a9d1373b83e60c8e9d754cebcaaf815f8ef70dfeab7eedf4e"
+      "sha256": "75080e47e9e5783ad0c2359428ec00cceb816c6ebe42b1f8b0ac630f59593a68"
     },
     {
       "path": "lib/host/mobile-access.ts",
-      "sha256": "44d9c084b79da70cfe3430f9cfdbb5983ee7405ec2ddb6c0d03727a462aedc60"
+      "sha256": "9b3d23d221550c899b6ae81d5b4cd48429175937466464a3e5a1b5ce3464792f"
     },
     {
       "path": "lib/mobile/host-access.ts",
-      "sha256": "9fd420f540d97200147a8dcd285a8bf3ed2b7a16135a488c1c89b0d2ba800661"
+      "sha256": "642e19ba7f486ac932edd6e0d8a45b3489fafe6ef5696e0a2e8707905c0a3adb"
     },
     {
       "path": "lib/mobile/http.ts",
-      "sha256": "75408bef90babb6c4b7b41ffee2b7215ae780197b71ee19104023abffee688d9"
+      "sha256": "71a533975fa4799fb659d5e9c330656176a16e8f2f39b078c67e98d1dc84ad79"
     },
     {
       "path": "lib/mobile/identity.ts",
-      "sha256": "6efc4ce87ee638cea33f348fc64ab980b6f7e281ac9ea0e5465fe4f2ab63525c"
+      "sha256": "182fbb5d288557ed10d793a08536fe5ef93e12826b795755624d4d1273706356"
     },
     {
       "path": "lib/mobile/trip-bridge.ts",
-      "sha256": "057e853ddf743eb10674df82333ac94077d102d05d67791483059261744087bd"
+      "sha256": "9e22bd312c7abcc2ffbe5a2252e81ab7e688ea241a627b8ef83b28c03b21522e"
     },
     {
       "path": "lib/mobile/user-client.ts",
-      "sha256": "930376529dfe62bab06379cf21c85e633d00347924467270d014be10a4740783"
+      "sha256": "911831d745e9d1b857832f878d1c26d53da73fcfcaf901c70584865d009dab48"
     },
     {
       "path": "lib/payments/host-app-events.ts",
-      "sha256": "c5c3b7520b21cc9b042094eab76fd492d35e82bb55a28c05fef0f2ccda396c30"
+      "sha256": "43cb8da45f74f74811516c33ba4a87b6d70d2a84dba565cee8a2c461d3f56eba"
     },
     {
       "path": "lib/payments/host-mobile-billing.ts",
-      "sha256": "fc3cd4edb5ec1d2afbe963b029b1580676c4dba79cfa3012ed09bc9af8dd26ac"
+      "sha256": "2d2d3c3fa3393167d650abd10af05b4759e24ddec3fdfeb63ddae1a41d7c7cb9"
     },
     {
       "path": "package-lock.json",
-      "sha256": "1020ca427167c3765e64be3e7bf02c4441e5e18543d4187f36c6942bb323de38"
+      "sha256": "1db5c408e5d5c1641314ce700b60c1bbf8e3a5d3cf84216659b56ac1e3af8861"
     },
     {
       "path": "package.json",
-      "sha256": "442ffad0167e7aff4f800d9442261105f9b7b6d44913478f2f8ac33cc1410ed3"
+      "sha256": "654f09d2a28c1eb3ab050f77a20edcc5fb2db6f65f546042f060cc61d6e67309"
     },
     {
       "path": "public/webapps/icons/guest-192.png",
@@ -267,8 +275,24 @@
       "sha256": "6e1d834a035657489986c74951c384f2399c05a764c13bd17aba6c45c037b8c2"
     },
     {
+      "path": "tests/build-fixture.cjs",
+      "sha256": "26c1a524715d7f8f7662a863f6c8f547da9906afdf362c985e27c93cd4c78b90"
+    },
+    {
       "path": "tests/mobile-security.test.cjs",
-      "sha256": "9e76d34be9829add180f28153cd096ecb87183b0f4ddbc507062b30b54e3f756"
+      "sha256": "028757fc09588bccbfea7395902baa999ba816e062992f6bbc3e377faf3f914e"
+    },
+    {
+      "path": "tests/run-build-fixture.cjs",
+      "sha256": "2e46d4750ff650f708a6999857554e6bbbe7e4c4f59102dae614b343af319f45"
+    },
+    {
+      "path": "tests/webapp-edge-ui.cjs",
+      "sha256": "51639a73a56a6d18178b4720be596090e8dbdec922d5318afbb34a80278443c8"
+    },
+    {
+      "path": "tests/webapp-regressions.test.cjs",
+      "sha256": "30eb61e0938ab3107ed21b8919f688c0ede152c9c8236832a1f404efe5a33d04"
     },
     {
       "path": "tests/webapp-ui.cjs",
@@ -282,5 +306,6 @@
       "path": "vercel.json",
       "sha256": "2f72a5f90bc05ea62629cc6b28d086edf2d4ae361d7fcb4617fe554ae7522a0e"
     }
-  ]
+  ],
+  "revision": "QA corrected 2026-11-10"
 }

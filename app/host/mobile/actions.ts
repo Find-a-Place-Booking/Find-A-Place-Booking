@@ -2,22 +2,34 @@
 
 import { redirect } from "next/navigation";
 
-import { requireMobileOrgOwner } from "@/lib/host/mobile-access";
+import { reconcileHostAppSubscription } from "@/lib/payments/host-app-events";
 import {
-  resolveHostMobilePrice, mobileAppEnabled, mobileBillingEnabled,
-  mobileBillingReturnUrl, type HostMobilePlan,
+  getHostMobileOrganizations,
+  requireMobileOrgOwner,
+} from "@/lib/host/mobile-access";
+import {
+  hostMobileTrialSettings,
+  reusableHostMobileCheckout,
+  resolveHostMobilePrice,
+  mobileAppEnabled,
+  mobileBillingEnabled,
+  mobileBillingReturnUrl,
+  type HostMobilePlan,
 } from "@/lib/payments/host-mobile-billing";
 import { getStripeClient } from "@/lib/payments/stripe-checkout";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 function input(form: FormData, key: string): string {
-  return String(form.get(key) ?? "").trim().slice(0, 120);
+  return String(form.get(key) ?? "")
+    .trim()
+    .slice(0, 120);
 }
 
 // Explicitly opted-in free trial; no charge and no Stripe subscription.
 export async function activateMobileTrial(form: FormData) {
   const organizationId = input(form, "organizationId");
-  const { organization, profileId } = await requireMobileOrgOwner(organizationId);
+  const { organization, profileId } =
+    await requireMobileOrgOwner(organizationId);
   if (!mobileAppEnabled()) redirect("/host/mobile?billing=not-launched");
   if (organization.mode === "PARTNER" || organization.mode === "SUBSCRIBED") {
     redirect("/host/mobile");
@@ -38,22 +50,32 @@ export async function activateMobileTrial(form: FormData) {
 export async function startMobileSubscription(form: FormData) {
   const organizationId = input(form, "organizationId");
   const plan = input(form, "plan") as HostMobilePlan;
-  const { organization, profileId } = await requireMobileOrgOwner(organizationId);
+  const { organization, profileId } =
+    await requireMobileOrgOwner(organizationId);
   if (!mobileBillingEnabled()) redirect("/host/mobile?billing=not-launched");
-  if (organization.partnerStatus === "VERIFIED" || organization.mode === "SUBSCRIBED") {
+  if (
+    organization.partnerStatus === "VERIFIED" ||
+    organization.mode === "SUBSCRIBED"
+  ) {
     redirect("/host/mobile");
   }
-  if (plan !== "monthly" && plan !== "yearly") redirect("/host/mobile?billing=invalid-plan");
-
+  if (plan !== "monthly" && plan !== "yearly")
+    redirect("/host/mobile?billing=invalid-plan");
 
   let checkoutUrl: string | null = null;
   try {
     const stripe = getStripeClient();
     const price = await resolveHostMobilePrice(plan);
     const priceId = price.id;
-    if (!price.active || price.type !== "recurring" || !price.recurring ||
-        price.recurring.interval !== (plan === "monthly" ? "month" : "year")) {
-      throw new Error("Configured Stripe price is not an active recurring plan.");
+    if (
+      !price.active ||
+      price.type !== "recurring" ||
+      !price.recurring ||
+      price.recurring.interval !== (plan === "monthly" ? "month" : "year")
+    ) {
+      throw new Error(
+        "Configured Stripe price is not an active recurring plan.",
+      );
     }
 
     const admin = createAdminClient();
@@ -68,78 +90,134 @@ export async function startMobileSubscription(form: FormData) {
     if (!customerId) {
       // Stable Stripe idempotency prevents two requests for the same owner/org
       // from creating duplicate customer records.
-      const { data: profile } = await admin.from("profiles")
-        .select("email").eq("id", profileId).maybeSingle();
-      const customer = await stripe.customers.create({
-        email: profile?.email || undefined,
-        name: organization.name,
-        metadata: { fap_product: "HOST_MOBILE", organization_id: organizationId },
-      }, { idempotencyKey: `fap-host-mobile-customer-${organizationId}` });
+      const { data: profile } = await admin
+        .from("profiles")
+        .select("email")
+        .eq("id", profileId)
+        .maybeSingle();
+      const customer = await stripe.customers.create(
+        {
+          email: profile?.email || undefined,
+          name: organization.name,
+          metadata: {
+            fap_product: "HOST_MOBILE",
+            organization_id: organizationId,
+          },
+        },
+        { idempotencyKey: `fap-host-mobile-customer-${organizationId}` },
+      );
       customerId = customer.id;
-      const { error: savedError } = await admin.from("host_mobile_access")
-        .upsert({
-          organization_id: organizationId,
-          stripe_customer_id: customerId,
-        }, { onConflict: "organization_id" });
+      const { error: savedError } = await admin
+        .from("host_mobile_access")
+        .upsert(
+          {
+            organization_id: organizationId,
+            stripe_customer_id: customerId,
+          },
+          { onConflict: "organization_id" },
+        );
       if (savedError) throw savedError;
     }
 
     // Never create a second checkout while Stripe already has an ongoing
     // subscription for this organization (including incomplete/past_due).
-    const subs = await stripe.subscriptions.list({ customer: customerId, status: "all", limit: 100 });
-    if (subs.data.some(sub => ["active", "trialing", "past_due", "unpaid", "incomplete", "paused"].includes(sub.status))) {
+    const subs = await stripe.subscriptions.list({
+      customer: customerId,
+      status: "all",
+      limit: 100,
+    });
+    if (
+      subs.data.some((sub) =>
+        [
+          "active",
+          "trialing",
+          "past_due",
+          "unpaid",
+          "incomplete",
+          "paused",
+        ].includes(sub.status),
+      )
+    ) {
       redirect("/host/mobile?billing=existing-subscription");
     }
 
     // One open host-mobile Checkout per organization. A host might click twice,
     // reopen the page, or return from Stripe without completing payment.
     // Reuse the existing session rather than opening multiple payment paths.
-    const sessions = await stripe.checkout.sessions.list({ customer: customerId, limit: 100 });
-    const mobileSessions = sessions.data.filter((session) =>
-      session.mode === "subscription" &&
-      session.metadata?.fap_product === "HOST_MOBILE" &&
-      session.metadata?.organization_id === organizationId,
+    const sessions = await stripe.checkout.sessions.list({
+      customer: customerId,
+      limit: 100,
+    });
+    const mobileSessions = sessions.data.filter(
+      (session) =>
+        session.mode === "subscription" &&
+        session.metadata?.fap_product === "HOST_MOBILE" &&
+        session.metadata?.organization_id === organizationId,
     );
-    const openSession = mobileSessions.find((session) =>
-      session.status === "open" &&
-      typeof session.url === "string" &&
-      Number(session.expires_at || 0) * 1000 > Date.now(),
+    const openSession = mobileSessions.find(
+      (session) =>
+        session.status === "open" &&
+        typeof session.url === "string" &&
+        Number(session.expires_at || 0) * 1000 > Date.now(),
     );
     if (openSession) {
       if (openSession.metadata?.plan !== plan) {
         redirect("/host/mobile?billing=checkout-already-open");
       }
-      checkoutUrl = openSession.url;
-    } else {
+      checkoutUrl = await reusableHostMobileCheckout(
+        stripe,
+        openSession,
+        priceId,
+      );
+    }
+    if (!checkoutUrl) {
       // Idempotency is tied to the previous checkout session, not a random
       // UUID. Concurrent requests with the same starting state cannot create
       // separate sessions. After an expired checkout is cleared, a new key
       // allows a fresh attempt without waiting 24 hours.
       const previousSessionId = mobileSessions[0]?.id || "initial";
-      const session = await stripe.checkout.sessions.create({
-        mode: "subscription",
-        integration_identifier: "fap_host_webapp_qzmpxjra",
-        customer: customerId,
-        line_items: [{ price: priceId, quantity: 1 }],
-        allow_promotion_codes: true,
-        success_url: mobileBillingReturnUrl("success"),
-        cancel_url: mobileBillingReturnUrl("cancel"),
-        client_reference_id: organizationId,
-        metadata: {
-          fap_product: "HOST_MOBILE", organization_id: organizationId, plan,
+      const session = await stripe.checkout.sessions.create(
+        {
+          mode: "subscription",
+          integration_identifier: "fap_host_webapp_qzmpxjra",
+          customer: customerId,
+          line_items: [{ price: priceId, quantity: 1 }],
+          allow_promotion_codes: true,
+          success_url: mobileBillingReturnUrl("success"),
+          cancel_url: mobileBillingReturnUrl("cancel"),
+          client_reference_id: organizationId,
+          metadata: {
+            fap_product: "HOST_MOBILE",
+            organization_id: organizationId,
+            plan,
+          },
+          subscription_data: {
+            ...hostMobileTrialSettings(
+              organization.mode === "TRIAL"
+                ? organization.trialExpiresAt
+                : null,
+            ),
+            metadata: {
+              fap_product: "HOST_MOBILE",
+              organization_id: organizationId,
+            },
+          },
         },
-        subscription_data: {
-          metadata: { fap_product: "HOST_MOBILE", organization_id: organizationId },
+        {
+          idempotencyKey: `fap-host-mobile-checkout-${organizationId}-${previousSessionId}`,
         },
-      }, {
-        idempotencyKey: `fap-host-mobile-checkout-${organizationId}-${previousSessionId}`,
-      });
+      );
       checkoutUrl = session.url;
     }
   } catch (error) {
     // Next.js redirect() throws; it must not be swallowed as a billing error.
-    if (error && typeof error === "object" && "digest" in error &&
-        String(error.digest).startsWith("NEXT_REDIRECT")) throw error;
+    if (
+      error &&
+      typeof error === "object" &&
+      "digest" in error &&
+      String(error.digest).startsWith("NEXT_REDIRECT")
+    )
+      throw error;
     console.error("[host mobile] subscription checkout error", {
       errorType: error instanceof Error ? error.name : "unknown",
     });
@@ -156,10 +234,13 @@ export async function manageMobileSubscription(form: FormData) {
   let portalUrl: string | null = null;
   try {
     const admin = createAdminClient();
-    const { data, error } = await admin.from("host_mobile_access")
+    const { data, error } = await admin
+      .from("host_mobile_access")
       .select("stripe_customer_id")
-      .eq("organization_id", organizationId).maybeSingle();
-    if (error || !data?.stripe_customer_id) throw new Error("Billing customer not found.");
+      .eq("organization_id", organizationId)
+      .maybeSingle();
+    if (error || !data?.stripe_customer_id)
+      throw new Error("Billing customer not found.");
     const portal = await getStripeClient().billingPortal.sessions.create({
       customer: data.stripe_customer_id,
       return_url: mobileBillingReturnUrl("portal"),
@@ -182,19 +263,24 @@ export async function resetMobileSubscriptionCheckout(form: FormData) {
   await requireMobileOrgOwner(organizationId);
   try {
     const admin = createAdminClient();
-    const { data: row, error } = await admin.from("host_mobile_access")
+    const { data: row, error } = await admin
+      .from("host_mobile_access")
       .select("stripe_customer_id")
-      .eq("organization_id", organizationId).maybeSingle();
+      .eq("organization_id", organizationId)
+      .maybeSingle();
     if (error) throw error;
     if (row?.stripe_customer_id) {
       const stripe = getStripeClient();
       const sessions = await stripe.checkout.sessions.list({
-        customer: row.stripe_customer_id, limit: 100,
+        customer: row.stripe_customer_id,
+        limit: 100,
       });
-      const candidates = sessions.data.filter((session) =>
-        session.status === "open" && session.mode === "subscription" &&
-        session.metadata?.fap_product === "HOST_MOBILE" &&
-        session.metadata?.organization_id === organizationId,
+      const candidates = sessions.data.filter(
+        (session) =>
+          session.status === "open" &&
+          session.mode === "subscription" &&
+          session.metadata?.fap_product === "HOST_MOBILE" &&
+          session.metadata?.organization_id === organizationId,
       );
       for (const session of candidates) {
         await stripe.checkout.sessions.expire(session.id);
@@ -207,4 +293,40 @@ export async function resetMobileSubscriptionCheckout(form: FormData) {
     redirect("/host/mobile?billing=unavailable");
   }
   redirect("/host/mobile?billing=checkout-cleared");
+}
+
+/** Explicitly recheck Stripe when the browser returns before its webhook arrives. */
+export async function refreshMobileSubscription(form: FormData) {
+  const organizationId = input(form, "organizationId");
+  const organizations = await getHostMobileOrganizations();
+  if (!organizations.some((org) => org.id === organizationId))
+    redirect("/host/mobile?billing=access-required");
+  try {
+    const admin = createAdminClient();
+    const row = await admin
+      .from("host_mobile_access")
+      .select("stripe_customer_id")
+      .eq("organization_id", organizationId)
+      .maybeSingle();
+    if (row.error) throw row.error;
+    if (row.data?.stripe_customer_id) {
+      const subs = await getStripeClient().subscriptions.list({
+        customer: row.data.stripe_customer_id,
+        status: "all",
+        limit: 100,
+      });
+      const candidates = subs.data.filter(
+        (sub) =>
+          sub.metadata?.fap_product === "HOST_MOBILE" &&
+          sub.metadata?.organization_id === organizationId,
+      );
+      const chosen =
+        candidates.find((sub) => ["active", "trialing"].includes(sub.status)) ||
+        candidates[0];
+      if (chosen) await reconcileHostAppSubscription(chosen.id);
+    }
+  } catch {
+    redirect("/host/mobile?billing=refresh-unavailable");
+  }
+  redirect("/host/mobile?billing=refreshed");
 }

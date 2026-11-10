@@ -49,15 +49,18 @@ The current Vercel connection exposed no matching Find A Place project, so no en
 
 The package contains the additive host-app migration sources, including the newly installed admin verification RPC, for repository history and other environments. The production host_mobile_access table, Stripe columns and trial function already existed. Compare migration history before applying historical files; do not rerun old functions out of order. This web package does not need the native push tables or migration.
 
-## Verification
+## Verification — corrected QA overlay (2026-11-10)
 
-- Repository TypeScript: passed.
-- 33 access/billing tests: passed, including guest rejection, organization spoofing, CSRF protection, failed-payment access, stale webhook handling and price validation.
-- Guest/host web component integration tests: passed, including absence of guest host-controls, trip lookup, chat, partner access, owner block confirmation/removal and rate editing.
-- Next.js compilation and its TypeScript stage: passed. The complete local build stops during prerender of the existing /host-profiles page because this checkout has no server Supabase environment; complete production build and deployed flow verification remain pending.
-- Actual browser screenshots/device testing: not performed in this runtime. DOM tests use synthetic data and mocked backend calls.
+- Fresh dependency installation and repository TypeScript check passed.
+- 72 automated security, billing, API and regression tests passed.
+- Seven DOM integration scenario groups passed for guest and host flows, failed calendar loads, reservation switching, pending requests, late responses and revoked access.
+- Full Next.js 16.4.6 production build passed, including 106 generated pages, using isolated Supabase fixtures. This verifies compilation and rendering, not production database behavior.
+- Full dependency audit reported zero known vulnerabilities at the time of testing.
+- Actual browser/device screenshots and live payment lifecycle testing remain unperformed. Deploy and check the real environment before promoting the apps.
 
-Developer checks: npm ci, npm run typecheck, node --test tests/mobile-security.test.cjs, node tests/webapp-ui.cjs.
+Developer checks: `npm ci`, `npm run typecheck`, `npm run qa:webapp`, `npm run qa:build`, `npm audit`. The `qa:build` command deliberately uses dummy database fixtures and blocks outbound access; never enable its fixture preload in deployment. Normal deployment continues to use `npm run build` with real environment configuration.
+
+See `docs/handoff/WEBAPP_QA_REPORT.md` for findings, fixes and remaining verification limits. This corrected overlay replaces the earlier web-app ZIP.
 
 ## Operational details
 
