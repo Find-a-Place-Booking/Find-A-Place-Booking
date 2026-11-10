@@ -1,0 +1,106 @@
+/* Scoped to the guest-app invitation and host dashboard. No header/layout changes. */
+.guestLink {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 37px;
+  padding: 7px 13px;
+  border-radius: 999px;
+  border: 1px solid rgba(245, 225, 177, .53);
+  background: #f2e4c5;
+  color: #284337 !important;
+  font-size: .76rem;
+  font-weight: 820;
+  line-height: 1.15;
+  white-space: nowrap;
+  text-decoration: none;
+  box-shadow: 0 2px 7px rgba(6, 23, 14, .15);
+  transition: background .15s ease, transform .15s ease;
+}
+.guestLink:hover { background: #fff1d0; transform: translateY(-1px); }
+.guestLink:focus-visible { outline: 3px solid #f2c681; outline-offset: 3px; }
+.guestIcon { width: 17px; height: 18px; display: inline-flex; align-items: center; justify-content: center; }
+.guestIcon svg { width: 17px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+@media (max-width: 720px) {
+  .ribbonIcons { display: none !important; }
+  .guestLink { min-height: 35px; padding: 7px 10px; font-size: .72rem; }
+}
+@media (max-width: 365px) { .guestLink { font-size: .68rem; gap: 5px; padding: 7px 8px; } }
+
+.hostAppNotice {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  padding: 16px 18px;
+  margin: 0 0 18px;
+  border: 1px solid #d4ddd3;
+  border-left: 3px solid #638575;
+  border-radius: 11px;
+  background: #f6f8f3;
+  color: #263b32;
+}
+.hostAppGlyph {
+  flex: 0 0 43px;
+  width: 43px;
+  height: 43px;
+  display: grid;
+  place-items: center;
+  border-radius: 11px;
+  background: #e1ebe2;
+  color: #284b37;
+}
+.hostAppGlyph svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round; }
+.hostAppText { flex: 1 1 auto; min-width: 0; }
+.hostAppText strong { display: block; font-size: .9rem; font-weight: 800; }
+.hostAppText p { margin: 3px 0 0; font-size: .77rem; color: #667468; line-height: 1.45; }
+.hostAppAction {
+  flex: 0 0 auto;
+  min-height: 40px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 9px 14px;
+  border-radius: 9px;
+  background: #29483a;
+  color: #fff !important;
+  font-size: .79rem;
+  font-weight: 770;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.hostAppAction:hover { background: #1d392c; }
+.hostAppAction:focus-visible { outline: 3px solid #8cb89d; outline-offset: 3px; }
+@media (max-width: 620px) {
+  .hostAppNotice { flex-wrap: wrap; padding: 14px; gap: 11px; }
+  .hostAppGlyph { flex-basis: 37px; width: 37px; height: 37px; }
+  .hostAppText { flex-basis: calc(100% - 50px); }
+  .hostAppAction { width: 100%; }
+}
+.installPanel {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  padding: 15px !important;
+  border: 1px solid #cddcce !important;
+  background: #f5f9f4 !important;
+}
+.installCopy { flex: 1 1 180px; }
+.installCopy strong { display: block; font-size: 15px; color: #213c2b; }
+.installCopy p { margin: 5px 0 0 !important; font-size: 13px; line-height: 1.45; color: #59695f; }
+.installPanel button { flex: 0 0 auto; }
+.installHelp {
+  width: 100%;
+  padding: 10px 12px;
+  background: #fff;
+  border: 1px solid #e0e6df;
+  border-radius: 9px;
+  font-size: 13px;
+  color: #3c4d40;
+  line-height: 1.5;
+}
+.installHelp p { margin: 5px 0 0 !important; }
+@media (max-width: 440px) { .installPanel button { width: 100%; } }
+@media (prefers-reduced-motion: reduce) { .guestLink { transition: none; } }

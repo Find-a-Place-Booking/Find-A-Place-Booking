@@ -120,6 +120,9 @@ export function Header({ light = false }: { light?: boolean }) {
               </div>
 
               <div className="mobile-menu-secondary">
+                <Link href="/apps/guest" onClick={closeMenu}>
+                  Get the free guest app
+                </Link>
                 <SavedStayNavLink mobile onNavigate={closeMenu} />
                 <Link href="/trip" onClick={closeMenu}>
                   My trip

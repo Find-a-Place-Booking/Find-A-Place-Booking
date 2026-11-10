@@ -1,0 +1,25 @@
+FIND A PLACE BOOKING — PRODUCTION CHECK SUMMARY
+Checked November 9, 2026 (Central time) / November 10 UTC.
+
+Verified from connected public website and Supabase:
+- Home and /stays respond and show published inventory (56 published listings in database).
+- Database health advisor: no health lints.
+- Last 24h calendar runs: 2,308 SUCCESS records.
+- Active calendar connections by major source: Airbnb 25 without recorded error, Vrbo 12 without recorded error, ThinkReservations 3 without recorded error.
+- IMPORTANT: 10 active ResNexus connections have stale last-success timestamps and all report: "ResNexus did not accept the saved login. Replace the login/password in Find A Place." Last success: October 30. Host credentials need updating. Do not force-resync blindly.
+- Stripe account states: READY 21; RESTRICTED 2; PENDING 2; DISABLED 1. Non-ready accounts need host/admin review.
+- Booking consistency: 3 LIVE confirmed/paid reservations; no LIVE confirmed-but-unpaid or paid-but-expired records in snapshot. This is not an end-to-end payment test.
+- Notification deliveries stored: 133 SENT; no currently FAILED rows in notification_deliveries. This does not guarantee every other mail workflow is configured correctly.
+- 838 property_images records; all 838 have corresponding storage.objects entries.
+- However Supabase edge logs show recurring HTTP 400 responses from Storage signed-image requests (about 155 on November 9 UTC and 75 on November 10 UTC so far), even though one tested image object still exists. Investigate signing/permission behavior before changing paths or bucket policies.
+- Supabase edge logs have no 500-series statuses in the observed 24-hour sample; 400/403/404 do occur. Four historic 404 calls to the introductory-offer RPC predate the previously applied DB migration. Several 404s also reference public_listing_detail and should be monitored.
+- Introductory 25% offer RPC works, but zero properties are enrolled/eligible in the current snapshot (host opt-in required).
+- Supabase security/performance advisors still flag legacy issues (including callable SECURITY DEFINER functions); they should be audited separately rather than blanket-revoked, which could break booking/admin flows.
+
+Not verified:
+- Vercel deployment history/runtime logs: connected Vercel account did not expose the Find A Place project.
+- Actual guest/host PWA install prompts on Safari/Android/Chrome: real-device verification still required.
+- Full TypeScript typecheck and Next.js production build against the complete GitHub repository; only overlay files were parsed and linked statically.
+- End-to-end real Stripe booking, subscription, and ResNexus credential refresh.
+
+The attached overlay changes only guest/host install discoverability and presentation. It does NOT modify the database, calendar sync, Stripe, or booking services.

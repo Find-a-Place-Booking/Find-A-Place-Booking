@@ -2,6 +2,7 @@ import { Suspense } from "react";
 import Link from "next/link";
 
 import { signOutHost } from "@/app/auth/actions";
+import { HostAppInstallNotice } from "@/components/HostAppInstallNotice";
 import { HostHelpAssistant } from "@/components/HostHelpAssistant";
 import { HostInboxEnhancer } from "@/components/HostInboxEnhancer";
 import { HostMissedCheckoutOffers } from "@/components/HostMissedCheckoutOffers";
@@ -82,6 +83,7 @@ export async function DashboardShell({
           </div>
         </header>
 
+        {active === "Overview" ? <HostAppInstallNotice /> : null}
         <HostHelpAssistant />
         <HostRecoveryAlert />
         {(active === "Overview" || active === "Reservations" || active === "Booking recovery") ? (

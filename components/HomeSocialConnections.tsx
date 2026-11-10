@@ -8,6 +8,7 @@ import { FIND_A_PLACE_SOCIAL_LINKS } from "@/lib/brand-links";
 import { SocialIcon } from "./SocialIcon";
 import { TrackedLink } from "./TrackedLink";
 import styles from "./HomeSocialConnections.module.css";
+import appStyles from "./AppInstallLinks.module.css";
 
 const primarySocials = FIND_A_PLACE_SOCIAL_LINKS.filter(
   (social) => social.network !== "lemon8",
@@ -15,14 +16,14 @@ const primarySocials = FIND_A_PLACE_SOCIAL_LINKS.filter(
 
 export function HomeSocialRibbon() {
   return (
-    <div className={`shell ${styles.ribbon}`} aria-label="Follow Find A Place on social media">
+    <div className={`shell ${styles.ribbon}`} aria-label="Follow Find A Place on social media and get the free guest app">
       <span className={styles.ribbonMessage}>
         <span className={styles.ribbonMark} aria-hidden="true">✦</span>
         <strong>Follow the adventure</strong>
         <span className={styles.ribbonDescription}>Where our community began.</span>
       </span>
       <div className={styles.ribbonActions}>
-        <div className={styles.ribbonIcons}>
+        <div className={`${styles.ribbonIcons} ${appStyles.ribbonIcons}`}>
           {primarySocials.map((social) => (
             <TrackedLink
               key={social.network}
@@ -42,6 +43,12 @@ export function HomeSocialRibbon() {
         </div>
         <Link className={styles.ribbonStory} href="/social">
           Our social story <span aria-hidden="true">↗</span>
+        </Link>
+        <Link className={appStyles.guestLink} href="/apps/guest" aria-label="Get the free Find A Place guest app">
+          <span className={appStyles.guestIcon} aria-hidden="true">
+            <svg viewBox="0 0 24 24"><rect x="6" y="2.5" width="12" height="19" rx="2"/><path d="M10 18.5h4M9 6.5h6"/></svg>
+          </span>
+          Get the free app
         </Link>
       </div>
     </div>
