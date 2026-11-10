@@ -67,3 +67,20 @@
   }
 
 }
+
+.introOffer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 3px 8px;
+  margin: 7px 0;
+  padding: 8px 10px;
+  border: 1px solid #b8d0be;
+  border-radius: 8px;
+  background: #eef4ec;
+  color: #315841;
+  font-size: .71rem;
+  line-height: 1.4;
+}
+.introOffer strong { font-weight: 800; }
+.introOffer span { font-size: .65rem; }

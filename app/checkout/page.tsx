@@ -6,6 +6,7 @@ import { CheckoutExitLink } from "@/components/CheckoutExitLink";
 import { DirectBookingValue } from "@/components/DirectBookingValue";
 import { GuestCheckout } from "@/components/GuestCheckout";
 import { getPublishedListingBySlug } from "@/lib/public/listings";
+import { getPublicIntroOfferForUnit } from "@/lib/public/intro-offers";
 import { stripeEnvironment } from "@/lib/payments/booking-runtime";
 import { createAdminClient } from "@/lib/supabase/admin";
 import styles from "./CheckoutSubtotal.module.css";
@@ -13,6 +14,7 @@ import "./checkout-no-pets.css";
 
 type InitialQuote = {
   currency?: string;
+  discount_cents?: number;
   lodging_subtotal_before_discount_cents?: number;
   lodging_subtotal_cents?: number;
   fee_lines?: Array<{
@@ -39,6 +41,7 @@ function money(cents: number, currency = "USD") {
 
 async function getInitialQuote(input: {
   unitId: string;
+  promotionCode?: string | null;
   checkIn: string;
   checkOut: string;
   guests: number;
@@ -52,7 +55,7 @@ async function getInitialQuote(input: {
       guest_count: input.guests,
       pet_count: 0,
       selected_add_on_ids: [],
-      promotion_code: null,
+      promotion_code: input.promotionCode || null,
     };
     // The staged fee quote includes mandatory guest fees in the displayed total.
     // Do not expose an incomplete service-fee breakdown if the new RPC fails.
@@ -176,7 +179,11 @@ export default async function CheckoutPage({
     Math.min(property.sleeps, Number(params.guests || 1) || 1),
   );
 
+  const introOffer = (params.reservationId && params.checkoutToken)
+    ? null
+    : await getPublicIntroOfferForUnit(property.unitId);
   const initialEstimate = await getInitialQuote({
+    promotionCode: introOffer?.code || null,
     unitId: property.unitId,
     checkIn: params.checkIn,
     checkOut: params.checkOut,
@@ -224,6 +231,9 @@ export default async function CheckoutPage({
                 <b>{money(lodgingCents, currency)}</b>
               </div>
 
+              {Number(initialQuote?.discount_cents || 0) > 0 ? (
+                <div><span>New host offer · 25% off lodging</span><b>−{money(Number(initialQuote?.discount_cents || 0), currency)}</b></div>
+              ) : null}
               {feeLines.map((line, index) => (
                 <div key={line.id || `${line.type}-${index}`}>
                   <span>{line.label}</span>
@@ -266,6 +276,7 @@ export default async function CheckoutPage({
             turnstileSiteKey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || ""}
             initialReservationId={params.reservationId || null}
             initialCheckoutToken={params.checkoutToken || null}
+            initialPromotionCode={introOffer?.code || ""}
           />
         </div>
       </div>

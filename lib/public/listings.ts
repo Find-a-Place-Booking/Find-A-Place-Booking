@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 
 import type { NearbyExperiencePreview, Property } from "@/data/catalog";
+import { getPublicIntroOffers } from "@/lib/public/intro-offers";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { createSignedUrlMap } from "@/lib/storage/signed-urls";
@@ -402,6 +403,9 @@ export async function getPublishedProperties(
       ? allRows.slice(0, options.limit)
       : allRows;
 
+  const introOfferRows = await getPublicIntroOffers();
+  const introByUnit = new Map(introOfferRows.map((offer) => [offer.unitId, offer.remaining]));
+
   const coverPaths = rows.map((row) => row.image_paths?.[0] ?? null);
   const signedCovers = await createSignedUrlMap(
     supabase,
@@ -510,6 +514,7 @@ export async function getPublishedProperties(
       instantBook: false,
       lat: Number.isFinite(mapLatitude) ? mapLatitude : 0,
       lng: Number.isFinite(mapLongitude) ? mapLongitude : 0,
+      introOfferRemaining: introByUnit.get(row.unit_id) ?? 0,
       nearbyExperienceCount: nearby?.count ?? 0,
       nearbyExperiences: nearby?.items ?? [],
     } satisfies Property;

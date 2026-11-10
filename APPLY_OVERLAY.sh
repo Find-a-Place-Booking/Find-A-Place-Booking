@@ -1,4 +1,3 @@
-#!/usr/bin/env bash
-set -euo pipefail
-cd "$(dirname "$0")"
+#!/bin/sh
+set -e
 python3 apply_overlay.py

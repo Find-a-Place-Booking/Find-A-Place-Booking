@@ -28,6 +28,7 @@ export type Property = {
   instantBook: boolean;
   lat: number;
   lng: number;
+  introOfferRemaining?: number;
   nearbyExperienceCount?: number;
   nearbyExperiences?: NearbyExperiencePreview[];
 };

@@ -14,6 +14,7 @@ import { PropertyReviews } from "@/components/PropertyReviews";
 import { PublicHostCard } from "@/components/PublicHostCard";
 import { PublicNearbyExperiences } from "@/components/PublicNearbyExperiences";
 import { getPublishedListingBySlug } from "@/lib/public/listings";
+import { getPublicIntroOfferForUnit } from "@/lib/public/intro-offers";
 import { absoluteUrl, seoDescription } from "@/lib/seo";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -179,6 +180,7 @@ export default async function PropertyPage({
       : {}),
   };
 
+  const introOffer = await getPublicIntroOfferForUnit(property.unitId);
   const checkoutEnabled =
     process.env.BOOKING_CHECKOUT_ENABLED === "true";
   const testMode = (
@@ -201,6 +203,11 @@ export default async function PropertyPage({
               {property.state} · {property.type}
             </p>
             <h1>{property.name}</h1>
+            {introOffer ? (
+              <p style={{display:"inline-block",margin:"8px 0",padding:"8px 12px",borderRadius:8,background:"#eef4ec",color:"#315841",fontWeight:750}}>
+                New host special: 25% off lodging · {introOffer.remaining} {introOffer.remaining===1?"booking":"bookings"} left
+              </p>
+            ) : null}
             <p>
               {property.location}
               {property.reviewCount

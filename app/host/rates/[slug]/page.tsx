@@ -57,6 +57,7 @@ export default async function PropertyRatesPage({
 }) {
   const [{ slug }, query] = await Promise.all([params, searchParams]);
   const { property, pricing } = await getPricingWorkspaceBySlug(slug);
+  const editablePromotions = pricing.promotion_codes.filter((item) => !item.code.startsWith("FAP25-"));
   const feeRecord = (type: string) => pricing.fees.find((item) => item.fee_type === type) ?? null;
   const fee = (type: string) => feeRecord(type)?.amount_cents ?? null;
   const petFee = feeRecord("PET");
@@ -143,13 +144,13 @@ export default async function PropertyRatesPage({
     </section>
 
     <section className="panel pricing-rule-section pricing-promotions-section">
-      <div className="panel-head"><div><p className="eyebrow dark">Promo & discount codes</p><h2>Host-controlled lodging discounts</h2></div><span>{pricing.promotion_codes.length}</span></div>
+      <div className="panel-head"><div><p className="eyebrow dark">Promo & discount codes</p><h2>Host-controlled lodging discounts</h2></div><span>{editablePromotions.length}</span></div>
       <p className="muted">Create a percentage or fixed-dollar discount without changing your normal nightly rate. Promo codes apply to lodging only, and advertised special rates do not stack with a code unless you choose to allow it.</p>
-      <details className="pricing-create" open={!pricing.promotion_codes.length}>
+      <details className="pricing-create" open={!editablePromotions.length}>
         <summary>+ Add promo code</summary>
         <PromotionCodeForm unitId={property.unitId} slug={property.form.slug} />
       </details>
-      <div className="pricing-addon-grid">{pricing.promotion_codes.map((promotion) => <details className="pricing-addon-card" key={promotion.id}>
+      <div className="pricing-addon-grid">{editablePromotions.map((promotion) => <details className="pricing-addon-card" key={promotion.id}>
         <summary><div><strong>{promotion.code}</strong><span>{promotion.label} · {promotion.scope === "ORGANIZATION" ? "All host properties" : "This property"}</span></div><div><b>{promotionValueLabel(promotion)}</b><em>{promotion.is_active ? "Active" : "Inactive"}</em></div></summary>
         <PromotionCodeForm unitId={property.unitId} slug={property.form.slug} promotion={promotion} />
         <form action={deletePromotionCode} className="pricing-delete"><input type="hidden" name="unitId" value={property.unitId} /><input type="hidden" name="slug" value={property.form.slug} /><input type="hidden" name="promotionId" value={promotion.id} /><button type="submit">{promotion.scope === "ORGANIZATION" ? "Remove code from all host properties" : "Remove promo code"}</button></form>

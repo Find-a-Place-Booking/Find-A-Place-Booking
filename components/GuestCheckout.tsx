@@ -41,6 +41,7 @@ type Props = {
   turnstileSiteKey: string;
   initialReservationId?: string | null;
   initialCheckoutToken?: string | null;
+  initialPromotionCode?: string;
 };
 
 type PricingQuote = {
@@ -250,13 +251,14 @@ export function GuestCheckout({
   turnstileSiteKey,
   initialReservationId,
   initialCheckoutToken,
+  initialPromotionCode = "",
 }: Props) {
   const [guestName, setGuestName] = useState("");
   const [guestEmail, setGuestEmail] = useState("");
   const [guestPhone, setGuestPhone] = useState("");
   const [pets, setPets] = useState(0);
   const [selectedAddOnIds, setSelectedAddOnIds] = useState<string[]>([]);
-  const [promotionCode, setPromotionCode] = useState("");
+  const [promotionCode, setPromotionCode] = useState(initialPromotionCode);
   const [hold, setHold] = useState<Hold | null>(null);
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [identityStripePromise, setIdentityStripePromise] =
@@ -818,7 +820,7 @@ export function GuestCheckout({
               ) : null}
 
               <label className={styles.promoField}>
-                <span>Promo code <small>optional</small></span>
+                <span>Promo code <small>{initialPromotionCode ? "New host discount applied" : "optional"}</small></span>
                 <input
                   value={promotionCode}
                   maxLength={40}

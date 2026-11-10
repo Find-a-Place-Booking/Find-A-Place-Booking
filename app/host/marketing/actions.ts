@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
+import { sendHostMarketingAdvertisingEmail } from "@/lib/notifications/host-marketing";
 import { createClient } from "@/lib/supabase/server";
 
 export async function saveHostMarketingPreferences(formData: FormData) {
@@ -14,17 +15,41 @@ export async function saveHostMarketingPreferences(formData: FormData) {
   if (!/^[0-9a-f-]{36}$/i.test(organizationId)) {
     redirect("/host/marketing?error=Invalid%20host%20account");
   }
+  const returnPath = formData.get("return_to") === "onboarding" ? "/host/onboarding" : "/host/marketing";
+  const intro = formData.get("intro_offer") === "on";
+  const advertising = intro && formData.get("additional_advertising") === "YES";
+  const email = String(formData.get("contact_email") || "").trim().toLowerCase();
+  const notes = String(formData.get("notes") || "").trim().slice(0,1000);
 
-  const { error } = await supabase.rpc("set_host_marketing_preferences", {
+  if (advertising && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    redirect("/host/marketing?error=Enter%20a%20valid%20advertising%20contact%20email");
+  }
+
+  const { data, error } = await supabase.rpc("fap_save_host_intro_preferences", {
     target_organization_id: organizationId,
-    offer_three_discounted_stays: formData.get("three_stays") === "on",
-    request_social_advertising: formData.get("extra_social") === "on",
-    details: String(formData.get("notes") || "").trim().slice(0, 1000),
+    opt_into_intro: intro,
+    request_additional_advertising: advertising,
+    contact_email: advertising ? email : "",
+    details: notes,
   });
   if (error) {
-    redirect(`/host/marketing?error=${encodeURIComponent(error.message.slice(0, 200))}`);
+    console.error("[Host marketing] save failed", {code:error.code,message:error.message});
+    redirect(`/host/marketing?error=${encodeURIComponent(error.message.slice(0,180))}`);
+  }
+
+  let emailPending = false;
+  const requestId = (data as {email_request_id?:string|null}|null)?.email_request_id;
+  if (requestId) {
+    try {
+      await sendHostMarketingAdvertisingEmail(requestId);
+    } catch {
+      emailPending = true;
+    }
   }
   revalidatePath("/host/marketing");
-  revalidatePath("/admin/publishing");
-  redirect("/host/marketing?saved=1");
+  revalidatePath("/host/onboarding");
+  revalidatePath("/host");
+  revalidatePath("/stays");
+  revalidatePath("/");
+  redirect(`${returnPath}?saved=1${emailPending ? "&emailPending=1" : ""}`);
 }

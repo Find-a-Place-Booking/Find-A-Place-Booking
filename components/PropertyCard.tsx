@@ -146,6 +146,13 @@ export function PropertyCard({
           <h3>{property.name}</h3>
         </TrackedLink>
 
+        {Number(property.introOfferRemaining || 0) > 0 ? (
+          <div className={styles.introOffer} aria-label="New host 25 percent discount">
+            <strong>New host special · 25% off</strong>
+            <span>First {property.introOfferRemaining} {property.introOfferRemaining === 1 ? "booking" : "bookings"} · lodging only</span>
+          </div>
+        ) : null}
+
         {availabilityConfirmed ? (
           <div className={styles.availabilityCue}>
             <span aria-hidden="true">✓</span>

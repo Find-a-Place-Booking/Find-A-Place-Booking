@@ -12,6 +12,7 @@ import { refreshUnitCalendarsOrThrow } from "@/lib/calendar/sync-ical";
 import { assertThinkReservationsUnitAvailable } from "@/lib/calendar/sync-thinkreservations";
 import { verifyBookingTurnstile } from "@/lib/security/turnstile";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { getPublicIntroOfferForUnit } from "@/lib/public/intro-offers";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -182,6 +183,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const systemIntroOffer = body.promotionCode?.trim()
+      ? null
+      : await getPublicIntroOfferForUnit(body.unitId);
     const holdArgs = {
       target_unit_id: body.unitId,
       requested_check_in: body.checkIn,
@@ -189,7 +193,7 @@ export async function POST(request: NextRequest) {
       requested_guest_count: guests,
       requested_pet_count: pets,
       requested_add_on_ids: addOnIds,
-      requested_promotion_code: body.promotionCode?.trim() || null,
+      requested_promotion_code: body.promotionCode?.trim() || systemIntroOffer?.code || null,
       requested_guest_name: guestName,
       requested_guest_email: guestEmail,
       requested_guest_phone: guestPhone,
