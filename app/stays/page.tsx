@@ -5,6 +5,7 @@ import { Header } from "@/components/Header";
 import { SearchBar } from "@/components/SearchBar";
 import { StayResults } from "@/components/StayResults";
 import { normalizeSearchRadiusMiles, searchPublishedStaysNearby } from "@/lib/public/nearby-destination-search";
+import { BUFFALO_RIVER_MAX_DISTANCE_MILES, isBuffaloRiverSearch } from "@/lib/public/buffalo-river-discovery";
 import { getPublishedProperties } from "@/lib/public/listings";
 import { isCampingOrRv } from "@/lib/public/stay-type-order";
 import { copyBlock, loadManagedCopy } from "@/lib/public/managed-copy";
@@ -32,7 +33,7 @@ function prettyDate(value?: string) {
 const collectionHeadings: Record<string, string> = {
   Cabin: "Cabins",
   "Sleeps 8+": "Group getaways for eight or more",
-  "Unique stays": "One-of-a-kind stays",
+  "Luxury stays": "Luxury cabins and premium stays",
   "Buffalo National River": "Stays near the Buffalo National River",
   "RV Site": "RV stays",
   "Hot tub": "Stays with hot tubs",
@@ -83,15 +84,17 @@ export default async function StaysPage({
     );
 
   const summary = copyBlock(content, "stays.summary");
+  // Old shared Unique stays URLs keep working, but open the new collection.
+  const requestedFilter = params.filter === "Unique stays" ? "Luxury stays" : params.filter;
   const initialFilter =
-    params.filter && collectionHeadings[params.filter] ? params.filter : "";
+    requestedFilter && collectionHeadings[requestedFilter] ? requestedFilter : "";
   const start = prettyDate(checkin);
   const end = prettyDate(checkout);
   const tripLine = start && end
     ? `${start}–${end} · ${guests} guests`
     : `${guests} guests`;
   const collectionHeading = initialFilter ? collectionHeadings[initialFilter] : "";
-  const buffaloRiverSearch = /^(buffalo( national)? river( country| area)?)$/i.test(where.trim());
+  const buffaloRiverSearch = isBuffaloRiverSearch(where) || initialFilter === "Buffalo National River";
   const heading = where && collectionHeading
     ? `${collectionHeading} near ${where}`
     : where
@@ -131,11 +134,11 @@ export default async function StaysPage({
               <h1>{heading}</h1>
               <p>
                 {summary.body}
-                {search.usedNearby
-                  ? buffaloRiverSearch
-                    ? ` Search covers stays roughly ${radius} miles from several access areas along the Buffalo National River; distances are approximate.`
-                    : ` Search covers roughly ${radius} miles around ${where}, including smaller nearby communities.`
-                  : null}
+                {buffaloRiverSearch
+                  ? ` Buffalo River stays are within roughly ${Math.min(radius, BUFFALO_RIVER_MAX_DISTANCE_MILES)} straight-line miles of park access points; actual drives may be longer.`
+                  : search.usedNearby
+                    ? ` Search covers roughly ${radius} miles around ${where}, including smaller nearby communities.`
+                    : null}
               </p>
             </div>
             <div className="availability-fresh">

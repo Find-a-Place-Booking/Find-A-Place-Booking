@@ -1,6 +1,25 @@
 import type { Property } from "@/data/catalog";
 
 type DiscoveryStay = Pick<Property, "type" | "name" | "tags" | "sleeps">;
+type LuxuryStay = Pick<Property, "type" | "name" | "tags" | "price">;
+
+/** This collection is intentionally a higher-priced tier, not "unusual" stays. */
+export const LUXURY_MIN_NIGHTLY_PRICE = 300;
+
+export function isLuxuryStay(stay: LuxuryStay): boolean {
+  if (!Number.isFinite(stay.price) || stay.price < LUXURY_MIN_NIGHTLY_PRICE) return false;
+  const type = normalized(stay.type);
+  const name = normalized(stay.name);
+  if (/\brv\b|camp|tent|\bsite\b/.test(type) || /\b(rv site|camping site|tent site)\b/.test(name)) {
+    return false;
+  }
+  if (type === "other") {
+    // Some luxury homes use "Other" as a property type. Require a clear
+    // property label before including them solely for being expensive.
+    return (stay.tags || []).some((tag) => ["luxury", "luxury stay", "premium stay", "luxury cabin"].includes(normalized(tag)));
+  }
+  return true;
+}
 
 const DISTINCTIVE_TYPES = new Set([
   "glamping", "tiny home", "tiny house", "treehouse", "yurt", "dome",

@@ -1,12 +1,46 @@
-import { propertyMatchesDestination, type Property } from "@/data/catalog";
+import type { Property } from "@/data/catalog";
 
-// Official NPS campground/access coordinates, not private property locations.
-// The river has three districts, and Jasper alone cannot represent all of them.
+// Public NPS access/campground coordinates, not private-property addresses.
+// Distribute reference points along the river: three distant centers missed
+// nearby cabins in between, and text-only matches included distant properties.
+// https://www.nps.gov/buff/planyourvisit/getting-around.htm
+export const BUFFALO_RIVER_MAX_DISTANCE_MILES = 20;
 const ACCESS_POINTS = [
-  { lat: 36.0407758042, lng: -93.344048343 }, // Steel Creek / upper
-  { lat: 35.9867152274, lng: -92.7639029014 }, // Tyler Bend / middle
-  { lat: 36.0853650144, lng: -92.5656548749 }, // Buffalo Point / lower
+  { lat: 36.0215842559, lng: -93.3543809402 }, // Ponca trail / upper
+  { lat: 36.0407758042, lng: -93.344048343 }, // Steel Creek
+  { lat: 36.0557562676, lng: -93.2812997285 }, // Kyles Landing
+  { lat: 36.0734393674, lng: -93.2177325784 }, // Erbie
+  { lat: 36.0621316711, lng: -93.1597244134 }, // Ozark
+  { lat: 36.0576658302, lng: -93.1350316289 }, // Pruitt launch
+  { lat: 35.9851823163, lng: -93.0381867299 }, // Carver
+  { lat: 35.972112684, lng: -92.8819327253 }, // Woolum
+  { lat: 35.9867152274, lng: -92.7639029014 }, // Tyler Bend
+  { lat: 35.9877379907, lng: -92.7155625076 }, // Gilbert trail
+  { lat: 36.0394107175, lng: -92.6299021406 }, // South Maumee
+  { lat: 36.028528897, lng: -92.5800834506 }, // Spring Creek
+  { lat: 36.0853650144, lng: -92.5656548749 }, // Buffalo Point
+  { lat: 36.1228757113, lng: -92.5507485263 }, // Rush / lower
 ];
+
+// Fallback only for properties lacking a usable public map coordinate.
+// Exact locations avoid accidentally matching "Ozark Mountains" or distant
+// properties that happen to mention the Buffalo River in marketing copy.
+const BUFFALO_RIVER_COMMUNITIES = new Set([
+  "ponca", "boxley", "compton", "jasper", "hasty", "pruitt", "carver",
+  "mt judea", "mount judea", "gilbert", "st joe", "saint joe", "marshall",
+  "harriet", "woolum", "yellville", "western grove", "pindall",
+  "erbie", "ozark", "bass", "maumee", "tyler bend",
+]);
+
+function nearRiverByNamedCommunity(property: Property) {
+  const state = normalize(property.state);
+  if (state && state !== "ar" && state !== "arkansas") return false;
+  const city = normalize(property.city).replace(/\s+(ar|ark|arkansas)$/, "");
+  if (BUFFALO_RIVER_COMMUNITIES.has(city)) return true;
+  const location = normalize(property.location);
+  return location === "buffalo river" || location === "buffalo national river"
+    || location === "buffalo river country";
+}
 
 function normalize(value: string) {
   return value.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim().replace(/\s+/g, " ");
@@ -30,13 +64,22 @@ function milesBetween(a: {lat:number;lng:number}, b: {lat:number;lng:number}) {
   return 3958.76 * 2 * Math.asin(Math.min(1, Math.sqrt(h)));
 }
 
-export function searchBuffaloRiverStays(properties: Property[], destination: string, radiusMiles: number): Property[] {
-  const radius = Number.isFinite(radiusMiles) ? Math.max(0, Math.min(100, radiusMiles)) : 40;
+export function searchBuffaloRiverStays(properties: Property[], _destination: string, radiusMiles: number): Property[] {
+  // For this collection, proximity to the Buffalo is mandatory; the general
+  // search radius cannot make unrelated towns part of the river collection.
+  const radius = Number.isFinite(radiusMiles)
+    ? Math.max(0, Math.min(BUFFALO_RIVER_MAX_DISTANCE_MILES, radiusMiles))
+    : BUFFALO_RIVER_MAX_DISTANCE_MILES;
+
   return properties.flatMap((property) => {
-    const direct = propertyMatchesDestination(property, destination);
-    const distance = validCoordinate(property.lat, property.lng)
-      ? Math.min(...ACCESS_POINTS.map((point) => milesBetween(point, property))) : Infinity;
-    return direct || distance <= radius ? [{property,distance,direct}] : [];
-  }).sort((a,b) => a.distance - b.distance || Number(b.direct) - Number(a.direct))
-    .map(({property}) => property);
+    const mapped = validCoordinate(property.lat, property.lng);
+    if (!mapped && !nearRiverByNamedCommunity(property)) return [];
+    const distance = mapped
+      ? Math.min(...ACCESS_POINTS.map((point) => milesBetween(point, property)))
+      : Infinity;
+    return distance <= radius || (!mapped && nearRiverByNamedCommunity(property))
+      ? [{ property, distance }]
+      : [];
+  }).sort((a, b) => a.distance - b.distance)
+    .map(({ property }) => property);
 }

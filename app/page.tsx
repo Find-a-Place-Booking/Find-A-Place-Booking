@@ -25,9 +25,9 @@ const stayCollections = [
     filter: "Buffalo National River",
   },
   {
-    label: "Unique stays",
-    detail: "Glamping, tiny homes and stays that are a little different.",
-    filter: "Unique stays",
+    label: "Luxury stays",
+    detail: "High-end cabins and standout retreats from $300 a night.",
+    filter: "Luxury stays",
   },
   {
     label: "Group getaways",
