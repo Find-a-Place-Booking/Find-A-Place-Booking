@@ -1,0 +1,9 @@
+.heading { display:flex; align-items:flex-start; justify-content:space-between; flex-wrap:wrap; gap:12px; }
+.heading h2 { margin:4px 0 0; }
+.actions { display:flex; align-items:center; flex-wrap:wrap; gap:10px; margin-top:16px; }
+.actions form { margin:0; }
+.actions .button { min-height:42px; }
+.links { display:grid; grid-template-columns:repeat(auto-fit,minmax(190px,1fr)); gap:12px; margin-top:16px; }
+.links a { padding:17px 18px; border:1px solid #ddd5c8; border-radius:14px; color:#234636; background:#faf8f3; text-decoration:none; font-weight:600; }
+.links a:hover { border-color:#789587; background:#f1f5ef; }
+@media(max-width:640px) { .actions { flex-direction:column; align-items:stretch; } .actions > a, .actions form, .actions button { width:100%; } }

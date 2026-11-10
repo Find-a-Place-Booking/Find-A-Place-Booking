@@ -19,7 +19,7 @@ const links: MobileLink[] = [
   ["Reports", "/admin/reports", "reports"],
   ["Property taxes", "/admin/taxes", "taxes", ["SUPER_ADMIN", "FINANCE_ADMIN"]],
   ["Site content", "/admin/content", "content", ["SUPER_ADMIN", "OPERATIONS_ADMIN"]],
-  ["Partner rates", "/admin/partners", "partners", ["SUPER_ADMIN", "PARTNER_ADMIN"]],
+  ["Host app access", "/admin/host-app", "host-app", ["SUPER_ADMIN", "PARTNER_ADMIN"]],
   ["Activity log", "/admin/audit", "audit"],
 ];
 

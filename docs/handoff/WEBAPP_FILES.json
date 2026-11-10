@@ -1,0 +1,286 @@
+{
+  "baseline": "ec1c217",
+  "scope": "web apps only",
+  "files": [
+    {
+      "path": "README_WEB_APPS.md",
+      "sha256": "c97775c2cb94ac6073db346b6f57d753c271e0a912bfd0e8de3794b86b434820"
+    },
+    {
+      "path": "app/admin/host-app/actions.ts",
+      "sha256": "c05b3de42ac3fdceca18b5ab1e9d7ee1432fe114564d09cbe06b35ad0f6d509a"
+    },
+    {
+      "path": "app/admin/host-app/page.tsx",
+      "sha256": "1cbb20d3c62c75153ee4c9db7e0904741490efb4e4f7c596733c02aadf0bc689"
+    },
+    {
+      "path": "app/admin/partners/page.tsx",
+      "sha256": "229c6c60a12f4f28a448c202b94e1c92681a34213686737816e6afeba723683d"
+    },
+    {
+      "path": "app/api/cron/host-mobile-billing/route.ts",
+      "sha256": "188455e293b2cc26c1b63497913de13ac942919b06b5d33c60ad32705ea4a870"
+    },
+    {
+      "path": "app/api/mobile/v1/host/access/route.ts",
+      "sha256": "c637558bbf0cef988d4a5ccfc5763a1f0f46032508ec3aefc7a91b21fbd67da2"
+    },
+    {
+      "path": "app/api/mobile/v1/host/blocks/route.ts",
+      "sha256": "eebda665bd6ac8e6198b7742b8210251c2a3b9b5f56f59352330c692469641ac"
+    },
+    {
+      "path": "app/api/mobile/v1/host/calendar/route.ts",
+      "sha256": "40d8e471808df532140d7496f3b514a4115b6ebb8f9b82072c45fc2c0575ee28"
+    },
+    {
+      "path": "app/api/mobile/v1/host/messages/route.ts",
+      "sha256": "a9e33b570a7ca43c2e86529ce5337d08c1e4eed6774533085874997fb2c8b97a"
+    },
+    {
+      "path": "app/api/mobile/v1/host/overview/route.ts",
+      "sha256": "0ce077c0bf2e6a4646487f7c2ab283122c80162e39de07edf9bbe51ce117a087"
+    },
+    {
+      "path": "app/api/mobile/v1/host/pricing/route.ts",
+      "sha256": "5a081e0520fc51f4cc357acecfdd525f9e3b68f20505ce061e72c1e6bb3c9438"
+    },
+    {
+      "path": "app/api/mobile/v1/host/properties/route.ts",
+      "sha256": "689e4cb92a7ab5b7388dffaff5d524761a1fc39ab1aef80a22ab0488ecb14ece"
+    },
+    {
+      "path": "app/api/mobile/v1/host/reservations/route.ts",
+      "sha256": "a9c46526517f3b74a313a97a469a6295cdefd50a8a87e8bba334f057f0400df6"
+    },
+    {
+      "path": "app/api/mobile/v1/host/trial/route.ts",
+      "sha256": "2a32331bb01c372f4fff75e385d1aa52ced72c59eeef2b8a3a9458ff3bf60e79"
+    },
+    {
+      "path": "app/api/mobile/v1/stays/[slug]/route.ts",
+      "sha256": "63134536a017299e0bd9d489d80191a4225fa3a641ba41081f027046c7b8bf6d"
+    },
+    {
+      "path": "app/api/mobile/v1/stays/route.ts",
+      "sha256": "af2872616877d7b424a3d1463edc4510655dda0aa91d98004120be87e784609d"
+    },
+    {
+      "path": "app/api/mobile/v1/trip/cancellation/route.ts",
+      "sha256": "6bf69523e35e4c291f4846fc54af009612c937d24fb689b065e508af2cc02615"
+    },
+    {
+      "path": "app/api/mobile/v1/trip/change-request/route.ts",
+      "sha256": "7e69d4405f8262f158bc773eee0e4ce080ec183dd0b0ed1e7db754b812d86d90"
+    },
+    {
+      "path": "app/api/mobile/v1/trip/lookup/route.ts",
+      "sha256": "f2a014ea974889309133512f36e2053096a5a8f71c3e7d4687f15fc497a02be0"
+    },
+    {
+      "path": "app/api/mobile/v1/trip/messages/route.ts",
+      "sha256": "627ea827f531e30a4af6a6a06eadbc58602b87ebabd1632be566154fbd21c3d2"
+    },
+    {
+      "path": "app/api/mobile/v1/trip/review/route.ts",
+      "sha256": "26325efa2e4caf0ba05bbdafecb6818bb051240547f6da9eaa0dc5a895fa75c1"
+    },
+    {
+      "path": "app/api/mobile/v1/trip/summary/route.ts",
+      "sha256": "016a7cd1ac2d45b9f17795f70f11091529716732d89f54a8d7a0dd885fc9e7cc"
+    },
+    {
+      "path": "app/api/stripe/host-mobile-webhook/route.ts",
+      "sha256": "a02c070e0f0aafdc8f6de851d163b45594b7bcdd825351bc9e52d3039471d80e"
+    },
+    {
+      "path": "app/api/stripe/webhook/route.ts",
+      "sha256": "70e8109486f67b5ab1b2220dd5173b6c237cd4a078aa4b208b3ff4ff0567697d"
+    },
+    {
+      "path": "app/apps/guest/manifest.webmanifest/route.ts",
+      "sha256": "516b0613dd7b49ba6f77458244c44914b0967180a4b4a12a29e82052afdd635e"
+    },
+    {
+      "path": "app/apps/guest/page.tsx",
+      "sha256": "625777fe2207aafcc296eef4faad5827023b7dca08cee21bbba93a241ce8a44a"
+    },
+    {
+      "path": "app/apps/host/manifest.webmanifest/route.ts",
+      "sha256": "85a221630543e6ef2f333b8727b8e6e1167fe4a0c3fb1a5fcfe560af39e5dc3f"
+    },
+    {
+      "path": "app/apps/page.tsx",
+      "sha256": "78a8dd50429ea5a3e95b452cd267c13c8a838c874bc8248835371853ee00646b"
+    },
+    {
+      "path": "app/host/mobile/actions.ts",
+      "sha256": "73ac7d3765d910bdc12142873812d42827c919fa45a0bdf092008141ce99123c"
+    },
+    {
+      "path": "app/host/mobile/mobile.module.css",
+      "sha256": "6e7733d1737a9fc0d88feb6c44407c40e17c2efe8152b33d17f3cf0864ed1775"
+    },
+    {
+      "path": "app/host/mobile/page.tsx",
+      "sha256": "fb01f74bdd90673e6686c1ed5c08b81c685739d4118c93ce6fa690a129c0b346"
+    },
+    {
+      "path": "app/host/mobile/workspace/page.tsx",
+      "sha256": "305c4c1e99ad70580a3ca184991d43383d7a05b725eca77cad84d88fa34f2d5c"
+    },
+    {
+      "path": "components/AdminMobileNav.tsx",
+      "sha256": "ac705ecd736a9534ef4db5d29db5adcac90d9499bb8c535afa959f0692e9b25c"
+    },
+    {
+      "path": "components/AdminSidebar.tsx",
+      "sha256": "f899be63ddbc13d05a6f676f5e0e13ab63fd677d033a04fb3e5f65e27783f590"
+    },
+    {
+      "path": "components/HostMobileNav.tsx",
+      "sha256": "50bbba19af4fc396cfe1d8650208c7fe1462728370b36a818233e65be77c6934"
+    },
+    {
+      "path": "components/HostSidebar.tsx",
+      "sha256": "d3d1fcc7d7aa767c907f209ca5dc20cd59dabd390d0cf925b4511a15068ef6a2"
+    },
+    {
+      "path": "components/webapp/Calendar.tsx",
+      "sha256": "c8615663d4c9b5d253aead00d5bdd74412a323c4d302714fd926253eebdc8316"
+    },
+    {
+      "path": "components/webapp/GuestWebApp.tsx",
+      "sha256": "385e4380ccfd5f31f1d68452573db0e8c266f59521e0477dfd07b7078199d982"
+    },
+    {
+      "path": "components/webapp/HostWebApp.tsx",
+      "sha256": "287db0bd4b531d9c7a88cfa0fe8c93d0381c0e67200a23a83f7837aade5669ac"
+    },
+    {
+      "path": "components/webapp/InstallWebApp.tsx",
+      "sha256": "c347bdc242c19598716a6614b72b1d7d069cc2242b9cf1573bd68e03451ce71f"
+    },
+    {
+      "path": "components/webapp/Messages.tsx",
+      "sha256": "0f088d9dcc5f95abb99f18f40d8252f06ca89441cf566bd93522ffe9f5b529d9"
+    },
+    {
+      "path": "components/webapp/Rates.tsx",
+      "sha256": "65ee4bc16a147439b4ab4c6d0331a08c9a04b62ee7582192c23503ceab77774a"
+    },
+    {
+      "path": "components/webapp/StayMap.tsx",
+      "sha256": "66b1cd6c4e2fb4ac29797bad683ba03432b840419b1ad839f740ec501e2d57f6"
+    },
+    {
+      "path": "components/webapp/Trips.tsx",
+      "sha256": "8d3aef0013cc13b89ab34320d693d1f3dccc10a5db7ab278a80940d271241309"
+    },
+    {
+      "path": "components/webapp/api.ts",
+      "sha256": "f8615c388d1bfbf603c6cc6bea09bfac02d891eadcb99d902fae98184da2e1ef"
+    },
+    {
+      "path": "components/webapp/webapp.css",
+      "sha256": "24bc63625c9a73dffc94ed6f088b5342b97246c6fdf2624085063d98d701828a"
+    },
+    {
+      "path": "docs/handoff/WEBAPP_CONTINUATION.md",
+      "sha256": "9654dc36ef291009341adeb4839264f0d50e0346f0ef041cdd0c87a8b273eae7"
+    },
+    {
+      "path": "lib/host/mobile-access-policy.ts",
+      "sha256": "f1975b5c2a28678a9d1373b83e60c8e9d754cebcaaf815f8ef70dfeab7eedf4e"
+    },
+    {
+      "path": "lib/host/mobile-access.ts",
+      "sha256": "44d9c084b79da70cfe3430f9cfdbb5983ee7405ec2ddb6c0d03727a462aedc60"
+    },
+    {
+      "path": "lib/mobile/host-access.ts",
+      "sha256": "9fd420f540d97200147a8dcd285a8bf3ed2b7a16135a488c1c89b0d2ba800661"
+    },
+    {
+      "path": "lib/mobile/http.ts",
+      "sha256": "75408bef90babb6c4b7b41ffee2b7215ae780197b71ee19104023abffee688d9"
+    },
+    {
+      "path": "lib/mobile/identity.ts",
+      "sha256": "6efc4ce87ee638cea33f348fc64ab980b6f7e281ac9ea0e5465fe4f2ab63525c"
+    },
+    {
+      "path": "lib/mobile/trip-bridge.ts",
+      "sha256": "057e853ddf743eb10674df82333ac94077d102d05d67791483059261744087bd"
+    },
+    {
+      "path": "lib/mobile/user-client.ts",
+      "sha256": "930376529dfe62bab06379cf21c85e633d00347924467270d014be10a4740783"
+    },
+    {
+      "path": "lib/payments/host-app-events.ts",
+      "sha256": "c5c3b7520b21cc9b042094eab76fd492d35e82bb55a28c05fef0f2ccda396c30"
+    },
+    {
+      "path": "lib/payments/host-mobile-billing.ts",
+      "sha256": "fc3cd4edb5ec1d2afbe963b029b1580676c4dba79cfa3012ed09bc9af8dd26ac"
+    },
+    {
+      "path": "package-lock.json",
+      "sha256": "1020ca427167c3765e64be3e7bf02c4441e5e18543d4187f36c6942bb323de38"
+    },
+    {
+      "path": "package.json",
+      "sha256": "442ffad0167e7aff4f800d9442261105f9b7b6d44913478f2f8ac33cc1410ed3"
+    },
+    {
+      "path": "public/webapps/icons/guest-192.png",
+      "sha256": "137202a7fdb7bbc0784f8ebc202b53815d06a03bf446985fd6bfd6c02fe5af11"
+    },
+    {
+      "path": "public/webapps/icons/guest-512.png",
+      "sha256": "fd1ff7708a355b3ededc0add482f0b4618c40cca3b5055c7eb235bbf6ef45552"
+    },
+    {
+      "path": "public/webapps/icons/host-192.png",
+      "sha256": "493488c0f09ab2b58bb924ab4631917d4fb146ebbe39697486566cf15ccac8a0"
+    },
+    {
+      "path": "public/webapps/icons/host-512.png",
+      "sha256": "b6b994ca3879a8ad50eed0a7ad1ec873a0dcad5022f86078bcdc2e47b962cf48"
+    },
+    {
+      "path": "supabase/migrations/20261104160000_host_mobile_access_trial.sql",
+      "sha256": "0953340f5286fd5bb445200cd9785cd6909630a6bfcb228973462a971a61d0c1"
+    },
+    {
+      "path": "supabase/migrations/20261109090000_host_mobile_partner_status_and_stripe_billing.sql",
+      "sha256": "76bd825db2bb9edc17fa6618b1ef9466a96e3658c4688760059f33a0c2777495"
+    },
+    {
+      "path": "supabase/migrations/20261109140000_remove_legacy_partner_rate_from_partner_verification.sql",
+      "sha256": "e63bf76bdb8de9f8cd72512017958659fb6736c2f55f01b7e9ab79d2130b5538"
+    },
+    {
+      "path": "supabase/migrations/20261110004620_host_webapp_admin_partner_access.sql",
+      "sha256": "6e1d834a035657489986c74951c384f2399c05a764c13bd17aba6c45c037b8c2"
+    },
+    {
+      "path": "tests/mobile-security.test.cjs",
+      "sha256": "9e76d34be9829add180f28153cd096ecb87183b0f4ddbc507062b30b54e3f756"
+    },
+    {
+      "path": "tests/webapp-ui.cjs",
+      "sha256": "dff15f628bb636febab204ebc1c4b8933293edd2d0c32b3945f73b9f26665b6d"
+    },
+    {
+      "path": "tsconfig.json",
+      "sha256": "37652c667daf5b7ae40f0cd87783fb16edb4cff085dda4687344473c5c8004a2"
+    },
+    {
+      "path": "vercel.json",
+      "sha256": "2f72a5f90bc05ea62629cc6b28d086edf2d4ae361d7fcb4617fe554ae7522a0e"
+    }
+  ]
+}

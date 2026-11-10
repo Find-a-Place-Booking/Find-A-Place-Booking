@@ -5,6 +5,7 @@ import alertStyles from "./HostMessageAlerts.module.css";
 
 const links = [
   ["Overview", "/host"],
+  ["Web app", "/host/mobile"],
   ["Properties", "/host/properties"],
   ["Calendar", "/host/calendar"],
   ["Manual holds", "/host/calendar/manual-holds"],

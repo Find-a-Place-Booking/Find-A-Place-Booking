@@ -24,7 +24,7 @@ const nav: NavItem[] = [
   { label: "Reports", href: "/admin/reports", key: "reports" },
   { label: "Property taxes", href: "/admin/taxes", key: "taxes", roles: ["SUPER_ADMIN", "FINANCE_ADMIN"] },
   { label: "Site content", href: "/admin/content", key: "content", roles: ["SUPER_ADMIN", "OPERATIONS_ADMIN"] },
-  { label: "Partner rates", href: "/admin/partners", key: "partners", roles: ["SUPER_ADMIN", "PARTNER_ADMIN"] },
+  { label: "Host app access", href: "/admin/host-app", key: "host-app", roles: ["SUPER_ADMIN", "PARTNER_ADMIN"] },
   { label: "Activity log", href: "/admin/audit", key: "audit" },
 ];
 

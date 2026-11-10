@@ -1,3 +1,4 @@
+import {handleHostAppStripeEvent} from "@/lib/payments/host-app-events";
 import { createHash } from "node:crypto";
 
 import Stripe from "stripe";
@@ -155,6 +156,11 @@ export async function POST(request: NextRequest) {
   }
 
   try {
+    const appEvent=await handleHostAppStripeEvent(event);
+    if(appEvent==="processed"){
+      await markProcessorEvent(admin,event.id,"PROCESSED");
+      return NextResponse.json({received:true,product:"host_webapp"});
+    }
     if (
       event.type === "account.updated" ||
       event.type === "capability.updated"
