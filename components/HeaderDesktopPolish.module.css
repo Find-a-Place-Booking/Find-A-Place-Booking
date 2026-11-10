@@ -1,0 +1,129 @@
+/* Find A Place public navigation, scoped to Header.tsx.
+   Desktop links remain visible; only smaller screens use the existing drawer. */
+.header {
+  border-bottom: 1px solid rgba(45, 65, 54, .18);
+}
+
+.header::after {
+  content: "";
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: 2px;
+  pointer-events: none;
+  background: linear-gradient(90deg, transparent, rgba(131, 109, 68, .35) 30%, rgba(77, 111, 86, .32) 75%, transparent);
+}
+
+.header :global(.main-nav a) {
+  transition: color .18s ease, background .18s ease, opacity .18s ease;
+}
+.header :global(.main-nav a:hover),
+.header :global(.main-nav a:focus-visible) {
+  color: #2b5c48;
+  opacity: 1;
+}
+.header :global(.main-nav a:focus-visible),
+.header :global(.header-actions a:focus-visible) {
+  outline: 2px solid #8eaa94;
+  outline-offset: 4px;
+}
+
+/* A two-tier desktop header is more usable than hiding six important links.
+   At very wide sizes, keep the original single-row desktop navigation. */
+@media (min-width: 921px) and (max-width: 1550px) {
+  .header :global(.header-inner) {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-rows: 78px 48px;
+    column-gap: 18px;
+    row-gap: 0;
+    width: min(1510px, calc(100% - 44px)) !important;
+    max-width: none;
+    height: 126px !important;
+    min-height: 126px;
+  }
+  .header :global(.brand) {
+    grid-column: 1;
+    grid-row: 1;
+    align-self: center;
+    min-width: 0;
+  }
+  .header :global(.header-actions) {
+    grid-column: 2;
+    grid-row: 1;
+    align-self: center;
+    justify-self: end;
+    gap: clamp(9px, 1.2vw, 18px);
+  }
+  .header :global(.header-actions > .text-link),
+  .header :global(.header-actions > .header-list-property) {
+    display: inline-flex !important;
+  }
+  .header :global(.header-actions > .header-list-property) {
+    background: rgba(255, 255, 255, .4);
+    border: 1px solid rgba(49, 74, 59, .36);
+    color: #253a32;
+    border-radius: 9px;
+  }
+  .header :global(.header-actions > .header-list-property:hover) {
+    color: #fff;
+    background: #284439;
+  }
+  .header.header :global(.mobile-menu-toggle) {
+    display: none !important;
+  }
+  .header.header :global(.main-nav) {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    justify-self: stretch;
+    align-self: stretch;
+    width: 100%;
+    min-width: 0;
+    display: flex !important;
+    justify-content: center;
+    align-items: center;
+    gap: clamp(15px, 2vw, 33px);
+    padding: 0 12px;
+    border-top: 1px solid rgba(66, 85, 69, .18);
+    background: linear-gradient(180deg, rgba(255, 253, 247, .34), rgba(238, 236, 225, .48));
+    font-size: .82rem;
+    font-weight: 760;
+    letter-spacing: .005em;
+    white-space: nowrap;
+  }
+  .header :global(.main-nav > a),
+  .header :global(.main-nav > *) {
+    flex: 0 0 auto;
+  }
+  .header :global(.main-nav > a[href="/stays"]) {
+    color: #254e3c;
+    font-weight: 900;
+  }
+}
+
+@media (min-width: 921px) and (max-width: 1050px) {
+  .header :global(.header-inner) {
+    width: calc(100% - 30px) !important;
+  }
+  .header :global(.header-actions) {
+    gap: 8px;
+  }
+  .header :global(.header-actions > .text-link) {
+    font-size: .78rem;
+  }
+  .header :global(.header-actions > .header-list-property) {
+    padding: 9px 10px;
+    font-size: .79rem;
+  }
+  .header.header :global(.main-nav) {
+    gap: clamp(12px, 1.65vw, 20px);
+    font-size: .8rem;
+  }
+}
+
+/* Phone and small-tablet navigation still uses the existing accessible drawer. */
+@media (max-width: 920px) {
+  .header :global(.main-nav) { display: none !important; }
+  .header :global(.mobile-menu-toggle) { display: flex !important; }
+}

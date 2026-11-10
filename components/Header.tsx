@@ -13,17 +13,18 @@ import { SavedStayNavLink } from "./SavedStayNavLink";
 import { TrackedLink } from "./TrackedLink";
 import mobileStyles from "./HeaderMobileMenu.module.css";
 import headerStyles from "./HeaderNavigationFix.module.css";
+import desktopStyles from "./HeaderDesktopPolish.module.css";
 
-// Keep in sync with the breakpoint in HeaderNavigationFix.module.css.
-const MOBILE_NAV_BREAKPOINT = 1550;
+// Keep in sync with the small-screen cutoff in HeaderDesktopPolish.module.css.
+const MOBILE_NAV_BREAKPOINT = 920;
 
 const primaryLinks = [
   ["Find a stay", "/stays"],
   ["Meet the hosts", "/host-profiles"],
   ["Explore", "/#regions"],
   ["For hosts", "/hosts"],
-  ["Social media", "/social"],
-  ["About Find A Place", "/about"],
+  ["Social", "/social"],
+  ["About", "/about"],
 ];
 
 function linkPrefetch(href: string) {
@@ -153,7 +154,7 @@ export function Header({ light = false }: { light?: boolean }) {
 
   return (
     <>
-      <header className={`site-header ${headerStyles.header} ${light ? "header-light" : ""}`}>
+      <header className={`site-header ${headerStyles.header} ${desktopStyles.header} ${light ? "header-light" : ""}`}>
         <div className="shell header-inner">
           <Brand />
 
