@@ -1,129 +1,177 @@
-/* Find A Place public navigation, scoped to Header.tsx.
-   Desktop links remain visible; only smaller screens use the existing drawer. */
+/* Find A Place — single-row public navigation (desktop / laptop).
+   Overrides the older 1550px/1260px collapse rules only on supported widths.
+   All changes are scoped to the public Header; guest checkout and host/admin
+   dashboard navigation are untouched. */
+
 .header {
-  border-bottom: 1px solid rgba(45, 65, 54, .18);
+  border-bottom: 1px solid rgba(39, 60, 49, .14);
+  background: rgba(246, 240, 229, .95);
 }
 
-.header::after {
-  content: "";
-  position: absolute;
-  right: 0;
-  bottom: 0;
-  left: 0;
-  height: 2px;
-  pointer-events: none;
-  background: linear-gradient(90deg, transparent, rgba(131, 109, 68, .35) 30%, rgba(77, 111, 86, .32) 75%, transparent);
-}
-
-.header :global(.main-nav a) {
-  transition: color .18s ease, background .18s ease, opacity .18s ease;
-}
-.header :global(.main-nav a:hover),
-.header :global(.main-nav a:focus-visible) {
-  color: #2b5c48;
-  opacity: 1;
-}
-.header :global(.main-nav a:focus-visible),
-.header :global(.header-actions a:focus-visible) {
-  outline: 2px solid #8eaa94;
-  outline-offset: 4px;
-}
-
-/* A two-tier desktop header is more usable than hiding six important links.
-   At very wide sizes, keep the original single-row desktop navigation. */
-@media (min-width: 921px) and (max-width: 1550px) {
+/* ONE horizontal bar: brand | browse links | account actions. */
+@media (min-width: 1121px) {
   .header :global(.header-inner) {
-    display: grid !important;
-    grid-template-columns: minmax(0, 1fr) auto;
-    grid-template-rows: 78px 48px;
-    column-gap: 18px;
-    row-gap: 0;
-    width: min(1510px, calc(100% - 44px)) !important;
-    max-width: none;
-    height: 126px !important;
-    min-height: 126px;
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    width: min(1840px, calc(100% - 44px)) !important;
+    max-width: none !important;
+    height: 88px !important;
+    min-height: 88px !important;
+    gap: clamp(13px, 1.15vw, 24px) !important;
   }
   .header :global(.brand) {
-    grid-column: 1;
-    grid-row: 1;
-    align-self: center;
+    flex: 0 0 auto !important;
     min-width: 0;
   }
-  .header :global(.header-actions) {
-    grid-column: 2;
-    grid-row: 1;
-    align-self: center;
-    justify-self: end;
-    gap: clamp(9px, 1.2vw, 18px);
+  .header.header :global(.main-nav) {
+    display: flex !important;
+    flex: 1 1 auto !important;
+    min-width: 0;
+    width: auto !important;
+    align-items: center !important;
+    justify-content: center !important;
+    flex-wrap: nowrap !important;
+    gap: clamp(10px, 1.05vw, 21px) !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: 0 !important;
+    background: transparent !important;
+    color: #263c31;
+    line-height: 1.2;
+    font-size: clamp(.77rem, .73vw, .87rem) !important;
+    font-weight: 720;
+    white-space: nowrap;
+    letter-spacing: -.008em;
   }
-  .header :global(.header-actions > .text-link),
-  .header :global(.header-actions > .header-list-property) {
+  /* Host resources was separately hidden under 1550px in its own stylesheet. */
+  .header :global(.main-nav > div) {
     display: inline-flex !important;
+    flex: 0 0 auto;
+    align-items: center;
   }
-  .header :global(.header-actions > .header-list-property) {
-    background: rgba(255, 255, 255, .4);
-    border: 1px solid rgba(49, 74, 59, .36);
+  .header :global(.main-nav > a) {
+    display: inline-flex !important;
+    flex: 0 0 auto;
+    align-items: center;
+    justify-content: center;
+    min-height: 42px;
+    margin: 0 !important;
+    padding: 6px 2px;
+    border-radius: 5px;
+    color: #283d32;
+    font-weight: 720;
+    white-space: nowrap;
+    text-decoration: none;
+    opacity: .88;
+    transition: color .16s ease, opacity .16s ease, background .16s ease;
+  }
+  .header :global(.main-nav > a[href="/stays"]) {
+    color: #28533e;
+    opacity: 1;
+    font-weight: 850;
+  }
+  .header :global(.main-nav > a:not([href="/social"]):hover),
+  .header :global(.main-nav > a:not([href="/social"]):focus-visible) {
+    color: #285b40;
+    opacity: 1;
+  }
+  .header :global(.main-nav > a[href="/social"]) {
+    display: inline-flex !important;
+    min-height: 35px !important;
+    margin: 0 !important;
+    padding: 6px 11px !important;
+    border-radius: 999px;
+    border-color: rgba(73, 96, 72, .22);
+    background: rgba(253, 251, 246, .52);
+    color: #2d4838;
+    font-size: inherit;
+  }
+  .header :global(.main-nav > a[href="/social"]:hover) {
+    background: #e5e9de;
+  }
+  .header :global(.header-actions) {
+    display: flex !important;
+    flex: 0 0 auto !important;
+    width: auto !important;
+    align-items: center !important;
+    justify-content: flex-end !important;
+    gap: clamp(9px, .88vw, 17px) !important;
+    white-space: nowrap;
+  }
+  /* Older responsive layers hide these even on laptops; explicitly restore. */
+  .header.header :global(.header-actions > a.text-link),
+  .header.header :global(.header-actions > a.header-list-property) {
+    display: inline-flex !important;
+    flex: 0 0 auto;
+    align-items: center;
+    justify-content: center;
+  }
+  .header :global(.header-actions > a) {
+    min-height: 40px;
+    white-space: nowrap;
     color: #253a32;
-    border-radius: 9px;
+    font-size: clamp(.77rem, .77vw, .89rem);
+    font-weight: 730;
   }
-  .header :global(.header-actions > .header-list-property:hover) {
-    color: #fff;
-    background: #284439;
+  .header :global(.header-actions > a:hover:not(.button)) {
+    color: #285b40;
+  }
+  .header :global(.header-actions .header-list-property) {
+    padding: 10px 14px !important;
+    border-radius: 10px;
+    border: 1px solid rgba(49, 74, 59, .34);
+    background: rgba(255, 255, 255, .52);
+    color: #253a32 !important;
+    font-weight: 800;
+    box-shadow: 0 1px 0 rgba(255,255,255,.5) inset;
+  }
+  .header :global(.header-actions .header-list-property:hover),
+  .header :global(.header-actions .header-list-property:focus-visible) {
+    background: #253d31;
+    color: white !important;
+    border-color: #253d31;
+    transform: none;
   }
   .header.header :global(.mobile-menu-toggle) {
     display: none !important;
   }
-  .header.header :global(.main-nav) {
-    grid-column: 1 / -1;
-    grid-row: 2;
-    justify-self: stretch;
-    align-self: stretch;
-    width: 100%;
-    min-width: 0;
-    display: flex !important;
-    justify-content: center;
-    align-items: center;
-    gap: clamp(15px, 2vw, 33px);
-    padding: 0 12px;
-    border-top: 1px solid rgba(66, 85, 69, .18);
-    background: linear-gradient(180deg, rgba(255, 253, 247, .34), rgba(238, 236, 225, .48));
-    font-size: .82rem;
-    font-weight: 760;
-    letter-spacing: .005em;
-    white-space: nowrap;
-  }
-  .header :global(.main-nav > a),
-  .header :global(.main-nav > *) {
-    flex: 0 0 auto;
-  }
-  .header :global(.main-nav > a[href="/stays"]) {
-    color: #254e3c;
-    font-weight: 900;
+  .header :global(.main-nav a:focus-visible),
+  .header :global(.header-actions a:focus-visible) {
+    outline: 2px solid #799b85;
+    outline-offset: 3px;
   }
 }
 
-@media (min-width: 921px) and (max-width: 1050px) {
+/* Laptop: keep the whole menu in the same bar, but use tidy spacing. */
+@media (min-width: 1121px) and (max-width: 1380px) {
   .header :global(.header-inner) {
-    width: calc(100% - 30px) !important;
+    width: calc(100% - 28px) !important;
+    gap: 12px !important;
+    height: 80px !important;
+    min-height: 80px !important;
   }
-  .header :global(.header-actions) {
-    gap: 8px;
-  }
-  .header :global(.header-actions > .text-link) {
-    font-size: .78rem;
-  }
-  .header :global(.header-actions > .header-list-property) {
-    padding: 9px 10px;
-    font-size: .79rem;
-  }
+  /* Brand remains obvious while recovering width for every important link. */
+  .header :global(.brand-copy small) { display: none; }
+  .header :global(.brand-copy strong) { font-size: .92rem; }
+  .header :global(.brand-seal) { width: 42px; height: 42px; }
   .header.header :global(.main-nav) {
-    gap: clamp(12px, 1.65vw, 20px);
-    font-size: .8rem;
+    gap: clamp(8px, .72vw, 12px) !important;
+    font-size: .78rem !important;
   }
+  .header :global(.main-nav > a[href="/social"]) {
+    padding: 5px 9px !important;
+  }
+  .header :global(.header-actions) { gap: clamp(7px, .65vw, 11px) !important; }
+  .header :global(.header-actions > a) { font-size: .78rem; }
+  .header :global(.header-actions .header-list-property) { padding: 8px 10px !important; }
 }
 
-/* Phone and small-tablet navigation still uses the existing accessible drawer. */
-@media (max-width: 920px) {
-  .header :global(.main-nav) { display: none !important; }
-  .header :global(.mobile-menu-toggle) { display: flex !important; }
+/* Phone/small-tablet: retain the original accessible full-feature drawer. */
+@media (max-width: 1120px) {
+  .header.header :global(.main-nav) { display: none !important; }
+  .header.header :global(.mobile-menu-toggle) { display: flex !important; }
+  .header :global(.header-actions > a.text-link),
+  .header :global(.header-actions > a.header-list-property) { display: none !important; }
 }

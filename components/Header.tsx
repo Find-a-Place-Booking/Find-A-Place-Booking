@@ -16,15 +16,15 @@ import headerStyles from "./HeaderNavigationFix.module.css";
 import desktopStyles from "./HeaderDesktopPolish.module.css";
 
 // Keep in sync with the small-screen cutoff in HeaderDesktopPolish.module.css.
-const MOBILE_NAV_BREAKPOINT = 920;
+const MOBILE_NAV_BREAKPOINT = 1120;
 
 const primaryLinks = [
   ["Find a stay", "/stays"],
-  ["Meet the hosts", "/host-profiles"],
   ["Explore", "/#regions"],
+  ["Meet the hosts", "/host-profiles"],
   ["For hosts", "/hosts"],
-  ["Social", "/social"],
   ["About", "/about"],
+  ["Social", "/social"],
 ];
 
 function linkPrefetch(href: string) {
