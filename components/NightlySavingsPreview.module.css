@@ -1,0 +1,30 @@
+.preview {
+  display: grid;
+  gap: 4px;
+  margin: 5px 0 12px;
+  padding: 10px 12px;
+  border-left: 3px solid #5e8066;
+  background: #f4f7f1;
+  color: #244b38;
+}
+.preview strong {
+  font-size: .84rem;
+  font-weight: 750;
+  line-height: 1.25;
+}
+.preview small {
+  color: #64766a;
+  font-size: .61rem;
+  line-height: 1.45;
+}
+.minimal {
+  padding: 5px 0;
+  margin: 4px 0 7px;
+  border: 0;
+  background: transparent;
+}
+.minimal strong { font-size: .72rem; }
+.minimal small {
+  font-size: .57rem;
+  line-height: 1.35;
+}

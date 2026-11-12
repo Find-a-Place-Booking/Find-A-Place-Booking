@@ -1,61 +1,53 @@
-# Find A Place — Guest Experience + Booking Comparison Overlay
+# Find A Place — Immediate Savings Where Guests See Prices
 
-**Project snapshot:** GitHub `Find-a-Place-Booking/Find-A-Place-Booking`, main branch as inspected on November 11, 2026.
+**November 11, 2026 · Guest-facing update for previous work-list items 2 and 3**
 
-This overlay implements **items 2 and 3 only** from the user's request. It does not change Stripe collection, reservations, taxes, host calendars, ResNexus, or messaging.
+This ZIP **supersedes** `FAP_Guest_Experience_Search_Comparison_Overlay_2026-11-11.zip`. Do not run both update scripts. This package includes all guest-feature files from that earlier overlay **plus** the immediate price-side savings treatment.
 
-## APPLY TO YOUR PROJECT (IMPORTANT)
+## Install (Windows)
 
-1. Extract this ZIP **inside the repository root** (the folder with `package.json`). Overwrite matching files. This installs eight new/replacement page, component and utility files.
-2. **Double-click `APPLY_GUEST_UPDATES.bat`** on Windows to apply the other eight edits. This second step is required. On macOS/Linux: `python3 APPLY_GUEST_UPDATES.py`.
-3. The updater checks exact Git blob versions before modifying any existing source file; mismatches abort safely. Backups are saved in `.git/fap-guest-overlays/2026-11-11` (or a separate temporary folder if no `.git`). If it reports a mismatch, do **not** force it. Refresh the overlay for your new source instead.
-4. Validate the project: `npm run typecheck`, `npm run build`. Then commit and push with your normal Git workflow. Make sure Vercel uses the new deployment.
+1. Extract **all** the ZIP contents into the **root folder** of your Find A Place Booking project (the folder containing `package.json`). Approve replacing files when Windows asks.
+2. Double-click **`APPLY_GUEST_UPDATES.bat`**. The script applies the remaining source edits. Python 3 is required. On macOS/Linux: `python3 APPLY_IMMEDIATE_PRICES.py`.
+3. Run `npm run typecheck` and `npm run build` in the project folder. Do **not** push if they fail. Commit and push the changes using your normal workflow.
+4. Vercel must deploy the new commit. Check the real pages, especially on mobile. **No server configuration, database migration, or Railway redeployment is needed for these guest-side changes.**
 
-This is a carefully guarded overwrite/update overlay, **not a database migration**. GitHub connector permissions do not allow directly committing these files for you.
+The update script supports either (a) the eight core files as they stood in GitHub on Nov 11, where the previous overlay only installed new files, or (b) all eight core edits already installed by the previous script. It **refuses unfamiliar or partially modified source** rather than silently overwriting other changes. It backs up touched files under `.git/fap-guest-overlays/` (or a temporary folder if `.git` is unavailable). If it refuses, stop and reconcile your current source; don't force it.
 
-## REQUEST CHECKLIST
+## Immediate price-side placement (new in this ZIP)
 
-- [x] Homepage Featured Stays restricted to published **Cabin** properties whose `homepage_feature_priority` is **1** (launch) and whose host's `partner_status` is **VERIFIED**. Never fills vacant slots with other types.
-- [x] Buffalo National River targeted searches capped at **12 straight-line miles** of defined Buffalo access points. Norfork/White River excluded; Lucky Star and Cabin in the Woods retained in tests. General geographic search remains unchanged.
-- [x] Public `/experiences` directory and **Experiences** menu link, deduplicated by title/category/local host area, using only published stay connections.
-- [x] Distinct **Luxury stays** ($300+ starting nightly rate, excluding RV/campsites) and **Unique stays** (unusual property types/tags/named cabooses/treehouses). Unique URLs are no longer redirected to Luxury.
-- [x] **Budget Friendly** label with `< $150` starting nightly threshold. Older Under $150 search links map to Budget Friendly.
-- [x] Guest mobile web app property gallery supports horizontal swiping, previous/next arrows, keyboard arrows, an image count, and accessibility labels.
-- [x] Same-property **other booking platforms** comparison added immediately beneath estimated total in property booking card; checkout still shows its comparison alongside the total.
-- [x] Existing verified external quotes are distinguished from **illustrative modeled comparisons**. When a quote cannot be verified, the API falls back to its existing 15.5% fee-assumption model instead of returning no card, where sufficient real Find A Place checkout data exists.
-- [x] Guest-facing comparison names **other booking platforms**, not individual competitors. Shows a positive savings figure only when data supports it. Discloses modeling assumptions and taxes/host promotions. Does not alter real checkout price.
+| Guest moment | What they see |
+|---|---|
+| Homepage featured stay card | Starting nightly rate immediately followed by an **illustrative potential savings per night** line |
+| Main website search/listing card | Same clearly labeled savings line immediately beneath `$/night` |
+| Property details, before dates | Saving illustration next to the visible `$/night` rate, without waiting for check-in dates |
+| Property details, after dates and guest count | Real Find A Place estimated trip total, immediately followed by **other booking platforms** comparison, **before** the detailed fees and Reserve button |
+| Standalone guest web app, listing cards and detail | Same initial nightly rate/savings preview on mobile |
+| Checkout | Existing date-specific comparison continues to accompany checkout; exact payment amount remains authoritative |
 
-## SAFETY
+**Important:** Initial nightly savings are a modeled *one-night fee illustration*, **not** a verified external price. The conservative calculation assumes 7% Find A Place guest fees and a 15.5% host-side fee elsewhere, with equal host proceeds; it excludes cleaning, taxes, optional extras, and discounts. It rounds *down*. Actual platform pricing can differ. The UI clearly says **could save**, **about**, and **illustrative**, never a guarantee. When the guest chooses dates and gets an actual quote, the comparison is calculated using the date-specific pre-tax quote. A validated same-property external quote is shown as verified; otherwise the existing API uses its disclosed illustrative model, if enough actual checkout data is available.
 
-- No manual changes to availability, prices, tax configuration, Stripe or host payouts.
-- The price comparison API still requires a published property, active unit, valid dates/guest count, and a real checkout quote before estimating.
-- All price differences are **before taxes**, while the nearby actual trip estimate displays taxes when collected in the checkout quote. This distinction is intentional.
-- The public Experiences hub excludes recommendations from unpublished listings.
-- If Supabase launch eligibility lookup fails, featured spots are hidden, not populated with unrelated properties.
-- If a verified external quote is unavailable, a *modeled* price is not labeled as a checked price.
+## All previously requested guest features also included
 
-## TESTING
+- Homepage Featured Stays: only PUBLISHED launch-priority VERIFIED partner Cabin inventory. No non-cabin fallback.
+- Buffalo National River: 12-mile target-search threshold, excludes Norfork/White River while retaining the two close stays named in the notes. General search unchanged.
+- Separate Luxury Stays ($300+), Unique Stays (distinctive types such as cabooses), Budget Friendly (under $150) collection rules.
+- Experiences directory, deduped from published property recommendations, and navigation tab.
+- Guest web app touch/swipe property photo gallery.
+- The comparison is guest-facing as **“Other booking platforms”**, not named competitors; uses real quote data and a transparent fallback estimate.
 
-Static TS/TSX parsing passed on the six direct source modules, plus eight focused tests:
-- Buffalo radius and named property inclusion/exclusion
-- Luxury/Unique/group classifiers
-- Experiences use only published properties and deduplicate
-- Eight audited source SHA guards
-- Launch-only cabin eligibility criteria
-- Mobile gallery controls and scroll snapping
-- Comparison fallback path transformation
-- No changes to booking/calendar/ResNexus authorization paths
+## QA status / limitations
 
-**Not yet run:** Full `npm run typecheck`, full `npm run build`, and a real-browser checkout test require the complete repository/deployment. Don't mark live until your build and deployment pass.
+- Targeted Node and Python placement, modeled-savings arithmetic, category, geo, experiences, photo gallery and guarded-source tests pass in this package.
+- The shared live booking/quote/reservation/Stripe/ResNexus code is not changed by the price placement update.
+- **Full project `npm run typecheck`, `npm run build`, Vercel deploy, and a browser-based comparison against real stay dates are not verified here.** Complete these after applying the ZIP.
 
-## LIVE SMOKE TEST AFTER DEPLOY
+## Smoke test after push
 
-1. Homepage Featured grid: only launch VERIFIED partner **Cabin** stays.
-2. `/stays?filter=Unique%20stays`: caboose and other distinctive stays; `/stays?filter=Luxury%20stays`: higher-priced stays.
-3. `/stays?filter=Budget%20Friendly`: nightly price under $150; older `Under%20%24150` deep-link still resolves.
-4. Buffalo National River collection: Lucky Star and Cabin in the Woods included; Norfork/White River excluded.
-5. `/experiences`: page loads, attractions deduplicate per host area, linked stays are published.
-6. Guest app `/apps/guest`: select property with 2+ photos; swipe and use both arrows/counter.
-7. Property page: select dates and guests; actual quote and comparison appear together, with fees and taxes distinguished.
-8. Same booking on `/checkout`: final quote matches the booking flow; no named competitor appears in comparison. Verify live competitor quote vs modeled estimate labels.
-9. No change to real booking payment, calendar, messaging, or ResNexus state.
+1. Go to homepage. When Featured Stay shows `$X / night`, the illustrative fee-based savings line should appear directly below.
+2. Open `/stays`. Every eligible property card with valid positive starting rate should show the nightly savings teaser immediately after the nightly price.
+3. Open a property page **without dates**. The booking sidebar should show the nightly rate and potential savings together.
+4. Choose valid check-in/checkout and guests. As soon as the `Estimated trip total` appears, the comparison should appear **directly below it**, ahead of the line-item price breakdown. It may show `Comparing booking costs...` briefly. The nightly teaser should disappear in favor of the date-specific comparison when that quote is available.
+5. Inspect a property **with** and **without** a connected external calendar. You should see a checked price only when validated; otherwise a labeled illustrative model (where enough quote data is available). Never label an estimate a verified quote.
+6. Go to `/apps/guest` and check both result cards and stay detail prices. Confirm swiping through images still works.
+7. Open `/checkout` with dates. Check the pre-tax comparison disclosure, the tax-inclusive final total, and the payment amount separately.
+8. Check reservation flow, calendars and host dashboard after deploy; no system logic in those areas was edited.
