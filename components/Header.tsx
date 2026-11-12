@@ -20,7 +20,7 @@ const MOBILE_NAV_BREAKPOINT = 1120;
 
 const primaryLinks = [
   ["Find a stay", "/stays"],
-  ["Explore", "/#regions"],
+  ["Experiences", "/experiences"],
   ["Meet the hosts", "/host-profiles"],
   ["For hosts", "/hosts"],
   ["About", "/about"],

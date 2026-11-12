@@ -1,10 +1,10 @@
 import type { Property } from "@/data/catalog";
 
-// Public NPS access/campground coordinates, not private-property addresses.
-// Distribute reference points along the river: three distant centers missed
-// nearby cabins in between, and text-only matches included distant properties.
+// Reference coordinates are public NPS access/campground locations, not private addresses.
+// A focused 12-mile access-point corridor avoids misleading White River/Norfork
+// stays while retaining nearby Buffalo River area properties.
 // https://www.nps.gov/buff/planyourvisit/getting-around.htm
-export const BUFFALO_RIVER_MAX_DISTANCE_MILES = 20;
+export const BUFFALO_RIVER_MAX_DISTANCE_MILES = 12;
 const ACCESS_POINTS = [
   { lat: 36.0215842559, lng: -93.3543809402 }, // Ponca trail / upper
   { lat: 36.0407758042, lng: -93.344048343 }, // Steel Creek
@@ -23,8 +23,7 @@ const ACCESS_POINTS = [
 ];
 
 // Fallback only for properties lacking a usable public map coordinate.
-// Exact locations avoid accidentally matching "Ozark Mountains" or distant
-// properties that happen to mention the Buffalo River in marketing copy.
+// Text-only matches must be exact communities, not generic marketing copy.
 const BUFFALO_RIVER_COMMUNITIES = new Set([
   "ponca", "boxley", "compton", "jasper", "hasty", "pruitt", "carver",
   "mt judea", "mount judea", "gilbert", "st joe", "saint joe", "marshall",
@@ -65,8 +64,8 @@ function milesBetween(a: {lat:number;lng:number}, b: {lat:number;lng:number}) {
 }
 
 export function searchBuffaloRiverStays(properties: Property[], _destination: string, radiusMiles: number): Property[] {
-  // For this collection, proximity to the Buffalo is mandatory; the general
-  // search radius cannot make unrelated towns part of the river collection.
+  // The specific Buffalo collection has a fixed maximum distance. General search
+  // still uses the normal user-defined radius.
   const radius = Number.isFinite(radiusMiles)
     ? Math.max(0, Math.min(BUFFALO_RIVER_MAX_DISTANCE_MILES, radiusMiles))
     : BUFFALO_RIVER_MAX_DISTANCE_MILES;

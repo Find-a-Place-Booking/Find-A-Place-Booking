@@ -1,0 +1,16 @@
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const vm = require('node:vm');
+const ts = require('typescript');
+const source = fs.readFileSync('lib/public/discovery-categories.ts','utf8');
+const js=ts.transpileModule(source,{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText;
+const sandboxModule={exports:{}};
+vm.runInNewContext(js,{module:sandboxModule,exports:sandboxModule.exports,require,Number,Set,Math});
+const {isUniqueStay,isLuxuryStay,isLargeGroupStay}=sandboxModule.exports;
+const base={type:'Other',name:'Livingston Junction Caboose 101',tags:[],price:175,sleeps:2};
+assert.equal(isUniqueStay(base),true);
+assert.equal(isLuxuryStay(base),false);
+assert.equal(isUniqueStay({...base,name:'Standard Lake Cabin',type:'Cabin',price:500}),false);
+assert.equal(isLuxuryStay({...base,name:'Standard Lake Cabin',type:'Cabin',price:500}),true);
+assert.equal(isLargeGroupStay({...base,name:'RV site',type:'RV Site',sleeps:10}),false);
+console.log('PASS discovery categories: Caboose unique, luxury >= $300, RV not group');
