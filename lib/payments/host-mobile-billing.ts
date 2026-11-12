@@ -3,10 +3,8 @@ import { getStripeClient } from "@/lib/payments/stripe-checkout";
 
 export const mobileAppEnabled = () =>
   process.env.HOST_MOBILE_APP_ENABLED !== "false";
-export const mobileBillingEnabled = () =>
-  mobileAppEnabled() &&
-  process.env.HOST_MOBILE_BILLING_ENABLED !== "false" &&
-  Boolean(process.env.STRIPE_SECRET_KEY);
+/** Host and guest web apps are free. No new subscription checkouts are offered. */
+export const mobileBillingEnabled = () => false;
 
 const priceEnv = {
   monthly: "STRIPE_HOST_MOBILE_MONTHLY_PRICE_ID",
@@ -26,24 +24,24 @@ export const HOST_WEBAPP_PLANS = {
     lookupKey: "fap_host_webapp_monthly_v1",
   },
   yearly: {
-    amount: 3999,
+    amount: 2999,
     interval: "year",
-    lookupKey: "fap_host_webapp_yearly_v1",
+    lookupKey: "fap_host_webapp_yearly_v2",
   },
 } as const;
 export async function resolveHostMobilePrice(plan: HostMobilePlan) {
   const stripe = getStripeClient(),
     configured = hostMobilePriceId(plan),
     expected = HOST_WEBAPP_PLANS[plan];
-  const price = configured
-    ? await stripe.prices.retrieve(configured)
-    : (
-        await stripe.prices.list({
-          lookup_keys: [expected.lookupKey],
-          active: true,
-          limit: 1,
-        })
-      ).data[0];
+  // Prefer the live lookup key over a possibly stale Vercel price-ID override.
+  // An old $39.99 annual env value must not shadow the new $29.99 rate.
+  const lookup = await stripe.prices.list({
+    lookup_keys: [expected.lookupKey],
+    active: true,
+    limit: 1,
+  });
+  const price = lookup.data[0] ??
+    (configured ? await stripe.prices.retrieve(configured) : null);
   if (
     !price ||
     !price.active ||

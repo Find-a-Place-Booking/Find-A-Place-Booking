@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { hasExplicitCredentialRejection } from "./login-diagnostics.mjs";
 
 export class NeedsAttentionError extends Error {
   constructor(code, message, diagnostic = {}) {
@@ -641,13 +642,20 @@ async function isLoginPage(page) {
 }
 
 async function waitForAuthTransition(page, previousUrl) {
+  // A response from ResNexus may take more than 1.5s; wait for the login form
+  // to disappear OR the URL to change, with a bounded 6-second fallback.
   await Promise.race([
     page
       .waitForURL((url) => url.toString() !== previousUrl, {
         timeout: 8_000,
       })
       .catch(() => null),
-    page.waitForTimeout(1_500),
+    page
+      .locator('input[type="password"]')
+      .first()
+      .waitFor({ state: "hidden", timeout: 8_000 })
+      .catch(() => null),
+    page.waitForTimeout(6_000),
   ]);
 
   await page
@@ -656,7 +664,7 @@ async function waitForAuthTransition(page, previousUrl) {
     })
     .catch(() => null);
 
-  await page.waitForTimeout(700);
+  await page.waitForTimeout(500);
 }
 
 async function fillLogin(page, login, password) {
@@ -787,24 +795,28 @@ export async function ensureResNexusSession({
     }
 
     if (await isLoginPage(page)) {
-      const text = clean(
-        await page.locator("body").innerText().catch(() => ""),
-      ).toLowerCase();
+      // Only visible, credential-specific validation is evidence of rejection.
+      // Record a safe stage code, never login values, cookies or page contents.
+      const explicitlyRejected = await hasExplicitCredentialRejection(page);
+      const diagnostic = {
+        stage: "post_login",
+        observation: explicitlyRejected
+          ? "explicit_credential_validation_error"
+          : "login_form_visible_without_credential_validation",
+      };
 
-      if (
-        text.includes("invalid") ||
-        text.includes("incorrect") ||
-        text.includes("failed")
-      ) {
+      if (explicitlyRejected) {
         throw new NeedsAttentionError(
           "CREDENTIALS_REJECTED",
-          "ResNexus did not accept the saved login. Replace the login/password in Find A Place.",
+          "ResNexus explicitly reported an invalid username or password.",
+          diagnostic,
         );
       }
 
       throw new NeedsAttentionError(
         "LOGIN_REQUIRED",
-        "The saved ResNexus session expired and automatic sign-in did not complete.",
+        "ResNexus did not finish automatic sign-in. Credentials were not definitively rejected; check the provider login, verification requirements and worker logs.",
+        diagnostic,
       );
     }
 

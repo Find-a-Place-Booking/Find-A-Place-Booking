@@ -1,15 +1,14 @@
-/** Server-authoritative access rules, deliberately independent of booking commission. */
+/**
+ * The host web app is free for all verified organization owners/managers.
+ * Partner designation remains separate and does not control app entitlement.
+ * Legacy modes are retained in the type to keep historical billing records safe.
+ */
 export type HostMobileAccessMode =
+  | "FREE"
   | "PARTNER"
   | "SUBSCRIBED"
   | "TRIAL"
   | "LOCKED";
-
-function future(value: string | null | undefined, now: number) {
-  if (!value) return false;
-  const time = Date.parse(value);
-  return Number.isFinite(time) && time > now;
-}
 
 export function hostMobileAccessMode(input: {
   partnerStatus: string | null | undefined;
@@ -18,16 +17,5 @@ export function hostMobileAccessMode(input: {
   stripeSubscriptionStatus: string | null | undefined;
   now?: number;
 }): HostMobileAccessMode {
-  const now = input.now ?? Date.now();
-  // A verified partner ALWAYS receives included access, irrespective of the
-  // organization's 7% booking fee. This is recalculated on each request.
-  if (input.partnerStatus === "VERIFIED") return "PARTNER";
-  if (
-    (input.stripeSubscriptionStatus === "active" ||
-      input.stripeSubscriptionStatus === "trialing") &&
-    future(input.subscriptionExpiresAt, now)
-  )
-    return "SUBSCRIBED";
-  if (future(input.trialExpiresAt, now)) return "TRIAL";
-  return "LOCKED";
+  return input.partnerStatus === "VERIFIED" ? "PARTNER" : "FREE";
 }

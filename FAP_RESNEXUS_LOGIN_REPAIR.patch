@@ -1,0 +1,81 @@
+--- a/resnexus-worker/src/resnexus.mjs
++++ b/resnexus-worker/src/resnexus.mjs
+@@ -1,2 +1,3 @@
+ import { createHash } from "node:crypto";
++import { hasExplicitCredentialRejection } from "./login-diagnostics.mjs";
+ 
+@@ -643,2 +644,4 @@
+ async function waitForAuthTransition(page, previousUrl) {
++  // A response from ResNexus may take more than 1.5s; wait for the login form
++  // to disappear OR the URL to change, with a bounded 6-second fallback.
+   await Promise.race([
+@@ -649,3 +652,8 @@
+       .catch(() => null),
+-    page.waitForTimeout(1_500),
++    page
++      .locator('input[type="password"]')
++      .first()
++      .waitFor({ state: "hidden", timeout: 8_000 })
++      .catch(() => null),
++    page.waitForTimeout(6_000),
+   ]);
+@@ -658,3 +666,3 @@
+ 
+-  await page.waitForTimeout(700);
++  await page.waitForTimeout(500);
+ }
+@@ -789,14 +797,17 @@
+     if (await isLoginPage(page)) {
+-      const text = clean(
+-        await page.locator("body").innerText().catch(() => ""),
+-      ).toLowerCase();
++      // Only visible, credential-specific validation is evidence of rejection.
++      // Record a safe stage code, never login values, cookies or page contents.
++      const explicitlyRejected = await hasExplicitCredentialRejection(page);
++      const diagnostic = {
++        stage: "post_login",
++        observation: explicitlyRejected
++          ? "explicit_credential_validation_error"
++          : "login_form_visible_without_credential_validation",
++      };
+ 
+-      if (
+-        text.includes("invalid") ||
+-        text.includes("incorrect") ||
+-        text.includes("failed")
+-      ) {
++      if (explicitlyRejected) {
+         throw new NeedsAttentionError(
+           "CREDENTIALS_REJECTED",
+-          "ResNexus did not accept the saved login. Replace the login/password in Find A Place.",
++          "ResNexus explicitly reported an invalid username or password.",
++          diagnostic,
+         );
+@@ -806,3 +817,4 @@
+         "LOGIN_REQUIRED",
+-        "The saved ResNexus session expired and automatic sign-in did not complete.",
++        "ResNexus did not finish automatic sign-in. Credentials were not definitively rejected; check the provider login, verification requirements and worker logs.",
++        diagnostic,
+       );
+--- a/app/host/integrations/resnexus/page.tsx
++++ b/app/host/integrations/resnexus/page.tsx
+@@ -65,2 +65,4 @@
+   for (const account of accounts) {
++    // Hide abandoned, unmapped retries; keep the records for audit/history.
++    if (account.status === "DISABLED" && account.mappings.length === 0) continue;
+     const list =
+@@ -422,5 +424,13 @@
+                 {organizationAccounts.length
+-                  ? "Connect another ResNexus account"
++                  ? "Add a SECOND, separate ResNexus login (not a reconnect)"
+                   : "Connect ResNexus"}
+               </summary>
++
++              {organizationAccounts.length ? (
++                <p className="text-muted" style={{ marginTop: 10 }}>
++                  To fix an existing connection, use <strong>Replace credentials
++                  &amp; reconnect</strong> in the account above. This form makes
++                  an additional connection and does not update existing cabin mappings.
++                </p>
++              ) : null}
+ 

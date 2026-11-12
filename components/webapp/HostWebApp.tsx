@@ -149,12 +149,7 @@ export function HostWebApp({
   const upcoming = bookings
     .filter((r) => r.status === "CONFIRMED" && r.check_out >= today())
     .sort((a, b) => a.check_in.localeCompare(b.check_in));
-  const mode =
-    organization.mode === "PARTNER"
-      ? "Verified partner · Free"
-      : organization.mode === "TRIAL"
-        ? "Free trial"
-        : "Host subscription";
+  const mode = organization.mode === "PARTNER" ? "Verified partner · Free" : "Host app · Free";
   return (
     <div className="fap-webapp">
       <header className="top">
@@ -328,7 +323,7 @@ export function HostWebApp({
                 Payout account
               </Link>
               <Link className="button ghost" href="/host/mobile">
-                App access & billing
+                Host app access
               </Link>
             </section>
             <InstallWebApp />

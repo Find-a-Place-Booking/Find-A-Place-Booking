@@ -63,6 +63,8 @@ export default async function ResNexusIntegrationPage({
   >();
 
   for (const account of accounts) {
+    // Hide abandoned, unmapped retries; keep the records for audit/history.
+    if (account.status === "DISABLED" && account.mappings.length === 0) continue;
     const list =
       accountsByOrganization.get(account.organizationId) ?? [];
     list.push(account);
@@ -420,9 +422,17 @@ export default async function ResNexusIntegrationPage({
             >
               <summary>
                 {organizationAccounts.length
-                  ? "Connect another ResNexus account"
+                  ? "Add a SECOND, separate ResNexus login (not a reconnect)"
                   : "Connect ResNexus"}
               </summary>
+
+              {organizationAccounts.length ? (
+                <p className="text-muted" style={{ marginTop: 10 }}>
+                  To fix an existing connection, use <strong>Replace credentials
+                  &amp; reconnect</strong> in the account above. This form makes
+                  an additional connection and does not update existing cabin mappings.
+                </p>
+              ) : null}
 
               <form
                 className="settings-form"

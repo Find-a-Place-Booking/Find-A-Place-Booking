@@ -1,63 +1,41 @@
-FIND A PLACE BOOKING — SAFE SYSTEM FIXES — 2026-10-02
-Base GitHub main commit verified before packaging:
-f90141aec23c28e58fa2b686e5eac20ad2d8d63b
+# Find A Place — ResNexus Worker Login Diagnosis Repair
 
-NOT APPLIED ANYWHERE:
-- No GitHub files were changed by ChatGPT.
-- No Supabase migrations/data were changed by ChatGPT.
-- No existing host, property, reservation or payment row was edited.
+Base: GitHub main commit 328a99516cc67fc6a70a8b7fc1f6804d6907b381
 
-WHAT IS IN HERE
-01_calendar_details
-  Adds real Find A Place reservation details to the existing click-a-day calendar drawer.
-  Fixes ResNexus BROWSER_WORKER being mislabeled as iCal.
-  Does not change manual block or reservation routing behavior.
+This package includes the complete NEW login-diagnostics module and its tests,
+plus a small standard Git patch for two EXISTING files. Unlike normal overlays,
+the original 71KB worker is not bundled because direct GitHub writes were rejected
+(403) and its full source could not be exported to the local runtime. No passwords,
+cookies, tokens, or calendar records are included.
 
-02_onboarding_tax
-  Makes checkout tax setup optional in the wizard and completion API.
-  Keeps tax setup available for hosts who want FAP to calculate it.
-  A skipped tax setup leaves the existing database HOST_SELF_REMIT behavior in charge.
-  Requires a host to explicitly choose NONE / iCal / PMS for availability rather than leaving UNSET.
-  Fresh Stripe status is checked before automatic publication, but a temporary Stripe sync problem leaves the property safely saved as draft rather than losing onboarding work.
+1. Extract this ZIP INTO the root of the Find-A-Place-Booking repository.
+2. From the repository root run:
 
-03_guest_checkout_recovery
-  Stops expired holds from looping on Retry secure payment.
-  Keeps same-page guest inputs/selections when an expired hold is reset.
-  Accepts the server-extended hold expiration returned when a PaymentIntent starts.
-  Confirmation polling continues after 30 seconds at a slower rate and stops for terminal failed/expired/cancelled states.
+   git apply --check FAP_RESNEXUS_LOGIN_REPAIR.patch
+   git apply FAP_RESNEXUS_LOGIN_REPAIR.patch
 
-04_system_dependencies
-  Adds the database contract used by the hardening changes.
-  ResNexus ambiguous reservations are quarantined as account-level unresolved date windows instead of aborting the entire 10-unit sync.
-  Exact ResNexus room/site blocks continue syncing.
-  Unresolved windows fail closed only for their affected dates.
-  ResNexus freshness now also protects approved date changes.
-  New external-calendar listings need one successful sync before FIRST publication only.
-  Existing published/paused listings are explicitly exempt because published_at is already populated.
-  Stripe account/capability webhooks resync the canonical payment account state.
-  Payment start rechecks Stripe plus current calendar state immediately before PaymentIntent work.
-  Public availability fails closed when ResNexus itself is stale.
-  Expired HOLD rows are auto-cleaned ONLY when no payment row exists.
-  PAYMENT_PENDING/PAYMENT_FAILED/payment-bearing reservations are deliberately not auto-cleaned.
+3. Validate:
 
-SAFE APPLY ORDER
-Preferred: apply the migration in 04_system_dependencies through the normal Supabase migration workflow, then deploy the app overlays.
-The app-side RPC calls also detect a not-yet-visible migration and fall back to the existing behavior, so a brief code-first deploy does not take guest availability/payment down.
+   node --test resnexus-worker/tests/login-diagnostics.test.mjs
+   npm --prefix resnexus-worker run check
 
-EXISTING HOST COMPATIBILITY
-- No tax requirement is added to existing hosts.
-- No calendar first-sync requirement is applied retroactively to a listing that has ever been published.
-- Existing confirmed bookings/payment snapshots are not rewritten.
-- Existing manual blocks are not converted into reservations.
-- Stripe only pauses a listing if Stripe's current account state actually loses payment readiness through the existing payment-account safety trigger.
-- Current ResNexus ERROR rows are not forcibly reset by the migration; they recover through the next successful worker sync after the ambiguous-event cascade is fixed.
+4. Commit and push to GitHub. Redeploy the ResNexus Railway worker from the same
+   commit (the web frontend does not deploy the standalone worker).
+5. Confirm Railway worker logs and health, then only after deployment trigger
+   Retry now on the ORIGINAL ResNexus connection with ten mapped properties.
+6. Verify the account status CONNECTED, the ten resource mappings and that actual
+   booked/blocked nights match ResNexus before treating availability as reliable.
 
-SOURCE-CONTROL DRIFT FOUND DURING AUDIT
-Production Supabase already records these migrations but current GitHub main does not contain matching migration files:
-- 20261001222241_fix_onboarding_unit_id_ambiguity
-- 20261001223323_stop_resnexus_ambiguous_fanout_blocks
-- 20261001224450_allow_live_property_edits_with_cancellation_warning
-They were NOT re-created from memory inside these runtime overlays. Their exact SQL remains in Supabase migration history and should be copied back into source control separately so a fresh database can reproduce production.
-TYPECHECK CORRECTION — 2026-10-02
-The payment-intent route includes the missing missingDatabaseFunction() compatibility helper. This corrects the failed TypeScript check in the first package.
+Changes:
+- Waits for post-login page transition (up to 6sec) instead of 1.5sec.
+- Does not call a login failure bad credentials based on generic page text.
+- Only explicit credential-specific errors produce CREDENTIALS_REJECTED.
+- Unconfirmed logins are LOGIN_REQUIRED with a safe, content-free diagnostic.
+- Hides disabled unmapped duplicate connection from the host-facing list and
+  clarifies that adding a new login is NOT how to reconnect an existing one.
+- Keeps existing booking blocks, mappings, reservations, encryption and session
+  boundaries intact. No database migration or payment changes.
 
+IMPORTANT: The patch improves diagnosis and fixes potential false positives.
+It does NOT guarantee ResNexus accepts the login, nor have worker runtime logs
+been checked. Railway was not connected when this package was created.
