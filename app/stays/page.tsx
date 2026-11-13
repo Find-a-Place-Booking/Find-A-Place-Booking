@@ -34,13 +34,14 @@ const collectionHeadings: Record<string, string> = {
   Cabin: "Cabins",
   "Sleeps 8+": "Group getaways for eight or more",
   "Luxury stays": "Luxury cabins and premium stays",
+  "Unique stays": "Cabooses, treehouses and other one-of-a-kind stays",
   "Buffalo National River": "Stays near the Buffalo National River",
   "RV Site": "RV stays",
   "Hot tub": "Stays with hot tubs",
   "Pet friendly": "Pet-friendly stays",
   Waterfront: "Waterfront stays",
   "ATV access": "Stays with ATV access",
-  "Under $150": "Stays under $150",
+  "Budget Friendly": "Budget-friendly stays under $150",
   "2+ bedrooms": "Stays with room to spread out",
 };
 
@@ -84,8 +85,8 @@ export default async function StaysPage({
     );
 
   const summary = copyBlock(content, "stays.summary");
-  // Old shared Unique stays URLs keep working, but open the new collection.
-  const requestedFilter = params.filter === "Unique stays" ? "Luxury stays" : params.filter;
+  // Old Under $150 links still open the new Budget Friendly collection.
+  const requestedFilter = params.filter === "Under $150" ? "Budget Friendly" : params.filter;
   const initialFilter =
     requestedFilter && collectionHeadings[requestedFilter] ? requestedFilter : "";
   const start = prettyDate(checkin);

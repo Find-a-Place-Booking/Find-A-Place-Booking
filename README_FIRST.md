@@ -1,33 +1,17 @@
-# Find A Place — Cabins Only in Featured Stays
+# Find A Place Booking — category button wiring fix
+Checked against GitHub/main 29103264e3771efe5bf42a193891f1e6d3bdeba4 (Nov 12, 2026).
 
-**Direct overwrite ZIP — no install scripts or patch commands.**
+## To apply
+1. Copy/extract the contents of this ZIP into the root of your Find-A-Place-Booking repository, keeping folders intact and overwriting the included `app/page.tsx` file.
+2. **MUST RUN `APPLY_COLLECTION_FIX.bat` once on Windows** (double-click it, with Python 3 installed). Or `python3 APPLY_COLLECTION_FIX.py` on macOS/Linux. The script wires Unique Stays and Budget Friendly into two existing results files. Merely extracting the ZIP is NOT enough.
+3. Run `npm run build`, commit, and push. Make sure the deployment completes before checking the live site.
 
-## Root cause
+## Exact behavior
+- Buffalo National River: 12 miles straight-line from curated Buffalo access points, with named-community fallback for properties lacking coordinates. It remains its own filter and does not change general destination radius searches.
+- Luxury Stays: published stays starting at $300+/night, excluding camp/RV sites; `Other` type must have explicit luxury tag.
+- Unique Stays: cabooses, treehouses, yurts, tiny homes, houseboats and similar explicit structures/tags/names. No $300 requirement. It is NOT a redirect to Luxury.
+- Budget Friendly: published stays starting UNDER $150/night (`price < 150`), not including $150 exactly. Old `/stays?filter=Under%20%24150` links continue to work.
 
-The verified-cabin selection helper had been added to the GitHub repository, but the homepage was still calling `getPublishedProperties(14)` and drawing the hero and grids from those unfiltered results. That can display RV sites and campsites.
+This archive does not touch Stripe, booking availability, taxes, calendar connections, or Supabase records. It changes three presentation files only (homepage overwrite + results page and results filter script).
 
-## Install
-
-1. Extract this ZIP into the **root** of your Find A Place Booking project (folder with `package.json`).
-2. Allow overwrite of **`app/page.tsx`** and **`lib/public/featured-launch-cabins.ts`**.
-3. Run `node --test tests/home-featured-cabins.test.mjs` and then `npm run build`.
-4. Commit and push those source files and the test. Vercel must deploy the new commit.
-5. Hard refresh the home page and inspect the hero, Featured Stays grid, and lower homepage stay grid.
-
-## Enforced rules
-
-- Hero featured stay: published + `homepage_feature_priority = 1` + verified partner + `property_type = Cabin`.
-- Featured Stays cards: exactly the same rules.
-- Lower home grid: exactly the same rules. No campsites, RV sites or other property types.
-- No fallback to non-cabin stays if fewer than 14 qualified cabins are available or the eligibility query fails.
-- The *normal search results, collections, and map* still include every published stay type, including RV and camping, as before.
-- The homepage fetches **all eligible priority-ordered inventory before selecting cabins** so a top-14 cutoff cannot exclude valid partner cabins; it then limits the homepage to 14 cabins (8 in first grid and 6 in second grid).
-- No edits to booking or payment handling, calendar syncing, Stripe, host prices, or database content.
-
-## QA
-
-- Source matches GitHub `main` `app/page.tsx` as of November 12, 2026 (blob SHA `5ce1acc869999256c136d0cdee80e5d2d082233d`) plus only the featured-stays selection change.
-- Transpilation syntax and 2 source guard tests validated on the provided files.
-- Full Next.js build and visual live-site test must run after install; no direct GitHub write permission was available here.
-
-*If your local app/page.tsx has changed since that GitHub version, review the diff before overwriting rather than replacing newer work.*
+If the updater reports a source SHA mismatch, it stops to protect changes pushed since the check. Do not force it.

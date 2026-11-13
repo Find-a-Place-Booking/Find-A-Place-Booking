@@ -31,6 +31,11 @@ const stayCollections = [
     filter: "Luxury stays",
   },
   {
+    label: "Unique stays",
+    detail: "Cabooses, treehouses, yurts and unusual one-of-a-kind stays.",
+    filter: "Unique stays",
+  },
+  {
     label: "Group getaways",
     detail: "Cabins and homes with room for eight or more.",
     filter: "Sleeps 8+",
@@ -66,9 +71,9 @@ const stayCollections = [
     filter: "ATV access",
   },
   {
-    label: "Under $150",
-    detail: "Budget-friendly stays with nightly rates under $150.",
-    filter: "Under $150",
+    label: "Budget Friendly",
+    detail: "Good stays with starting nightly rates under $150.",
+    filter: "Budget Friendly",
   },
 ];
 

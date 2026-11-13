@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { track } from "@vercel/analytics";
 import { PropertyCard } from "./PropertyCard";
-import { isLargeGroupStay, isLuxuryStay } from "@/lib/public/discovery-categories";
+import { isLargeGroupStay, isLuxuryStay, isUniqueStay } from "@/lib/public/discovery-categories";
 import { searchBuffaloRiverStays } from "@/lib/public/buffalo-river-discovery";
 import { DeferredStayMap } from "./DeferredStayMap";
 import {
@@ -14,6 +14,7 @@ import {
 const filterOptions = [
   "Buffalo National River",
   "Luxury stays",
+  "Unique stays",
   "Sleeps 8+",
   "Cabin",
   "RV Site",
@@ -21,7 +22,7 @@ const filterOptions = [
   "Pet friendly",
   "Waterfront",
   "ATV access",
-  "Under $150",
+  "Budget Friendly",
   "2+ bedrooms",
 ];
 
@@ -74,7 +75,7 @@ export function StayResults({
         if (Array.isArray(saved.filters)) {
           setFilters(
             saved.filters
-              .map((filter) => filter === "Unique stays" ? "Luxury stays" : filter)
+              .map((filter) => filter === "Under $150" ? "Budget Friendly" : filter)
               .filter((filter) => filterOptions.includes(filter)),
           );
         }
@@ -199,8 +200,9 @@ export function StayResults({
         if (filter === "Buffalo National River") return buffaloSlugs?.has(property.slug) ?? false;
         if (filter === "Sleeps 8+") return isLargeGroupStay(property);
         if (filter === "Luxury stays") return isLuxuryStay(property);
+        if (filter === "Unique stays") return isUniqueStay(property);
         if (filter === "RV Site") return property.type === "RV Site";
-        if (filter === "Under $150") return property.price < 150;
+        if (filter === "Budget Friendly") return property.price < 150;
         if (filter === "2+ bedrooms") return property.bedrooms >= 2;
         return property.tags.includes(filter);
       });
