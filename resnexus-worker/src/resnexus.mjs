@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { hasExplicitCredentialRejection } from "./login-diagnostics.mjs";
 import { submitResNexusLoginForm } from "./login-form-v2.mjs";
+import { observeResNexusLogin, inspectResNexusLoginState } from "./auth-observation.mjs";
 
 export class NeedsAttentionError extends Error {
   constructor(code, message, diagnostic = {}) {
@@ -643,29 +644,24 @@ async function isLoginPage(page) {
 }
 
 async function waitForAuthTransition(page, previousUrl) {
-  // A response from ResNexus may take more than 1.5s; wait for the login form
-  // to disappear OR the URL to change, with a bounded 6-second fallback.
-  await Promise.race([
-    page
-      .waitForURL((url) => url.toString() !== previousUrl, {
-        timeout: 8_000,
-      })
-      .catch(() => null),
-    page
-      .locator('input[type="password"]')
-      .first()
-      .waitFor({ state: "hidden", timeout: 8_000 })
-      .catch(() => null),
-    page.waitForTimeout(6_000),
-  ]);
+  // Do not declare a login unsuccessful just because an AJAX submit or
+  // redirect takes longer than the old six-second race. Never re-submit.
+  const deadline = Date.now() + 16_000;
+  while (Date.now() < deadline) {
+    if (page.url() !== previousUrl) break;
+    const passwordVisible = await page
+      .locator('input[type="password"]:visible')
+      .count()
+      .then((count) => count > 0)
+      .catch(() => false);
+    if (!passwordVisible) break;
+    await page.waitForTimeout(400);
+  }
 
   await page
-    .waitForLoadState("domcontentloaded", {
-      timeout: 8_000,
-    })
+    .waitForLoadState("domcontentloaded", { timeout: 8_000 })
     .catch(() => null);
-
-  await page.waitForTimeout(500);
+  await page.waitForTimeout(1_000);
 }
 
 async function fillLogin(page, login, password) {
@@ -679,6 +675,7 @@ async function fillLogin(page, login, password) {
       { stage: "pre_submit", observation: result.observation },
     );
   }
+  return result;
 }
 
 async function submitChallengeIfPossible(page, challengeCode) {
@@ -726,6 +723,8 @@ export async function ensureResNexusSession({
   challengeCode,
 }) {
   const page = await context.newPage();
+  let loginObservation = null;
+  let loginSubmission = null;
 
   try {
     await page.goto(CALENDAR_URL, {
@@ -744,7 +743,23 @@ export async function ensureResNexusSession({
           timeout: 30_000,
         });
       }
-      await fillLogin(page, login, password);
+      // Observe only categorical network facts; never any request
+      // body, header, cookie, query, URL or account content.
+      const observer = observeResNexusLogin(page);
+      try {
+        loginSubmission = await fillLogin(page, login, password);
+      } catch (error) {
+        if (error instanceof NeedsAttentionError) {
+          error.diagnostic = {
+            ...error.diagnostic,
+            submissionNetwork: observer.snapshot(),
+          };
+        }
+        throw error;
+      } finally {
+        loginObservation = observer.snapshot();
+        observer.stop();
+      }
     }
 
     let challenge = await detectChallenge(page);
@@ -755,7 +770,11 @@ export async function ensureResNexusSession({
     }
 
     if (challenge) {
-      throw new NeedsAttentionError(challenge.code, challenge.message);
+      throw new NeedsAttentionError(challenge.code, challenge.message, {
+        stage: "challenge",
+        observation: "provider_requested_human_verification",
+        submissionNetwork: loginObservation,
+      });
     }
 
     if (await isLoginPage(page)) {
@@ -767,6 +786,9 @@ export async function ensureResNexusSession({
         observation: explicitlyRejected
           ? "explicit_credential_validation_error"
           : "login_form_visible_without_credential_validation",
+        formSubmission: loginSubmission?.observation || "not_submitted_by_worker",
+        submissionNetwork: loginObservation,
+        visiblePageSignals: await inspectResNexusLoginState(page),
       };
 
       if (explicitlyRejected) {
@@ -802,6 +824,12 @@ export async function ensureResNexusSession({
       throw new NeedsAttentionError(
         "LOGIN_REQUIRED",
         "ResNexus returned to the login page after sign-in.",
+        {
+          stage: "calendar_redirect",
+          observation: "provider_returned_login_form",
+          submissionNetwork: loginObservation,
+          visiblePageSignals: await inspectResNexusLoginState(page),
+        },
       );
     }
 
