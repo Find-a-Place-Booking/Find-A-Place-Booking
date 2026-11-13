@@ -307,10 +307,13 @@ async function processAccount(account) {
   } catch (error) {
     lastError = safeMessage(error);
 
-    // Verification challenges can depend on cookies created during the failed
-    // sign-in attempt. Preserve that session so a host-entered code can resume
-    // the same challenge instead of restarting login from scratch.
-    if (!sessionCiphertext) {
+    // Persist failed-login browser state ONLY for a resumable verification
+    // challenge. Never repackage an invalid-login cookie jar as a good session.
+    const challengeInProgress =
+      error instanceof NeedsAttentionError &&
+      (error.code === "VERIFICATION_CODE_REQUIRED" ||
+       error.code === "CAPTCHA_REQUIRED");
+    if (challengeInProgress && !sessionCiphertext) {
       try {
         sessionCiphertext = encryptCredential(
           JSON.stringify(await context.storageState()),
@@ -329,6 +332,20 @@ async function processAccount(account) {
     });
 
     await markFailure(account, error, sessionCiphertext);
+
+    // The failure RPC preserves existing sessions via COALESCE. Explicitly
+    // discard a rejected-login cookie jar after recording the failure, while
+    // guarding against a concurrent host reconnect/credential replacement.
+    if (error instanceof NeedsAttentionError && error.code === "CREDENTIALS_REJECTED") {
+      const { error: discardError } = await supabase
+        .from("resnexus_browser_accounts")
+        .update({ session_ciphertext: null })
+        .eq("id", account.browser_account_id)
+        .eq("organization_id", account.organization_id)
+        .eq("status", "NEEDS_ATTENTION")
+        .eq("attention_code", "CREDENTIALS_REJECTED");
+      if (discardError) console.warn("[resnexus worker] unable to discard rejected browser session");
+    }
   } finally {
     await page?.close().catch(() => null);
     await context.close().catch(() => null);

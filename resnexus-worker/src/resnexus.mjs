@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import { hasExplicitCredentialRejection } from "./login-diagnostics.mjs";
+import { submitResNexusLoginForm } from "./login-form-v2.mjs";
 
 export class NeedsAttentionError extends Error {
   constructor(code, message, diagnostic = {}) {
@@ -668,63 +669,16 @@ async function waitForAuthTransition(page, previousUrl) {
 }
 
 async function fillLogin(page, login, password) {
-  const loginInput = page
-    .locator(
-      [
-        'input[type="email"]',
-        'input[autocomplete="username"]',
-        'input[name*="email" i]',
-        'input[name*="user" i]',
-        'input[name*="login" i]',
-        'input[placeholder*="email" i]',
-        'input[placeholder*="user" i]',
-        'input[placeholder*="login" i]',
-      ].join(", "),
-    )
-    .first();
-
-  const passwordInput = page.locator('input[type="password"]').first();
-
-  if (
-    !(await loginInput.isVisible().catch(() => false)) ||
-    !(await passwordInput.isVisible().catch(() => false))
-  ) {
+  const result = await submitResNexusLoginForm({
+    page, login, password, waitForTransition: waitForAuthTransition,
+  });
+  if (!result.submitted) {
     throw new NeedsAttentionError(
       "LOGIN_FORM_CHANGED",
-      "The ResNexus login page changed and the worker could not safely identify the login fields.",
+      "The ResNexus login form could not be submitted safely. The worker did not guess which field or button to use.",
+      { stage: "pre_submit", observation: result.observation },
     );
   }
-
-  await loginInput.fill(login);
-  await passwordInput.fill(password);
-
-  const previousUrl = page.url();
-  const submit = page
-    .locator(
-      [
-        'button[type="submit"]',
-        'input[type="submit"]',
-        'button[name*="login" i]',
-        'input[name*="login" i]',
-        'button[id*="login" i]',
-        'input[id*="login" i]',
-        'button:has-text("Login")',
-        'button:has-text("Log in")',
-        'button:has-text("Sign in")',
-        'input[value*="Login" i]',
-        'input[value*="Log in" i]',
-        'input[value*="Sign in" i]',
-      ].join(", "),
-    )
-    .first();
-
-  if (await submit.isVisible().catch(() => false)) {
-    await submit.click();
-  } else {
-    await passwordInput.press("Enter");
-  }
-
-  await waitForAuthTransition(page, previousUrl);
 }
 
 async function submitChallengeIfPossible(page, challengeCode) {
@@ -780,6 +734,16 @@ export async function ensureResNexusSession({
     });
 
     if (await isLoginPage(page)) {
+      // A rejected or expired browser session can leave stale cookies. Re-open
+      // the real login URL with a clean cookie jar before the one login attempt.
+      // Preserve session cookies when a host has an active verification code.
+      if (!challengeCode) {
+        await context.clearCookies();
+        await page.goto(LOGIN_URL, {
+          waitUntil: "domcontentloaded",
+          timeout: 30_000,
+        });
+      }
       await fillLogin(page, login, password);
     }
 

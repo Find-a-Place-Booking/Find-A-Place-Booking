@@ -36,7 +36,7 @@ export async function saveResNexusBrowserAccount(formData: FormData) {
   const accountId = field(formData, "account_id", 100) || null;
   const label = field(formData, "label", 120) || "ResNexus";
   const login = field(formData, "login", 320);
-  const password = field(formData, "password", 4096);
+  const password = String(formData.get("password") ?? "").slice(0, 4096);
   const syncIntervalMinutes = Number(
     field(formData, "sync_interval_minutes", 4) || "60",
   );
