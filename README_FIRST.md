@@ -1,25 +1,33 @@
-# Find A Place Booking — Direct Price Comparison & Neutral Naming
+# Find A Place — Cabins Only in Featured Stays
 
-**Apply on top of the 11/11 Guest Experience / Immediate Price overlays.**
+**Direct overwrite ZIP — no install scripts or patch commands.**
 
-## What this changes
+## Root cause
 
-- **Linked external listing:** Looks up an actual date- and party-matched booking quote from a configured authorized external price source or supported verified public quote. Displays **VERIFIED** only when a fresh, exact pre-tax price was obtained for the same property, dates, and guest count. If a verified quote cannot be obtained, shows a transparent "same-stay price check unavailable" message instead of invented savings. A calendar feed on its own does not contain booking prices.
-- **No linked listing:** Keeps the existing illustrative equal-host-proceeds fee model and labels the response **ESTIMATED**. Assumption: a hypothetical 15.5% host-side fee at another platform. It is not a competing site's actual price or a broad market average.
-- **Neutral public copy:** No competitor names or competing company logos in the comparison widget; uses **Other booking platforms**, **Checked price**, and **Illustrative estimate**. Internal provider-specific API/file names remain for compatibility, but aren't shown to guests.
-- **Never claims savings unless the compared modeled or verified total is actually higher.** Negative/zero differences get truthful headlines.
-- **Payments unchanged:** No checkout charge, taxes, refund, Stripe, calendar, booking or reservation modifications.
-- **Pre-tax consistency:** Both compared figures are pre-tax; checkout still shows the actual total inclusive of applicable taxes.
+The verified-cabin selection helper had been added to the GitHub repository, but the homepage was still calling `getPublishedProperties(14)` and drawing the hero and grids from those unfiltered results. That can display RV sites and campsites.
 
 ## Install
 
-1. Unzip into the root of your Find A Place Booking repository; overwrite `components/DirectBookingValue.tsx`.
-2. Double-click `APPLY_DIRECT_COMPARISON.bat` (Windows, Python 3), or run `python APPLY_DIRECT_COMPARISON.py` at repository root. This safely modifies only `app/api/booking/airbnb-comparison/route.ts`, and aborts if that file has unexpected changes.
-3. Run `npm run build` and project test suite; then commit and push.
-4. Verify a nonlinked property (illustrative), a linked property with a **verified** quote (exact direct price), and linked with no verified quote (transparent unavailable state).
+1. Extract this ZIP into the **root** of your Find A Place Booking project (folder with `package.json`).
+2. Allow overwrite of **`app/page.tsx`** and **`lib/public/featured-launch-cabins.ts`**.
+3. Run `node --test tests/home-featured-cabins.test.mjs` and then `npm run build`.
+4. Commit and push those source files and the test. Vercel must deploy the new commit.
+5. Hard refresh the home page and inspect the hero, Featured Stays grid, and lower homepage stay grid.
 
-**Important:** Automated public page collection is OFF by default after this patch because the external platform terms prohibit unapproved bots/scrapers. Do not enable it without authorization. This is a narrow follow-up overlay; it does *not* bundle the prior full homepage, experiences or immediate-nightly-preview patches. Apply it **after** those patches. No production deployment or database write was performed by preparing this ZIP.
+## Enforced rules
 
-## How to make real direct quotes appear
+- Hero featured stay: published + `homepage_feature_priority = 1` + verified partner + `property_type = Cabin`.
+- Featured Stays cards: exactly the same rules.
+- Lower home grid: exactly the same rules. No campsites, RV sites or other property types.
+- No fallback to non-cabin stays if fewer than 14 qualified cabins are available or the eligibility query fails.
+- The *normal search results, collections, and map* still include every published stay type, including RV and camping, as before.
+- The homepage fetches **all eligible priority-ordered inventory before selecting cabins** so a top-14 cutoff cannot exclude valid partner cabins; it then limits the homepage to 14 cabins (8 in first grid and 6 in second grid).
+- No edits to booking or payment handling, calendar syncing, Stripe, host prices, or database content.
 
-Find A Place currently has 26 active externally connected listings and no *fresh* verified price quotes in the production cache (checked Nov 11, 2026). A linked calendar identifies the listing but doesn't expose that booking site's guest total. For the strongest and most reliable comparison, configure a properly authorized server-side exact-price feed (`AIRBNB_PRICE_FEED_URL` / `AIRBNB_PRICE_FEED_TOKEN` in existing code). It must give the same listing ID, dates, guest count, USD currency and total **before taxes**. Do not guess a quote or try to bypass competitor access controls. Without such a feed or an authorized successful public quote, the linked-listing comparison remains unavailable rather than fabricating savings.
+## QA
+
+- Source matches GitHub `main` `app/page.tsx` as of November 12, 2026 (blob SHA `5ce1acc869999256c136d0cdee80e5d2d082233d`) plus only the featured-stays selection change.
+- Transpilation syntax and 2 source guard tests validated on the provided files.
+- Full Next.js build and visual live-site test must run after install; no direct GitHub write permission was available here.
+
+*If your local app/page.tsx has changed since that GitHub version, review the diff before overwriting rather than replacing newer work.*

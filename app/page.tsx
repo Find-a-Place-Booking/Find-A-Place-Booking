@@ -12,6 +12,7 @@ import { TrackedLink } from "@/components/TrackedLink";
 import { SearchBar } from "@/components/SearchBar";
 import { destinations } from "@/data/catalog";
 import { getPublishedMapStays, getPublishedProperties } from "@/lib/public/listings";
+import { selectLaunchPartnerCabins } from "@/lib/public/featured-launch-cabins";
 import { getSiteContentBlocks } from "@/lib/public/site-content";
 
 export const metadata: Metadata = {
@@ -113,7 +114,7 @@ const defaults = {
 
 export default async function HomePage() {
   const [published, mapStays, content] = await Promise.all([
-    getPublishedProperties(14),
+    getPublishedProperties({ featuredPriority: true }),
     getPublishedMapStays(),
     getSiteContentBlocks(["home.hero", "home.story", "home.host_cta"]),
   ]);
@@ -131,9 +132,12 @@ export default async function HomePage() {
     ...(content.get("home.host_cta") ?? {}),
   };
 
-  const featuredStay = published[0] ?? null;
-  const primaryStays = published.slice(0, 8);
-  const moreStays = published.slice(8, 14);
+  // Use only published verified launch-partner cabins for the hero and both
+  // homepage stay grids. No RV/campsite/non-partner fallback.
+  const launchCabins = (await selectLaunchPartnerCabins(published)).slice(0, 14);
+  const featuredStay = launchCabins[0] ?? null;
+  const primaryStays = launchCabins.slice(0, 8);
+  const moreStays = launchCabins.slice(8, 14);
 
   return (
     <>
