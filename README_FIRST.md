@@ -1,41 +1,36 @@
-# Find A Place Booking — ResNexus Auth Diagnostics v3
+# Find A Place Booking — ResNexus browser login worker repair
 
-**Scope:** Railway's `resnexus-worker` ONLY. No changes to Stripe, reservation logic, properties, Supabase migrations, database records or calendar mappings.
+Target: GitHub repository `Find-a-Place-Booking/Find-A-Place-Booking`, Railway `resnexus-worker` service (root directory `/resnexus-worker`).
+Prepared against GitHub main commit `292d65151689ebd37ede8dcd4234245c7a194e35`, original login helper blob SHA `bbabfcbfd725b884b1c842a23d1500c30f82cd9c`.
 
-This overlay builds on the `resnexus fix` commit (`8c8dbeae659bf55dd28138b5747c96f87934fa8f`, checked November 12, 2026). It adds privacy-safe login-request telemetry and improves the wait for a slow authentication transition. It does **not** bypass CAPTCHA or two-factor authentication, claim the ResNexus login works, or invent calendar blocks.
+## Apply (direct overlay; no installer)
 
-## Install
+1. Back up/commit any local changes. Open your Find-A-Place-Booking repository folder.
+2. Extract this ZIP **into the repository root**, merging its `resnexus-worker` folder and replacing the two files below.
+3. Run from the repository root:
 
-1. Extract this ZIP into the ROOT of the local `Find-A-Place-Booking` repository, keeping its folder structure.
-2. On Windows, double-click `APPLY_AUTH_DIAGNOSTICS.bat`. On Mac/Linux, run `sh APPLY_AUTH_DIAGNOSTICS.sh` (Python 3 required). **This step patches `resnexus-worker/src/resnexus.mjs`; extraction alone is not enough.**
-3. Run in a terminal from repository root:
-   - `cd resnexus-worker`
-   - `npm run check`
-   - `node --test tests/auth-observation.test.mjs`
-   - `node --test tests/login-form-v2.test.mjs`
-4. Commit and push. Railway automatically rebuilds the already-connected worker from GitHub `main`. Confirm the Railway deployment reaches **SUCCESS** before trying another login.
+   cd resnexus-worker
+   node --check src/login-form-v2.mjs
+   node --test tests/login-form-v2.test.mjs
+   npm run check
 
-The patcher validates each current source anchor before writing anything, and is safe to rerun. If an anchor has changed, it **stops** rather than guessing or partially rewriting the file. No credentials need to be re-entered to install.
+4. Review `git diff` (the worker login helper and its tests only), then commit/push to **main**.
+5. Wait for Railway service `Find-A-Place-Booking` in project `courteous-motivation` to show a successful new deployment using the new commit. Check auth failures before manually requesting **one** retry of the saved account; never run repeated blind password attempts.
 
-## What the next, single controlled retry should reveal
+## What is repaired
 
-The `resnexus_browser_accounts.diagnostic` JSON will include these *categorical*, sanitized fields:
+- Identifies `input[type=button]`, `button[type=button]`, `input[type=image]`, accessible clickable elements, JavaScript-backed login links, and normal submit controls.
+- Chooses exactly ONE safe action from the same visible credential form. If the login button is a sibling, searches ONLY the form's immediate wrapper and requires one explicitly labeled action.
+- Sends proper input/change/blur events before submitting. No raw HTTP credential submission, form bypasses, CAPTCHA workarounds, or duplicate clicks.
+- If a login fails, the existing worker diagnostic now records a safe `formSubmission` category such as `login_form_submitted_via_named_login_control` without credentials or HTML.
+- Fails closed for missing/ambiguous input fields, disabled buttons, or multiple possible login controls.
 
-- `formSubmission`: whether our scoped form-control submission ran.
-- `submissionNetwork.nonGetRequests`: number of non-GET requests sent to ResNexus during the submit.
-- `submissionNetwork.nonGetResponses`: matching server responses.
-- `submissionNetwork.lastSubmitResponse`: `2xx`, `3xx`, `4xx`, `5xx` or `401`/`403`/`429` (no body).
-- `submissionNetwork.documentNavigations`: navigations observed during submit.
-- `submissionNetwork.networkFailures` and `.javascriptErrors`: bounded counters.
-- `visiblePageSignals`: classified booleans for lockout, throttling, expired password, verification hints, access denied, or generic errors, plus invalid-field/visible-alert counts.
+## Important current production state (November 14, 2026)
 
-**Privacy:** No raw response bodies, validation text, DOM HTML, URLs, query parameters, usernames, passwords, cookies, session state, or request headers are recorded. Only counts and the fixed categories above. Nothing here reuses another host's session.
+Renea's old ten-property ResNexus account was disconnected/deleted at 5:05 PM Central, and its ten calendar connections were disabled. Her new ResNexus browser account is stored but has **zero property mappings** and failed sign-in. Fixing login code alone will **not automatically restore those ten mappings or missing external blocks**. Remapping and a verified fresh sync are separate required steps before treating availability as reliable.
 
-## Interpreting results
+No historical canceled availability blocks should be indiscriminately reactivated: dates must first be checked against ResNexus. Published properties with no active feed carry a double-booking risk. Do not mark the connection healthy on deploy alone.
 
-- No non-GET request, no navigation, and invalid fields: likely client-side validation or form submission blocked. Inspect form-specific JS/control requirements.
-- Non-GET request with `401`/`403` or generic validation error: provider rejected or blocked the auth attempt; don't assume the stored password is wrong without inspecting the permitted evidence.
-- Code / two-factor / CAPTCHA: stop; the host must complete the provider's required human verification. Never circumvent it.
-- Auth succeeds but calendar scraping fails: diagnose extraction/parsing separately; keep fail-closed calendar safeguards intact.
+## Tests and limitations
 
-**After pushing:** Ask ChatGPT to run ONE controlled retry using the saved credentials, then check Railway logs and all ten mappings. Until all ten show a recent successful sync, verify bookings manually against ResNexus. Do not create another connection and do not disable booking safeguards.
+14 automated, synthetic tests passed, with JavaScript syntax verified. The real ResNexus credential submission has NOT been successfully tested with the patched code, because this ChatGPT GitHub connection does not have repository write permission (GitHub 403) and the live Railway deployment still uses the older helper until you push.

@@ -1,0 +1,94 @@
+TAP version 13
+# Subtest: prefers the named JavaScript login button over an unrelated generic submit
+ok 1 - prefers the named JavaScript login button over an unrelated generic submit
+  ---
+  duration_ms: 3.683068
+  type: 'test'
+  ...
+# Subtest: recognizes a JavaScript anchor with a Login label
+ok 2 - recognizes a JavaScript anchor with a Login label
+  ---
+  duration_ms: 0.352359
+  type: 'test'
+  ...
+# Subtest: recognizes element IDs such as btnLogin (hint normalized by caller)
+ok 3 - recognizes element IDs such as btnLogin (hint normalized by caller)
+  ---
+  duration_ms: 0.197977
+  type: 'test'
+  ...
+# Subtest: uses single native submit if no named login exists
+ok 4 - uses single native submit if no named login exists
+  ---
+  duration_ms: 0.19272
+  type: 'test'
+  ...
+# Subtest: does not pick disabled named login or fall back to enter
+ok 5 - does not pick disabled named login or fall back to enter
+  ---
+  duration_ms: 0.291828
+  type: 'test'
+  ...
+# Subtest: does not pick a social login, reset password, sign up, or header control
+ok 6 - does not pick a social login, reset password, sign up, or header control
+  ---
+  duration_ms: 0.169204
+  type: 'test'
+  ...
+# Subtest: does not choose among two possible named login actions
+ok 7 - does not choose among two possible named login actions
+  ---
+  duration_ms: 0.148042
+  type: 'test'
+  ...
+# Subtest: does not guess between two submit actions
+ok 8 - does not guess between two submit actions
+  ---
+  duration_ms: 0.231878
+  type: 'test'
+  ...
+# Subtest: requires explicit login label for the nearby wrapper fallback
+ok 9 - requires explicit login label for the nearby wrapper fallback
+  ---
+  duration_ms: 0.513911
+  type: 'test'
+  ...
+# Subtest: one click only on a JS login control, never submits twice
+ok 10 - one click only on a JS login control, never submits twice
+  ---
+  duration_ms: 1.143326
+  type: 'test'
+  ...
+# Subtest: does not click any control if form has ambiguous buttons
+ok 11 - does not click any control if form has ambiguous buttons
+  ---
+  duration_ms: 0.556095
+  type: 'test'
+  ...
+# Subtest: nearby named login action is used only within the form wrapper
+ok 12 - nearby named login action is used only within the form wrapper
+  ---
+  duration_ms: 0.603706
+  type: 'test'
+  ...
+# Subtest: keyboard Enter fallback happens only if there are no form or nearby login controls
+ok 13 - keyboard Enter fallback happens only if there are no form or nearby login controls
+  ---
+  duration_ms: 0.518618
+  type: 'test'
+  ...
+# Subtest: password field must be unambiguous before any login is filled
+ok 14 - password field must be unambiguous before any login is filled
+  ---
+  duration_ms: 0.192159
+  type: 'test'
+  ...
+1..14
+# tests 14
+# suites 0
+# pass 14
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 93.599024
