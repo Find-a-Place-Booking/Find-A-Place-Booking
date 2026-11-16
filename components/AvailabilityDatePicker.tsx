@@ -33,6 +33,10 @@ function utcDate(value: string) {
   return new Date(`${value}T00:00:00Z`);
 }
 
+function weekday(value: string) {
+  return utcDate(value).getUTCDay();
+}
+
 function addDays(value: string, days: number) {
   const date = utcDate(value);
   date.setUTCDate(date.getUTCDate() + days);
@@ -133,6 +137,8 @@ export function AvailabilityDatePicker({
     Math.max(1, minimumStayNights),
   );
   const [stayRules, setStayRules] = useState<StayRule[]>([]);
+  const [blockedCheckInDays, setBlockedCheckInDays] = useState<number[]>([]);
+  const [blockedCheckOutDays, setBlockedCheckOutDays] = useState<number[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const activeRequest = useRef<AbortController | null>(null);
@@ -180,7 +186,12 @@ export function AvailabilityDatePicker({
           Number(payload.minimumStayNights ?? minimumStayNights ?? 1),
         ),
       );
+      if (!Array.isArray(payload.blockedCheckInDays) || !Array.isArray(payload.blockedCheckOutDays)) {
+        throw new Error("Booking-day restrictions are unavailable. Retry the calendar.");
+      }
       setStayRules(payload.stayRules);
+      setBlockedCheckInDays(payload.blockedCheckInDays.map(Number));
+      setBlockedCheckOutDays(payload.blockedCheckOutDays.map(Number));
     } catch (error) {
       if (activeRequest.current !== controller) return;
       setLoadError(
@@ -279,6 +290,9 @@ export function AvailabilityDatePicker({
     }
 
     if (activeField === "checkIn") {
+      if (blockedCheckInDays.includes(weekday(date))) {
+        return { disabled: true, title: "Check-in is not offered on this weekday" };
+      }
       if (blockedNight(date)) {
         return { disabled: true, title: "Unavailable" };
       }
@@ -314,6 +328,10 @@ export function AvailabilityDatePicker({
         disabled: true,
         title: "Checkout must be after check-in",
       };
+    }
+
+    if (blockedCheckOutDays.includes(weekday(date))) {
+      return { disabled: true, title: "Checkout is not offered on this weekday" };
     }
 
     const requiredNights = minimumForArrival(checkIn);
@@ -353,13 +371,15 @@ export function AvailabilityDatePicker({
       const existingCheckoutStillValid =
         checkOut &&
         diffDays(date, checkOut) >= requiredNights &&
-        rangeAvailable(date, checkOut);
+        rangeAvailable(date, checkOut) &&
+        !blockedCheckOutDays.includes(weekday(checkOut));
 
       const automaticCheckout =
         !existingCheckoutStillValid &&
         requiredNights > 1 &&
         earliestCheckout <= maximumDate &&
-        rangeAvailable(date, earliestCheckout)
+        rangeAvailable(date, earliestCheckout) &&
+        !blockedCheckOutDays.includes(weekday(earliestCheckout))
           ? earliestCheckout
           : "";
 
@@ -520,6 +540,9 @@ export function AvailabilityDatePicker({
           </span>
         </div>
 
+        {!loading && !loadError && (blockedCheckInDays.length > 0 || blockedCheckOutDays.length > 0) ? (
+          <p className={styles.help}>Some weekdays are restricted for arrivals or departures. Select a permitted date for each.</p>
+        ) : null}
         <p className={styles.help}>
           {loading
             ? "Checking current availability…"
@@ -539,7 +562,8 @@ export function AvailabilityDatePicker({
         checkOut &&
         checkOut > earliestSelectedCheckout &&
         earliestSelectedCheckout <= maximumDate &&
-        rangeAvailable(checkIn, earliestSelectedCheckout) ? (
+        rangeAvailable(checkIn, earliestSelectedCheckout) &&
+        !blockedCheckOutDays.includes(weekday(earliestSelectedCheckout)) ? (
           <button
             type="button"
             className="button button-small"

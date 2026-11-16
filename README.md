@@ -1,34 +1,39 @@
-# Find A Place Booking — Public header / For hosts dropdown repair
+# Find A Place Booking — Advanced Host Feedback (safe Phase 1)
 
-Prepared November 9, 2026, against the GitHub `main` versions of:
+**Status: source overlay, NOT deployed.** Prepared against main as inspected 2026-11-15. GitHub connector was able to read, but branch creation returned HTTP 403, so production is unchanged.
 
-- `components/Header.tsx` (blob `cc587f358eee7a19483a0d5ae486dd18e77d2485`)
-- `components/HostResourcesMenu.tsx` (blob `30bcb8192e690c601d9a9a63baaa954af4cd9103`)
-- `components/HostResourcesMenu.module.css` (blob `db1855d0b7ae7c8d4c557a22789a3c2d8b60e14e`)
+This is deliberately the **first, low-risk batch** of the host feedback request:
 
-## Install — direct replacement, no installer
+- **Treehouse** selectable as a property type in host onboarding, the new-property form, and existing-property edit form through the shared catalog.
+- **20 additional, categorized amenities** shown in onboarding and the existing property editor. Each has a matching DB catalog entry, avoiding the old silent-drop problem.
+- **Copy setup** button on the Properties list: copies reusable listing information from an owned property to a **new draft**. It never copies addresses, photos, taxes, booking calendars, reservations, payment accounts, seasonal rules, or a public/published status. Every copy gets its own unique booking URL and will require its own photos, address, tax confirmation, calendar, and review before publish.
+- **Clearer holiday premium rate guidance** using the existing date-based pricing rules, without altering pricing logic or existing reservations.
 
-1. Open the `Find-A-Place-Booking` repository on your computer.
-2. Extract this ZIP **into the repository root**, preserving the `components/` folder. Approve overwriting only the three existing component files. The fourth component file, `HeaderNavigationFix.module.css`, is new.
-3. Verify these four files are part of the Git commit:
-   - `components/Header.tsx`
-   - `components/HeaderNavigationFix.module.css`
-   - `components/HostResourcesMenu.tsx`
-   - `components/HostResourcesMenu.module.css`
-4. Run `npm run typecheck` and `npm run build`, and push to GitHub only after they succeed. Verify the new deployment is READY. Make sure your local branch wasn't changed in the meantime.
-5. Hard-refresh the homepage and test the dropdown on the homepage, the About page, the For Hosts page, `/stays`, at desktop width and with the hamburger menu on a tablet/phone.
+## Applying safely
 
-## Exact bugs addressed
+1. Get a fresh copy of the repository's main branch. Use a feature branch for deployment testing. **Do not run from a directory containing an older overlay.**
+2. Unzip this bundle anywhere. From the **repository root** run:
+   `python /path/to/fap-advanced-host-safe-phase1/patch/apply.py --dry-run`
+3. If no anchors fail, run the same command without `--dry-run`. Original files will be saved in a timestamped `.fap-host-phase1-backup-*` folder.
+4. Review `git diff`, run `npm ci`, `npm run typecheck`, `npm run qa:webapp`, and `npm run build` (plus other relevant regression tests). Keep this on a preview branch; do not route guests there.
+5. Apply `supabase/migrations/20261115170000_safe_host_feedback_phase1.sql` **to staging** first, then deploy the preview build. Use the project's normal migration process, never a blind production paste. SQL is additive and introduces only one new function.
+6. In staging, test a non-admin host cloning one draft, and verify: new status DRAFT, separate slug, unchanged source; zero copied photos, calendars, availability blocks, reservations or payment links. Test selected new amenities survive save/reload and treehouse persists.
+7. Only after these checks and a production backup, apply the additive migration to production **before** deploying the verified code; then merge/deploy. After release, run the same checks with test accounts. Existing properties should remain unchanged.
 
-- The header is beige but `.header-light` left non-anchor nav labels inheriting **white**. Set an explicit dark color for standard public headers, retaining white only on the dark host-marketing hero.
-- The dropdown was inside `home-hero`/`aboutHero` or other overflow/stacking contexts. The dropdown now renders through a React portal into `document.body`, at the button's measured viewport position, with a clear high z-index. It closes on outside click, Escape, page scroll, link click, and resize.
-- The social button's negative margins, mixed anchor heights, nav gaps and inline styles produced uneven nav vertical alignment. The new CSS module sets common control heights and measured gaps.
-- On laptop widths the desktop header tried to show a long brand, six nav links and four account actions. It now switches to the existing hamburger menu at widths **1550px and under**. The same value is used in JavaScript and responsive styles, and the portaled menu works at the extended widths.
+## Scope boundary
 
-## Safety
+Not in Phase 1: weekday arrival/departure restrictions (requires enforcement in canonical booking holds and quote path), guest checkout tasks, deposits, rental signatures, full OwnerRez integration, bulk image copy. Those require their own schema + host UI + guest checkout guards + regression suite. Implementing them as decorative settings without server validation would be dangerous.
 
-Presentation and navigation only. No Stripe, fee, guest checkout, Supabase, calendar, host data, admin, tax or reservation code is modified. No package dependencies or migrations. Original links and mobile options are retained.
+## Rollback
 
-## Verification status
+Restore four original files from `.fap-host-phase1-backup-*`, remove the new migration **from source only if it has not run** and redeploy. If the migration has run, it can remain safely: the new catalog entries/function do not affect existing booking logic, and no existing rows are rewritten. Do not delete a copied draft if it has already been edited by a host.
 
-Syntax and CSS parsing pass in isolation, with automated source tests. A full Next.js production build and live-browser click tests are still required in your repository; they cannot be verified from this ZIP alone. Not deployed by ChatGPT.
+## Regression tests to perform
+
+- Host cannot clone a property from an organization they do not manage.
+- New listing remains DRAFT; source retains its status, slug, policy and price data.
+- Copying never creates reservations, availability blocks, calendar connections or photos.
+- Fresh listing cannot publish until normal required fields and Stripe checks pass.
+- New amenities survive save/reload; existing amenity labels remain unchanged.
+- Airbnb/Vrbo/ResNexus calendar sync, guest quote and Stripe checkout behave exactly as before.
+- Host rates: date override price calculated on the exact date with no change to historical reservations.

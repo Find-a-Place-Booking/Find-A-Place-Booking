@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import {
   createPropertyFromOnboarding,
+  duplicatePropertySetup,
   setPropertyMarketplaceVisibility,
 } from "@/app/host/properties/actions";
 import { DashboardShell } from "@/components/DashboardShell";
@@ -38,6 +39,7 @@ export default async function PropertiesPage({
     error?: string;
     marketplace?: string;
     marketplace_error?: string;
+    copy_error?: string;
   }>;
 }) {
   const [query, properties, creation] = await Promise.all([
@@ -113,6 +115,12 @@ export default async function PropertiesPage({
         <div className={`admin-message error ${styles.notice}`}>
           We couldn&apos;t create the property. Please try again, or contact
           Find A Place if the problem continues.
+        </div>
+      ) : null}
+
+      {query.copy_error ? (
+        <div className={`admin-message error ${styles.notice}`}>
+          Could not copy that property. Nothing was changed on your existing listings.
         </div>
       ) : null}
 
@@ -277,6 +285,16 @@ export default async function PropertiesPage({
                       />
                     ) : null}
 
+                    <form action={duplicatePropertySetup}>
+                      <input type="hidden" name="sourcePropertyId" value={property.id} />
+                      <button
+                        type="submit"
+                        className={styles.edit}
+                        title="Copy listing details, amenities, house rules and base rates into a new draft. Photos, address, taxes, calendars and bookings stay separate."
+                      >
+                        Copy setup
+                      </button>
+                    </form>
                     <Link
                       className={styles.edit}
                       href={`/host/properties/${property.slug}`}

@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 
 import {
   archiveProperty,
+  saveHostCheckoutInstructions,
   setPropertyMarketplaceVisibility,
 } from "@/app/host/properties/actions";
 import { DashboardShell } from "@/components/DashboardShell";
@@ -13,6 +14,7 @@ import { PropertyPublicationControl } from "@/components/PropertyPublicationCont
 import { PropertyVideoManager } from "@/components/PropertyVideoManager";
 import { getCurrentPropertyPolicyDocument } from "@/lib/host/policy-documents";
 import { getHostPropertyBySlug } from "@/lib/host/properties";
+import { createClient } from "@/lib/supabase/server";
 
 function readable(status: string) {
   return status
@@ -33,6 +35,7 @@ export default async function ManagePropertyPage({
     onboarding?: string;
     marketplace?: string;
     marketplace_error?: string;
+    checkout_tasks?: string;
   }>;
 }) {
   const [{ slug }, query] = await Promise.all([params, searchParams]);
@@ -42,6 +45,13 @@ export default async function ManagePropertyPage({
   const policyDocument = await getCurrentPropertyPolicyDocument(
     property.propertyId,
   );
+
+  const supabase = await createClient();
+  const { data: checkoutTasks, error: checkoutTasksError } = await supabase
+    .from("unit_checkout_instructions")
+    .select("instructions")
+    .eq("unit_id", property.unitId)
+    .maybeSingle();
 
   const cancellationIssue =
     "Specific cancellation/refund terms (not just a policy label)";
@@ -139,6 +149,25 @@ export default async function ManagePropertyPage({
         slug={property.form.slug}
         editable={editable}
       />
+
+      <section className="panel" id="checkout-instructions">
+        <p className="eyebrow dark">Guest departure instructions</p>
+        <h2>Checkout checklist</h2>
+        <p className="muted">Optional instructions shown to confirmed guests in My Trip. Put one reasonable task per line, such as lock the door, switch off the lights or place trash in the outside bin. This does not add a fee or change the rental agreement.</p>
+        {query.checkout_tasks === "saved" ? <div className="admin-message success">Checkout instructions saved.</div> : null}
+        {query.checkout_tasks === "error" || checkoutTasksError ? <div className="admin-message error">Could not load or save checkout instructions. Try again.</div> : null}
+        <form action={saveHostCheckoutInstructions} className="pricing-inline-form">
+          <input type="hidden" name="unitId" value={property.unitId} />
+          <input type="hidden" name="slug" value={property.form.slug} />
+          <label className="wide"><span>Instructions, one task per line</span>
+            <textarea name="checkoutInstructions" rows={5} maxLength={3000}
+              defaultValue={checkoutTasks?.instructions || ""}
+              placeholder={"Lock the door and return the key.\nTurn off the lights.\nPlace trash in the outside bin."}
+              disabled={!editable} />
+          </label>
+          {editable ? <div className="pricing-inline-actions"><button type="submit" className="button button-small">Save checkout checklist</button></div> : null}
+        </form>
+      </section>
 
       <PropertyPolicyDocument
         propertyId={property.propertyId}

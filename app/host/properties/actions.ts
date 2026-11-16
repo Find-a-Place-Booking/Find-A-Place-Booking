@@ -252,6 +252,57 @@ export async function createBlankProperty(formData: FormData) {
   redirect(`/host/properties/${row.slug}?created=1`);
 }
 
+// Copy only reusable setup into a NEW draft. The authenticated RPC verifies
+// source ownership and deliberately excludes photos, location, taxes, calendars,
+// reservations, payment settings and previous booking IDs.
+export async function duplicatePropertySetup(formData: FormData) {
+  const sourcePropertyId = compact(formData.get("sourcePropertyId"), 100).trim();
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(sourcePropertyId)) {
+    redirect("/host/properties?copy_error=invalid-property");
+  }
+
+  const supabase = await requireHostSession();
+  const { data, error } = await supabase.rpc("duplicate_property_setup", {
+    source_property_id: sourcePropertyId,
+  });
+  if (error) {
+    console.error("[duplicatePropertySetup] RPC failed", {
+      code: error.code,
+      message: error.message,
+    });
+    redirect(`/host/properties?copy_error=${encodeURIComponent(
+      "Couldn't copy this listing. No existing property was changed."
+    )}`);
+  }
+
+  const row = Array.isArray(data) ? data[0] : data;
+  if (!row?.slug) redirect("/host/properties?copy_error=copy-failed");
+  revalidatePath("/host");
+  revalidatePath("/host/properties");
+  revalidatePath("/admin/properties");
+  redirect(`/host/properties/${encodeURIComponent(row.slug)}?copied=1`);
+}
+
+// Guest departure instructions are independent of pricing and published terms.
+export async function saveHostCheckoutInstructions(formData: FormData) {
+  const unitId = compact(formData.get("unitId"), 100).trim();
+  const slug = compact(formData.get("slug"), 120).trim();
+  const instructions = compact(formData.get("checkoutInstructions"), 3001).trim();
+  if (!/^[0-9a-f-]{36}$/i.test(unitId) || !slug) redirect("/host/properties");
+  const supabase = await requireHostSession();
+  const { error } = await supabase.rpc("save_unit_checkout_instructions", {
+    target_unit_id: unitId,
+    tasks_text: instructions,
+  });
+  if (error) {
+    console.error("[saveHostCheckoutInstructions] failed", { code: error.code });
+    redirect(`/host/properties/${encodeURIComponent(slug)}?checkout_tasks=error`);
+  }
+  revalidatePath(`/host/properties/${slug}`);
+  revalidatePath("/host/properties");
+  redirect(`/host/properties/${encodeURIComponent(slug)}?checkout_tasks=saved`);
+}
+
 export async function savePropertyListing(
   payload: SavePropertyPayload,
 ): Promise<SavePropertyResult> {

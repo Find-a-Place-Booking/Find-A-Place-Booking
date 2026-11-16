@@ -26,6 +26,10 @@ export const amenityGroups = [
   {
     title: "Kitchen & dining",
     items: [
+      "Toaster",
+      "Blender",
+      "Ice maker",
+      "Dishware & utensils",
       "Refrigerator",
       "Oven / stove",
       "Dishwasher",
@@ -38,6 +42,13 @@ export const amenityGroups = [
   {
     title: "Comfort & entertainment",
     items: [
+      "Hair dryer",
+      "Iron",
+      "Linens provided",
+      "Towels provided",
+      "Shampoo",
+      "Body wash",
+      "Ceiling fan",
       "Air conditioning",
       "Heating",
       "Fireplace",
@@ -50,6 +61,9 @@ export const amenityGroups = [
   {
     title: "Outdoor & location",
     items: [
+      "Outdoor dining area",
+      "Fenced yard",
+      "Private entrance",
       "Outdoor seating",
       "Private deck / patio",
       "Outdoor shower",
@@ -73,6 +87,17 @@ export const amenityGroups = [
       "Lake view",
       "River view",
       "Private acreage",
+    ],
+  },
+  {
+    title: "Safety & family",
+    items: [
+      "Smoke alarm",
+      "Carbon monoxide alarm",
+      "Fire extinguisher",
+      "First aid kit",
+      "High chair",
+      "Travel crib",
     ],
   },
   {
@@ -121,6 +146,7 @@ export const policyGroups = [
 
 export const propertyTypes = [
   "Cabin",
+  "Treehouse",
   "House",
   "Cottage",
   "Lodge",

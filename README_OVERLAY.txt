@@ -1,37 +1,9 @@
-Find A Place Booking — Facebook stay thumbnail fix
+Find A Place Booking Direct-File Overlay: Phases 1 + 2
 
-Problem:
-Stay URLs were still sometimes sharing the Find A Place logo instead of the stay's
-actual primary/cover photo.
+Extract this ZIP into the ROOT of your current GitHub working copy; replace the matching files. No installer or patch scripts. Back up or commit first. Test npm run build and booking regression before deployment.
 
-Root cause addressed:
-The social-image helper generated a short-lived signed Supabase URL and then made
-a second server-side fetch to that signed URL. Any failure in either the transformed
-or original signed-url fetch dropped all the way to the brand logo. Facebook could
-then cache that incorrect logo against the stay.
+Production Supabase migrations were ALREADY applied and verified separately. DO NOT run migration SQL again. Existing listings default unrestricted and bookings remain unchanged.
 
-This overlay changes that behavior:
-1. The server retrieves the primary property image directly from the private
-   property-images bucket with the authenticated Supabase Storage client.
-2. It first requests a 1200x630 social-card transform.
-3. If transformations are unavailable, it returns the actual original primary photo.
-4. If a stay has a real photo but Storage is temporarily unavailable, the endpoint
-   returns 503/no-store instead of the Find A Place logo, so crawlers retry rather
-   than caching the wrong thumbnail.
-5. The response includes a concrete image MIME type, content length, nosniff header,
-   and long CDN cache headers after a successful image response.
-6. Both the explicit /api/public/stay-social-image/[slug] route and Next's
-   /stays/[slug]/opengraph-image metadata route use the same corrected behavior.
+Includes Treehouse, 20 new amenities, separate draft property setup copy, holiday rate guidance, check-in/check-out weekday restrictions, guest calendar and hold validation, and departure checklist shown to confirmed My Trip guests.
 
-Files:
-- lib/public/stay-social-image.ts
-- app/api/public/stay-social-image/[slug]/route.ts
-- app/stays/[slug]/opengraph-image.tsx
-
-No database migration or environment variable change is required.
-
-Important Facebook cache note:
-Facebook caches share metadata aggressively. After this is deployed, links Facebook
-already scraped with the old logo may need one "Scrape Again" in Facebook's Sharing
-Debugger before the corrected thumbnail appears immediately. New/uncached stay URLs
-should use the actual primary photo on their first scrape.
+GitHub push was not possible because repository branch creation returned 403; source changes are NOT live until you apply/deploy this overlay.

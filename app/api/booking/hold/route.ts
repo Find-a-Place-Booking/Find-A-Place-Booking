@@ -136,6 +136,22 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Server-side validation before pricing or a one-use Turnstile challenge.
+    // The reservation trigger independently enforces the same restrictions.
+    const { error: bookingDayError } = await admin.rpc("assert_unit_booking_day_rules", {
+      target_unit_id: body.unitId,
+      arrival_date: body.checkIn,
+      departure_date: body.checkOut,
+    });
+    if (bookingDayError) {
+      const message = bookingDayError.message || "";
+      const restricted = /^Check-in is not offered on |^Checkout is not offered on /.test(message);
+      return NextResponse.json(
+        { error: restricted ? `${message}. Choose another date.` : "Unable to verify arrival and departure rules. Please try again." },
+        { status: restricted ? 409 : 503 },
+      );
+    }
+
     const forwardedFor = request.headers.get("x-forwarded-for");
     const turnstile = await verifyBookingTurnstile({
       token: body.turnstileToken,

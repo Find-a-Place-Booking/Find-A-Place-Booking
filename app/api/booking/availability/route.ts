@@ -156,6 +156,7 @@ export async function GET(request: NextRequest) {
     const [
       { data: rows, error },
       { data: stayRuleRows, error: stayRuleError },
+      { data: bookingDays, error: bookingDayError },
     ] = await Promise.all([
       admin
         .from("availability_blocks")
@@ -175,6 +176,11 @@ export async function GET(request: NextRequest) {
         .eq("is_active", true)
         .lte("start_date", to)
         .gte("end_date", from),
+      admin
+        .from("unit_booking_day_rules")
+        .select("blocked_check_in_days,blocked_check_out_days")
+        .eq("unit_id", unitId)
+        .maybeSingle(),
     ]);
 
     if (error) {
@@ -202,6 +208,16 @@ export async function GET(request: NextRequest) {
         { status: 500 },
       );
     }
+
+    if (bookingDayError) {
+      console.error("[public availability] booking-day lookup failed", { code: bookingDayError.code });
+      return NextResponse.json({ error: "Unable to verify booking-day restrictions." }, { status: 503 });
+    }
+
+    const blockedCheckInDays: number[] = Array.isArray(bookingDays?.blocked_check_in_days)
+      ? bookingDays.blocked_check_in_days.map(Number) : [];
+    const blockedCheckOutDays: number[] = Array.isArray(bookingDays?.blocked_check_out_days)
+      ? bookingDays.blocked_check_out_days.map(Number) : [];
 
     const now = Date.now();
 
@@ -261,6 +277,8 @@ export async function GET(request: NextRequest) {
           Number(unit.minimum_stay_nights || 1),
         ),
         stayRules,
+        blockedCheckInDays,
+        blockedCheckOutDays,
       },
       {
         headers: {

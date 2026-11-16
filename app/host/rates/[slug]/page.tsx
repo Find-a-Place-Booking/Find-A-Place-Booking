@@ -7,6 +7,7 @@ import {
   deleteStayRule,
   saveAddOn,
   saveBasePricing,
+  saveBookingDayRules,
   savePromotionCode,
   saveRateRule,
   saveStayRule,
@@ -14,6 +15,7 @@ import {
 import { DashboardShell } from "@/components/DashboardShell";
 import { calculationLabel, getHostQuotePreview, getPricingWorkspaceBySlug, money, promotionValueLabel } from "@/lib/host/pricing";
 import petStyles from "./pet-fee-modes.module.css";
+import { createClient } from "@/lib/supabase/server";
 
 function dollars(cents: number | null | undefined) {
   return cents == null ? "" : (cents / 100).toFixed(cents % 100 ? 2 : 0);
@@ -21,6 +23,7 @@ function dollars(cents: number | null | undefined) {
 function resultMessage(value?: string) {
   if (!value) return null;
   if (value === "base-saved") return "Base rates and fees saved.";
+  if (value === "booking-days-saved") return "Arrival and checkout day rules saved.";
   if (value === "rate-created") return "Date rate created.";
   if (value === "rate-updated") return "Date rate updated.";
   if (value === "rate-deleted") return "Date rate removed.";
@@ -57,6 +60,17 @@ export default async function PropertyRatesPage({
 }) {
   const [{ slug }, query] = await Promise.all([params, searchParams]);
   const { property, pricing } = await getPricingWorkspaceBySlug(slug);
+  const supabase = await createClient();
+  const { data: bookingDays, error: dayRulesError } = await supabase
+    .from("unit_booking_day_rules")
+    .select("blocked_check_in_days,blocked_check_out_days")
+    .eq("unit_id", property.unitId)
+    .maybeSingle();
+  if (dayRulesError) throw new Error("Unable to load this property's booking-day rules.");
+  const blockedArrivalDays: number[] = Array.isArray(bookingDays?.blocked_check_in_days)
+    ? bookingDays.blocked_check_in_days.map(Number) : [];
+  const blockedDepartureDays: number[] = Array.isArray(bookingDays?.blocked_check_out_days)
+    ? bookingDays.blocked_check_out_days.map(Number) : [];
   const editablePromotions = pricing.promotion_codes.filter((item) => !item.code.startsWith("FAP25-"));
   const feeRecord = (type: string) => pricing.fees.find((item) => item.fee_type === type) ?? null;
   const fee = (type: string) => feeRecord(type)?.amount_cents ?? null;
@@ -99,10 +113,36 @@ export default async function PropertyRatesPage({
       </form>
     </section>
 
+    <section className="panel pricing-rule-section">
+      <div className="panel-head"><div><p className="eyebrow dark">Advanced booking rules</p><h2>Allowed arrival and departure days</h2></div></div>
+      <p className="muted">Block days you cannot accommodate check-in or checkout. These rules apply only to new bookings, not existing reservations or calendar imports. Leave everything unchecked to allow every day.</p>
+      <form action={saveBookingDayRules} className="pricing-inline-form">
+        <input type="hidden" name="unitId" value={property.unitId} />
+        <input type="hidden" name="slug" value={property.form.slug} />
+        <fieldset className="wide" style={{ border: 0, padding: 0, margin: 0 }}>
+          <legend><strong>Do not allow check-in on:</strong></legend>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: "10px 16px", marginTop: 8 }}>
+            {["Sun","Mon","Tue","Wed","Thu","Fri","Sat"].map((day, index) => (
+              <label key={day} className="checkline"><input type="checkbox" name="blockedCheckIn" value={index} defaultChecked={blockedArrivalDays.includes(index)} /><span>{day}</span></label>
+            ))}
+          </div>
+        </fieldset>
+        <fieldset className="wide" style={{ border: 0, padding: 0, margin: 0 }}>
+          <legend><strong>Do not allow checkout on:</strong></legend>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: "10px 16px", marginTop: 8 }}>
+            {["Sun","Mon","Tue","Wed","Thu","Fri","Sat"].map((day, index) => (
+              <label key={day} className="checkline"><input type="checkbox" name="blockedCheckOut" value={index} defaultChecked={blockedDepartureDays.includes(index)} /><span>{day}</span></label>
+            ))}
+          </div>
+        </fieldset>
+        <div className="pricing-inline-actions"><button className="button button-small" type="submit">Save booking-day rules</button></div>
+      </form>
+    </section>
+
     <div className="pricing-two-column">
       <section className="panel pricing-rule-section">
         <div className="panel-head"><div><p className="eyebrow dark">Special & seasonal rates</p><h2>Date-based nightly pricing</h2></div><span>{pricing.rate_rules.length}</span></div>
-        <p className="muted">Use these for holidays, events, seasons or an advertised special. Higher priority wins when date ranges overlap.</p>
+        <p className="muted">For holiday premiums, enter a higher nightly rate for the exact dates (e.g. Christmas week) and leave the guest-facing special checkbox off unless it is a promotion. Higher priority wins when dates overlap. Existing bookings are never repriced.</p>
         <details className="pricing-create" open={!pricing.rate_rules.length}>
           <summary>+ Add date rate</summary>
           <RateRuleForm unitId={property.unitId} slug={property.form.slug} />

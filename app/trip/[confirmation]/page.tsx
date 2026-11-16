@@ -84,7 +84,7 @@ export default async function TripPage({
   const { data: reservation } = await admin
     .from("reservations")
     .select(
-      "id,confirmation_code,property_id,organization_id,status,check_in,check_out,guest_name,guest_count,pet_count,pricing_snapshot,pre_tax_total_cents,tax_total_cents,tax_snapshot,guest_total_cents,currency,payment_status,cancelled_at",
+      "id,confirmation_code,property_id,unit_id,organization_id,status,check_in,check_out,guest_name,guest_count,pet_count,pricing_snapshot,pre_tax_total_cents,tax_total_cents,tax_snapshot,guest_total_cents,currency,payment_status,cancelled_at",
     )
     .eq("id", reservationId)
     .maybeSingle();
@@ -101,6 +101,7 @@ export default async function TripPage({
     { data: property },
     host,
     { data: refund },
+    { data: checkoutInstructions },
   ] = await Promise.all([
     admin
       .from("properties")
@@ -119,7 +120,12 @@ export default async function TripPage({
           .limit(1)
           .maybeSingle()
       : Promise.resolve({ data: null, error: null }),
+    admin.from("unit_checkout_instructions").select("instructions")
+      .eq("unit_id", reservation.unit_id).maybeSingle(),
   ]);
+
+  const departureTasks = String(checkoutInstructions?.instructions || "")
+    .split(/\r?\n/).map((task) => task.trim()).filter(Boolean).slice(0, 25);
 
   const propertyTimeZone =
     property?.time_zone || "America/Chicago";
@@ -332,6 +338,15 @@ export default async function TripPage({
             />
             <PrintReceiptButton />
           </section>
+
+          {reservation.status === "CONFIRMED" && departureTasks.length > 0 ? (
+            <section className="panel" id="checkout-checklist">
+              <p className="eyebrow dark">Departure</p>
+              <h2>Before you check out</h2>
+              <p className="muted">Current instructions from your host. If something seems unclear, ask through your booking messages.</p>
+              <ul>{departureTasks.map((task, index) => <li key={`${index}-${task}`}>{task}</li>)}</ul>
+            </section>
+          ) : null}
 
           <GuestTripTools
             reservationId={reservation.id}

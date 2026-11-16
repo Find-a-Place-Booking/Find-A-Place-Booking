@@ -28,6 +28,21 @@ function refresh(slug: string) {
   revalidatePath("/admin");
 }
 
+// Optional, unit-scoped restrictions. Both columns default to unrestricted.
+export async function saveBookingDayRules(formData: FormData) {
+  const unitId = text(formData, "unitId", 100);
+  const slug = text(formData, "slug", 120);
+  const days = (key: string) => formData.getAll(key).map((value) => Number(value));
+  const error = await rpc("save_unit_booking_day_rules", {
+    target_unit_id: unitId,
+    blocked_check_in_days: days("blockedCheckIn"),
+    blocked_check_out_days: days("blockedCheckOut"),
+  });
+  if (error) pricingRedirect(slug, "error", error.message);
+  refresh(slug);
+  pricingRedirect(slug, "booking-days-saved");
+}
+
 export async function saveBasePricing(formData: FormData) {
   const unitId = text(formData, "unitId", 100);
   const slug = text(formData, "slug", 120);
