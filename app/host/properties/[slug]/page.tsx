@@ -53,6 +53,45 @@ export default async function ManagePropertyPage({
     .eq("unit_id", property.unitId)
     .maybeSingle();
 
+  // The base editor intentionally loads several independent tables. Never
+  // present an incomplete read as an empty amenity/photo/policy selection:
+  // saving that partial form would otherwise delete previously saved items.
+  const [amenityIntegrity, policyIntegrity, photoIntegrity, rateIntegrity] =
+    await Promise.all([
+      supabase.from("unit_amenities").select("unit_id", { count: "exact", head: true }).eq("unit_id", property.unitId),
+      supabase.from("unit_policies").select("unit_id", { count: "exact", head: true }).eq("unit_id", property.unitId),
+      supabase.from("property_images").select("unit_id", { count: "exact", head: true }).eq("unit_id", property.unitId),
+      supabase.from("unit_rate_settings").select("weeknight_cents").eq("unit_id", property.unitId).maybeSingle(),
+    ]);
+  const incompleteEditor =
+    Boolean(amenityIntegrity.error || policyIntegrity.error || photoIntegrity.error || rateIntegrity.error) ||
+    (amenityIntegrity.count ?? -1) !== property.amenities.length ||
+    (policyIntegrity.count ?? -1) !== property.policies.length ||
+    (photoIntegrity.count ?? -1) !== property.images.length ||
+    (rateIntegrity.data?.weeknight_cents != null && !property.form.weeknight);
+  if (incompleteEditor) {
+    console.error("[host property editor] incomplete saved listing read", {
+      propertyId: property.propertyId,
+      amenityError: amenityIntegrity.error?.code,
+      policyError: policyIntegrity.error?.code,
+      photoError: photoIntegrity.error?.code,
+      rateError: rateIntegrity.error?.code,
+    });
+    return (
+      <DashboardShell active="Properties" title={property.form.name || "Property"} eyebrow="Property editor">
+        <section className="panel">
+          <h2>Property details could not be loaded completely</h2>
+          <p>
+            Editing is temporarily unavailable to protect your saved photos,
+            amenities and policies. Nothing was changed. Refresh and try again.
+          </p>
+          <a className="button" href={`/host/properties/${encodeURIComponent(slug)}`}>Reload property</a>
+          <Link href="/host/properties">Back to all properties</Link>
+        </section>
+      </DashboardShell>
+    );
+  }
+
   const cancellationIssue =
     "Specific cancellation/refund terms (not just a policy label)";
   const missingCancellation =
@@ -133,9 +172,19 @@ export default async function ManagePropertyPage({
         <div className="admin-message error">{query.marketplace_error}</div>
       ) : null}
 
-      <PropertyEditor initial={property} />
+      <PropertyEditor
+        key={`${property.propertyId}:${property.updatedAt}`}
+        initial={{
+          ...property,
+          form: {
+            ...property.form,
+            __editorRevision: property.updatedAt,
+          },
+        }}
+      />
 
       <PropertyVideoManager
+        key={property.propertyId}
         organizationId={property.organizationId}
         propertyId={property.propertyId}
         unitId={property.unitId}
@@ -144,6 +193,7 @@ export default async function ManagePropertyPage({
       />
 
       <NearbyExperiencesManager
+        key={property.propertyId}
         propertyId={property.propertyId}
         organizationId={property.organizationId}
         slug={property.form.slug}
@@ -170,6 +220,7 @@ export default async function ManagePropertyPage({
       </section>
 
       <PropertyPolicyDocument
+        key={property.propertyId}
         propertyId={property.propertyId}
         organizationId={property.organizationId}
         current={policyDocument}

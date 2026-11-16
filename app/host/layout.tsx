@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 
-import { HostDraftPersistence } from "@/components/HostDraftPersistence";
+import { HostDraftSafeMount } from "@/components/HostDraftSafeMount";
 import { HostOnboardingFeedbackGate } from "@/components/HostOnboardingFeedbackGate";
 
 export const metadata: Metadata = {
@@ -18,7 +18,7 @@ export default function PrivateRouteLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   return (
     <>
-      <HostDraftPersistence />
+      <HostDraftSafeMount />
       <Suspense fallback={null}>
         <HostOnboardingFeedbackGate />
       </Suspense>

@@ -314,6 +314,35 @@ export async function savePropertyListing(
   }
 
   const supabase = await requireHostSession();
+
+  // Every property editor sends the server revision it originally loaded.
+  // Refuse full-form saves from older tabs instead of silently overwriting
+  // edits saved elsewhere (another tab, a host app, or the admin dashboard).
+  const expectedRevision = Date.parse(payload.form?.__editorRevision ?? "");
+  if (!Number.isFinite(expectedRevision)) {
+    return {
+      ok: false,
+      message: "This editor needs a fresh copy of the listing. Refresh the page before saving.",
+    };
+  }
+  const { data: current, error: revisionError } = await supabase
+    .from("properties")
+    .select("updated_at")
+    .eq("id", payload.propertyId)
+    .maybeSingle();
+  if (revisionError || !current?.updated_at) {
+    return {
+      ok: false,
+      message: "Could not verify the current listing. Nothing was changed. Refresh and try again.",
+    };
+  }
+  if (Date.parse(current.updated_at) !== expectedRevision) {
+    return {
+      ok: false,
+      message: "This listing was updated elsewhere since you opened it. Copy any unsaved text, refresh, and review the current settings before saving again. Nothing was overwritten.",
+    };
+  }
+
   let { data, error } = await supabase.rpc("save_property_setup", {
     target_property_id: payload.propertyId,
     listing_data: sanitizeForm(payload.form ?? {}),
