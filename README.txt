@@ -1,24 +1,40 @@
-FIND A PLACE BOOKING — DIRECT OVERLAY (Nov 9, 2026)
+FIND A PLACE BOOKING — HOST MOBILE ADD PROPERTY
+Direct-file overlay | November 2026
 
-Extract the contents of this ZIP directly into your Find-A-Place-Booking
-repository root (the folder containing package.json). Choose YES to replace
-components/Header.tsx if prompted. No Python scripts or patch commands.
+Copy the app/ and components/ folders into the ROOT of the existing
+Find A Place Booking Next.js project, preserving their paths and overwriting
+only the files in this overlay. There are no patch scripts.
 
-FILES:
-  components/Header.tsx
-  components/HeaderDesktopPolish.module.css
-  supabase/migrations/20261110050100_intro_offer_confirmed_booking_guard.sql
+MODIFIED:
+  app/host/mobile/workspace/page.tsx
+  app/api/mobile/v1/host/properties/route.ts
 
-The header shows navigation links on desktop/laptop. A two-row layout is
-used from 921–1550 CSS px; wider desktop uses the existing one-row layout.
-Screens <= 920px keep the existing mobile drawer.
+NEW:
+  app/host/mobile/workspace/add-property/page.tsx
+  components/webapp/HostAddProperty.tsx
 
-SUPABASE: The new-host 25% promotion migration AND its first-three-confirmed-
-bookings guard have ALREADY BEEN APPLIED to production Supabase by ChatGPT and
-verified. The SQL file here is only to keep your repository migration history
-in sync. Do not manually paste/run it against production again.
+WHAT HOSTS GET
+  + Add property entry from the Host web app home.
+  Mobile-friendly new property form with name, type and public area.
+  Property is created as DRAFT via existing create_blank_property RPC.
+  Continues into the existing full property editor on the phone.
+  Existing listing records, calendars, reservations, Stripe, tax settings,
+  property status and rates are NOT changed by this overlay.
+  Existing organization owner/manager checks remain in place.
 
-This overlay does not change booking, Stripe, calendar, or tax code.
+NO SQL CHANGES NEEDED.
 
-After extracting and checking your git diff, run your usual project checks,
-commit and push to Vercel. This overlay is not itself deployed.
+STAGING CHECKLIST
+  1. Type-check/build (`npm ci && npm run build`).
+  2. Sign in to host web app on a phone and tap + Add property.
+  3. Try blank name and invalid property type; confirm no draft created.
+  4. Create a test draft as an owner: the next editor must show that draft.
+  5. Confirm the new property remains DRAFT until separately published.
+  6. Confirm another organization's listings are not changed or accessible.
+  7. Confirm existing Stays, Calendar, Messages and Rates tabs still work.
+  8. Validate first-host saved-onboarding flow shows link rather than duplicate.
+  9. Delete/archive any test draft using the normal property controls.
+
+Deployment note: no code was pushed to GitHub by ChatGPT; repository write
+attempts returned 403 from the GitHub integration. Upload this overlay and
+run the build/deploy checks before releasing.
