@@ -1,8 +1,8 @@
+import Link from "next/link";
 import { AdminShell } from "@/components/AdminShell";
+import { AdminManagedCopyEditor } from "@/components/AdminManagedCopyEditor";
 import { getAdminContext, hasAnyAdminRole } from "@/lib/admin/context";
 import { createClient } from "@/lib/supabase/server";
-
-import { saveSiteContentBlock } from "./actions";
 
 type ContentBlock = {
   key: string;
@@ -44,20 +44,18 @@ export default async function AdminContentPage({
       .order("sort_order", { ascending: true }),
     supabase.from("platform_policy_versions").select("policy_key,version_label"),
   ]);
-
   if (error) throw new Error("Unable to load managed site content. Refresh and try again. If the problem continues, check platform status.");
 
   const rows = (data ?? []) as ContentBlock[];
-  const versionByPolicy = new Map((versions ?? []).map((row) => [row.policy_key as string, row.version_label as string]));
+  const versionByPolicy = new Map((versions ?? []).map(row => [row.policy_key as string, row.version_label as string]));
   const groups = new Map<string, ContentBlock[]>();
   for (const row of rows) {
     const group = row.content_group || "Other";
     groups.set(group, [...(groups.get(group) ?? []), row]);
   }
-
   const orderedGroups = [
-    ...groupOrder.filter((group) => groups.has(group)),
-    ...[...groups.keys()].filter((group) => !groupOrder.includes(group)),
+    ...groupOrder.filter(group => groups.has(group)),
+    ...[...groups.keys()].filter(group => !groupOrder.includes(group)),
   ];
 
   return (
@@ -66,19 +64,19 @@ export default async function AdminContentPage({
       {params.error ? <div className="admin-message error">{params.error}</div> : null}
 
       <section className="panel">
-        <p className="eyebrow dark">Safe copy controls</p>
+        <p><Link href="/admin/content/drafts" className="button button-small button-quiet">Open private drafts · review &amp; publish</Link></p>
+        <p className="eyebrow dark">Review before publishing</p>
         <h2>Edit the wording without editing the machinery.</h2>
         <p className="muted">
-          This area controls approved public copy and platform-policy wording. Buttons, link destinations,
-          navigation, payment behavior, Stripe routes, booking state, taxes, percentages and other easy-to-break
-          controls remain fixed in code.
+          Review and confirm each change before it becomes public. Policy revisions advance when published.
+          Buttons, destinations, navigation, payment behavior, Stripe routes, booking state, taxes and fee calculations stay fixed in code.
         </p>
       </section>
 
       <div className="admin-list content-editor-list">
         {orderedGroups.map((group, groupIndex) => {
           const blocks = groups.get(group) ?? [];
-          const policyKey = blocks.find((block) => block.policy_key)?.policy_key;
+          const policyKey = blocks.find(block => block.policy_key)?.policy_key;
           const version = policyKey ? versionByPolicy.get(policyKey) ?? null : null;
           return (
             <details className="panel" key={group} open={groupIndex === 0}>
@@ -92,33 +90,22 @@ export default async function AdminContentPage({
 
               <p className="muted" style={{ marginTop: 14 }}>
                 {policyGroups.has(group)
-                  ? "Legal/policy copy. Saving a section publishes it immediately and automatically advances that policy version."
-                  : "Safe public-facing wording only. Navigation, buttons, booking behavior and operational controls stay fixed."}
+                  ? "Legal and policy copy. Preview changes before publishing; publishing advances that policy's version."
+                  : "Public wording only. Navigation, buttons, booking and payments remain unchanged."}
               </p>
-
               <div style={{ display: "grid", gap: 14, marginTop: 16 }}>
-                {blocks.map((block) => {
-                  const fields = new Set(block.editable_fields ?? []);
-                  return (
-                    <section id={block.key} key={block.key} style={{ borderTop: "1px solid var(--line)", paddingTop: 16 }}>
-                      <div className="panel-head">
-                        <div>
-                          <p className="eyebrow dark">{block.admin_label || block.key}</p>
-                          <h2 style={{ fontSize: "1.1rem" }}>{block.title}</h2>
-                        </div>
-                        <span className="status-pill status-muted">{block.policy_key ? "Versioned policy" : "Public copy"}</span>
+                {blocks.map(block => (
+                  <section id={block.key} key={block.key} style={{ borderTop: "1px solid var(--line)", paddingTop: 16 }}>
+                    <div className="panel-head">
+                      <div>
+                        <p className="eyebrow dark">{block.admin_label || block.key}</p>
+                        <h2 style={{ fontSize: "1.1rem" }}>{block.title}</h2>
                       </div>
-
-                      <form className="settings-form" action={saveSiteContentBlock}>
-                        <input type="hidden" name="key" value={block.key} />
-                        {fields.has("eyebrow") ? <label><span>Eyebrow</span><input name="eyebrow" defaultValue={block.eyebrow ?? ""} disabled={!canEdit} /></label> : null}
-                        {fields.has("title") ? <label><span>Heading</span><input name="title" defaultValue={block.title} disabled={!canEdit} required /></label> : null}
-                        {fields.has("body") ? <label><span>Copy</span><textarea name="body" defaultValue={block.body ?? ""} disabled={!canEdit} rows={6} /></label> : null}
-                        {canEdit ? <button className="button button-small" type="submit">Save wording</button> : null}
-                      </form>
-                    </section>
-                  );
-                })}
+                      <span className="status-pill status-muted">{block.policy_key ? "Versioned policy" : "Public copy"}</span>
+                    </div>
+                    <AdminManagedCopyEditor block={block} canEdit={canEdit} />
+                  </section>
+                ))}
               </div>
             </details>
           );

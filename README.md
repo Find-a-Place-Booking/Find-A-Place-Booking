@@ -1,39 +1,40 @@
-# Find A Place Booking — Advanced Host Feedback (safe Phase 1)
+# Find A Place Booking — November 18 focused host improvements
 
-**Status: source overlay, NOT deployed.** Prepared against main as inspected 2026-11-15. GitHub connector was able to read, but branch creation returned HTTP 403, so production is unchanged.
+## What this overlay contains
 
-This is deliberately the **first, low-risk batch** of the host feedback request:
+Direct **replacement and new source files**, using paths relative to the production GitHub repository `Find-a-Place-Booking/Find-A-Place-Booking`:
 
-- **Treehouse** selectable as a property type in host onboarding, the new-property form, and existing-property edit form through the shared catalog.
-- **20 additional, categorized amenities** shown in onboarding and the existing property editor. Each has a matching DB catalog entry, avoiding the old silent-drop problem.
-- **Copy setup** button on the Properties list: copies reusable listing information from an owned property to a **new draft**. It never copies addresses, photos, taxes, booking calendars, reservations, payment accounts, seasonal rules, or a public/published status. Every copy gets its own unique booking URL and will require its own photos, address, tax confirmation, calendar, and review before publish.
-- **Clearer holiday premium rate guidance** using the existing date-based pricing rules, without altering pricing logic or existing reservations.
+- `components/PropertyVideoManagerClient.tsx` — replacement uploader from the earlier repair, with an explicit read-before-update of the current property video, guarded state, preservation of the old file until the replacement is saved, and better error messages. The 75 MB and 60-second constraints remain intact.
+- `lib/property/catalog.ts` — 20 additional cabin/treehouse-related amenity labels (retains all existing labels and `Treehouse` type).
+- `app/admin/content/page.tsx` and `components/AdminManagedCopyEditor.tsx` — explicit preview and publish confirmation before any public-copy update. The existing server policy versioning and access permissions are retained; this is *not* a persisted drafts feature.
+- `app/host/sign-up/page.tsx` — prominent, accurate guest-paid 7% fee explanation and partner-signup clarification. Does not change signup security, captcha, passwords, or authentication code.
+- `app/host/rates/page.tsx`, `app/host/rates/[slug]/extra-fees/page.tsx`, `components/HostOptionalFeeBuilder.tsx` — dropdown-driven, blank amount form for **optional** guest extras using the existing `saveAddOn` flow. Mandatory fees and security deposits are **not** added or routed as optional extras.
+- `sql/amenity_catalog_additions.sql` — idempotent DML for the matching labels. This was **already applied** to production on November 18; do not need to run again.
+- `docs/guest-paid-fee-policy-review.md` — reviewed draft for aligning legal copy; **not published or executed**.
 
-## Applying safely
+## DB changes already completed
 
-1. Get a fresh copy of the repository's main branch. Use a feature branch for deployment testing. **Do not run from a directory containing an older overlay.**
-2. Unzip this bundle anywhere. From the **repository root** run:
-   `python /path/to/fap-advanced-host-safe-phase1/patch/apply.py --dry-run`
-3. If no anchors fail, run the same command without `--dry-run`. Original files will be saved in a timestamped `.fap-host-phase1-backup-*` folder.
-4. Review `git diff`, run `npm ci`, `npm run typecheck`, `npm run qa:webapp`, and `npm run build` (plus other relevant regression tests). Keep this on a preview branch; do not route guests there.
-5. Apply `supabase/migrations/20261115170000_safe_host_feedback_phase1.sql` **to staging** first, then deploy the preview build. Use the project's normal migration process, never a blind production paste. SQL is additive and introduces only one new function.
-6. In staging, test a non-admin host cloning one draft, and verify: new status DRAFT, separate slug, unchanged source; zero copied photos, calendars, availability blocks, reservations or payment links. Test selected new amenities survive save/reload and treehouse persists.
-7. Only after these checks and a production backup, apply the additive migration to production **before** deploying the verified code; then merge/deploy. After release, run the same checks with test accounts. Existing properties should remain unchanged.
+1. Saved `Saturday (6)` as a blocked check-in **and** checkout day for Melissa Barnes' published Barn House Tree Loft. Creeks Edge Cabin was already configured; both were verified as `[6]` for arrival and departure restrictions.
+2. Inserted 20 new active amenity records. Existing selections and property data were not modified.
 
-## Scope boundary
+## Before deployment
 
-Not in Phase 1: weekday arrival/departure restrictions (requires enforcement in canonical booking holds and quote path), guest checkout tasks, deposits, rental signatures, full OwnerRez integration, bulk image copy. Those require their own schema + host UI + guest checkout guards + regression suite. Implementing them as decorative settings without server validation would be dangerous.
+- Back up/check the current repository revision and place these files at the exact corresponding paths, preserving the rest of the repository. `app/host/rates/page.tsx` gets a small layout wrapper for the extra-fee link; confirm it still looks clean on mobile.
+- Do not publish the proposed legal policy wording yet. `app/auth/actions.ts` still checks hardcoded policy version constants. The existing September hardcode does not match the current host agreement revision in production; that requires a paired follow-up code fix before changing more legal copy.
+- Verify Next build, typecheck, and a test account upload (new video, replace, delete; Android and iPhone), along with the no-Saturday booking quote behavior. Local TypeScript **syntax** checks passed, but a full application build and real host test were not available with the current disconnected Vercel production project.
+- No SQL migration is required for the included source overlay. The optional fee builder reuses the existing add-on DB schema. It does not add a generic mandatory fee and does not charge refundable deposits.
 
-## Rollback
+## Melissa's remaining requirements
 
-Restore four original files from `.fap-host-phase1-backup-*`, remove the new migration **from source only if it has not run** and redeploy. If the migration has run, it can remain safely: the new catalog entries/function do not affect existing booking logic, and no existing rows are rewritten. Do not delete a copied draft if it has already been edited by a host.
+- **Existing features:** checkout tasks are edited on the property dashboard and visible to confirmed guests under My Trip; holiday date-rate overrides and higher prices are already stored for both listings; `Treehouse` exists in property types; OwnerRez iCal sync on Barn House was healthy when checked.
+- **Not implemented in this overlay:** safe draft-listing duplication of amenities/rules without copying booking/calendar/payment data; separate refundable security deposit authorization/return logic; auditable e-signature acceptance for a rental agreement; expanded OwnerRez booking/rate/message API connection. None should be faked via optional add-ons or just text labels.
+- **Draft issue:** Creeks Edge remains a draft. It has photos and holiday overrides but no regular nightly rates or calendar connection; do not force-publish.
 
-## Regression tests to perform
+## Regression checklist
 
-- Host cannot clone a property from an organization they do not manage.
-- New listing remains DRAFT; source retains its status, slug, policy and price data.
-- Copying never creates reservations, availability blocks, calendar connections or photos.
-- Fresh listing cannot publish until normal required fields and Stripe checks pass.
-- New amenities survive save/reload; existing amenity labels remain unchanged.
-- Airbnb/Vrbo/ResNexus calendar sync, guest quote and Stripe checkout behave exactly as before.
-- Host rates: date override price calculated on the exact date with no change to historical reservations.
+- An existing property's photos, rates, booking rules, calendar connections, payments and status stay unchanged.
+- Upload of a 15.8 MiB / 56.77 sec MP4 to an existing video property replaces the correct video record rather than creating a second row; if storage or database write fails, report error without losing the old video.
+- Admin content editor requires explicit review + confirmation; role checks still happen on the server.
+- Optional fee is selected by guests only, and host is never allowed to pass a security deposit as an optional add-on through this UI.
+- Weekday rules block new Saturday arrivals/departures for both Melissa properties.
+- Extra amenity labels appear after code rollout, matching the existing database catalog exactly.

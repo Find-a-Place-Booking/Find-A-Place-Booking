@@ -3,10 +3,10 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
+    "dev": "node scripts/fap-prepare-build.cjs && next dev",
+    "build": "node scripts/fap-prepare-build.cjs && next build",
     "start": "next start",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "node scripts/fap-prepare-build.cjs && tsc --noEmit",
     "map:backfill": "node --env-file=.env.local scripts/backfill-map-locations.mjs",
     "qa:webapp": "node --test tests/mobile-security.test.cjs tests/webapp-regressions.test.cjs && node tests/webapp-ui.cjs && node tests/webapp-edge-ui.cjs",
     "qa:build": "node tests/run-build-fixture.cjs"

@@ -1,0 +1,10 @@
+diff --git a/app/host/rates/[slug]/page.tsx b/app/host/rates/[slug]/page.tsx
+--- a/app/host/rates/[slug]/page.tsx
++++ b/app/host/rates/[slug]/page.tsx
+@@ -109,5 +109,5 @@
+         <label><span>Guests included in nightly rate</span><input type="number" min="1" max={property.form.maxGuests || "100"} name="includedGuests" defaultValue={pricing.base.included_guests ?? ""} placeholder={property.form.maxGuests || "All guests"} /><small>Leave blank if there is no additional-guest fee.</small></label>
+         <label><span>Additional guest fee</span><div className="money-input"><i>$</i><input type="number" min="0" step="0.01" name="extraGuest" defaultValue={dollars(fee("EXTRA_GUEST"))} /></div><small>Per additional guest, per night.</small></label>
+-        <div className="pricing-form-actions"><div><strong>Commission basis</strong><span>Find A Place commission is based on the nightly lodging subtotal. Standard fees and optional add-ons stay separate.</span></div><button className="button" type="submit">Save base pricing</button></div>
++        <div className="pricing-form-actions"><div><strong>Guest service fee basis</strong><span>Eligible new bookings show a Find A Place service fee on discounted lodging, paid by the guest. Standard host fees and optional extras stay separate.</span></div><button className="button" type="submit">Save base pricing</button></div>
+       </form>
+     </section>

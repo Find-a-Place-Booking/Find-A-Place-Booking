@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { propertyPolicyReference } from "@/lib/policies/booking-policy";
 import { getCurrentPolicyVersions } from "@/lib/policies/current";
+import { rentalSignatureEnabled } from "@/lib/policies/rental-signature-toggle";
 import { guestCheckoutTokenMatches, guestFacingBookingError, sameOrigin } from "@/lib/payments/booking-runtime";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -9,11 +10,14 @@ export const runtime = "nodejs";
 export async function POST(request: NextRequest) {
   try {
     if (!sameOrigin(request)) return NextResponse.json({ error: "Invalid request origin." }, { status: 403 });
-    const body = (await request.json()) as { reservationId?: string; checkoutToken?: string };
+    const body = await request.json() as {
+      reservationId?: string; checkoutToken?: string;
+      typedSignatureName?: string; electronicSignatureConsent?: boolean;
+    };
     const reservationId = body.reservationId?.trim() || "";
     const checkoutToken = body.checkoutToken?.trim() || "";
-    if (!reservationId || !guestCheckoutTokenMatches(reservationId, checkoutToken)) return NextResponse.json({ error: "Booking access could not be verified." }, { status: 403 });
-
+    if (!reservationId || !guestCheckoutTokenMatches(reservationId, checkoutToken))
+      return NextResponse.json({ error: "Booking access could not be verified." }, { status: 403 });
     const admin = createAdminClient();
     const [{ data: reservation, error: reservationError }, { data: acceptance, error: acceptanceError }, currentVersions] = await Promise.all([
       admin.from("reservations").select("id,status,hold_expires_at,guest_email,policy_snapshot").eq("id", reservationId).maybeSingle(),
@@ -22,31 +26,51 @@ export async function POST(request: NextRequest) {
     ]);
     if (reservationError || !reservation) return NextResponse.json({ error: "Reservation not found." }, { status: 404 });
     if (acceptanceError) throw new Error(acceptanceError.message);
-    if (reservation.hold_expires_at && new Date(reservation.hold_expires_at).getTime() <= Date.now() && reservation.status !== "CONFIRMED") return NextResponse.json({ error: "This booking hold expired. Choose the dates again." }, { status: 409 });
-    if (!acceptance?.property_policy_opened_at || !acceptance?.platform_terms_opened_at) return NextResponse.json({ error: "Open the property policies and Find A Place terms before agreeing." }, { status: 409 });
-    if (acceptance.platform_terms_version !== currentVersions.guestTerms.version || acceptance.cancellation_policy_version !== currentVersions.cancellationPolicy.version) return NextResponse.json({ error: "The booking terms changed. Review the current terms before agreeing." }, { status: 409 });
+    if (reservation.hold_expires_at && new Date(reservation.hold_expires_at).getTime() <= Date.now() && reservation.status !== "CONFIRMED")
+      return NextResponse.json({ error: "This booking hold expired. Choose the dates again." }, { status: 409 });
+    if (!acceptance?.property_policy_opened_at || !acceptance?.platform_terms_opened_at)
+      return NextResponse.json({ error: "Open the property policies and Find A Place terms before agreeing." }, { status: 409 });
+    if (acceptance.platform_terms_version !== currentVersions.guestTerms.version || acceptance.cancellation_policy_version !== currentVersions.cancellationPolicy.version)
+      return NextResponse.json({ error: "The booking terms changed. Review the current terms before agreeing." }, { status: 409 });
 
-    const now = new Date().toISOString();
     const reference = propertyPolicyReference(reservation.policy_snapshot);
+    const signatureRequired = Boolean(rentalSignatureEnabled() && reference.id && reservation.status !== "CONFIRMED");
+    const typedName = String(body.typedSignatureName || "").trim().replace(/\s+/g, " ");
+    if (signatureRequired && (!body.electronicSignatureConsent || typedName.length < 3 || typedName.length > 120 || !/[a-zA-Z]/.test(typedName)))
+      return NextResponse.json({ error: "Type your full legal name and consent to an electronic signature of the property's agreement." }, { status: 400 });
+    const now = new Date().toISOString();
     const userAgent = request.headers.get("user-agent")?.slice(0, 500) || null;
-    const { error: updateError } = await admin.from("reservation_policy_acceptances").update({ accepted_at: now, accepted_guest_email: reservation.guest_email, property_policy_document_id: reference.id, property_policy_document_version: reference.version, user_agent: userAgent, updated_at: now }).eq("reservation_id", reservationId);
+    const { error: updateError } = await admin.from("reservation_policy_acceptances")
+      .update({
+        accepted_at: now,
+        accepted_guest_email: reservation.guest_email,
+        property_policy_document_id: reference.id,
+        property_policy_document_version: reference.version,
+        user_agent: userAgent,
+        ...(signatureRequired ? {
+          typed_signature_name: typedName,
+          typed_signature_at: now,
+          typed_signature_document_id: reference.id,
+          typed_signature_document_version: reference.version,
+          electronic_signature_consent: true,
+        } : {}),
+        updated_at: now,
+      }).eq("reservation_id", reservationId);
     if (updateError) throw new Error(updateError.message);
-
     await admin.from("reservation_events").insert({
-      reservation_id: reservationId,
-      event_type: "GUEST_POLICIES_ACCEPTED",
-      actor_profile_id: null,
+      reservation_id: reservationId, event_type: "GUEST_POLICIES_ACCEPTED", actor_profile_id: null,
       metadata: {
         platform_terms_version: currentVersions.guestTerms.version,
         cancellation_policy_version: currentVersions.cancellationPolicy.version,
         property_policy_document_id: reference.id,
         property_policy_document_version: reference.version,
+        electronic_signature: signatureRequired,
+        signed_at: signatureRequired ? now : null,
       },
     });
-
     return NextResponse.json({ accepted: true, acceptedAt: now });
   } catch (error) {
     console.error("[booking policy accept]", error);
-    return NextResponse.json({ error: guestFacingBookingError(error, "Unable to save your policy agreement. Refresh and try again.") }, { status: 500 });
+    return NextResponse.json({ error: guestFacingBookingError(error, "Unable to save your agreement. Refresh and try again.") }, { status: 500 });
   }
 }

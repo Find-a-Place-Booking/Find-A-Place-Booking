@@ -1,0 +1,18 @@
+diff --git a/app/hosts/page.tsx b/app/hosts/page.tsx
+--- a/app/hosts/page.tsx
++++ b/app/hosts/page.tsx
+@@ -38,6 +38,6 @@
+   },
+   "hosts.commission": {
+-    title: "Platform commission",
++    title: "Guest booking service fee",
+     body:
+-      "Commission is calculated from the nightly lodging subtotal after host discounts, not legitimate cleaning fees, pet fees, taxes, refundable deposits or optional add-ons.",
++      "Guests pay the disclosed service fee on the discounted lodging subtotal. Cleaning fees, pet fees, lodging taxes, refundable deposits and optional extras are excluded. Hosts keep control of their own Stripe account and processing fees.",
+   },
+@@ -147,4 +147,4 @@
+             <strong>
+               7%
+-              <span> standard host commission</span>
++              <span> standard guest service fee</span>
+             </strong>

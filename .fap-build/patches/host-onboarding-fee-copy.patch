@@ -1,0 +1,51 @@
+diff --git a/components/HostOnboardingWizard.tsx b/components/HostOnboardingWizard.tsx
+--- a/components/HostOnboardingWizard.tsx
++++ b/components/HostOnboardingWizard.tsx
+@@ -1052,11 +1052,11 @@
+             <div className="inline-note commission-note">
+               <strong>
+-                Find A Place commission is based on lodging only.
++                Find A Place guest service fees are based on lodging only.
+               </strong>
+               <span>
+-                The commission rate assigned to your account is
+-                applied to the nightly lodging subtotal after host
+-                discounts, not legitimate host fees, taxes or
+-                optional add-ons.
++                New eligible direct bookings show the guest service
++                fee on discounted nightly lodging at checkout, not
++                separately listed host fees, taxes or optional extras.
++                The host does not pay a second platform commission.
+               </span>
+             </div>
+@@ -1113,5 +1113,5 @@
+               listing can be published. Guests see and accept the
+               saved property policy before payment. Find A Place&apos;s
+-              platform commission is governed separately by the Host
+-              Agreement.
++              disclosed guest service fee and payment responsibilities
++              are governed by the current Host Agreement.
+             </p>
+@@ -1152,3 +1152,3 @@
+-                  placeholder="State exactly when and how much you refund guests. Find A Place's platform commission remains non-refundable."
++                  placeholder="State when and how much you refund guests. Platform service fee handling follows the accepted booking terms."
+                   required
+                 />
+@@ -1340,6 +1340,6 @@
+             <p>
+               Guest payments are direct charges on the host&apos;s
+-              connected Stripe account. Find A Place receives only its
+-              commission; booking proceeds and guest tax funds remain
+-              with the host account.
++              connected Stripe account. For new eligible bookings, guests
++              pay a separately disclosed Find A Place service fee;
++              booking proceeds and guest tax funds remain with the host.
+             </p>
+@@ -1484,5 +1484,5 @@
+                 </strong>
+                 <small>
+-                  The Host Agreement controls platform commission,
+-                  cancellations, refunds and account responsibilities.
++                  The Host Agreement covers the guest service fee,
++                  cancellations, refunds and account responsibilities.
+                 </small>

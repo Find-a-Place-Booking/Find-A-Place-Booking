@@ -1,0 +1,22 @@
+diff --git a/app/api/stripe/webhook/route.ts b/app/api/stripe/webhook/route.ts
+--- a/app/api/stripe/webhook/route.ts
++++ b/app/api/stripe/webhook/route.ts
+@@ -1,3 +1,4 @@
+ import {handleHostAppStripeEvent} from "@/lib/payments/host-app-events";
++import { processFapDepositStripeEvent } from "@/lib/payments/security-deposit-webhook";
+ import { createHash } from "node:crypto";
+ 
+@@ -204,6 +205,13 @@
+       return NextResponse.json({ received: true });
+     }
+ 
++    // Refundable deposits are independent direct charges, not lodging bookings.
++    // Handle their successes, refunds and disputes before the booking handlers.
++    if (await processFapDepositStripeEvent(event, admin, eventAccount)) {
++      await markProcessorEvent(admin, event.id, "PROCESSED");
++      return NextResponse.json({ received: true, deposit: true });
++    }
++
+     if (event.type === "payment_intent.succeeded") {
+       const intent = event.data.object as Stripe.PaymentIntent;
+       const reservationId = intent.metadata?.reservation_id;
