@@ -11,7 +11,7 @@ export default async function RatesPage() {
   const properties = await getHostPricingIndex();
   return <DashboardShell active="Rates & fees" title="Rates & fees">
     <div className="dash-toolbar pricing-toolbar">
-      <div><p>Set nightly rates, holiday pricing, minimum stays, promo codes, host fees and optional guest extras for each property.</p></div>
+      <div><p>Set nightly rates, holiday pricing, minimum stays, promo codes, host fees and separate optional guest extras for each property.</p></div>
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}><Link className="button button-small button-quiet" href="/host/integrations/ownerrez">OwnerRez sync</Link><Link className="button button-small button-quiet" href="/host/agreements">Guest agreements</Link><Link className="button button-small button-quiet" href="/host/security-deposits">Refundable deposits</Link><Link className="button button-small button-quiet" href="/host/properties">Properties</Link></div>
     </div>
 
@@ -27,7 +27,7 @@ export default async function RatesPage() {
           <div className="pricing-property-meta"><span><b>{property.rateRuleCount}</b> date rates</span><span><b>{property.stayRuleCount}</b> stay rules</span><span><b>{property.addOnCount}</b> add-ons</span><span><b>{property.promotionCount}</b> promo codes</span></div>
           <strong className="pricing-open">Manage →</strong>
         </Link>
-        <p style={{ margin: "6px 0 18px", display: "flex", justifyContent: "flex-end", gap: 8, flexWrap: "wrap" }}><Link className="button button-small button-quiet" href={`/host/rates/${property.slug}/security-deposit`}>Refundable deposit</Link><Link className="button button-small button-quiet" href={`/host/rates/${property.slug}/extra-fees`}>+ Add optional fee / extra</Link></p>
+        <p style={{ margin: "6px 0 18px", display: "flex", justifyContent: "flex-end", gap: 8, flexWrap: "wrap" }}><Link className="button button-small button-quiet" href={`/host/rates/${property.slug}/security-deposit`}>Refundable deposit</Link><Link className="button button-small button-quiet" href={`/host/rates/${property.slug}#custom-fees`}>+ Custom host fees</Link></p>
       </div>)}
     </div> : <section className="panel"><div className="panel-empty panel-empty-large"><strong>Add a property before setting rates.</strong><span>Rates, specials, promo codes, minimum stays, guest fees and optional extras are set for each property.</span><Link className="button button-small" href="/host/properties/new">Add property</Link></div></section>}
   </DashboardShell>;

@@ -27,3 +27,15 @@
 - [ ] Guest My Trip shows accurate deposit status; host sees guest signature and the original agreement PDF.
 
 **Only enable LIVE after all required test results pass.** Do not test charges on real guests or live cards.
+
+
+## Required standard custom fee regression checks
+
+1. On host Rates & fees, open a property and scroll just under **Normal nightly rate & standard fees**. Confirm the **Custom host fees** section is visible and host-authenticated only.
+2. Create a $25 **Linen fee**, once per stay. Check its name and $25 appear automatically in quote preview and on guest checkout **without a checkbox or optional selection**. Confirm the fee is excluded from Find A Place's lodging-based service-fee calculation.
+3. Change the same fee to $10 per night; a three-night stay must show $30. Confirm applicable lodging taxes use the property tax configuration.
+4. Create another fee with the amount blank; it must remain inactive and never appear in guest quotes. Activate with a price, then turn it off and verify the fee disappears from new checkout quotes.
+5. Test per-guest and per-pet fee modes. Changing the guest/pet count should adjust only the appropriate fees.
+6. Confirm an unrelated property's quote and an existing reservation remain unchanged. Confirm a host cannot edit another organization's custom fees.
+7. Remove a fee and verify it no longer appears in fresh quotes. Existing paid reservation snapshots must remain unchanged.
+8. Leave **optional guest extras** in their original guest-selected flow. Do not mistake mandatory custom fees for add-ons.

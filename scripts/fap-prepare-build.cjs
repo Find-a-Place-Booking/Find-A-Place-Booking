@@ -13,6 +13,7 @@ const patches = [
   'hosts-guest-fee-copy.patch',
   'host-onboarding-fee-copy.patch',
   'host-rates-fee-copy.patch',
+  'host-custom-fees.patch',
   'stripe-webhook-deposit-integration.patch',
 ];
 function applyExistingSourceUpdates() {

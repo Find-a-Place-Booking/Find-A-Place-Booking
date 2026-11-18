@@ -5,7 +5,7 @@
 ## One-time steps
 
 1. **Extract the ZIP at the ROOT of the existing repository**. Merge directories and replace same-named files. **Do not delete or replace entire directories.** In particular, leave your existing `public/webapps/icons/guest-192.png`, `guest-512.png`, `host-192.png`, and `host-512.png` in place: they contain the *real Find A Place branding*. The ZIP intentionally does **not** include substitute artwork for these originals.
-2. Commit/push the merged files as usual. Vercel's existing `npm run build` will run `scripts/fap-prepare-build.cjs` automatically and then `next build`. This automatically folds the four source integrations into the checkout and host pages and generates the **same original Find A Place PWA icon** in green for guests and rust-orange for hosts. No manual patch commands or SQL Editor steps are required for the connected production database.
+2. Commit/push the merged files as usual. Vercel's existing `npm run build` will run `scripts/fap-prepare-build.cjs` automatically and then `next build`. This automatically folds the five source integrations into the checkout and host pages and generates the **same original Find A Place PWA icon** in green for guests and rust-orange for hosts. No manual patch commands or SQL Editor steps are required for the connected production database.
 3. Deploy normally and watch Vercel build status. If the source differs from the inspected production branch, the integration will stop with a useful error rather than forcing any patches. Don't promote a failing build.
 4. Once deployed, test the existing guest checkout, host signup, property editing, iCal, and video uploader first. Follow `tests/AFTER_PUSH_QA.md` for the rest. Mobile devices may cache installed PWA icons; reinstall the guest/host web app if its old icon persists.
 
@@ -16,6 +16,7 @@ The following *additive* changes were applied to the connected Find A Place prod
 - Per-property refundable security deposit settings/ledger/disclosures (all deposit policies disabled by default, no deposit records created).
 - Guest typed-signature evidence columns, with requirements disabled by default.
 - Twenty new amenity catalog entries, previously added.
+- **Custom mandatory host fee schema and quote calculation**, added and tested in production: fees are included automatically in host price quotes, guest checkout, and configured tax calculations. A temporary $20/night fee was tested and rolled back; no customer fee was created.
 
 The SQL in `sql/` is retained **only for reference or other environments**. **Do not run it again in production.** Current host tax, booking totals, payouts, calendars, and prior reservations were not modified by this preparation.
 
@@ -33,7 +34,8 @@ The SQL in `sql/` is retained **only for reference or other environments**. **Do
 - Better host video save/replace, mobile feedback and retry behavior.
 - Admin copy drafts and review/confirm/publish pages.
 - Guest-paid fee copy updates on signup, host onboarding, pricing, and public Hosts page.
-- Host optional-extra fee builder with inactive drafts for unspecified prices.
+- **Custom required host fees inside Normal nightly rates & fees:** hosts can name fees, set an amount per stay/night/guest/pet, mark appropriate tax treatment, activate or save an inactive draft, edit and remove fees. Active fees are automatically included in price breakdown and checkout, not offered as optional add-ons.
+- Existing optional add-on functionality is retained in its original advanced section; the new standalone optional fee builder has been removed from this overlay.
 - 20 additional amenities in the property editor.
 - Deposit setup, separate guest payment page and host refund pages, controlled by the feature flag above.
 - PDF-linked typed rental signatures and evidence page, controlled by the feature flag above.
@@ -42,8 +44,8 @@ The SQL in `sql/` is retained **only for reference or other environments**. **Do
 
 ## Verification and limits
 
-- 34 TS/TSX overlay files passed TypeScript syntax checks.
-- The automatic source integrations were run twice on matching source fixtures, including repeat/idempotence checks.
+- 35 TS/TSX overlay files passed TypeScript syntax checks.
+- The five automatic source integration anchors were checked, including the new custom-fee section; the original four were run twice on matching source fixtures, including repeat/idempotence checks.
 - Recoloring was tested at 192×192 and 512×512 on PNG inputs.
-- Supabase tables and draft entries were verified after migration.
+- Supabase tables and draft entries were verified after migration. The custom fee quote and guest checkout estimate were tested inside rolled-back transactions: $40 mandatory fee + $3.40 configured tax and $0 change to lodging commission basis.
 - **A complete Next.js production build against your full source and live Stripe payment/refund testing are not verified here.** Deployment is intentionally fail-fast rather than claiming tests that have not been run.
