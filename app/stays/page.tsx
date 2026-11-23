@@ -1,4 +1,6 @@
 import type { Metadata } from "next";
+import Link from "next/link";
+import { DESTINATIONS } from "@/lib/seo/destinations";
 
 import { Footer } from "@/components/Footer";
 import { Header } from "@/components/Header";
@@ -8,6 +10,7 @@ import { normalizeSearchRadiusMiles, searchPublishedStaysNearby } from "@/lib/pu
 import { BUFFALO_RIVER_MAX_DISTANCE_MILES, isBuffaloRiverSearch } from "@/lib/public/buffalo-river-discovery";
 import { getPublishedProperties } from "@/lib/public/listings";
 import { isCampingOrRv } from "@/lib/public/stay-type-order";
+import { partnerFirst } from "@/lib/public/partner-priority";
 import { copyBlock, loadManagedCopy } from "@/lib/public/managed-copy";
 
 export const metadata: Metadata = {
@@ -73,16 +76,23 @@ export default async function StaysPage({
   const radius = normalizeSearchRadiusMiles(params.radius);
 
   const [allProperties, content] = await Promise.all([
-    getPublishedProperties({ checkIn: checkin, checkOut: checkout }),
+    // Preserve homepage featured-priority bands and their weekly rotation;
+    // below we also sort by actual partner verification, which covers verified
+    // listings deliberately omitted from homepage featured inventory.
+    getPublishedProperties({ checkIn: checkin, checkOut: checkout, featuredPriority: true }),
     loadManagedCopy(defaults),
   ]);
 
   const search = await searchPublishedStaysNearby(allProperties, where, radius);
-  const properties = search.properties
-    .filter((property) => property.sleeps >= guestCount)
-    .sort((a, b) =>
-      Number(isCampingOrRv(a.type, a.name)) - Number(isCampingOrRv(b.type, b.name)),
-    );
+  // Always keep verified partners before standard properties, including
+  // after the cabin/RV presentation preference and location filters.
+  const properties = partnerFirst(
+    search.properties
+      .filter((property) => property.sleeps >= guestCount)
+      .sort((a, b) =>
+        Number(isCampingOrRv(a.type, a.name)) - Number(isCampingOrRv(b.type, b.name)),
+      ),
+  );
 
   const summary = copyBlock(content, "stays.summary");
   // Old Under $150 links still open the new Budget Friendly collection.
@@ -150,6 +160,13 @@ export default async function StaysPage({
             </div>
           </div>
         </section>
+
+        <nav className="shell" aria-label="Explore places to stay by destination" style={{padding:"12px 0 22px"}}>
+          <strong style={{display:"block",fontSize:"0.9rem",marginBottom:10}}>Browse stays near popular Arkansas destinations</strong>
+          <div style={{display:"flex",flexWrap:"wrap",gap:"8px 19px"}}>
+            {DESTINATIONS.map(area => <Link key={area.slug} href={`/destinations/${area.slug}`} style={{fontSize:"0.86rem",textDecoration:"underline",textUnderlineOffset:3}}>{area.name}</Link>)}
+          </div>
+        </nav>
 
         <StayResults
           properties={properties}

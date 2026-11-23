@@ -55,10 +55,10 @@ export default async function HostSignUpPage({
         <section className="panel" aria-label="How Find A Place fees work" style={{ padding: 16, display: "grid", gap: 8 }}>
           <strong>How booking fees work</strong>
           <p className="muted" style={{ margin: 0 }}>
-            For standard new direct bookings, the guest sees a 7% Find A Place service fee on the discounted lodging subtotal before payment. Verified partners may qualify for a separate rate, which is shown at checkout. The fee does not apply to cleaning charges, pet fees, separately listed extras or lodging taxes. You do not pay a second Find A Place platform commission on guest-paid-fee bookings.
+            For new direct bookings, the guest sees a 7% Find A Place service fee on the discounted lodging subtotal before payment. This is the current standard for both verified partners and other hosts. The fee does not apply to cleaning charges, pet fees, separately listed extras or lodging taxes. You do not pay a second Find A Place platform commission on guest-paid-fee bookings.
           </p>
           <p className="muted" style={{ margin: 0 }}>
-            Your connected Stripe account receives guest booking charges. Stripe processing charges and your property's lodging tax responsibilities remain yours. Older reservations keep their original fee and payment terms.
+            Your connected Stripe account receives guest booking charges. Stripe processing charges and your property&apos;s lodging tax responsibilities remain yours. Older reservations keep their original fee and payment terms.
           </p>
         </section>
 

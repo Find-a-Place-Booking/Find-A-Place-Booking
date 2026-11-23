@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-
 import { createClient } from "@/lib/supabase/server";
+import { getVerifiedPartnerSlugs } from "@/lib/public/partner-priority";
 
 export const dynamic = "force-dynamic";
 
@@ -24,13 +24,16 @@ export async function GET(request: NextRequest) {
   const query = (request.nextUrl.searchParams.get("q") || "")
     .trim()
     .slice(0, 80);
-
-  if (query.length < 2) {
-    return NextResponse.json({ matches: [] });
-  }
+  if (query.length < 2) return NextResponse.json({ matches: [] });
 
   const supabase = await createClient();
-  const { data, error } = await supabase.rpc("public_listing_index");
+  const [{ data, error }, verified] = await Promise.all([
+    supabase.rpc("public_listing_index"),
+    getVerifiedPartnerSlugs().catch((failure) => {
+      console.error("[property-name-search] partner verification unavailable", failure);
+      return null;
+    }),
+  ]);
 
   if (error) {
     console.error("[property-name-search] public listing lookup failed", {
@@ -42,10 +45,13 @@ export async function GET(request: NextRequest) {
 
   const needle = query.toLocaleLowerCase();
   const rows = (data ?? []) as PublicStayRow[];
-
   const matches = rows
     .filter((row) => row.name?.toLocaleLowerCase().includes(needle))
     .sort((a, b) => {
+      // Verified partner status wins first, even for name autocomplete.
+      const aPartner = verified?.has(a.slug) ? 1 : 0;
+      const bPartner = verified?.has(b.slug) ? 1 : 0;
+      if (aPartner !== bPartner) return bPartner - aPartner;
       const aName = a.name.toLocaleLowerCase();
       const bName = b.name.toLocaleLowerCase();
       const aStarts = aName.startsWith(needle) ? 0 : 1;
@@ -61,11 +67,6 @@ export async function GET(request: NextRequest) {
 
   return NextResponse.json(
     { matches },
-    {
-      headers: {
-        "Cache-Control":
-          "public, max-age=0, s-maxage=60, stale-while-revalidate=300",
-      },
-    },
+    { headers: { "Cache-Control": "public, max-age=0, s-maxage=60, stale-while-revalidate=300" } },
   );
 }

@@ -13,6 +13,7 @@ import {
   saveStayRule,
 } from "@/app/host/rates/actions";
 import { DashboardShell } from "@/components/DashboardShell";
+import { HostCustomFeeManager } from "@/components/HostCustomFeeManager";
 import { calculationLabel, getHostQuotePreview, getPricingWorkspaceBySlug, money, promotionValueLabel } from "@/lib/host/pricing";
 import petStyles from "./pet-fee-modes.module.css";
 import { createClient } from "@/lib/supabase/server";
@@ -56,7 +57,7 @@ export default async function PropertyRatesPage({
   searchParams,
 }: {
   params: Promise<{ slug: string }>;
-  searchParams: Promise<{ result?: string; detail?: string; preview?: string; checkIn?: string; checkOut?: string; guests?: string; pets?: string; addOn?: string | string[]; promoCode?: string }>;
+  searchParams: Promise<{ result?: string; detail?: string; custom_fee?: string; preview?: string; checkIn?: string; checkOut?: string; guests?: string; pets?: string; addOn?: string | string[]; promoCode?: string }>;
 }) {
   const [{ slug }, query] = await Promise.all([params, searchParams]);
   const { property, pricing } = await getPricingWorkspaceBySlug(slug);
@@ -96,6 +97,9 @@ export default async function PropertyRatesPage({
 
     {success ? <div className="admin-message success">{success}</div> : null}
     {query.result === "error" ? <div className="admin-message error">{query.detail || "Pricing could not be saved."}</div> : null}
+    {query.custom_fee === "saved" ? <div className="admin-message success">Custom fee saved for future bookings.</div> : null}
+    {query.custom_fee === "deleted" ? <div className="admin-message success">Custom fee removed for future bookings.</div> : null}
+    {query.custom_fee === "invalid" || query.custom_fee === "error" ? <div className="admin-message error">Custom fee could not be saved. Check the name, amount and fee type, then try again.</div> : null}
 
     <section className="panel pricing-base-panel">
       <div className="panel-head"><div><p className="eyebrow dark">Base pricing</p><h2>Normal nightly rate & standard fees</h2></div><span className="pricing-currency">{pricing.base.currency || "USD"}</span></div>
@@ -112,6 +116,8 @@ export default async function PropertyRatesPage({
         <div className="pricing-form-actions"><div><strong>Commission basis</strong><span>Find A Place commission is based on the nightly lodging subtotal. Standard fees and optional add-ons stay separate.</span></div><button className="button" type="submit">Save base pricing</button></div>
       </form>
     </section>
+
+    <HostCustomFeeManager unitId={property.unitId} />
 
     <section className="panel pricing-rule-section">
       <div className="panel-head"><div><p className="eyebrow dark">Advanced booking rules</p><h2>Allowed arrival and departure days</h2></div></div>

@@ -24,7 +24,7 @@ const FALLBACK_EFFECTIVE_AT = "2026-09-19T00:00:00-05:00";
 
 const fallback: CurrentPolicyVersions = {
   guestTerms: { version: GUEST_TERMS_VERSION, effectiveAt: FALLBACK_EFFECTIVE_AT },
-  hostAgreement: { version: HOST_AGREEMENT_VERSION, effectiveAt: FALLBACK_EFFECTIVE_AT },
+  hostAgreement: { version: HOST_AGREEMENT_VERSION, effectiveAt: "2026-11-06T03:49:33.810Z" },
   cancellationPolicy: { version: CANCELLATION_POLICY_VERSION, effectiveAt: FALLBACK_EFFECTIVE_AT },
   privacyNotice: { version: PRIVACY_NOTICE_VERSION, effectiveAt: FALLBACK_EFFECTIVE_AT },
 };

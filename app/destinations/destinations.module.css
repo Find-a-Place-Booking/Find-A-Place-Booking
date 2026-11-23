@@ -1,0 +1,25 @@
+.page{padding-top:clamp(25px,5vw,62px);padding-bottom:75px;color:#31473a}
+.page h1{font-family:Georgia,serif;font-weight:650;line-height:1.13;color:#243d2f;font-size:clamp(2rem,4vw,3.35rem);max-width:900px;margin:10px 0 18px}
+.page h2{font-family:Georgia,serif;color:#294a36;line-height:1.23}
+.intro{max-width:850px;font-size:1.04rem;line-height:1.75;color:#54665b;margin:12px 0 30px}
+.destinations{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));gap:16px;margin:25px 0}
+.destination{border:1px solid #e1dfd5;background:#fffcf7;border-radius:12px;padding:22px;box-shadow:0 3px 12px rgba(29,51,36,.035)}
+.destination h2{font-size:1.32rem;margin:0 0 12px}
+.destination h2 a{text-decoration:none;color:inherit}
+.destination p{color:#5b6b61;line-height:1.6;min-height:94px}
+.destination>a,.sectionHead>a,.moreLinks a,.empty a,.tips>a{color:#226348;text-underline-offset:3px;font-weight:650}
+.crumbs{display:flex;gap:9px;align-items:center;flex-wrap:wrap;margin-bottom:25px;color:#6c756e;font-size:.88rem}
+.crumbs a{color:#376d52}
+.tips{background:#f4f6ee;border-radius:14px;padding:23px 27px;margin:30px 0 36px;border:1px solid #dfe6d8;max-width:960px}
+.tips h2{font-size:1.45rem;margin:0 0 14px}
+.tips ul{margin:0 0 14px;padding-left:22px;color:#4c6053;line-height:1.9;columns:2}
+.sectionHead{display:flex;align-items:end;justify-content:space-between;gap:20px;flex-wrap:wrap;margin:32px 0 22px}
+.sectionHead h2{margin:0 0 6px;font-size:1.75rem}
+.sectionHead p{color:#627168;line-height:1.5;font-size:.94rem;max-width:750px;margin:0}
+.stays{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,275px),1fr));gap:20px;align-items:stretch}
+.empty{background:#fffcf7;border:1px solid #e5e5de;border-radius:12px;padding:25px}
+.more{border-top:1px solid #e5e5de;margin-top:42px;padding-top:27px}
+.more h2{font-size:1.4rem}
+.moreLinks{display:flex;flex-wrap:wrap;gap:12px 22px}
+.disclaimer{color:#66756c;font-size:.82rem;line-height:1.6;margin-top:32px}
+@media(max-width:580px){.tips{padding:19px}.tips ul{columns:1}.destination p{min-height:0}.sectionHead h2{font-size:1.55rem}.stays{grid-template-columns:1fr}}

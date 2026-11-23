@@ -81,7 +81,8 @@ export function Footer() {
           <div>
             <strong>Explore</strong>
             <Link href="/stays">Find a stay</Link>
-            <a href="/#regions">Destinations</a>
+            <Link href="/destinations">Destinations</Link>
+            <Link href="/experiences">Nearby experiences</Link>
             <TrackedLink
               href="https://www.naturalstatetourismproject.org"
               target="_blank"
