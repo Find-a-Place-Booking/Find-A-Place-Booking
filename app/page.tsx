@@ -13,6 +13,8 @@ import { SearchBar } from "@/components/SearchBar";
 import { destinations } from "@/data/catalog";
 import { getPublishedMapStays, getPublishedProperties } from "@/lib/public/listings";
 import { selectLaunchPartnerCabins } from "@/lib/public/featured-launch-cabins";
+import { isCampingOrRv } from "@/lib/public/stay-type-order";
+import { annotateAndSortPartnerFirst } from "@/lib/public/partner-priority";
 import { getSiteContentBlocks } from "@/lib/public/site-content";
 
 export const metadata: Metadata = {
@@ -144,6 +146,12 @@ export default async function HomePage() {
   const primaryStays = launchCabins.slice(0, 8);
   const moreStays = launchCabins.slice(8, 14);
 
+  // Separate offer collection preserves the existing partner-only featured grids.
+  // The same live eligibility used by checkout/card badges removes exhausted offers.
+  const discountedStays = await annotateAndSortPartnerFirst(published.filter((stay) =>
+    Number(stay.introOfferRemaining || 0) > 0 && !isCampingOrRv(stay.type, stay.name),
+  ));
+
   return (
     <>
       <div className="home-hero">
@@ -269,6 +277,26 @@ export default async function HomePage() {
             ))}
           </div>
         </section>
+
+        {discountedStays.length > 0 ? (
+          <section className="marketplace-section marketplace-band" id="25-off-stays" aria-labelledby="intro-offer-heading">
+            <div className="shell">
+              <div className="section-heading marketplace-heading">
+                <div>
+                  <p className="eyebrow dark">Limited introductory offers</p>
+                  <h2 id="intro-offer-heading">Save 25% on your next getaway.</h2>
+                  <p>Selected stays offer 25% off lodging for their first eligible bookings. Limited redemptions; dates and availability apply.</p>
+                </div>
+                <Link className="under-link" href="/stays" prefetch={false}>Browse all stays →</Link>
+              </div>
+              <div className="home-property-grid">
+                {discountedStays.map((property) => (
+                  <PropertyCard key={property.slug} property={property} surface="home_intro_offers" />
+                ))}
+              </div>
+            </div>
+          </section>
+        ) : null}
 
         <section className="marketplace-section marketplace-band">
           <div className="shell">

@@ -112,11 +112,25 @@ function tintLogo(original, palette) {
   }
   return encodePng({width:original.width,height:original.height,rgba:out});
 }
+// Existing original art has a dark background and light logo. Invert its tonal
+// relationship for a white host tile with a dark forest-green logo; keep alpha
+// edges antialiased by compositing on white. Guest icon logic remains unchanged.
+function tintWhiteHostLogo(original) {
+  const out=Buffer.from(original.rgba);
+  const ink=[20,54,42];
+  for(let i=0;i<out.length;i+=4) {
+    const light=(0.2126*out[i]+0.7152*out[i+1]+0.0722*out[i+2])/255;
+    const x=Math.max(0,Math.min(1,(light-0.20)/0.80));
+    const t=x*x*(3-2*x)*(out[i+3]/255);
+    for(let k=0;k<3;k++) out[i+k]=Math.round(255*(1-t)+ink[k]*t);
+    out[i+3]=255;
+  }
+  return encodePng({width:original.width,height:original.height,rgba:out});
+}
 function prepareOriginalBrandIcons() {
   const icons=path.join(root,'public','webapps','icons');
   const originals=path.join(root,'public','brand','fap-app-icon-sources');
   fs.mkdirSync(originals,{recursive:true});
-  const colors={guest:[20,79,54],host:[171,63,28]};
   for (const size of [192,512]) {
     const original=path.join(originals,`find-a-place-${size}.png`);
     if(!fs.existsSync(original)) {
@@ -126,14 +140,13 @@ function prepareOriginalBrandIcons() {
     }
     const logo=decodePng(fs.readFileSync(original));
     if(logo.width!==size||logo.height!==size) throw new Error(`Original Find A Place ${size}px icon has wrong dimensions.`);
-    for (const [variant,color] of Object.entries(colors)) {
-      fs.writeFileSync(path.join(icons,`${variant}-${size}.png`),tintLogo(logo,color));
-    }
+    fs.writeFileSync(path.join(icons,`guest-${size}.png`),tintLogo(logo,[20,79,54]));
+    fs.writeFileSync(path.join(icons,`host-${size}.png`),tintWhiteHostLogo(logo));
   }
-  console.log('[FAP overlay] Existing Find A Place icon preserved, guest/host accent colors generated.');
+  console.log('[FAP overlay] Existing Find A Place icon preserved; green guest and white host icons generated.');
 }
 if (require.main === module) {
   applyExistingSourceUpdates();
   prepareOriginalBrandIcons();
 }
-module.exports={decodePng,encodePng,tintLogo,prepareOriginalBrandIcons};
+module.exports={decodePng,encodePng,tintLogo,tintWhiteHostLogo,prepareOriginalBrandIcons};

@@ -10,7 +10,7 @@ import { normalizeSearchRadiusMiles, searchPublishedStaysNearby } from "@/lib/pu
 import { BUFFALO_RIVER_MAX_DISTANCE_MILES, isBuffaloRiverSearch } from "@/lib/public/buffalo-river-discovery";
 import { getPublishedProperties } from "@/lib/public/listings";
 import { isCampingOrRv } from "@/lib/public/stay-type-order";
-import { partnerFirst } from "@/lib/public/partner-priority";
+import { annotateAndSortPartnerFirst } from "@/lib/public/partner-priority";
 import { copyBlock, loadManagedCopy } from "@/lib/public/managed-copy";
 
 export const metadata: Metadata = {
@@ -84,14 +84,16 @@ export default async function StaysPage({
   ]);
 
   const search = await searchPublishedStaysNearby(allProperties, where, radius);
-  // Always keep verified partners before standard properties, including
-  // after the cabin/RV presentation preference and location filters.
-  const properties = partnerFirst(
+  // Put live introductory offers first in recommended results. Preserve
+  // partner and cabin/RV ordering inside each group and all search filters.
+  const properties = (await annotateAndSortPartnerFirst(
     search.properties
       .filter((property) => property.sleeps >= guestCount)
       .sort((a, b) =>
         Number(isCampingOrRv(a.type, a.name)) - Number(isCampingOrRv(b.type, b.name)),
       ),
+  )).sort((a, b) =>
+    Number(Number(b.introOfferRemaining || 0) > 0) - Number(Number(a.introOfferRemaining || 0) > 0),
   );
 
   const summary = copyBlock(content, "stays.summary");
