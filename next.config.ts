@@ -1,7 +1,20 @@
 import type { NextConfig } from "next";
+import { createHash, randomUUID } from "node:crypto";
+
+// A public, opaque identifier baked into both client and server bundles.
+// A new Vercel deployment gets a new identifier, even for a redeployed commit.
+const deploymentIdentity = process.env.VERCEL_DEPLOYMENT_ID || process.env.VERCEL_URL;
+const webAppRelease = process.env.NODE_ENV === "development"
+  ? "local-development"
+  : deploymentIdentity
+    ? createHash("sha256").update(deploymentIdentity).digest("hex").slice(0, 32)
+    : randomUUID();
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
+  env: {
+    NEXT_PUBLIC_FAP_WEBAPP_RELEASE: webAppRelease,
+  },
   images: {
     remotePatterns: [
       {
